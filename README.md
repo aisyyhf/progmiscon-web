@@ -1,8 +1,8 @@
 # Progmiscon Web
 
-Progmiscon is a frontend web app prototype for exploring pseudocode questions, introductory programming concepts, and misconceptions that commonly appear in anonymous student answer variations.
+Progmiscon is a frontend web application prototype for exploring pseudocode questions, introductory programming concepts, and misconceptions that commonly appear in anonymous student answer variations.
 
-This project is developed as part of an internship / Kerja Praktik (KP) project. The current focus is on frontend development, UI/UX design, dummy data structure, and misconception-centered user flow.
+The current focus is frontend development, UI/UX design, dummy data structure, and misconception-centered user flow.
 
 ## Project Purpose
 
@@ -79,3 +79,64 @@ src/
   types/
   utils/
   styles/
+````
+
+Brief explanation:
+
+* `src/app` contains the main application setup.
+* `src/pages` contains main pages such as Home, Material, Concepts, Misconceptions, and Review.
+* `src/components` contains reusable UI components.
+* `src/data` contains temporary mock data.
+* `src/hooks` contains custom hooks for managing data and state.
+* `src/services` contains the repository layer for accessing data.
+* `src/types` contains TypeScript type definitions.
+* `src/styles` contains global styling.
+
+## Running the Project
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the development server:
+
+```bash
+npm run dev
+```
+
+Build the project:
+
+```bash
+npm run build
+```
+
+Preview the production build:
+
+```bash
+npm run preview
+```
+
+## Current Status
+
+This project is currently a frontend prototype using dummy data.
+
+The following parts are not implemented yet:
+
+* real backend integration
+* real authentication
+* final dataset integration
+* final answer tree visualization
+* production-ready lecturer review workflow
+
+## Development Notes
+
+Planned improvements include:
+
+* aligning dummy data with the real misconception dataset
+* improving the mapping between answers, concepts, and misconceptions
+* integrating the final answer tree visualization
+* refining the lecturer Review workflow
+* preparing backend API integration
+* improving UI/UX based on supervisor and client feedback
