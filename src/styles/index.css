@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --color-brand: #990000;
+  --color-brand-soft: #f8e7e7;
+  --color-navy: #1e293b;
+  --color-navy-deep: #0f172a;
+  --color-gold: #990000;
+  --color-gold-soft: #f8e7e7;
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-border: #e2e8f0;
+  --color-muted: #64748b;
+  --color-correct: #2f7a52;
+  --color-correct-bg: #e7f3ec;
+  --color-incorrect: #b3413a;
+  --color-incorrect-bg: #f8ebea;
+}
+
+html {
+  font-family: var(--font-sans);
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-navy-deep);
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a,
+button,
+input,
+select {
+  transition-duration: 150ms;
+  transition-timing-function: ease-out;
+}
+
+.font-serif-brand {
+  font-family: var(--font-sans);
+}
+
+/* thin scrollbar for drawer / lists */
+.thin-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 999px;
+}
