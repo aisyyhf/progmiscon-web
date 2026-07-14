@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useLanguage } from "../hooks/useLanguage";
 import { useCategories } from "../hooks/useCategories";
-import { useAssessments } from "../hooks/useAssessments";
 import { useQuestionsByCategory } from "../hooks/useQuestions";
 import { t, uiText } from "../utils/translation";
 import { MaterialBrowser } from "../components/browser/MaterialBrowser";
@@ -12,7 +11,6 @@ export function MateriPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { categories } = useCategories();
-  const { assessments } = useAssessments();
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(
     searchParams.get("category") ?? undefined,
@@ -45,7 +43,6 @@ export function MateriPage() {
         selectedCategoryId={selectedCategoryId}
         onSelectCategory={handleSelectCategory}
         questions={questions}
-        assessments={assessments}
         onSelectQuestion={(questionId) => navigate(`/question/${questionId}`)}
       />
     </div>

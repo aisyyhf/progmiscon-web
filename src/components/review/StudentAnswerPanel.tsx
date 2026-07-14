@@ -1,14 +1,11 @@
-import type { Concept, Question, Student, StudentAnswer } from "../../types";
+import type { Question, Student, StudentAnswer } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useMisconceptionsByIds } from "../../hooks/useMisconceptions";
 import { t, uiText } from "../../utils/translation";
-import { findConceptByText } from "../../utils/concepts";
 import { answerStatusLabel } from "../../utils/status";
 import { Chip } from "../common/Chip";
-import { ConceptChip } from "../concept/ConceptChip";
 import { StatusPill } from "../common/StatusPill";
 import { MisconceptionChip } from "../misconception/MisconceptionChip";
-import { AnswerChecksMatrix } from "./AnswerChecksMatrix";
 import { StudentNavigator } from "./StudentNavigator";
 import { EmptyState } from "../common/EmptyState";
 
@@ -19,8 +16,6 @@ export function StudentAnswerPanel({
   onSelectStudent,
   studentIds,
   answer,
-  concepts,
-  onSelectConcept,
   onSelectMisconception,
 }: {
   question: Question;
@@ -29,8 +24,6 @@ export function StudentAnswerPanel({
   onSelectStudent: (studentId: string) => void;
   studentIds: string[];
   answer: StudentAnswer | undefined;
-  concepts: Concept[];
-  onSelectConcept: (conceptId: string) => void;
   onSelectMisconception: (misconceptionId: string) => void;
 }) {
   const { language } = useLanguage();
@@ -69,11 +62,11 @@ export function StudentAnswerPanel({
             </div>
 
             <div>
-              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
-                {question.type === "multiple_choice"
-                  ? t(uiText.selectedOptionLabel, language)
-                  : t(uiText.studentAnswerLabel, language)}
-              </p>
+              {question.type === "multiple_choice" && (
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
+                  {t(uiText.selectedOptionLabel, language)}
+                </p>
+              )}
               {question.type === "multiple_choice" && selectedOption ? (
                 <p className="text-sm text-navy-deep">
                   <span className="font-medium">{selectedOption.label}.</span>{" "}
@@ -86,33 +79,6 @@ export function StudentAnswerPanel({
               )}
             </div>
 
-            <div>
-              <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-                {language === "id" ? "Pemeriksaan Jawaban" : "Answer Checks"}
-              </p>
-              <AnswerChecksMatrix checks={answer.checks} />
-            </div>
-
-            {answer.masteredConcepts.length > 0 && (
-              <div>
-                <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-                  {t(uiText.masteredConcepts, language)}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {answer.masteredConcepts.map((concept) => {
-                    const resolvedConcept = findConceptByText(concepts, concept);
-                    return (
-                      <ConceptChip
-                        key={resolvedConcept?.id ?? t(concept, language)}
-                        label={t(concept, language)}
-                        onClick={() => onSelectConcept(resolvedConcept?.id ?? question.categoryId)}
-                      />
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
             {answer.incorrectElements.length > 0 && (
               <div>
                 <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
@@ -120,7 +86,7 @@ export function StudentAnswerPanel({
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {answer.incorrectElements.map((element, index) => (
-                    <Chip key={index} className="border-incorrect/30 bg-incorrect-bg text-incorrect">
+                    <Chip key={index} className="border-incorrect-border bg-incorrect-bg text-incorrect">
                       {t(element, language)}
                     </Chip>
                   ))}

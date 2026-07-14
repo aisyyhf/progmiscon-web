@@ -1,4 +1,4 @@
-import type { Assessment, Category, Concept, Question } from "../../types";
+import type { Concept, Question } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useMisconceptionsByIds } from "../../hooks/useMisconceptions";
 import { t, uiText } from "../../utils/translation";
@@ -10,37 +10,62 @@ import { MisconceptionChip } from "../misconception/MisconceptionChip";
 
 export function QuestionPanel({
   question,
-  assessment,
-  category,
   concepts,
   onSelectConcept,
   onSelectMisconception,
+  relatedQuestionIndex,
+  relatedQuestionTotal,
+  onPreviousQuestion,
+  onNextQuestion,
 }: {
   question: Question;
-  assessment: Assessment | undefined;
-  category: Category | undefined;
   concepts: Concept[];
   onSelectConcept: (conceptId: string) => void;
   onSelectMisconception: (misconceptionId: string) => void;
+  relatedQuestionIndex?: number;
+  relatedQuestionTotal?: number;
+  onPreviousQuestion: () => void;
+  onNextQuestion: () => void;
 }) {
   const { language } = useLanguage();
   const { misconceptions } = useMisconceptionsByIds(question.questionMisconceptionIds);
   const reference = getQuestionReference(question);
 
-  const typeLabel =
-    question.type === "short_answer"
-      ? t(uiText.filterShortAnswer, language)
-      : t(uiText.filterMultipleChoice, language);
-
   return (
     <div className="rounded-lg border border-border bg-white p-6">
-      <p className="text-xs font-medium uppercase tracking-wide text-muted">
-        {[assessment ? t(assessment.title, language) : "", question.number, category ? t(category.name, language) : "", typeLabel]
-          .filter(Boolean)
-          .join(" · ")}
-      </p>
+      {relatedQuestionIndex !== undefined && relatedQuestionTotal !== undefined && relatedQuestionIndex >= 0 && (
+        <div className="mb-5 flex items-center justify-between gap-4 border-b border-border pb-4">
+          <p className="text-xs font-medium text-muted">
+            {language === "id"
+              ? `Soal terkait ${relatedQuestionIndex + 1} dari ${relatedQuestionTotal}`
+              : `Related question ${relatedQuestionIndex + 1} of ${relatedQuestionTotal}`}
+          </p>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={onPreviousQuestion}
+              disabled={relatedQuestionIndex === 0}
+              aria-label={language === "id" ? "Soal sebelumnya" : "Previous question"}
+              title={language === "id" ? "Soal sebelumnya" : "Previous question"}
+              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border bg-white text-sm text-muted transition-colors hover:border-brand/30 hover:bg-brand-soft/40 hover:text-brand disabled:cursor-not-allowed disabled:bg-bg disabled:text-muted/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <span aria-hidden="true">&larr;</span>
+            </button>
+            <button
+              type="button"
+              onClick={onNextQuestion}
+              disabled={relatedQuestionIndex === relatedQuestionTotal - 1}
+              aria-label={language === "id" ? "Soal berikutnya" : "Next question"}
+              title={language === "id" ? "Soal berikutnya" : "Next question"}
+              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border bg-white text-sm text-muted transition-colors hover:border-brand/30 hover:bg-brand-soft/40 hover:text-brand disabled:cursor-not-allowed disabled:bg-bg disabled:text-muted/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <span aria-hidden="true">&rarr;</span>
+            </button>
+          </div>
+        </div>
+      )}
 
-      <p className="mt-3 whitespace-pre-wrap font-serif-brand text-lg leading-relaxed text-navy-deep">
+      <p className="whitespace-pre-wrap font-serif-brand text-lg leading-relaxed text-navy-deep">
         {t(question.prompt, language)}
       </p>
 
@@ -53,7 +78,7 @@ export function QuestionPanel({
                 key={option.id}
                 className={cn(
                   "rounded-md border px-4 py-2.5 text-sm",
-                  option.isCorrect ? "border-correct/40 bg-correct-bg/40" : "border-border bg-white",
+                  option.isCorrect ? "border-correct-border bg-correct-bg/55" : "border-border bg-white",
                 )}
               >
                 <div className="flex items-start gap-2">
@@ -76,34 +101,14 @@ export function QuestionPanel({
         </ul>
       )}
 
-      {(reference.pseudocode || reference.checkedElements.length > 0) && (
+      {reference.pseudocode && (
         <div className="mt-6 border-t border-border pt-5">
-          {reference.pseudocode && (
-            <div>
-              <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-                {t(uiText.referencePseudocode, language)}
-              </p>
-              <pre className="whitespace-pre-wrap rounded-md border border-border bg-bg px-3 py-2 font-mono text-xs leading-5 text-navy-deep">
-                {reference.pseudocode}
-              </pre>
-            </div>
-          )}
-
-          {reference.checkedElements.length > 0 && (
-            <div className={reference.pseudocode ? "mt-4" : ""}>
-              <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-                {t(uiText.checkedElements, language)}
-              </p>
-              <ul className="space-y-1.5">
-                {reference.checkedElements.map((element, index) => (
-                  <li key={`${t(element, language)}-${index}`} className="flex items-start gap-2 text-sm text-navy-deep">
-                    <span aria-hidden="true" className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-                    <span>{t(element, language)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
+          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
+            {t(uiText.referencePseudocode, language)}
+          </p>
+          <pre className="whitespace-pre-wrap rounded-md border border-border bg-bg px-3 py-2 font-mono text-xs leading-5 text-navy-deep">
+            {reference.pseudocode}
+          </pre>
         </div>
       )}
 
@@ -129,7 +134,7 @@ export function QuestionPanel({
 
       <div className="mt-6 border-t border-border pt-5">
         <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-          {t(uiText.questionMisconceptions, language)}
+          {language === "id" ? "Miskonsepsi yang Mungkin Muncul" : "Possible Misconceptions"}
         </p>
         {misconceptions.length === 0 ? (
           <p className="text-sm text-muted">{t(uiText.emptyMisconceptions, language)}</p>

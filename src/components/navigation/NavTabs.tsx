@@ -17,7 +17,7 @@ export function NavTabs() {
   const visibleLinks = isLecturer ? [...links, { to: "/review", label: uiText.navReview }] : links;
 
   return (
-    <nav className="flex items-center gap-5 md:gap-8">
+    <nav className="flex w-max min-w-full items-center justify-center gap-4 whitespace-nowrap sm:gap-5 lg:gap-8">
       {visibleLinks.map((link) => (
         <NavLink
           key={link.to}

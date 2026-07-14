@@ -32,8 +32,8 @@ export function verificationResultLabel(result: VerificationResult, language: La
   return t(map[result], language);
 }
 
-export function verificationResultTone(result: VerificationResult): "correct" | "incorrect" | "muted" {
+export function verificationResultTone(result: VerificationResult): "correct" | "incorrect" | "warning" | "muted" {
   if (result === "confirmed") return "correct";
   if (result === "not_confirmed") return "incorrect";
-  return "muted";
+  return "warning";
 }

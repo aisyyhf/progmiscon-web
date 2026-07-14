@@ -9,6 +9,7 @@ import { KonsepPage } from "../pages/KonsepPage";
 import { MiskonsepsiPage } from "../pages/MiskonsepsiPage";
 import { QuestionReviewPage } from "../pages/QuestionReviewPage";
 import { LecturerLoginPage } from "../pages/LecturerLoginPage";
+import { LecturerSignupPage } from "../pages/LecturerSignupPage";
 import { LecturerReviewPage } from "../pages/LecturerReviewPage";
 
 function LecturerOnly({ children }: { children: ReactNode }) {
@@ -36,6 +37,7 @@ export default function App() {
               <Route path="/miskonsepsi" element={<MiskonsepsiPage />} />
               <Route path="/miskonsepsi/:misconceptionId" element={<MiskonsepsiPage />} />
               <Route path="/dosen/login" element={<LecturerLoginPage />} />
+              <Route path="/dosen/daftar" element={<LecturerSignupPage />} />
               <Route path="/pustaka" element={<Navigate to="/konsep" replace />} />
               <Route path="/review/:questionId" element={<LegacyQuestionRedirect />} />
               <Route path="/question/:questionId" element={<QuestionReviewPage />} />

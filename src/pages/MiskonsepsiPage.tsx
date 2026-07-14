@@ -134,7 +134,7 @@ function MiskonsepsiDetailPage({
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={language === "id" ? "Cari miskonsepsi..." : "Search misconceptions..."}
-            className="mt-3 w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-navy-deep placeholder:text-muted/70 focus:border-navy focus:bg-white focus:outline-none focus:ring-2 focus:ring-gold/30"
+            className="mt-3 w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-navy-deep placeholder:text-muted/70 focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20"
           />
           <div className="thin-scroll mt-4 max-h-[60vh] overflow-y-auto pr-1">
             {filteredMisconceptions.length === 0 ? (
@@ -151,8 +151,8 @@ function MiskonsepsiDetailPage({
                     className={cn(
                       "block border-l-2 border-y border-r px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
                       selected
-                        ? "border-border border-l-gold bg-bg text-navy-deep"
-                        : "border-transparent text-muted hover:border-l-navy/40 hover:bg-bg/70 hover:text-navy-deep",
+                        ? "border-border border-l-brand bg-brand-soft/45 text-navy-deep"
+                        : "border-transparent text-muted hover:border-l-navy/40 hover:bg-bg hover:text-navy-deep",
                     )}
                   >
                     <span className="line-clamp-2 font-medium">{t(item.title, language)}</span>
@@ -250,17 +250,18 @@ function MiskonsepsiDetailPage({
 
             <section className="pt-5">
               <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-                {language === "id" ? "Variasi Jawaban Terkait" : "Related Answer Cases"}
+                {language === "id" ? "Variasi Jawaban Terkait" : "Related Answer Variations"}
               </p>
               {relatedAnswerCases.length === 0 ? (
                 <p className="text-sm text-muted">
-                  {language === "id" ? "Belum ada variasi jawaban terkait." : "No related answer cases yet."}
+                  {language === "id" ? "Belum ada variasi jawaban terkait." : "No related answer variations yet."}
                 </p>
               ) : (
                 <ul className="divide-y divide-border rounded-md border border-border">
                   {relatedAnswerCases.slice(0, 6).map((answer) => {
                     const question = allQuestions.find((item) => item.id === answer.questionId);
-                    const caseIndex = answers.filter((item) => item.questionId === answer.questionId).findIndex((item) => item.id === answer.id);
+                    const questionAnswers = answers.filter((item) => item.questionId === answer.questionId);
+                    const caseIndex = questionAnswers.findIndex((item) => item.id === answer.id);
                     return (
                       <li key={answer.id}>
                         <button
@@ -269,7 +270,7 @@ function MiskonsepsiDetailPage({
                           className="w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
                         >
                           <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                            {answerCaseLabel(caseIndex, language)}
+                            {answerCaseLabel(caseIndex, questionAnswers.length, language)}
                           </p>
                           <p className="mt-1 line-clamp-2 text-sm leading-6 text-navy-deep">
                             {question ? t(question.prompt, language) : answer.questionId}

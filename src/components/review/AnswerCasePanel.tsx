@@ -1,16 +1,10 @@
-import type { Concept, Question, StudentAnswer } from "../../types";
+import type { Question, StudentAnswer } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useMisconceptionsByIds } from "../../hooks/useMisconceptions";
 import { t, uiText } from "../../utils/translation";
-import { findConceptByText } from "../../utils/concepts";
-import { answerStatusLabel } from "../../utils/status";
-import { cn } from "../../utils/cn";
-import { Chip } from "../common/Chip";
-import { ConceptChip } from "../concept/ConceptChip";
-import { StatusPill } from "../common/StatusPill";
 import { MisconceptionChip } from "../misconception/MisconceptionChip";
-import { AnswerChecksMatrix } from "./AnswerChecksMatrix";
 import { AnswerCaseNavigator, answerCaseLabel } from "./AnswerCaseNavigator";
+import { AnswerStatusBar } from "./AnswerStatusBar";
 import { AnswerVisualization } from "./AnswerVisualization";
 
 export function AnswerCasePanel({
@@ -21,8 +15,6 @@ export function AnswerCasePanel({
   filterMisconceptionId,
   onFilterMisconception,
   availableMisconceptionIds,
-  concepts,
-  onSelectConcept,
   onSelectMisconception,
 }: {
   question: Question;
@@ -32,8 +24,6 @@ export function AnswerCasePanel({
   filterMisconceptionId: string | undefined;
   onFilterMisconception: (misconceptionId: string | undefined) => void;
   availableMisconceptionIds: string[];
-  concepts: Concept[];
-  onSelectConcept: (conceptId: string) => void;
   onSelectMisconception: (misconceptionId: string) => void;
 }) {
   const { language } = useLanguage();
@@ -53,143 +43,93 @@ export function AnswerCasePanel({
 
   return (
     <div className="rounded-lg border border-border bg-white p-6">
-      <div className="border-b border-border pb-5">
-        <p className="mb-3 text-[11px] font-medium uppercase tracking-wide text-muted">
-          {language === "id" ? "Berdasarkan Miskonsepsi" : "By Misconception"}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => onFilterMisconception(undefined)}
-            aria-pressed={!filterMisconceptionId}
-            className={cn(
-              "cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-              !filterMisconceptionId
-                ? "border-brand bg-brand text-white"
-                : "border-border bg-white text-muted hover:border-brand/50 hover:text-navy-deep",
-            )}
+      <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="w-full sm:max-w-xs">
+          <label htmlFor="answer-misconception-filter" className="block text-[11px] font-medium text-muted">
+            {filterMisconceptionId
+              ? language === "id"
+                ? "Miskonsepsi aktif"
+                : "Active misconception"
+              : language === "id"
+                ? "Filter miskonsepsi"
+                : "Misconception filter"}
+          </label>
+          <select
+            id="answer-misconception-filter"
+            value={filterMisconceptionId ?? ""}
+            onChange={(event) => onFilterMisconception(event.target.value || undefined)}
+            className="mt-1 h-9 w-full cursor-pointer rounded-md border border-border bg-bg px-2.5 text-sm text-navy-deep transition-colors hover:border-navy/35 hover:bg-white focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20"
           >
-            {language === "id" ? "Semua Jawaban" : "All Answers"}
-          </button>
-          {filterMisconceptions.map((misconception) => (
-            <button
-              key={misconception.id}
-              type="button"
-              onClick={() => onFilterMisconception(misconception.id)}
-              aria-pressed={filterMisconceptionId === misconception.id}
-              className={cn(
-                "cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-                filterMisconceptionId === misconception.id
-                  ? "border-brand bg-brand text-white"
-                  : "border-border bg-white text-muted hover:border-brand/50 hover:text-navy-deep",
-              )}
-            >
-              {t(misconception.title, language)}
-            </button>
-          ))}
+            <option value="">{language === "id" ? "Semua jawaban" : "All answers"}</option>
+            {filterMisconceptions.map((misconception) => (
+              <option key={misconception.id} value={misconception.id}>
+                {t(misconception.title, language)}
+              </option>
+            ))}
+          </select>
         </div>
+        {answers.length > 0 && answer && (
+          <AnswerCaseNavigator
+            caseIds={answers.map((item) => item.id)}
+            selectedCaseId={selectedAnswerId}
+            onSelectCase={onSelectAnswer}
+          />
+        )}
       </div>
 
       {answers.length === 0 || !answer ? (
         <div className="pt-5 text-sm text-muted">
           {language === "id"
-            ? "Tidak ada variasi jawaban dengan miskonsepsi ini."
-            : "No answer variations match this misconception."}
+            ? "Belum ada variasi jawaban yang dipetakan ke miskonsepsi ini pada soal tersebut."
+            : "No answer variations have been mapped to this misconception for this question."}
         </div>
       ) : (
-        <div className="space-y-6 pt-5">
-          <AnswerCaseNavigator
-            caseIds={answers.map((item) => item.id)}
-            selectedCaseId={selectedAnswerId}
-            onSelectCase={onSelectAnswer}
-            getCaseIndex={getCaseIndex}
-          />
-
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium text-navy-deep">
-              {answerCaseLabel(getCaseIndex(answer.id), language)}
-            </p>
-            <StatusPill tone={answer.status === "correct" ? "correct" : "incorrect"} label={answerStatusLabel(answer.status, language)} />
-          </div>
+        <div className="space-y-6 pt-4">
+          <p className="text-sm font-medium text-navy-deep">
+            {answerCaseLabel(getCaseIndex(answer.id), answers.length, language)}
+          </p>
 
           <div>
-            <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
-              {question.type === "multiple_choice"
-                ? t(uiText.selectedOptionLabel, language)
-                : t(uiText.anonymousAnswerLabel, language)}
-            </p>
-            {question.type === "multiple_choice" && selectedOption ? (
-              <div>
-                <p className="text-sm text-navy-deep">
-                  <span className="font-medium">{selectedOption.label}.</span>{" "}
-                  {t(selectedOption.text, language)}
-                </p>
-                {selectedOptionMisconception && (
-                  <p className="mt-2 text-xs text-muted">
-                    {language === "id" ? "Opsi ini memicu" : "This option triggers"}{" "}
-                    <button
-                      type="button"
-                      onClick={() => onSelectMisconception(selectedOptionMisconception.id)}
-                      className="cursor-pointer font-medium text-brand underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
-                    >
-                      {t(selectedOptionMisconception.title, language)}
-                    </button>
-                    .
-                  </p>
+            {question.type === "multiple_choice" && (
+              <p className="mb-1 text-[11px] font-medium uppercase tracking-wide text-muted">
+                {t(uiText.selectedOptionLabel, language)}
+              </p>
+            )}
+            <div className="overflow-hidden rounded-md border border-border">
+              <div className="bg-bg p-4">
+                {question.type === "multiple_choice" && selectedOption ? (
+                  <div>
+                    <p className="text-sm text-navy-deep">
+                      <span className="font-medium">{selectedOption.label}.</span>{" "}
+                      {t(selectedOption.text, language)}
+                    </p>
+                    {selectedOptionMisconception && (
+                      <p className="mt-2 text-xs text-muted">
+                        {language === "id" ? "Opsi ini memicu" : "This option triggers"}{" "}
+                        <button
+                          type="button"
+                          onClick={() => onSelectMisconception(selectedOptionMisconception.id)}
+                          className="cursor-pointer font-medium text-brand underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                        >
+                          {t(selectedOptionMisconception.title, language)}
+                        </button>
+                        .
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <pre className="whitespace-pre-wrap font-mono text-xs text-navy-deep">
+                    {answer.answerText}
+                  </pre>
                 )}
               </div>
-            ) : (
-              <pre className="whitespace-pre-wrap rounded-md bg-bg px-3 py-2 font-mono text-xs text-navy-deep">
-                {answer.answerText}
-              </pre>
-            )}
-          </div>
-
-          <div>
-            <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-              {language === "id" ? "Pemeriksaan Jawaban" : "Answer Checks"}
-            </p>
-            <AnswerChecksMatrix checks={answer.checks} />
-          </div>
-
-          {answer.masteredConcepts.length > 0 && (
-            <div>
-              <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-                {t(uiText.masteredConcepts, language)}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {answer.masteredConcepts.map((concept) => {
-                  const resolvedConcept = findConceptByText(concepts, concept);
-                  return (
-                    <ConceptChip
-                      key={resolvedConcept?.id ?? t(concept, language)}
-                      label={t(concept, language)}
-                      onClick={() => onSelectConcept(resolvedConcept?.id ?? question.categoryId)}
-                    />
-                  );
-                })}
-              </div>
+              <AnswerStatusBar status={answer.status} />
             </div>
-          )}
-
-          {answer.incorrectElements.length > 0 && (
-            <div>
-              <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-                {t(uiText.incorrectElements, language)}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {answer.incorrectElements.map((element, index) => (
-                  <Chip key={index} className="border-incorrect/30 bg-incorrect-bg text-incorrect">
-                    {t(element, language)}
-                  </Chip>
-                ))}
-              </div>
-            </div>
-          )}
+          </div>
 
           <div className="border-t border-border pt-5">
             <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-              {language === "id" ? "Miskonsepsi pada Variasi Jawaban" : "Misconceptions in This Answer Variation"}
+              {language === "id" ? "Miskonsepsi pada Jawaban" : "Misconceptions in This Answer"}
             </p>
             {misconceptions.length === 0 ? (
               <p className="text-sm text-muted">
@@ -212,16 +152,29 @@ export function AnswerCasePanel({
                     />
                   ))}
                 </div>
-                <p className="text-sm leading-6 text-muted">
-                  {language === "id"
-                    ? "Variasi jawaban ini menunjukkan pola yang cocok dengan miskonsepsi tersebut."
-                    : "This answer variation shows a pattern that matches the mapped misconception."}
-                </p>
+                {answer.incorrectElements.length > 0 ? (
+                  <div className="border-l-2 border-border pl-3">
+                    <p className="text-xs font-medium text-navy-deep">
+                      {language === "id" ? "Alasan" : "Reason"}
+                    </p>
+                    <ul className="mt-1 space-y-1 text-sm leading-6 text-muted">
+                      {answer.incorrectElements.map((element, index) => (
+                        <li key={index}>{t(element, language)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-sm leading-6 text-muted">
+                    {language === "id"
+                      ? "Jawaban ini menunjukkan pola yang cocok dengan miskonsepsi tersebut."
+                      : "This answer shows a pattern that matches the mapped misconception."}
+                  </p>
+                )}
               </div>
             )}
           </div>
 
-          <AnswerVisualization />
+          <AnswerVisualization key={answer.id} />
         </div>
       )}
     </div>

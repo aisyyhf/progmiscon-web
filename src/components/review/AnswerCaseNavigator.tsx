@@ -1,21 +1,18 @@
 import { useLanguage } from "../../hooks/useLanguage";
 import { t, uiText } from "../../utils/translation";
 
-export function answerCaseLabel(index: number, language: "id" | "en") {
-  const number = String(index + 1).padStart(2, "0");
-  return language === "id" ? `Case ${number}` : `Case ${number}`;
+export function answerCaseLabel(index: number, total: number, language: "id" | "en") {
+  return language === "id" ? `Jawaban ${index + 1} dari ${total}` : `Answer ${index + 1} of ${total}`;
 }
 
 export function AnswerCaseNavigator({
   caseIds,
   selectedCaseId,
   onSelectCase,
-  getCaseIndex,
 }: {
   caseIds: string[];
   selectedCaseId: string;
   onSelectCase: (caseId: string) => void;
-  getCaseIndex: (caseId: string) => number;
 }) {
   const { language } = useLanguage();
   const indexInFiltered = caseIds.indexOf(selectedCaseId);
@@ -23,43 +20,40 @@ export function AnswerCaseNavigator({
   const nextId = indexInFiltered >= 0 && indexInFiltered < caseIds.length - 1 ? caseIds[indexInFiltered + 1] : undefined;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <nav
+      aria-label={language === "id" ? "Navigasi variasi jawaban" : "Answer variation navigation"}
+      className="inline-flex shrink-0 items-center gap-1"
+    >
       <button
         type="button"
         onClick={() => previousId && onSelectCase(previousId)}
         disabled={!previousId}
-        className="cursor-pointer rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-navy-deep transition hover:-translate-y-px hover:border-navy/50 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold active:translate-y-0"
+        className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-border bg-white text-sm text-muted transition-colors hover:border-brand/30 hover:bg-brand-soft/40 hover:text-brand disabled:cursor-not-allowed disabled:bg-bg disabled:text-muted/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         aria-label={t(uiText.previous, language)}
+        title={t(uiText.previous, language)}
       >
-        {t(uiText.previous, language)}
+        <span aria-hidden="true">&larr;</span>
+        <span className="sr-only">{t(uiText.previous, language)}</span>
       </button>
 
-      <select
-        aria-label={t(uiText.selectAnswerCase, language)}
-        value={selectedCaseId}
-        onChange={(event) => onSelectCase(event.target.value)}
-        className="cursor-pointer rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-navy-deep transition hover:border-navy/50 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+      <span
+        className="inline-flex min-w-12 items-center justify-center px-1 text-xs tabular-nums text-muted"
+        aria-live="polite"
       >
-        {caseIds.map((id) => (
-          <option key={id} value={id}>
-            {answerCaseLabel(getCaseIndex(id), language)}
-          </option>
-        ))}
-      </select>
+        {indexInFiltered + 1} / {caseIds.length}
+      </span>
 
       <button
         type="button"
         onClick={() => nextId && onSelectCase(nextId)}
         disabled={!nextId}
-        className="cursor-pointer rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-navy-deep transition hover:-translate-y-px hover:border-navy/50 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold active:translate-y-0"
+        className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-border bg-white text-sm text-muted transition-colors hover:border-brand/30 hover:bg-brand-soft/40 hover:text-brand disabled:cursor-not-allowed disabled:bg-bg disabled:text-muted/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         aria-label={t(uiText.next, language)}
+        title={t(uiText.next, language)}
       >
-        {t(uiText.next, language)}
+        <span aria-hidden="true">&rarr;</span>
+        <span className="sr-only">{t(uiText.next, language)}</span>
       </button>
-
-      <span className="text-sm text-muted sm:ml-auto">
-        {indexInFiltered + 1} / {caseIds.length}
-      </span>
-    </div>
+    </nav>
   );
 }

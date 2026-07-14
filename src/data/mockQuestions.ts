@@ -1,4 +1,11 @@
 import type { Question } from "../types";
+import { mockCategories } from "./mockCategories";
+
+function concept(categoryId: string) {
+  const category = mockCategories.find((item) => item.id === categoryId);
+  if (!category) throw new Error(`Unknown concept category: ${categoryId}`);
+  return category.name;
+}
 
 export const mockQuestions: Question[] = [
   {
@@ -12,8 +19,8 @@ export const mockQuestions: Question[] = [
       en: "Swap the values of A and B.",
     },
     expectedConcepts: [
-      { id: "Variabel sementara", en: "Temporary variable" },
-      { id: "Eksekusi sekuensial", en: "Sequential execution" },
+      concept("cat-var"),
+      concept("cat-trace"),
     ],
     questionMisconceptionIds: ["mc-swap-no-temp"],
   },
@@ -28,10 +35,8 @@ export const mockQuestions: Question[] = [
       en: "Print numbers from 1 to 5.",
     },
     expectedConcepts: [
-      { id: "Inisialisasi", en: "Initialization" },
-      { id: "Struktur perulangan", en: "Loop structure" },
-      { id: "Increment", en: "Increment" },
-      { id: "Output di dalam perulangan", en: "Output inside loop" },
+      concept("cat-loop"),
+      concept("cat-io"),
     ],
     questionMisconceptionIds: ["mc-loop-boundary"],
   },
@@ -46,8 +51,8 @@ export const mockQuestions: Question[] = [
       en: "Which pseudocode correctly checks whether a number is even or odd?",
     },
     expectedConcepts: [
-      { id: "Operator modulo", en: "Modulo operator" },
-      { id: "Percabangan IF-ELSE", en: "IF-ELSE branching" },
+      concept("cat-ifelse"),
+      concept("cat-operator"),
     ],
     questionMisconceptionIds: ["mc-condition-reversed", "mc-ifelse-missing-else"],
     options: [
@@ -102,9 +107,9 @@ export const mockQuestions: Question[] = [
       en: "Find the maximum value in an array of 5 numbers.",
     },
     expectedConcepts: [
-      { id: "Indeks array berbasis 0", en: "Zero-based array indexing" },
-      { id: "Nilai maksimum sementara", en: "Temporary maximum value" },
-      { id: "Traversal elemen array", en: "Array element traversal" },
+      concept("cat-array"),
+      concept("cat-loop"),
+      concept("cat-var"),
     ],
     questionMisconceptionIds: ["mc-offbyone-array"],
   },
@@ -119,9 +124,8 @@ export const mockQuestions: Question[] = [
       en: "Select the correct boolean expression for 'x is between 1 and 10 inclusive'.",
     },
     expectedConcepts: [
-      { id: "Operator AND", en: "AND operator" },
-      { id: "Batas bawah dan atas", en: "Lower and upper bounds" },
-      { id: "Rentang inklusif", en: "Inclusive range" },
+      concept("cat-bool"),
+      concept("cat-operator"),
     ],
     questionMisconceptionIds: ["mc-and-or-confusion", "mc-condition-reversed"],
     options: [
@@ -164,9 +168,7 @@ export const mockQuestions: Question[] = [
       en: "Write a function to calculate the square of a number and return the result.",
     },
     expectedConcepts: [
-      { id: "Parameter fungsi", en: "Function parameter" },
-      { id: "Nilai kembali", en: "Return value" },
-      { id: "Pernyataan RETURN", en: "RETURN statement" },
+      concept("cat-func"),
     ],
     questionMisconceptionIds: ["mc-function-no-return"],
   },
@@ -181,9 +183,8 @@ export const mockQuestions: Question[] = [
       en: "Read two numbers from input and print their sum.",
     },
     expectedConcepts: [
-      { id: "Pernyataan READ", en: "READ statement" },
-      { id: "Urutan input dan output", en: "Input and output order" },
-      { id: "Operasi penjumlahan", en: "Addition operation" },
+      concept("cat-io"),
+      concept("cat-operator"),
     ],
     questionMisconceptionIds: ["mc-io-order"],
   },
@@ -198,9 +199,9 @@ export const mockQuestions: Question[] = [
       en: "Trace the following pseudocode and select the final value of X.\n\nX ← 0\nFOR i ← 1 TO 4 DO\n  X ← X + i\nEND FOR",
     },
     expectedConcepts: [
-      { id: "Tabel penelusuran", en: "Trace table" },
-      { id: "Update nilai variabel", en: "Variable value update" },
-      { id: "Akumulasi nilai", en: "Value accumulation" },
+      concept("cat-trace"),
+      concept("cat-loop"),
+      concept("cat-var"),
     ],
     questionMisconceptionIds: ["mc-trace-state-loss", "mc-loop-boundary"],
     options: [
@@ -243,9 +244,9 @@ export const mockQuestions: Question[] = [
       en: "Print all even numbers from 1 to 10.",
     },
     expectedConcepts: [
-      { id: "Nilai awal perulangan", en: "Loop initial value" },
-      { id: "Increment dua langkah", en: "Step-by-two increment" },
-      { id: "Batas perulangan", en: "Loop boundary" },
+      concept("cat-loop"),
+      concept("cat-operator"),
+      concept("cat-io"),
     ],
     questionMisconceptionIds: ["mc-loop-boundary", "mc-missing-increment"],
   },
@@ -260,8 +261,8 @@ export const mockQuestions: Question[] = [
       en: "Which loop correctly prints numbers 1 to N?",
     },
     expectedConcepts: [
-      { id: "Inisialisasi variabel pengendali", en: "Control variable initialization" },
-      { id: "Kondisi perulangan FOR", en: "FOR loop condition" },
+      concept("cat-loop"),
+      concept("cat-io"),
     ],
     questionMisconceptionIds: ["mc-wrong-init", "mc-loop-boundary"],
     options: [
@@ -304,9 +305,9 @@ export const mockQuestions: Question[] = [
       en: "Determine whether three given side lengths can form a valid triangle.",
     },
     expectedConcepts: [
-      { id: "Ketaksamaan segitiga", en: "Triangle inequality" },
-      { id: "Kondisi gabungan", en: "Combined conditions" },
-      { id: "Kondisi alternatif", en: "Alternative condition handling" },
+      concept("cat-ifelse"),
+      concept("cat-bool"),
+      concept("cat-operator"),
     ],
     questionMisconceptionIds: ["mc-ifelse-missing-else", "mc-condition-reversed"],
   },
@@ -321,8 +322,8 @@ export const mockQuestions: Question[] = [
       en: "Store the sum of variables A and B in a third variable C.",
     },
     expectedConcepts: [
-      { id: "Operator penjumlahan", en: "Addition operator" },
-      { id: "Menyimpan hasil ke variabel", en: "Store result in variable" },
+      concept("cat-var"),
+      concept("cat-operator"),
     ],
     questionMisconceptionIds: [],
   },

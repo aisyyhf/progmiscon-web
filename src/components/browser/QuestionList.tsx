@@ -49,7 +49,7 @@ function FilterGroup<T extends string>({
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
             value === option.value
               ? "border-navy bg-navy text-white"
-              : "border-border bg-white text-muted hover:text-navy-deep",
+              : "border-border bg-white text-muted hover:border-navy/35 hover:bg-bg hover:text-navy-deep",
           )}
         >
           {t(option.label, language)}

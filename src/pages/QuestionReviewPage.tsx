@@ -4,5 +4,5 @@ import { QuestionReview } from "../components/review/QuestionReview";
 export function QuestionReviewPage() {
   const { questionId } = useParams<{ questionId: string }>();
   if (!questionId) return null;
-  return <QuestionReview questionId={questionId} />;
+  return <QuestionReview key={questionId} questionId={questionId} />;
 }

@@ -92,7 +92,7 @@ export function KonsepPage() {
                 >
                   <span
                     aria-hidden="true"
-                    className="mt-2 h-2 w-2 shrink-0 rounded-full border border-gold bg-gold-soft"
+                    className="mt-2 h-2 w-2 shrink-0 rounded-full border border-brand/40 bg-brand-soft"
                   />
                   <span className="min-w-0 flex-1">
                     <span className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-3">
@@ -185,7 +185,7 @@ export function KonsepPage() {
                 >
                   <span
                     aria-hidden="true"
-                    className="mt-2 h-2 w-2 shrink-0 rounded-sm border border-navy/30 bg-white"
+                    className="mt-2 h-2 w-2 shrink-0 rounded-sm border border-brand/35 bg-brand-soft"
                   />
                   <div>
                     <h3 className="text-sm font-semibold text-navy-deep underline-offset-4 group-hover:text-navy group-hover:underline">

@@ -1,4 +1,4 @@
-import type { ReviewTask } from "../types";
+import type { Misconception, ReviewTask } from "../types";
 
 export type PriorityStatus = "conflict" | "unreviewed" | "one_reviewer" | "stable";
 
@@ -26,5 +26,20 @@ export function sortReviewTasks(tasks: ReviewTask[]): ReviewTask[] {
     const priority = rank[getPriorityStatus(a)] - rank[getPriorityStatus(b)];
     if (priority !== 0) return priority;
     return a.reviewerDecisions.length - b.reviewerDecisions.length;
+  });
+}
+
+export function prioritizeMisconceptions(
+  misconceptions: Misconception[],
+  priorityIds: string[],
+): Misconception[] {
+  const byId = new Map(misconceptions.map((item) => [item.id, item]));
+  const seen = new Set<string>();
+
+  return priorityIds.flatMap((id) => {
+    const item = byId.get(id);
+    if (!item || seen.has(id)) return [];
+    seen.add(id);
+    return [item];
   });
 }

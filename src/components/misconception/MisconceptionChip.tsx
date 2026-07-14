@@ -15,15 +15,15 @@ export function MisconceptionChip({
 }) {
   const toneClasses: Record<MisconceptionChipTone, { idle: string; selected: string }> = {
     question: {
-      idle: "border-gold/70 bg-gold-soft/35 text-navy-deep hover:border-gold hover:bg-gold-soft/70",
-      selected: "border-gold bg-gold-soft text-navy-deep",
+      idle: "border-brand/25 bg-brand-soft/45 text-navy-deep hover:border-brand/55 hover:bg-brand-soft",
+      selected: "border-brand bg-brand-soft text-brand",
     },
     student: {
-      idle: "border-incorrect/35 bg-incorrect-bg/60 text-incorrect hover:border-incorrect/70 hover:bg-incorrect-bg",
-      selected: "border-incorrect bg-incorrect-bg text-incorrect",
+      idle: "border-incorrect-border bg-incorrect-bg/70 text-incorrect hover:border-incorrect-border hover:bg-incorrect-bg",
+      selected: "border-incorrect-border bg-incorrect-bg text-incorrect",
     },
     related: {
-      idle: "border-navy/20 bg-bg text-navy-deep hover:border-navy/45 hover:bg-white",
+      idle: "border-navy/20 bg-white text-navy-deep hover:border-navy/45 hover:bg-bg",
       selected: "border-navy bg-navy text-white",
     },
   };

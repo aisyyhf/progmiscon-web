@@ -6,7 +6,10 @@ export const mockReviewTasks: ReviewTask[] = [
     questionId: "q-evenloop",
     answerCaseId: "ans-q-evenloop-stu-07",
     suggestedMisconceptionId: "mc-loop-boundary",
-    explanation: "The answer excludes 10 and also misses the loop increment, so reviewers disagree on the dominant label.",
+    explanation: {
+      id: "Kondisi i < 10 menghentikan perulangan sebelum angka 10 tercetak, sehingga jawaban menunjukkan pemahaman yang keliru terhadap batas akhir perulangan.",
+      en: "The i < 10 condition stops the loop before 10 is printed, showing a misunderstanding of the loop's final boundary.",
+    },
     reviewerDecisions: [
       { reviewerId: "rev-01", decision: "agree", selectedMisconceptionId: "mc-loop-boundary" },
       { reviewerId: "rev-02", decision: "disagree", selectedMisconceptionId: "mc-missing-increment" },
@@ -17,7 +20,10 @@ export const mockReviewTasks: ReviewTask[] = [
     questionId: "q-swap",
     answerCaseId: "ans-q-swap-stu-02",
     suggestedMisconceptionId: "mc-swap-no-temp",
-    explanation: "The original value of A is overwritten before it can be assigned back to B.",
+    explanation: {
+      id: "Nilai awal A ditimpa sebelum disimpan, sehingga nilai tersebut tidak dapat dipindahkan kembali ke B.",
+      en: "The original value of A is overwritten before being stored, so it cannot be assigned back to B.",
+    },
     reviewerDecisions: [],
   },
   {
@@ -25,7 +31,10 @@ export const mockReviewTasks: ReviewTask[] = [
     questionId: "q-boolrange",
     answerCaseId: "ans-q-boolrange-stu-02",
     suggestedMisconceptionId: "mc-and-or-confusion",
-    explanation: "The selected OR expression accepts values outside the requested inclusive range.",
+    explanation: {
+      id: "Penggunaan OR membuat ekspresi menerima nilai di luar rentang inklusif yang diminta.",
+      en: "Using OR makes the expression accept values outside the requested inclusive range.",
+    },
     reviewerDecisions: [
       { reviewerId: "rev-01", decision: "agree", selectedMisconceptionId: "mc-and-or-confusion" },
     ],
@@ -35,7 +44,10 @@ export const mockReviewTasks: ReviewTask[] = [
     questionId: "q-print15",
     answerCaseId: "ans-q-print15-stu-02",
     suggestedMisconceptionId: "mc-loop-boundary",
-    explanation: "The loop condition stops before printing the inclusive upper bound.",
+    explanation: {
+      id: "Kondisi perulangan berhenti sebelum mencetak batas atas yang seharusnya ikut ditampilkan.",
+      en: "The loop condition stops before printing the inclusive upper bound.",
+    },
     reviewerDecisions: [
       { reviewerId: "rev-01", decision: "agree", selectedMisconceptionId: "mc-loop-boundary" },
       { reviewerId: "rev-02", decision: "agree", selectedMisconceptionId: "mc-loop-boundary" },

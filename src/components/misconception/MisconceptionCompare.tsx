@@ -40,13 +40,13 @@ export function MisconceptionCompare({
   const items = [
     {
       label: t(uiText.drawerWrong, language),
-      tone: "border-incorrect/25 bg-incorrect-bg/45",
+      tone: "border-incorrect-border bg-incorrect-bg",
       heading: "text-incorrect",
       content: wrongText,
     },
     {
       label: t(uiText.drawerCorrect, language),
-      tone: "border-correct/25 bg-correct-bg/45",
+      tone: "border-correct-border bg-correct-bg",
       heading: "text-correct",
       content: correctText,
     },

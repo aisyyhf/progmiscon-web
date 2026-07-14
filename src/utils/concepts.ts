@@ -44,13 +44,16 @@ export function buildConcepts(
     const categoryConcept = conceptMap.get(question.categoryId);
 
     for (const expectedConcept of question.expectedConcepts) {
-      const id = conceptIdFromText(expectedConcept);
+      const matchingCategory = categories.find(
+        (item) => item.name.id === expectedConcept.id || item.name.en === expectedConcept.en,
+      );
+      const id = matchingCategory?.id ?? conceptIdFromText(expectedConcept);
       const existing = conceptMap.get(id);
       const relatedConceptIds = new Set(existing?.relatedConceptIds ?? []);
       const relatedMisconceptionIds = new Set(existing?.relatedMisconceptionIds ?? []);
       const relatedQuestionIds = new Set(existing?.relatedQuestionIds ?? []);
 
-      relatedConceptIds.add(question.categoryId);
+      if (id !== question.categoryId) relatedConceptIds.add(question.categoryId);
       relatedQuestionIds.add(question.id);
       for (const misconceptionId of question.questionMisconceptionIds) {
         relatedMisconceptionIds.add(misconceptionId);
@@ -58,22 +61,24 @@ export function buildConcepts(
 
       conceptMap.set(id, {
         id,
-        categoryId: question.categoryId,
-        name: expectedConcept,
-        description: {
-          id: category
-            ? `Konsep ini muncul pada soal ${category.name.id.toLowerCase()} dan membantu menafsirkan variasi jawaban anonim.`
-            : "Konsep ini membantu menafsirkan variasi jawaban anonim.",
-          en: category
-            ? `This concept appears in ${category.name.en.toLowerCase()} questions and helps interpret anonymous answer variations.`
-            : "This concept helps interpret anonymous answer variations.",
-        },
+        categoryId: existing?.categoryId ?? question.categoryId,
+        name: existing?.name ?? expectedConcept,
+        description:
+          existing?.description ??
+          {
+            id: category
+              ? `Konsep ini muncul pada soal ${category.name.id.toLowerCase()} dan membantu menafsirkan variasi jawaban anonim.`
+              : "Konsep ini membantu menafsirkan variasi jawaban anonim.",
+            en: category
+              ? `This concept appears in ${category.name.en.toLowerCase()} questions and helps interpret anonymous answer variations.`
+              : "This concept helps interpret anonymous answer variations.",
+          },
         relatedConceptIds: Array.from(relatedConceptIds),
         relatedMisconceptionIds: Array.from(relatedMisconceptionIds),
         relatedQuestionIds: Array.from(relatedQuestionIds),
       });
 
-      if (categoryConcept) {
+      if (categoryConcept && id !== question.categoryId) {
         categoryConcept.relatedConceptIds = Array.from(
           new Set([...categoryConcept.relatedConceptIds, id]),
         );
@@ -87,7 +92,7 @@ export function buildConcepts(
 export function findConceptByText(concepts: Concept[], text: LocalizedText): Concept | undefined {
   const id = conceptIdFromText(text);
   return (
-    concepts.find((concept) => concept.id === id) ??
-    concepts.find((concept) => concept.name.id === text.id || concept.name.en === text.en)
+    concepts.find((concept) => concept.name.id === text.id || concept.name.en === text.en) ??
+    concepts.find((concept) => concept.id === id)
   );
 }

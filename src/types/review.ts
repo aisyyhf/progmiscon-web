@@ -1,3 +1,5 @@
+import type { LocalizedText } from "./language";
+
 export type ReviewerDecision = {
   reviewerId: string;
   decision: "agree" | "disagree";
@@ -10,6 +12,6 @@ export type ReviewTask = {
   questionId: string;
   answerCaseId: string;
   suggestedMisconceptionId: string;
-  explanation: string;
+  explanation: LocalizedText;
   reviewerDecisions: ReviewerDecision[];
 };

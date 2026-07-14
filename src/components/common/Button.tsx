@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "../../utils/cn";
 
-type ButtonVariant = "primary" | "secondary" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
@@ -9,9 +9,10 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary: "bg-brand text-white hover:bg-brand/90 border border-brand shadow-[0_1px_2px_rgba(153,0,0,0.12)]",
-  secondary: "bg-surface text-navy border border-border hover:border-navy/50 hover:bg-white",
-  ghost: "bg-transparent text-navy hover:bg-navy/5 border border-transparent",
+  primary: "border border-brand bg-brand text-white shadow-[0_1px_2px_rgba(153,0,0,0.14)] hover:bg-brand/90",
+  secondary: "border border-border bg-white text-navy hover:border-navy/50 hover:bg-bg",
+  ghost: "border border-transparent bg-transparent text-navy hover:bg-navy/5",
+  danger: "border border-incorrect-border bg-incorrect-bg text-incorrect hover:bg-incorrect-bg/70",
 };
 
 export function Button({ variant = "secondary", className, children, ...props }: ButtonProps) {

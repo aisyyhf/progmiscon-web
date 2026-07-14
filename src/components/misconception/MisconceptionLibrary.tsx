@@ -39,7 +39,7 @@ export function MisconceptionLibrary({
             "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
             categoryFilter === "all"
               ? "border-navy bg-navy text-white"
-              : "border-border bg-white text-muted hover:text-navy-deep",
+              : "border-border bg-white text-muted hover:border-navy/35 hover:bg-bg hover:text-navy-deep",
           )}
         >
           {t(uiText.filterAll, language)}
@@ -55,7 +55,7 @@ export function MisconceptionLibrary({
               "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
               categoryFilter === category.id
                 ? "border-navy bg-navy text-white"
-                : "border-border bg-white text-muted hover:text-navy-deep",
+                : "border-border bg-white text-muted hover:border-navy/35 hover:bg-bg hover:text-navy-deep",
             )}
           >
             {t(category.name, language)}
@@ -80,7 +80,9 @@ export function MisconceptionLibrary({
                     className={cn(
                       "block w-full cursor-pointer px-4 py-3.5 text-left transition-colors",
                       "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-                      active ? "bg-gold-soft/50" : "hover:bg-bg/70",
+                      active
+                        ? "border-l-2 border-l-brand bg-brand-soft/45 text-navy-deep"
+                        : "border-l-2 border-l-transparent hover:bg-bg",
                     )}
                   >
                     <p className="text-xs font-medium uppercase tracking-wide text-muted">

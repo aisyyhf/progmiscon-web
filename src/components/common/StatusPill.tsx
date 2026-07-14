@@ -1,11 +1,12 @@
 import { cn } from "../../utils/cn";
 
-type Tone = "correct" | "incorrect" | "muted";
+type Tone = "correct" | "incorrect" | "warning" | "muted";
 
 const toneClasses: Record<Tone, string> = {
-  correct: "bg-correct-bg text-correct border-correct/30",
-  incorrect: "bg-incorrect-bg text-incorrect border-incorrect/30",
-  muted: "bg-white text-muted border-border",
+  correct: "border-correct-border bg-correct-bg text-correct",
+  incorrect: "border-incorrect-border bg-incorrect-bg text-incorrect",
+  warning: "border-warning-border bg-warning-bg text-warning",
+  muted: "border-border bg-white text-muted",
 };
 
 export function StatusPill({

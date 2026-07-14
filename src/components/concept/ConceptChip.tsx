@@ -21,7 +21,7 @@ export function ConceptChip({
         "hover:-translate-y-0.5 active:translate-y-0",
         selected
           ? "border-navy bg-navy text-white"
-          : "border-navy/20 bg-bg text-navy-deep hover:border-navy/45 hover:bg-white",
+          : "border-navy/20 bg-white text-navy-deep hover:border-navy/45 hover:bg-bg",
       )}
     >
       <span>{label}</span>
