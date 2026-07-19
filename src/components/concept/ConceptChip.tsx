@@ -16,17 +16,17 @@ export function ConceptChip({
       aria-label={label}
       aria-pressed={selected}
       className={cn(
-        "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
+        "inline-flex cursor-pointer items-center gap-2 rounded-md border px-3.5 py-2 text-xs font-semibold transition-all",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         "hover:-translate-y-0.5 active:translate-y-0",
         selected
           ? "border-navy bg-navy text-white"
-          : "border-navy/20 bg-white text-navy-deep hover:border-navy/45 hover:bg-bg",
+          : "border-navy/20 bg-white text-navy-deep shadow-[0_4px_14px_rgba(30,41,59,0.04)] hover:border-brand/35 hover:bg-brand-soft/40",
       )}
     >
       <span>{label}</span>
       <span aria-hidden="true" className="text-[11px] opacity-75">
-        →
+        {"\u2192"}
       </span>
     </button>
   );

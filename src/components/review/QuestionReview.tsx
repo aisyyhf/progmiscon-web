@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useQuestions } from "../../hooks/useQuestions";
-import { useAssessments } from "../../hooks/useAssessments";
 import { useCategories } from "../../hooks/useCategories";
 import { useMisconceptions } from "../../hooks/useMisconceptions";
 import { useAllStudentAnswers } from "../../hooks/useStudentAnswers";
 import { t, uiText } from "../../utils/translation";
 import { buildConcepts } from "../../utils/concepts";
-import { getMatchingAnswers, getRelatedQuestions } from "../../utils/misconceptionExploration";
+import { getAnswerVariations, getMatchingAnswers, getRelatedQuestions } from "../../utils/misconceptionExploration";
 import { Breadcrumb } from "../layout/Breadcrumb";
 import { QuestionPanel } from "./QuestionPanel";
 import { AnswerCasePanel } from "./AnswerCasePanel";
@@ -18,11 +17,11 @@ export function QuestionReview({ questionId }: { questionId: string }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const { assessments } = useAssessments();
   const { categories } = useCategories();
   const { misconceptions } = useMisconceptions();
   const { questions: allQuestions } = useQuestions();
   const { answers: allAnswers } = useAllStudentAnswers();
+  const answerVariations = useMemo(() => getAnswerVariations(allAnswers), [allAnswers]);
 
   const [activeQuestionId, setActiveQuestionId] = useState(questionId);
   const [selectedAnswerId, setSelectedAnswerId] = useState<string | undefined>(undefined);
@@ -31,8 +30,8 @@ export function QuestionReview({ questionId }: { questionId: string }) {
   const requestedAnswerId = searchParams.get("case") ?? undefined;
   const question = allQuestions.find((item) => item.id === activeQuestionId);
   const answers = useMemo(
-    () => allAnswers.filter((answer) => answer.questionId === activeQuestionId),
-    [activeQuestionId, allAnswers],
+    () => answerVariations.filter((answer) => answer.questionId === activeQuestionId),
+    [activeQuestionId, answerVariations],
   );
   const selectedMisconception = misconceptions.find((item) => item.id === filterMisconceptionId);
 
@@ -51,20 +50,20 @@ export function QuestionReview({ questionId }: { questionId: string }) {
     if (!filterMisconceptionId || !selectedMisconception) return [];
     return getRelatedQuestions(
       allQuestions,
-      allAnswers,
+      answerVariations,
       filterMisconceptionId,
       selectedMisconception.relatedQuestionIds,
     );
-  }, [allAnswers, allQuestions, filterMisconceptionId, selectedMisconception]);
+  }, [allQuestions, answerVariations, filterMisconceptionId, selectedMisconception]);
 
   const relatedAnswerCount = useMemo(
     () =>
       filterMisconceptionId
-        ? getMatchingAnswers(allAnswers, filterMisconceptionId).filter((answer) =>
+        ? getMatchingAnswers(answerVariations, filterMisconceptionId).filter((answer) =>
             relatedQuestions.some((question) => question.id === answer.questionId),
           ).length
         : 0,
-    [allAnswers, filterMisconceptionId, relatedQuestions],
+    [answerVariations, filterMisconceptionId, relatedQuestions],
   );
 
   const filteredAnswers = useMemo(
@@ -90,7 +89,6 @@ export function QuestionReview({ questionId }: { questionId: string }) {
 
   if (!question) return null;
 
-  const assessment = assessments.find((a) => a.id === question.assessmentId);
   const category = categories.find((c) => c.id === question.categoryId);
   const relatedQuestionIndex = relatedQuestions.findIndex((item) => item.id === activeQuestionId);
 
@@ -108,7 +106,7 @@ export function QuestionReview({ questionId }: { questionId: string }) {
 
     const misconception = misconceptions.find((item) => item.id === misconceptionId);
     const nextRelatedQuestions = misconception
-      ? getRelatedQuestions(allQuestions, allAnswers, misconceptionId, misconception.relatedQuestionIds)
+      ? getRelatedQuestions(allQuestions, answerVariations, misconceptionId, misconception.relatedQuestionIds)
       : [];
     const currentQuestionHasMatch = nextRelatedQuestions.some((item) => item.id === activeQuestionId);
     const firstRelatedQuestion = nextRelatedQuestions[0];
@@ -135,37 +133,37 @@ export function QuestionReview({ questionId }: { questionId: string }) {
             to: category ? `/materi?category=${category.id}` : undefined,
           },
           {
-            label: `${assessment ? t(assessment.title, language).split(" ")[0] : ""} ${question.number}`,
+            label: language === "id" ? "Soal" : "Question",
           },
         ]}
       />
 
       {selectedMisconception && (
-        <section className="mb-6 flex flex-col gap-4 border-y border-border bg-white px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0 border-l-2 border-brand pl-4">
-            <p className="text-[11px] font-semibold uppercase text-brand">
+        <section className="mb-5 flex flex-col gap-4 rounded-lg bg-navy px-5 py-4 text-white shadow-[0_10px_28px_rgba(30,41,59,0.12)] sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold text-white/65">
               {language === "id" ? "Eksplorasi Miskonsepsi" : "Misconception Exploration"}
             </p>
-            <h1 className="mt-1 break-words font-serif-brand text-xl font-semibold text-navy-deep">
+            <h1 className="mt-1 break-words text-base font-bold text-white">
               {t(selectedMisconception.title, language)}
             </h1>
-            <p className="mt-1 text-sm tabular-nums text-muted">
+            <p className="mt-1 text-sm tabular-nums text-white/70">
               {language === "id"
-                ? `${relatedQuestions.length} soal terkait · ${relatedAnswerCount} variasi jawaban`
-                : `${relatedQuestions.length} related questions · ${relatedAnswerCount} answer variations`}
+                ? `${relatedQuestions.length} soal terkait / ${relatedAnswerCount} variasi jawaban`
+                : `${relatedQuestions.length} related questions / ${relatedAnswerCount} answer variations`}
             </p>
           </div>
           <button
             type="button"
             onClick={resetExploration}
-            className="shrink-0 cursor-pointer self-start rounded-md border border-brand/30 bg-white px-3 py-2 text-sm font-medium text-brand transition-colors hover:border-brand/60 hover:bg-brand-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold sm:self-auto"
+            className="shrink-0 cursor-pointer self-start rounded-md bg-white/10 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/18 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:self-auto"
           >
             {language === "id" ? "Keluar dari Eksplorasi" : "Exit Exploration"}
           </button>
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start">
+      <div className="scroll-reveal grid grid-cols-1 gap-5 xl:grid-cols-2 xl:items-start">
         <QuestionPanel
           question={question}
           concepts={concepts}

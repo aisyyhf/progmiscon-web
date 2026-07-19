@@ -19,7 +19,7 @@ export function MisconceptionChip({
       selected: "border-brand bg-brand-soft text-brand",
     },
     student: {
-      idle: "border-incorrect-border bg-incorrect-bg/70 text-incorrect hover:border-incorrect-border hover:bg-incorrect-bg",
+      idle: "border-incorrect-border bg-incorrect-bg/70 text-incorrect hover:border-incorrect hover:bg-incorrect-bg",
       selected: "border-incorrect-border bg-incorrect-bg text-incorrect",
     },
     related: {
@@ -35,15 +35,15 @@ export function MisconceptionChip({
       aria-label={label}
       aria-pressed={selected}
       className={cn(
-        "inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold shadow-[0_1px_0_rgba(16,35,63,0.08)] transition",
-        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
+        "inline-flex cursor-pointer items-center gap-2 rounded-md border px-3.5 py-2 text-xs font-semibold shadow-[0_3px_12px_rgba(16,35,63,0.055)] transition-all",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         "hover:-translate-y-0.5 active:translate-y-0 active:shadow-none",
         selected ? toneClasses[tone].selected : toneClasses[tone].idle,
       )}
     >
       <span>{label}</span>
       <span aria-hidden="true" className="text-[11px] opacity-80">
-        →
+        {"\u2192"}
       </span>
     </button>
   );

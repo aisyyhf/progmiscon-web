@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Check, Search, X } from "lucide-react";
 import type { Misconception } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
 import { t } from "../../utils/translation";
@@ -10,11 +11,17 @@ export function MisconceptionPicker({
   recommended,
   value,
   onChange,
+  label,
+  helper,
+  variant = "decision",
 }: {
   misconceptions: Misconception[];
   recommended: Misconception[];
-  value: string;
-  onChange: (misconceptionId: string) => void;
+  value: string[];
+  onChange: (misconceptionIds: string[]) => void;
+  label?: string;
+  helper?: string;
+  variant?: "decision" | "selection";
 }) {
   const { language } = useLanguage();
   const [open, setOpen] = useState(false);
@@ -22,9 +29,20 @@ export function MisconceptionPicker({
   const [query, setQuery] = useState("");
   const [previewId, setPreviewId] = useState("");
 
-  const selected = misconceptions.find((item) => item.id === value);
-  const preview = misconceptions.find((item) => item.id === previewId);
+  const selectedIds = useMemo(() => new Set(value), [value]);
   const recommendedIds = useMemo(() => new Set(recommended.map((item) => item.id)), [recommended]);
+  const selectedExtras = useMemo(
+    () => misconceptions.filter((item) => selectedIds.has(item.id) && !recommendedIds.has(item.id)),
+    [misconceptions, recommendedIds, selectedIds],
+  );
+  const displayedItems = useMemo(
+    () =>
+      variant === "selection"
+        ? misconceptions.filter((item) => selectedIds.has(item.id))
+        : [...recommended, ...selectedExtras],
+    [misconceptions, recommended, selectedExtras, selectedIds, variant],
+  );
+  const preview = misconceptions.find((item) => item.id === previewId);
   const allByPriority = useMemo(
     () => [...recommended, ...misconceptions.filter((item) => !recommendedIds.has(item.id))],
     [misconceptions, recommended, recommendedIds],
@@ -45,32 +63,121 @@ export function MisconceptionPicker({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [open]);
 
+  const toggle = (misconceptionId: string) => {
+    onChange(
+      selectedIds.has(misconceptionId)
+        ? value.filter((id) => id !== misconceptionId)
+        : [...value, misconceptionId],
+    );
+  };
+
   const openPicker = () => {
     setView(recommended.length > 0 ? "recommended" : "all");
     setQuery("");
-    setPreviewId(value || recommended[0]?.id || misconceptions[0]?.id || "");
+    setPreviewId(value[0] || recommended[0]?.id || misconceptions[0]?.id || "");
     setOpen(true);
   };
 
   return (
     <>
       <div>
-        <p className="text-sm font-medium text-navy-deep">
-          {language === "id" ? "Miskonsepsi yang lebih tepat" : "More appropriate misconception"}
+        <p className="text-sm font-bold text-navy-deep">
+          {label ?? (language === "id" ? "Keputusan miskonsepsi" : "Misconception decisions")}
         </p>
-        <button
-          type="button"
-          onClick={openPicker}
-          aria-haspopup="dialog"
-          className="mt-2 flex w-full cursor-pointer items-center justify-between gap-3 rounded-md border border-border bg-bg px-3 py-2.5 text-left text-sm transition-colors hover:border-navy/35 hover:bg-white focus-visible:border-brand focus-visible:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/20"
-        >
-          <span className={selected ? "min-w-0 truncate text-navy-deep" : "text-muted"}>
-            {selected ? t(selected.title, language) : language === "id" ? "Pilih miskonsepsi" : "Choose misconception"}
-          </span>
-          <span aria-hidden="true" className="shrink-0 text-xs text-muted">
-            {"\u25BE"}
-          </span>
-        </button>
+        <p className="mt-1 text-xs leading-5 text-muted">
+          {helper ??
+            (language === "id"
+              ? "Tentukan keputusan untuk setiap kandidat. Anda dapat menyetujui lebih dari satu miskonsepsi."
+              : "Decide on each candidate. You may approve more than one misconception.")}
+        </p>
+
+        {displayedItems.length > 0 && (
+          <ul className="mt-3 space-y-2">
+            {displayedItems.map((item) => {
+              const selected = selectedIds.has(item.id);
+              if (variant === "selection") {
+                return (
+                  <li key={item.id}>
+                    <button
+                      type="button"
+                      aria-label={`${language === "id" ? "Hapus" : "Remove"} ${t(item.title, language)}`}
+                      onClick={() => toggle(item.id)}
+                      className="flex w-full cursor-pointer items-start gap-3 rounded-md border border-correct-border bg-correct-bg/70 px-3 py-2.5 text-left text-navy-deep transition-colors hover:bg-correct-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                    >
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-correct bg-correct text-white" aria-hidden="true">
+                        <Check size={13} strokeWidth={2.5} />
+                      </span>
+                      <span className="text-sm font-medium leading-5">{t(item.title, language)}</span>
+                      <X size={15} className="ml-auto mt-0.5 shrink-0 text-muted" aria-hidden="true" />
+                    </button>
+                  </li>
+                );
+              }
+              return (
+                <li key={item.id} className="rounded-md border border-border bg-white p-3">
+                  <p className="text-sm font-semibold leading-5 text-navy-deep">{t(item.title, language)}</p>
+                  <div
+                    className="mt-3 grid grid-cols-2 gap-2"
+                    role="group"
+                    aria-label={`${language === "id" ? "Keputusan untuk" : "Decision for"} ${t(item.title, language)}`}
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => !selected && toggle(item.id)}
+                      className={cn(
+                        "inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                        selected
+                          ? "border-correct-border bg-correct-bg text-correct"
+                          : "border-border bg-white text-muted hover:bg-correct-bg/60 hover:text-correct",
+                      )}
+                    >
+                      <Check size={14} strokeWidth={2.25} aria-hidden="true" />
+                      {language === "id" ? "Setuju" : "Approve"}
+                    </button>
+                    <button
+                      type="button"
+                      aria-pressed={!selected}
+                      onClick={() => selected && toggle(item.id)}
+                      className={cn(
+                        "inline-flex min-h-9 cursor-pointer items-center justify-center gap-1.5 rounded border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                        !selected
+                          ? "border-brand/30 bg-brand-soft text-brand"
+                          : "border-border bg-white text-muted hover:bg-brand-soft/60 hover:text-brand",
+                      )}
+                    >
+                      <X size={14} strokeWidth={2.25} aria-hidden="true" />
+                      {language === "id" ? "Tidak setuju" : "Reject"}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <Button type="button" variant="secondary" className="mt-3 w-full justify-center" onClick={openPicker}>
+          <Search size={15} strokeWidth={2} aria-hidden="true" />
+          {variant === "selection"
+            ? language === "id"
+              ? "Pilih miskonsepsi"
+              : "Select misconceptions"
+            : language === "id"
+              ? "Cari miskonsepsi lain"
+              : "Find another misconception"}
+        </Button>
+
+        {value.length === 0 && (
+          <p className="mt-3 rounded-md bg-neutral px-3 py-2 text-xs leading-5 text-muted">
+            {language === "id"
+              ? variant === "selection"
+                ? "Belum ada miskonsepsi tambahan yang dipilih."
+                : "Belum ada miskonsepsi yang disetujui. Validasi akan disimpan tanpa label miskonsepsi."
+              : variant === "selection"
+                ? "No additional misconception has been selected."
+                : "No misconception has been approved. The validation will be saved without a misconception label."}
+          </p>
+        )}
       </div>
 
       {open && (
@@ -85,22 +192,27 @@ export function MisconceptionPicker({
             role="dialog"
             aria-modal="true"
             aria-labelledby="misconception-picker-title"
-            className="relative flex max-h-[90vh] min-h-0 w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-border bg-white shadow-xl"
+            className="academic-panel route-frame relative flex max-h-[90vh] min-h-0 w-full max-w-4xl flex-col overflow-hidden shadow-[0_30px_80px_rgba(23,32,51,0.22)]"
           >
             <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
               <div>
-                <p className="text-[11px] font-semibold uppercase text-brand">
-                  {language === "id" ? "Review Dosen" : "Lecturer Review"}
+                <p className="academic-label text-brand">
+                  {language === "id" ? "Validasi dosen" : "Lecturer validation"}
                 </p>
-                <h2 id="misconception-picker-title" className="mt-1 font-serif-brand text-2xl font-semibold text-navy-deep">
-                  {language === "id" ? "Pilih miskonsepsi" : "Choose a misconception"}
+                <h2 id="misconception-picker-title" className="mt-1 text-xl font-bold text-navy-deep">
+                  {language === "id" ? "Pilih miskonsepsi" : "Choose misconceptions"}
                 </h2>
+                <p className="mt-1 text-sm text-muted">
+                  {language === "id"
+                    ? "Anda dapat memilih lebih dari satu miskonsepsi."
+                    : "You may select more than one misconception."}
+                </p>
               </div>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
                 aria-label={language === "id" ? "Tutup" : "Close"}
-                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-lg text-muted transition-colors hover:bg-bg hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md text-lg text-muted transition-colors hover:bg-bg hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
                 <span aria-hidden="true">{"\u00D7"}</span>
               </button>
@@ -119,7 +231,7 @@ export function MisconceptionPicker({
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder={language === "id" ? "Cari miskonsepsi..." : "Search misconceptions..."}
-                    className="w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-navy-deep placeholder:text-muted/65 focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20"
+                    className="academic-input px-3 py-2.5 text-sm placeholder:text-muted/65"
                   />
                   <div className="mt-3 grid grid-cols-2 rounded-md border border-border bg-bg p-0.5" role="tablist">
                     <button
@@ -128,11 +240,11 @@ export function MisconceptionPicker({
                       aria-selected={view === "recommended"}
                       onClick={() => setView("recommended")}
                       className={cn(
-                        "cursor-pointer rounded px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-                        view === "recommended" ? "bg-white text-brand shadow-sm" : "text-muted hover:text-navy-deep",
+                        "cursor-pointer rounded px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                        view === "recommended" ? "bg-navy text-white shadow-sm" : "text-muted hover:bg-white hover:text-navy-deep",
                       )}
                     >
-                      {language === "id" ? `Disarankan (${recommended.length})` : `Recommended (${recommended.length})`}
+                      {language === "id" ? "Miskonsepsi Serupa" : "Similar Misconceptions"}
                     </button>
                     <button
                       type="button"
@@ -140,16 +252,16 @@ export function MisconceptionPicker({
                       aria-selected={view === "all"}
                       onClick={() => setView("all")}
                       className={cn(
-                        "cursor-pointer rounded px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
-                        view === "all" ? "bg-white text-brand shadow-sm" : "text-muted hover:text-navy-deep",
+                        "cursor-pointer rounded px-2 py-1.5 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                        view === "all" ? "bg-navy text-white shadow-sm" : "text-muted hover:bg-white hover:text-navy-deep",
                       )}
                     >
-                      {language === "id" ? `Semua (${misconceptions.length})` : `All (${misconceptions.length})`}
+                      {language === "id" ? "Semua Miskonsepsi" : "All Misconceptions"}
                     </button>
                   </div>
                 </div>
 
-                <div className="max-h-64 overflow-y-auto p-2 md:max-h-none md:flex-1">
+                <div className="thin-scroll max-h-64 overflow-y-auto p-2 md:max-h-none md:flex-1">
                   {visibleItems.length === 0 ? (
                     <p className="px-3 py-6 text-center text-sm text-muted">
                       {language === "id" ? "Miskonsepsi tidak ditemukan." : "No misconceptions found."}
@@ -158,25 +270,30 @@ export function MisconceptionPicker({
                     <ul className="space-y-1">
                       {visibleItems.map((item) => {
                         const active = item.id === previewId;
+                        const selected = selectedIds.has(item.id);
                         return (
                           <li key={item.id}>
                             <button
                               type="button"
                               onClick={() => setPreviewId(item.id)}
-                              aria-pressed={active}
+                              aria-current={active}
                               className={cn(
-                                "w-full cursor-pointer border-l-2 px-3 py-2.5 text-left text-sm leading-5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-gold",
+                                "flex w-full cursor-pointer items-start gap-3 border-l-2 px-3 py-2.5 text-left text-sm leading-5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
                                 active
-                                  ? "border-brand bg-brand-soft text-navy-deep"
+                                  ? "border-brand bg-brand-soft/70 text-navy-deep"
                                   : "border-transparent text-muted hover:bg-bg hover:text-navy-deep",
                               )}
                             >
+                              <span
+                                className={cn(
+                                  "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                                  selected ? "border-correct bg-correct text-white" : "border-border bg-white",
+                                )}
+                                aria-hidden="true"
+                              >
+                                {selected && <Check size={11} strokeWidth={2.5} />}
+                              </span>
                               <span className="font-medium">{t(item.title, language)}</span>
-                              {item.id === value && (
-                                <span className="mt-0.5 block text-xs text-brand">
-                                  {language === "id" ? "Pilihan saat ini" : "Current selection"}
-                                </span>
-                              )}
                             </button>
                           </li>
                         );
@@ -186,54 +303,58 @@ export function MisconceptionPicker({
                 </div>
               </div>
 
-              <div className="min-h-0 overflow-y-auto p-5 md:p-6">
+              <div className="thin-scroll min-h-0 overflow-y-auto p-5 md:p-6">
                 {preview ? (
                   <div>
-                    <p className="text-[11px] font-medium uppercase text-muted">
+                    <p className="academic-label">
                       {language === "id" ? "Ringkasan miskonsepsi" : "Misconception summary"}
                     </p>
-                    <h3 className="mt-1 font-serif-brand text-xl font-semibold text-navy-deep">
-                      {t(preview.title, language)}
-                    </h3>
+                    <h3 className="mt-1 text-lg font-bold text-navy-deep">{t(preview.title, language)}</h3>
                     <div className="mt-5 space-y-5">
                       <section>
-                        <p className="text-[11px] font-medium uppercase text-muted">
-                          {language === "id" ? "Pola yang keliru" : "Incorrect pattern"}
-                        </p>
+                        <p className="academic-label">{language === "id" ? "Pola yang keliru" : "Incorrect pattern"}</p>
                         <p className="mt-1 whitespace-pre-line text-sm leading-6 text-navy-deep">{t(preview.wrong, language)}</p>
                       </section>
                       <section>
-                        <p className="text-[11px] font-medium uppercase text-muted">
-                          {language === "id" ? "Penyebab umum" : "Common cause"}
-                        </p>
+                        <p className="academic-label">{language === "id" ? "Penyebab umum" : "Common cause"}</p>
                         <p className="mt-1 text-sm leading-6 text-muted">{t(preview.cause, language)}</p>
                       </section>
                       <section>
-                        <p className="text-[11px] font-medium uppercase text-muted">
-                          {language === "id" ? "Perbaikan" : "Correction"}
-                        </p>
+                        <p className="academic-label">{language === "id" ? "Perbaikan" : "Correction"}</p>
                         <p className="mt-1 text-sm leading-6 text-muted">{t(preview.fix, language)}</p>
                       </section>
                     </div>
                     <Button
                       type="button"
-                      variant="primary"
+                      variant={selectedIds.has(preview.id) ? "secondary" : "primary"}
                       className="mt-6 justify-center"
-                      onClick={() => {
-                        onChange(preview.id);
-                        setOpen(false);
-                      }}
+                      onClick={() => toggle(preview.id)}
                     >
-                      {language === "id" ? "Pilih miskonsepsi ini" : "Choose this misconception"}
+                      {selectedIds.has(preview.id) ? (
+                        language === "id" ? "Hapus dari pilihan" : "Remove from selection"
+                      ) : (
+                        <>
+                          <Check size={15} strokeWidth={2} aria-hidden="true" />
+                          {language === "id" ? "Tambahkan ke pilihan" : "Add to selection"}
+                        </>
+                      )}
                     </Button>
                   </div>
                 ) : (
                   <p className="text-sm text-muted">
-                    {language === "id" ? "Pilih miskonsepsi untuk melihat penjelasan." : "Select a misconception to view its explanation."}
+                    {language === "id"
+                      ? "Pilih miskonsepsi untuk melihat penjelasan."
+                      : "Select a misconception to view its explanation."}
                   </p>
                 )}
               </div>
             </div>
+
+            <footer className="flex justify-end border-t border-border px-5 py-3">
+              <Button type="button" variant="primary" onClick={() => setOpen(false)}>
+                {language === "id" ? "Selesai memilih" : "Finish selecting"}
+              </Button>
+            </footer>
           </section>
         </div>
       )}

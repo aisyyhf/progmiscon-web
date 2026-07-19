@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
-import { useAssessments } from "../hooks/useAssessments";
 import { useCategories } from "../hooks/useCategories";
 import { useMisconception, useMisconceptions, useMisconceptionsByIds } from "../hooks/useMisconceptions";
 import { useQuestions, useQuestionsByIds } from "../hooks/useQuestions";
@@ -15,6 +14,8 @@ import { MisconceptionChip } from "../components/misconception/MisconceptionChip
 import { useLanguage } from "../hooks/useLanguage";
 import { t, uiText } from "../utils/translation";
 import { cn } from "../utils/cn";
+import { getAnswerVariations } from "../utils/misconceptionExploration";
+import { BrainCircuit, Search } from "lucide-react";
 
 export function MiskonsepsiPage() {
   const { misconceptionId } = useParams();
@@ -59,13 +60,13 @@ function MiskonsepsiDetailPage({
   const [query, setQuery] = useState("");
   const { misconception } = useMisconception(misconceptionId);
   const { categories } = useCategories();
-  const { assessments } = useAssessments();
   const { misconceptions: relatedMisconceptions } = useMisconceptionsByIds(
     misconception?.relatedMisconceptionIds ?? [],
   );
   const { questions } = useQuestionsByIds(misconception?.relatedQuestionIds ?? []);
   const { questions: allQuestions } = useQuestions();
   const { answers } = useAllStudentAnswers();
+  const answerVariations = useMemo(() => getAnswerVariations(answers), [answers]);
 
   const sortedMisconceptions = useMemo(
     () =>
@@ -94,7 +95,9 @@ function MiskonsepsiDetailPage({
   const reviewBackUrl = fromQuestionId
     ? `/question/${fromQuestionId}${fromCaseId ? `?case=${fromCaseId}` : ""}`
     : undefined;
-  const relatedAnswerCases = answers.filter((answer) => answer.studentMisconceptionIds.includes(misconception.id));
+  const relatedAnswerCases = answerVariations.filter((answer) =>
+    answer.studentMisconceptionIds.includes(misconception.id),
+  );
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -114,29 +117,35 @@ function MiskonsepsiDetailPage({
         </div>
       )}
 
-      <div className="mb-8">
-        <h1 className="font-serif-brand text-2xl font-semibold text-navy-deep">
-          {t(uiText.miskonsepsiTitle, language)}
-        </h1>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
-          {t(uiText.miskonsepsiDescription, language)}
-        </p>
+      <div className="mb-7 flex items-start gap-4">
+        <span className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+          <BrainCircuit size={22} strokeWidth={2} aria-hidden="true" />
+        </span>
+        <div>
+          <h1 className="page-title">{t(uiText.miskonsepsiTitle, language)}</h1>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
+            {t(uiText.miskonsepsiDescription, language)}
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
-        <aside className="rounded-lg border border-border bg-white p-4 lg:sticky lg:top-24">
-          <label htmlFor="misconception-search" className="text-[11px] font-medium uppercase tracking-wide text-muted">
+      <section className="scroll-reveal grid grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
+        <aside className="rounded-lg bg-white p-4 shadow-[0_8px_28px_rgba(30,41,59,0.06)] lg:sticky lg:top-24">
+          <label htmlFor="misconception-search" className="academic-label">
             {language === "id" ? "Daftar Miskonsepsi" : "Misconception List"}
           </label>
-          <input
-            id="misconception-search"
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={language === "id" ? "Cari miskonsepsi..." : "Search misconceptions..."}
-            className="mt-3 w-full rounded-md border border-border bg-bg px-3 py-2 text-sm text-navy-deep placeholder:text-muted/70 focus:border-brand focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand/20"
-          />
-          <div className="thin-scroll mt-4 max-h-[60vh] overflow-y-auto pr-1">
+          <div className="relative mt-3">
+            <Search size={16} strokeWidth={2} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
+            <input
+              id="misconception-search"
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={language === "id" ? "Cari miskonsepsi..." : "Search misconceptions..."}
+              className="academic-input py-2.5 pl-9 pr-3 text-sm placeholder:text-muted/65"
+            />
+          </div>
+          <div className="thin-scroll mt-4 max-h-56 overflow-y-auto pr-1 lg:max-h-[60vh]">
             {filteredMisconceptions.length === 0 ? (
               <p className="px-2 py-3 text-sm text-muted">
                 {language === "id" ? "Tidak ada miskonsepsi yang cocok." : "No matching misconceptions."}
@@ -149,10 +158,10 @@ function MiskonsepsiDetailPage({
                     key={item.id}
                     to={`/miskonsepsi/${item.id}`}
                     className={cn(
-                      "block border-l-2 border-y border-r px-3 py-2 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
+                      "block rounded-md px-3 py-2.5 text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                       selected
-                        ? "border-border border-l-brand bg-brand-soft/45 text-navy-deep"
-                        : "border-transparent text-muted hover:border-l-navy/40 hover:bg-bg hover:text-navy-deep",
+                        ? "bg-brand-soft text-brand"
+                        : "text-muted hover:bg-neutral hover:text-navy-deep",
                     )}
                   >
                     <span className="line-clamp-2 font-medium">{t(item.title, language)}</span>
@@ -163,13 +172,13 @@ function MiskonsepsiDetailPage({
           </div>
         </aside>
 
-        <main className="rounded-lg border border-border bg-white p-6">
+        <main className="relative min-w-0 overflow-hidden rounded-lg bg-white p-6 shadow-[0_8px_28px_rgba(30,41,59,0.06)] md:p-8">
           {category && (
             <p className="text-[11px] font-medium uppercase tracking-wide text-gold">
               {t(category.name, language)}
             </p>
           )}
-          <h2 className="mt-1 font-serif-brand text-3xl font-semibold text-navy-deep">
+          <h2 className="mt-2 max-w-4xl text-2xl font-bold leading-tight text-navy-deep md:text-3xl">
             {t(misconception.title, language)}
           </h2>
 
@@ -222,22 +231,16 @@ function MiskonsepsiDetailPage({
               {questions.length === 0 ? (
                 <p className="text-sm text-muted">{t(uiText.noQuestions, language)}</p>
               ) : (
-                <ul className="divide-y divide-border rounded-md border border-border">
+                <ul className="academic-panel-quiet divide-y divide-border overflow-hidden">
                   {questions.map((question) => {
-                    const assessment = assessments.find((item) => item.id === question.assessmentId);
                     return (
                       <li key={question.id}>
                         <button
                           type="button"
                           onClick={() => onNavigate(`/question/${question.id}`)}
-                          className="w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                          className="group w-full cursor-pointer px-4 py-4 text-left transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand"
                         >
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                            {[assessment ? t(assessment.title, language) : "", question.number]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </p>
-                          <p className="mt-1 line-clamp-2 text-sm leading-6 text-navy-deep">
+                          <p className="line-clamp-2 text-sm font-semibold leading-6 text-navy-deep transition-colors group-hover:text-brand">
                             {t(question.prompt, language)}
                           </p>
                         </button>
@@ -260,7 +263,7 @@ function MiskonsepsiDetailPage({
                 <ul className="divide-y divide-border rounded-md border border-border">
                   {relatedAnswerCases.slice(0, 6).map((answer) => {
                     const question = allQuestions.find((item) => item.id === answer.questionId);
-                    const questionAnswers = answers.filter((item) => item.questionId === answer.questionId);
+                    const questionAnswers = answerVariations.filter((item) => item.questionId === answer.questionId);
                     const caseIndex = questionAnswers.findIndex((item) => item.id === answer.id);
                     return (
                       <li key={answer.id}>
@@ -284,7 +287,7 @@ function MiskonsepsiDetailPage({
             </section>
           </div>
         </main>
-      </div>
+      </section>
     </div>
   );
 }

@@ -63,7 +63,7 @@ export function MisconceptionPreviewModal({
                 {t(category.name, language)}
               </p>
             )}
-            <h2 id="misconception-preview-title" className="mt-1 font-serif-brand text-2xl font-semibold text-navy-deep">
+            <h2 id="misconception-preview-title" className="mt-1 text-xl font-bold text-navy-deep">
               {t(misconception.title, language)}
             </h2>
           </div>

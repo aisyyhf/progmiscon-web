@@ -1,5 +1,28 @@
 import type { Question, StudentAnswer } from "../types";
 
+function answerPatternKey(answer: StudentAnswer): string {
+  const normalizedText = answer.answerText
+    ?.trim()
+    .replace(/\r\n?/g, "\n")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n");
+
+  return `${answer.questionId}:${answer.selectedOptionId ? `option:${answer.selectedOptionId}` : `text:${normalizedText ?? ""}`}`;
+}
+
+export function getAnswerVariations(answers: StudentAnswer[]): StudentAnswer[] {
+  const seen = new Set<string>();
+
+  return answers
+    .filter((answer) => {
+      const key = answerPatternKey(answer);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => Number(a.status === "correct") - Number(b.status === "correct"));
+}
+
 export function getMatchingAnswers(
   answers: StudentAnswer[],
   misconceptionId: string,

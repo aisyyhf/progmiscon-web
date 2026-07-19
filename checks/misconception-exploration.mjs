@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import {
+  getAnswerVariations,
   getMatchingAnswers,
   getRelatedQuestions,
 } from "../src/utils/misconceptionExploration.ts";
@@ -18,4 +19,16 @@ assert.deepEqual(
 assert.deepEqual(
   getMatchingAnswers(answers, "m1", "q2").map((answer) => answer.id),
   ["a2"],
+);
+
+const variations = getAnswerVariations([
+  { id: "correct", questionId: "q1", status: "correct", answerText: "TEMP <- A\nA <- B\nB <- TEMP" },
+  { id: "wrong-a", questionId: "q1", status: "incorrect", answerText: "A <- B\nB <- A" },
+  { id: "wrong-a-copy", questionId: "q1", status: "incorrect", answerText: " A <- B \n B <- A " },
+  { id: "wrong-b", questionId: "q1", status: "incorrect", answerText: "B <- A\nA <- B" },
+]);
+
+assert.deepEqual(
+  variations.map((answer) => answer.id),
+  ["wrong-a", "wrong-b", "correct"],
 );

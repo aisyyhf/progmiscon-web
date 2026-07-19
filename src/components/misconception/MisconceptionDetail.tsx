@@ -65,7 +65,7 @@ export function MisconceptionDetail({
         {category && (
           <p className="text-[11px] font-medium uppercase tracking-wide text-gold">{t(category.name, language)}</p>
         )}
-        <h2 className="mt-1 font-serif-brand text-xl font-semibold text-navy-deep">
+        <h2 className="mt-1 text-xl font-bold text-navy-deep">
           {t(misconception.title, language)}
         </h2>
       </div>

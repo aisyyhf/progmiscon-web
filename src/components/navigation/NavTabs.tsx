@@ -17,7 +17,7 @@ export function NavTabs() {
   const visibleLinks = isLecturer ? [...links, { to: "/review", label: uiText.navReview }] : links;
 
   return (
-    <nav className="flex w-max min-w-full items-center justify-center gap-4 whitespace-nowrap sm:gap-5 lg:gap-8">
+    <nav className="flex w-max min-w-full items-center justify-center gap-0.5 whitespace-nowrap">
       {visibleLinks.map((link) => (
         <NavLink
           key={link.to}
@@ -25,10 +25,10 @@ export function NavTabs() {
           end={link.to === "/home" || link.to === "/review"}
           className={({ isActive }) =>
             cn(
-              "border-b-2 py-1 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-gold",
+              "rounded-md px-2 py-2 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:px-2.5 md:px-3 md:text-sm",
               isActive
-                ? "border-gold text-navy-deep"
-                : "border-transparent text-muted hover:border-gold/50 hover:text-navy-deep",
+                ? "bg-brand-soft text-brand"
+                : "text-muted hover:bg-neutral hover:text-navy-deep",
             )
           }
         >

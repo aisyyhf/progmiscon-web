@@ -22,13 +22,13 @@ export function AnswerCaseNavigator({
   return (
     <nav
       aria-label={language === "id" ? "Navigasi variasi jawaban" : "Answer variation navigation"}
-      className="inline-flex shrink-0 items-center gap-1"
+      className="inline-flex shrink-0 items-center rounded-md border border-border bg-white p-1 shadow-[0_4px_14px_rgba(30,41,59,0.04)]"
     >
       <button
         type="button"
         onClick={() => previousId && onSelectCase(previousId)}
         disabled={!previousId}
-        className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-border bg-white text-sm text-muted transition-colors hover:border-brand/30 hover:bg-brand-soft/40 hover:text-brand disabled:cursor-not-allowed disabled:bg-bg disabled:text-muted/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded border border-transparent bg-white text-sm text-muted transition-colors hover:bg-brand-soft hover:text-brand disabled:cursor-not-allowed disabled:bg-bg disabled:text-muted/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         aria-label={t(uiText.previous, language)}
         title={t(uiText.previous, language)}
       >
@@ -47,7 +47,7 @@ export function AnswerCaseNavigator({
         type="button"
         onClick={() => nextId && onSelectCase(nextId)}
         disabled={!nextId}
-        className="inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md border border-border bg-white text-sm text-muted transition-colors hover:border-brand/30 hover:bg-brand-soft/40 hover:text-brand disabled:cursor-not-allowed disabled:bg-bg disabled:text-muted/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded border border-transparent bg-white text-sm text-muted transition-colors hover:bg-brand-soft hover:text-brand disabled:cursor-not-allowed disabled:bg-bg disabled:text-muted/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         aria-label={t(uiText.next, language)}
         title={t(uiText.next, language)}
       >

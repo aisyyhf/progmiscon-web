@@ -1,6 +1,7 @@
 import type { LocalizedText } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
 import { t, uiText } from "../../utils/translation";
+import { CheckCircle2, XCircle } from "lucide-react";
 
 function splitSnippet(text: string): { snippet: string; explanation: string } {
   const lines = text.split("\n");
@@ -43,25 +44,30 @@ export function MisconceptionCompare({
       tone: "border-incorrect-border bg-incorrect-bg",
       heading: "text-incorrect",
       content: wrongText,
+      icon: XCircle,
     },
     {
       label: t(uiText.drawerCorrect, language),
       tone: "border-correct-border bg-correct-bg",
       heading: "text-correct",
       content: correctText,
+      icon: CheckCircle2,
     },
   ];
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {items.map((item) => (
-        <section key={item.label} className={`rounded-lg border p-4 ${item.tone}`}>
-          <p className={`text-[11px] font-semibold uppercase tracking-wide ${item.heading}`}>
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+        <section key={item.label} className={`rounded-lg border p-5 ${item.tone}`}>
+          <p className={`flex items-center gap-2 text-sm font-bold ${item.heading}`}>
+            <Icon size={17} strokeWidth={2} aria-hidden="true" />
             {item.label}
           </p>
           {item.content.snippet && (
             <pre
-              className={`mt-3 whitespace-pre-wrap rounded-md bg-navy-deep px-3 py-2 font-mono text-xs leading-5 text-white ${
+              className={`mt-3 whitespace-pre-wrap rounded-md border border-current/10 bg-white/65 px-3 py-2 font-mono text-xs leading-5 text-navy-deep ${
                 compact ? "max-h-32 overflow-hidden" : ""
               }`}
             >
@@ -72,7 +78,8 @@ export function MisconceptionCompare({
             <p className="mt-3 text-sm leading-6 text-navy-deep">{item.content.explanation}</p>
           )}
         </section>
-      ))}
+        );
+      })}
     </div>
   );
 }

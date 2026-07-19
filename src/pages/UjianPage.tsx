@@ -26,7 +26,7 @@ export function UjianPage() {
   return (
     <div>
       <div className="mb-8">
-        <h1 className="font-serif-brand text-2xl font-semibold text-navy-deep">
+        <h1 className="text-2xl font-bold text-navy-deep">
           {t(uiText.ujianTitle, language)}
         </h1>
         <p className="mt-1 text-sm text-muted">{t(uiText.ujianDescription, language)}</p>
