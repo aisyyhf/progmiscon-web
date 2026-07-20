@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ChevronDown, LogOut, UserRound } from "lucide-react";
+import { ChevronDown, History, LogOut, UserRound } from "lucide-react";
 import { NavTabs } from "../navigation/NavTabs";
 import { LanguageToggle } from "../navigation/LanguageToggle";
 import { useLecturerAuth } from "../../hooks/useLecturerAuth";
@@ -7,7 +7,13 @@ import { useLanguage } from "../../hooks/useLanguage";
 
 export function TopNav() {
   const { language } = useLanguage();
-  const { isLecturer, logout } = useLecturerAuth();
+  const { isLecturer, profile, logout } = useLecturerAuth();
+
+  const lecturerName =
+    profile?.fullName.trim() || (language === "id" ? "Dosen" : "Lecturer");
+
+  const lecturerFirstName =
+    lecturerName.split(/\s+/)[0] || (language === "id" ? "Dosen" : "Lecturer");
 
   return (
     <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/95 shadow-[0_1px_12px_rgba(30,41,59,0.04)] backdrop-blur-md">
@@ -40,18 +46,50 @@ export function TopNav() {
                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-brand shadow-sm">
                   <UserRound size={14} strokeWidth={2} aria-hidden="true" />
                 </span>
-                {language === "id" ? "Dosen" : "Lecturer"}
-                <ChevronDown size={13} aria-hidden="true" className="text-muted transition-transform group-open:rotate-180" />
+                {lecturerFirstName}
+                <ChevronDown
+                  size={13}
+                  aria-hidden="true"
+                  className="text-muted transition-transform group-open:rotate-180"
+                />
               </summary>
-              <div className="absolute right-0 top-full z-30 mt-2 min-w-40 rounded-lg border border-slate-200 bg-white p-1.5 shadow-[0_18px_45px_rgba(30,41,59,0.14)]">
-                <button
-                  type="button"
-                  onClick={logout}
-                  className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2.5 text-left text-xs font-semibold text-muted transition-colors hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
-                >
-                  <LogOut size={14} strokeWidth={2} aria-hidden="true" />
-                  {language === "id" ? "Keluar" : "Logout"}
-                </button>
+              <div className="absolute right-0 top-full z-30 mt-2 w-72 rounded-lg border border-slate-200 bg-white p-1.5 shadow-[0_18px_45px_rgba(30,41,59,0.14)]">
+                <div className="border-b border-border px-3 py-3">
+                  <p className="truncate text-sm font-bold text-navy-deep">
+                    {lecturerName}
+                  </p>
+
+                  {profile?.email && (
+                    <p className="mt-1 truncate text-xs text-muted">
+                      {profile.email}
+                    </p>
+                  )}
+                </div>
+
+                <div className="py-1.5">
+                  <Link
+                    to="/review/riwayat"
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-xs font-semibold text-muted transition-colors hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                  >
+                    <History size={14} strokeWidth={2} aria-hidden="true" />
+                    {language === "id"
+                      ? "Riwayat Review Saya"
+                      : "My Review History"}
+                  </Link>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void logout().catch((error) => {
+                        console.error("[Progmiscon] Logout gagal", error);
+                      });
+                    }}
+                    className="flex w-full cursor-pointer items-center gap-2 rounded-md px-3 py-2.5 text-left text-xs font-semibold text-muted transition-colors hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                  >
+                    <LogOut size={14} strokeWidth={2} aria-hidden="true" />
+                    {language === "id" ? "Keluar" : "Logout"}
+                  </button>
+                </div>
               </div>
             </details>
           ) : (
