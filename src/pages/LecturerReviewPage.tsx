@@ -1,19 +1,33 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Code2, FileQuestion, Send } from "lucide-react";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
 import { MisconceptionPicker } from "../components/review/MisconceptionPicker";
 import { useLanguage } from "../hooks/useLanguage";
+import { useLecturerAuth } from "../hooks/useLecturerAuth";
 import { useQuestions } from "../hooks/useQuestions";
 import { useAllStudentAnswers } from "../hooks/useStudentAnswers";
 import { useReviewTasks } from "../hooks/useReviewTasks";
 import { useMisconceptions } from "../hooks/useMisconceptions";
-import type { Language, Misconception, Question, ReviewTask, StudentAnswer } from "../types";
+import type {
+  AnswerReviewValues,
+  Language,
+  Misconception,
+  Question,
+  QuestionReviewValues,
+  ReviewTask,
+  StudentAnswer,
+} from "../types";
 import { cn } from "../utils/cn";
 import { getQuestionReference } from "../utils/questionReference";
 import { prioritizeMisconceptions, sortReviewTasks } from "../utils/reviewPriority";
 import { t } from "../utils/translation";
+import {
+  getReviewProgress,
+  saveAnswerReview,
+  saveQuestionReview,
+} from "../services/reviewPersistenceRepository";
 
 type ReviewMode = "question" | "answer";
 
@@ -63,26 +77,79 @@ function PresenceToggle({
 
 export function LecturerReviewPage() {
   const { language } = useLanguage();
+  const { user } = useLecturerAuth();
   const { questions, loading: questionsLoading } = useQuestions();
   const { answers, loading: answersLoading } = useAllStudentAnswers();
   const { misconceptions, loading: misconceptionsLoading } = useMisconceptions();
   const { tasks: answerTasks, loading: reviewTasksLoading } = useReviewTasks();
   const [mode, setMode] = useState<ReviewMode>("question");
   const [reviewedQuestionIds, setReviewedQuestionIds] = useState<string[]>([]);
-  const [reviewedAnswerTaskIds, setReviewedAnswerTaskIds] = useState<string[]>([]);
+  const [reviewedAnswerIds, setReviewedAnswerIds] = useState<string[]>([]);
+  const [progressLoading, setProgressLoading] = useState(true);
+  const [progressError, setProgressError] = useState("");
 
-  const questionTask = questions.find((question) => !reviewedQuestionIds.includes(question.id));
-  const answerTask = sortReviewTasks(answerTasks).find(
-    (task) => !reviewedAnswerTaskIds.includes(task.id),
+  useEffect(() => {
+    let active = true;
+
+    const loadProgress = async () => {
+      if (!user) {
+        if (active) {
+          setReviewedQuestionIds([]);
+          setReviewedAnswerIds([]);
+          setProgressLoading(false);
+        }
+        return;
+      }
+
+      setProgressLoading(true);
+      setProgressError("");
+
+      try {
+        const progress = await getReviewProgress(user.id);
+        if (!active) return;
+        setReviewedQuestionIds(progress.questionIds);
+        setReviewedAnswerIds(progress.answerIds);
+      } catch (error) {
+        if (!active) return;
+        console.error("[Progmiscon] Progres review gagal dimuat", error);
+        setProgressError(
+          error instanceof Error
+            ? error.message
+            : "Progres review belum dapat dimuat.",
+        );
+      } finally {
+        if (active) setProgressLoading(false);
+      }
+    };
+
+    void loadProgress();
+
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
+  const questionTask = questions.find(
+    (question) => !reviewedQuestionIds.includes(question.id),
   );
-  const answerQuestion = questions.find((question) => question.id === answerTask?.questionId);
-  const answer = answers.find((item) => item.id === answerTask?.answerCaseId);
-  const suggestedMisconception = misconceptions.find((item) => item.id === answerTask?.suggestedMisconceptionId);
+  const answerTask = sortReviewTasks(answerTasks).find(
+    (task) => !reviewedAnswerIds.includes(task.answerCaseId),
+  );
+  const answerQuestion = questions.find(
+    (question) => question.id === answerTask?.questionId,
+  );
+  const answer = answers.find(
+    (item) => item.id === answerTask?.answerCaseId,
+  );
+  const suggestedMisconception = misconceptions.find(
+    (item) => item.id === answerTask?.suggestedMisconceptionId,
+  );
   const loading =
     questionsLoading ||
     answersLoading ||
     misconceptionsLoading ||
-    reviewTasksLoading;
+    reviewTasksLoading ||
+    progressLoading;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -94,6 +161,15 @@ export function LecturerReviewPage() {
             : "Validate the relationship between questions, student answers, and misconceptions."}
         </p>
       </header>
+
+      {progressError && (
+        <p
+          role="alert"
+          className="mb-5 rounded-md border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect"
+        >
+          {progressError}
+        </p>
+      )}
 
       <div
         className="mb-6 grid w-full grid-cols-2 gap-1 rounded-lg border border-border bg-neutral p-1 sm:w-fit"
@@ -143,7 +219,15 @@ export function LecturerReviewPage() {
             key={questionTask.id}
             question={questionTask}
             misconceptions={misconceptions}
-            onSubmit={() => setReviewedQuestionIds((current) => [...current, questionTask.id])}
+            onSubmit={async (values) => {
+              if (!user) throw new Error("Sesi dosen tidak ditemukan.");
+              await saveQuestionReview(user.id, questionTask.id, values);
+              setReviewedQuestionIds((current) =>
+                current.includes(questionTask.id)
+                  ? current
+                  : [...current, questionTask.id],
+              );
+            }}
           />
         ) : (
           <EmptyState
@@ -162,9 +246,20 @@ export function LecturerReviewPage() {
             question={answerQuestion}
             answer={answer}
             misconceptions={misconceptions}
-            onSubmit={() =>
-              setReviewedAnswerTaskIds((current) => [...current, answerTask.id])
-            }
+            onSubmit={async (values) => {
+              if (!user) throw new Error("Sesi dosen tidak ditemukan.");
+              await saveAnswerReview(
+                user.id,
+                answer.id,
+                answerQuestion.id,
+                values,
+              );
+              setReviewedAnswerIds((current) =>
+                current.includes(answer.id)
+                  ? current
+                  : [...current, answer.id],
+              );
+            }}
           />
         ) : (
           <EmptyState
@@ -183,7 +278,7 @@ function QuestionValidationWorkspace({
 }: {
   question: Question;
   misconceptions: Misconception[];
-  onSubmit: () => void;
+  onSubmit: (values: QuestionReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
   const reference = getQuestionReference(question);
@@ -201,11 +296,56 @@ function QuestionValidationWorkspace({
   const [additionalMisconceptionIds, setAdditionalMisconceptionIds] = useState<string[]>([]);
   const [additionReason, setAdditionReason] = useState("");
   const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const canSubmit =
     hasIncorrectMisconceptions !== null &&
     hasAdditionalMisconceptions !== null &&
     (!hasIncorrectMisconceptions || (removedMisconceptionIds.length > 0 && removalReason.trim().length > 0)) &&
     (!hasAdditionalMisconceptions || (additionalMisconceptionIds.length > 0 && additionReason.trim().length > 0));
+
+  const handleSubmit = async () => {
+    if (
+      !canSubmit ||
+      submitting ||
+      hasIncorrectMisconceptions === null ||
+      hasAdditionalMisconceptions === null
+    ) {
+      return;
+    }
+
+    setSubmitError("");
+    setSubmitting(true);
+
+    try {
+      await onSubmit({
+        hasIncorrectMisconceptions,
+        removedMisconceptionIds: hasIncorrectMisconceptions
+          ? removedMisconceptionIds
+          : [],
+        removalReason: hasIncorrectMisconceptions
+          ? removalReason.trim()
+          : null,
+        hasAdditionalMisconceptions,
+        additionalMisconceptionIds: hasAdditionalMisconceptions
+          ? additionalMisconceptionIds
+          : [],
+        additionReason: hasAdditionalMisconceptions
+          ? additionReason.trim()
+          : null,
+        note: note.trim() || null,
+      });
+    } catch (error) {
+      console.error("[Progmiscon] Validasi soal gagal disimpan", error);
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Validasi soal belum dapat disimpan.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="scroll-reveal">
@@ -431,6 +571,15 @@ function QuestionValidationWorkspace({
             </section>
           </div>
 
+          {submitError && (
+            <p
+              role="alert"
+              className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2.5 text-xs leading-5 text-incorrect"
+            >
+              {submitError}
+            </p>
+          )}
+
           {!canSubmit && (
             <p id="question-validation-help" className="mt-5 text-xs leading-5 text-muted">
               {language === "id"
@@ -441,13 +590,19 @@ function QuestionValidationWorkspace({
 
           <Button
             variant="primary"
-            onClick={onSubmit}
-            disabled={!canSubmit}
+            onClick={handleSubmit}
+            disabled={!canSubmit || submitting}
             aria-describedby={!canSubmit ? "question-validation-help" : undefined}
             className="mt-4 w-full justify-center"
           >
             <Send size={16} strokeWidth={2} aria-hidden="true" />
-            {language === "id" ? "Simpan & lanjut" : "Save & continue"}
+            {submitting
+              ? language === "id"
+                ? "Menyimpan..."
+                : "Saving..."
+              : language === "id"
+                ? "Simpan & lanjut"
+                : "Save & continue"}
           </Button>
         </aside>
       </div>
@@ -466,7 +621,7 @@ function AnswerValidationWorkspace({
   question: Question;
   answer: StudentAnswer;
   misconceptions: Misconception[];
-  onSubmit: () => void;
+  onSubmit: (values: AnswerReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
   const selectedOption = question.options?.find((option) => option.id === answer.selectedOptionId);
@@ -487,11 +642,56 @@ function AnswerValidationWorkspace({
   const [additionalMisconceptionIds, setAdditionalMisconceptionIds] = useState<string[]>([]);
   const [additionReason, setAdditionReason] = useState("");
   const [note, setNote] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const canSubmit =
     hasMismatchedMisconceptions !== null &&
     hasAdditionalMisconceptions !== null &&
     (!hasMismatchedMisconceptions || (removedMisconceptionIds.length > 0 && removalReason.trim().length > 0)) &&
     (!hasAdditionalMisconceptions || (additionalMisconceptionIds.length > 0 && additionReason.trim().length > 0));
+
+  const handleSubmit = async () => {
+    if (
+      !canSubmit ||
+      submitting ||
+      hasMismatchedMisconceptions === null ||
+      hasAdditionalMisconceptions === null
+    ) {
+      return;
+    }
+
+    setSubmitError("");
+    setSubmitting(true);
+
+    try {
+      await onSubmit({
+        hasMismatchedMisconceptions,
+        removedMisconceptionIds: hasMismatchedMisconceptions
+          ? removedMisconceptionIds
+          : [],
+        removalReason: hasMismatchedMisconceptions
+          ? removalReason.trim()
+          : null,
+        hasAdditionalMisconceptions,
+        additionalMisconceptionIds: hasAdditionalMisconceptions
+          ? additionalMisconceptionIds
+          : [],
+        additionReason: hasAdditionalMisconceptions
+          ? additionReason.trim()
+          : null,
+        note: note.trim() || null,
+      });
+    } catch (error) {
+      console.error("[Progmiscon] Validasi jawaban gagal disimpan", error);
+      setSubmitError(
+        error instanceof Error
+          ? error.message
+          : "Validasi jawaban belum dapat disimpan.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="scroll-reveal">
@@ -711,6 +911,15 @@ function AnswerValidationWorkspace({
             </section>
           </div>
 
+          {submitError && (
+            <p
+              role="alert"
+              className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2.5 text-xs leading-5 text-incorrect"
+            >
+              {submitError}
+            </p>
+          )}
+
           {!canSubmit && (
             <p id="answer-validation-help" className="mt-5 text-xs leading-5 text-muted">
               {language === "id"
@@ -721,13 +930,19 @@ function AnswerValidationWorkspace({
 
           <Button
             variant="primary"
-            onClick={onSubmit}
-            disabled={!canSubmit}
+            onClick={handleSubmit}
+            disabled={!canSubmit || submitting}
             aria-describedby={!canSubmit ? "answer-validation-help" : undefined}
             className="mt-4 w-full justify-center"
           >
             <Send size={16} strokeWidth={2} aria-hidden="true" />
-            {language === "id" ? "Simpan & lanjut" : "Save & continue"}
+            {submitting
+              ? language === "id"
+                ? "Menyimpan..."
+                : "Saving..."
+              : language === "id"
+                ? "Simpan & lanjut"
+                : "Save & continue"}
           </Button>
         </aside>
       </div>

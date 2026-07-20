@@ -1,37 +1,300 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { Session, User } from "@supabase/supabase-js";
+import type { LecturerProfile, LecturerSignUpResult } from "../types";
+import { getLecturerProfile } from "../services/lecturerRepository";
+import { supabase } from "../services/supabaseClient";
 
 type LecturerAuthContextValue = {
+  user: User | null;
+  profile: LecturerProfile | null;
   isLecturer: boolean;
-  login: () => void;
-  logout: () => void;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (
+    fullName: string,
+    email: string,
+    password: string,
+  ) => Promise<LecturerSignUpResult>;
+  logout: () => Promise<void>;
 };
 
-const STORAGE_KEY = "progmiscon-lecturer-auth";
-const LecturerAuthContext = createContext<LecturerAuthContextValue | undefined>(undefined);
+const LecturerAuthContext = createContext<LecturerAuthContextValue | undefined>(
+  undefined,
+);
+
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function authErrorMessage(error: unknown): string {
+  let rawMessage = "";
+  let code = "";
+
+  if (error instanceof Error) {
+    rawMessage = error.message;
+  } else if (typeof error === "string") {
+    rawMessage = error;
+  } else if (typeof error === "object" && error !== null) {
+    const authError = error as {
+      message?: unknown;
+      error_description?: unknown;
+      code?: unknown;
+    };
+
+    if (typeof authError.message === "string") {
+      rawMessage = authError.message;
+    } else if (typeof authError.error_description === "string") {
+      rawMessage = authError.error_description;
+    }
+
+    if (typeof authError.code === "string") {
+      code = authError.code;
+    }
+  }
+
+  const normalized = `${code} ${rawMessage}`.toLowerCase();
+
+  if (normalized.includes("invalid login credentials")) {
+    return "Email atau kata sandi salah.";
+  }
+
+  if (
+    normalized.includes("email_not_confirmed") ||
+    normalized.includes("email not confirmed")
+  ) {
+    return "Email belum diverifikasi. Periksa kotak masuk atau folder spam.";
+  }
+
+  if (
+    normalized.includes("lecturer_email_not_allowed") ||
+    normalized.includes("database error saving new user") ||
+    rawMessage.trim() === "{}"
+  ) {
+    return "Email belum terdaftar sebagai reviewer Progmiscon.";
+  }
+
+  if (normalized.includes("email_address_not_authorized")) {
+    return "Email verifikasi belum dapat dikirim ke alamat ini. Hubungi pengelola Progmiscon.";
+  }
+
+  if (
+    normalized.includes("user already registered") ||
+    normalized.includes("user_already_exists") ||
+    normalized.includes("email_exists")
+  ) {
+    return "Email tersebut sudah terdaftar. Silakan masuk.";
+  }
+
+  if (
+    normalized.includes("over_email_send_rate_limit") ||
+    normalized.includes("rate limit")
+  ) {
+    return "Terlalu banyak permintaan email. Tunggu beberapa saat lalu coba kembali.";
+  }
+
+  if (normalized.includes("weak_password")) {
+    return "Kata sandi belum memenuhi persyaratan keamanan.";
+  }
+
+  if (normalized.includes("failed to fetch")) {
+    return "Tidak dapat terhubung ke layanan akun. Periksa koneksi internet.";
+  }
+
+  if (normalized.includes("unexpected_failure")) {
+    return "Akun belum dapat dibuat. Pastikan email sudah terdaftar sebagai reviewer.";
+  }
+
+  return rawMessage.trim() || "Pendaftaran akun gagal. Silakan coba kembali.";
+}
 
 export function LecturerAuthProvider({ children }: { children: ReactNode }) {
-  const [isLecturer, setIsLecturer] = useState(() => localStorage.getItem(STORAGE_KEY) === "true");
+  const [user, setUser] = useState<User | null>(null);
+  const [profile, setProfile] = useState<LecturerProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const syncRequestId = useRef(0);
+
+  const syncSession = useCallback(
+    async (session: Session | null): Promise<boolean> => {
+      const requestId = ++syncRequestId.current;
+      setLoading(true);
+
+      const nextUser = session?.user ?? null;
+      setUser(nextUser);
+
+      if (!nextUser) {
+        if (requestId === syncRequestId.current) {
+          setProfile(null);
+          setLoading(false);
+        }
+        return false;
+      }
+
+      try {
+        const nextProfile = await getLecturerProfile(nextUser.id);
+
+        if (requestId !== syncRequestId.current) {
+          return Boolean(nextProfile?.active);
+        }
+
+        setProfile(nextProfile ?? null);
+        return Boolean(nextProfile?.active);
+      } catch (error) {
+        console.error("[Progmiscon] Profil dosen gagal dimuat", error);
+
+        if (requestId === syncRequestId.current) {
+          setProfile(null);
+        }
+        return false;
+      } finally {
+        if (requestId === syncRequestId.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, String(isLecturer));
-  }, [isLecturer]);
+    let active = true;
+
+    const initialize = async () => {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (!active) return;
+
+      if (error) {
+        console.error("[Progmiscon] Sesi Supabase gagal dimuat", error);
+        await syncSession(null);
+        return;
+      }
+
+      await syncSession(data.session);
+    };
+
+    void initialize();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!active) return;
+      void syncSession(session);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [syncSession]);
+
+  const login = useCallback(
+    async (email: string, password: string) => {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: normalizeEmail(email),
+        password,
+      });
+
+      if (error) {
+        throw new Error(authErrorMessage(error));
+      }
+
+      const allowed = await syncSession(data.session);
+
+      if (!allowed) {
+        await supabase.auth.signOut();
+        await syncSession(null);
+        throw new Error(
+          "Akun tidak aktif atau belum terdaftar sebagai reviewer Progmiscon.",
+        );
+      }
+    },
+    [syncSession],
+  );
+
+  const signup = useCallback(
+    async (
+      fullName: string,
+      email: string,
+      password: string,
+    ): Promise<LecturerSignUpResult> => {
+      const { data, error } = await supabase.auth.signUp({
+        email: normalizeEmail(email),
+        password,
+        options: {
+          data: {
+            full_name: fullName.trim(),
+          },
+          emailRedirectTo: `${window.location.origin}/dosen/login?confirmed=1`,
+        },
+      });
+
+      if (error) {
+        throw new Error(authErrorMessage(error));
+      }
+
+      if (data.session) {
+        const allowed = await syncSession(data.session);
+
+        if (!allowed) {
+          await supabase.auth.signOut();
+          await syncSession(null);
+          throw new Error(
+            "Akun tidak aktif atau belum terdaftar sebagai reviewer Progmiscon.",
+          );
+        }
+      }
+
+      return {
+        needsEmailConfirmation: data.session === null,
+      };
+    },
+    [syncSession],
+  );
+
+  const logout = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      throw new Error(authErrorMessage(error));
+    }
+
+    await syncSession(null);
+  }, [syncSession]);
 
   const value = useMemo<LecturerAuthContextValue>(
     () => ({
-      isLecturer,
-      login: () => setIsLecturer(true),
-      logout: () => setIsLecturer(false),
+      user,
+      profile,
+      isLecturer: Boolean(user && profile?.active),
+      loading,
+      login,
+      signup,
+      logout,
     }),
-    [isLecturer],
+    [loading, login, logout, profile, signup, user],
   );
 
-  return <LecturerAuthContext.Provider value={value}>{children}</LecturerAuthContext.Provider>;
+  return (
+    <LecturerAuthContext.Provider value={value}>
+      {children}
+    </LecturerAuthContext.Provider>
+  );
 }
 
 export function useLecturerAuth(): LecturerAuthContextValue {
   const context = useContext(LecturerAuthContext);
+
   if (!context) {
     throw new Error("useLecturerAuth must be used within LecturerAuthProvider");
   }
+
   return context;
 }
