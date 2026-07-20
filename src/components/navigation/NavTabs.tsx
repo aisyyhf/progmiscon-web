@@ -14,7 +14,9 @@ const links = [
 export function NavTabs() {
   const { language } = useLanguage();
   const { isLecturer } = useLecturerAuth();
-  const visibleLinks = isLecturer ? [...links, { to: "/review", label: uiText.navReview }] : links;
+  const visibleLinks = isLecturer
+    ? [...links, { to: "/review", label: uiText.navReview }]
+    : links;
 
   return (
     <nav className="flex w-max min-w-full items-center justify-center gap-0.5 whitespace-nowrap">
@@ -22,7 +24,7 @@ export function NavTabs() {
         <NavLink
           key={link.to}
           to={link.to}
-          end={link.to === "/home" || link.to === "/review"}
+          end={link.to === "/home"}
           className={({ isActive }) =>
             cn(
               "rounded-md px-2 py-2 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:px-2.5 md:px-3 md:text-sm",
