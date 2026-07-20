@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { Code2, FileQuestion, Send } from "lucide-react";
+import {
+  Code2,
+  FileQuestion,
+  History,
+  Send,
+} from "lucide-react";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
@@ -28,6 +33,7 @@ import {
   saveAnswerReview,
   saveQuestionReview,
 } from "../services/reviewPersistenceRepository";
+import { Link } from "react-router-dom";
 
 type ReviewMode = "question" | "answer";
 
@@ -72,6 +78,62 @@ function PresenceToggle({
         </button>
       ))}
     </div>
+  );
+}
+
+function ReviewCompletedState({
+  mode,
+  language,
+}: {
+  mode: ReviewMode;
+  language: Language;
+}) {
+  const isQuestion = mode === "question";
+
+  return (
+    <section className="rounded-xl border border-border bg-white px-6 py-10 text-center shadow-[0_8px_28px_rgba(30,41,59,0.05)]">
+      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-soft text-brand">
+        <History
+          size={22}
+          strokeWidth={2}
+          aria-hidden="true"
+        />
+      </span>
+
+      <h2 className="mt-4 text-lg font-bold text-navy-deep">
+        {language === "id"
+          ? `Tidak ada validasi ${
+              isQuestion ? "soal" : "jawaban"
+            } yang tersedia saat ini`
+          : `No ${
+              isQuestion ? "question" : "answer"
+            } validations are currently available`}
+      </h2>
+
+      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted">
+        {language === "id"
+          ? `Semua ${
+              isQuestion ? "soal" : "jawaban"
+            } yang tersedia untuk akun Anda telah ditinjau. Hasil review dapat dilihat melalui Riwayat Review Saya.`
+          : `All available ${
+              isQuestion ? "questions" : "answers"
+            } for your account have been reviewed. Your submissions are available in My Review History.`}
+      </p>
+
+      <Link
+        to="/review/riwayat"
+        className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      >
+        <History
+          size={16}
+          strokeWidth={2}
+          aria-hidden="true"
+        />
+        {language === "id"
+          ? "Lihat Riwayat Review Saya"
+          : "View My Review History"}
+      </Link>
+    </section>
   );
 }
 
@@ -230,8 +292,9 @@ export function LecturerReviewPage() {
             }}
           />
         ) : (
-          <EmptyState
-            message={language === "id" ? "Tidak ada validasi soal yang tersisa." : "No question validations remaining."}
+          <ReviewCompletedState
+            mode="question"
+            language={language}
           />
         )}
       </section>
@@ -262,8 +325,9 @@ export function LecturerReviewPage() {
             }}
           />
         ) : (
-          <EmptyState
-            message={language === "id" ? "Tidak ada validasi jawaban yang tersisa." : "No answer validations remaining."}
+          <ReviewCompletedState
+            mode="answer"
+            language={language}
           />
         )}
       </section>
