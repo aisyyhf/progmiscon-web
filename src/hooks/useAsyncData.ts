@@ -7,12 +7,19 @@ export function useAsyncData<T>(fetcher: () => Promise<T>, deps: unknown[], init
   useEffect(() => {
     let active = true;
     setLoading(true);
-    fetcher().then((result) => {
-      if (active) {
-        setData(result);
-        setLoading(false);
-      }
-    });
+
+    fetcher()
+      .then((result) => {
+        if (active) {
+          setData(result);
+          setLoading(false);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error("[Progmiscon] Gagal memuat data", error);
+        if (active) setLoading(false);
+      });
+
     return () => {
       active = false;
     };

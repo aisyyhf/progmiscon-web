@@ -8,3 +8,4 @@ export * from "./answer";
 export * from "./misconception";
 export * from "./verification";
 export * from "./review";
+export * from "./masterData";
