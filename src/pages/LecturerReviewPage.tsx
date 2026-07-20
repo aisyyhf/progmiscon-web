@@ -4,10 +4,10 @@ import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
 import { MisconceptionPicker } from "../components/review/MisconceptionPicker";
-import { mockReviewTasks } from "../data/mockReviewTasks";
 import { useLanguage } from "../hooks/useLanguage";
 import { useQuestions } from "../hooks/useQuestions";
 import { useAllStudentAnswers } from "../hooks/useStudentAnswers";
+import { useReviewTasks } from "../hooks/useReviewTasks";
 import { useMisconceptions } from "../hooks/useMisconceptions";
 import type { Language, Misconception, Question, ReviewTask, StudentAnswer } from "../types";
 import { cn } from "../utils/cn";
@@ -66,16 +66,23 @@ export function LecturerReviewPage() {
   const { questions, loading: questionsLoading } = useQuestions();
   const { answers, loading: answersLoading } = useAllStudentAnswers();
   const { misconceptions, loading: misconceptionsLoading } = useMisconceptions();
+  const { tasks: answerTasks, loading: reviewTasksLoading } = useReviewTasks();
   const [mode, setMode] = useState<ReviewMode>("question");
   const [reviewedQuestionIds, setReviewedQuestionIds] = useState<string[]>([]);
-  const [remainingAnswerTasks, setRemainingAnswerTasks] = useState(() => sortReviewTasks(mockReviewTasks));
+  const [reviewedAnswerTaskIds, setReviewedAnswerTaskIds] = useState<string[]>([]);
 
   const questionTask = questions.find((question) => !reviewedQuestionIds.includes(question.id));
-  const answerTask = remainingAnswerTasks[0];
+  const answerTask = sortReviewTasks(answerTasks).find(
+    (task) => !reviewedAnswerTaskIds.includes(task.id),
+  );
   const answerQuestion = questions.find((question) => question.id === answerTask?.questionId);
   const answer = answers.find((item) => item.id === answerTask?.answerCaseId);
   const suggestedMisconception = misconceptions.find((item) => item.id === answerTask?.suggestedMisconceptionId);
-  const loading = questionsLoading || answersLoading || misconceptionsLoading;
+  const loading =
+    questionsLoading ||
+    answersLoading ||
+    misconceptionsLoading ||
+    reviewTasksLoading;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -155,7 +162,9 @@ export function LecturerReviewPage() {
             question={answerQuestion}
             answer={answer}
             misconceptions={misconceptions}
-            onSubmit={() => setRemainingAnswerTasks((current) => current.slice(1))}
+            onSubmit={() =>
+              setReviewedAnswerTaskIds((current) => [...current, answerTask.id])
+            }
           />
         ) : (
           <EmptyState
