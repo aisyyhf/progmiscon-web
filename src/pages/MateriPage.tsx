@@ -4,7 +4,6 @@ import { LibraryBig } from "lucide-react";
 import { useLanguage } from "../hooks/useLanguage";
 import { useCategories } from "../hooks/useCategories";
 import { useQuestionsByCategory } from "../hooks/useQuestions";
-import { t, uiText } from "../utils/translation";
 import { MaterialBrowser } from "../components/browser/MaterialBrowser";
 
 export function MateriPage() {
@@ -37,9 +36,13 @@ export function MateriPage() {
           <LibraryBig size={22} strokeWidth={2} aria-hidden="true" />
         </span>
         <div>
-          <h1 className="page-title">{t(uiText.materiTitle, language)}</h1>
+          <h1 className="page-title">
+            {language === "id" ? "Materi pemrograman" : "Programming materials"}
+          </h1>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
-            {t(uiText.materiDescription, language)}
+            {language === "id"
+              ? "Pilih satu materi untuk membaca ringkasan dan membuka contoh soal yang berkaitan."
+              : "Choose a material to read its summary and open related example questions."}
           </p>
         </div>
       </div>

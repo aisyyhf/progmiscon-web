@@ -3,7 +3,7 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { t, uiText } from "../../utils/translation";
 import { cn } from "../../utils/cn";
 import { EmptyState } from "../common/EmptyState";
-import { ArrowRight, BookOpenCheck } from "lucide-react";
+import { BookOpen, BookOpenCheck } from "lucide-react";
 
 export function MaterialBrowser({
   categories,
@@ -21,14 +21,29 @@ export function MaterialBrowser({
   onSelectQuestion: (questionId: string) => void;
 }) {
   const { language } = useLanguage();
+  const selectedCategory = categories.find((category) => category.id === selectedCategoryId);
 
   return (
-    <div className="scroll-reveal space-y-6">
-      <nav
-        aria-label={language === "id" ? "Topik materi" : "Material topics"}
-        className="hide-scrollbar overflow-x-auto rounded-lg border border-border bg-white p-2 md:overflow-visible"
-      >
-        <div className="flex min-w-max gap-1.5 md:min-w-0 md:flex-wrap">
+    <div className="scroll-reveal grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start">
+      <aside className="rounded-xl border border-border bg-neutral/60 p-3 lg:sticky lg:top-24">
+        <div className="flex items-start gap-3 px-2 pb-3 pt-1">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white text-brand shadow-[0_1px_2px_rgba(33,29,27,0.06)]">
+            <BookOpen size={16} strokeWidth={2} aria-hidden="true" />
+          </span>
+          <div>
+            <h2 className="text-sm font-bold text-navy-deep">
+              {language === "id" ? "Daftar materi" : "Material library"}
+            </h2>
+            <p className="mt-0.5 text-xs leading-5 text-muted">
+              {categories.length} {language === "id" ? "topik tersedia" : "topics available"}
+            </p>
+          </div>
+        </div>
+
+        <nav
+          aria-label={language === "id" ? "Topik materi" : "Material topics"}
+          className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-1"
+        >
           {categories.map((category) => {
             const active = category.id === selectedCategoryId;
             return (
@@ -38,71 +53,128 @@ export function MaterialBrowser({
                 onClick={() => onSelectCategory(category.id)}
                 aria-current={active}
                 className={cn(
-                  "shrink-0 cursor-pointer rounded-md px-4 py-2.5 text-left text-sm font-semibold transition-colors",
+                  "min-h-11 cursor-pointer rounded-lg border px-3 py-2.5 text-left text-sm font-semibold transition-colors",
                   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                   active
-                    ? "bg-navy text-white shadow-sm"
-                    : "text-muted hover:bg-neutral hover:text-navy-deep",
+                    ? "border-brand bg-brand text-white shadow-[0_3px_10px_rgba(143,28,32,0.12)]"
+                    : "border-border bg-white text-navy-deep hover:border-brand/30 hover:text-brand",
                 )}
               >
                 {t(category.name, language)}
               </button>
             );
           })}
-        </div>
-      </nav>
+        </nav>
+      </aside>
 
-      <div className="min-w-0">
+      <section
+        className="min-w-0"
+        aria-labelledby={selectedCategory ? "selected-material-title" : undefined}
+      >
+        {selectedCategory && (
+          <header className="border-b border-border pb-5">
+            <p className="text-xs font-semibold text-brand">
+              {language === "id" ? "Materi terpilih" : "Selected material"}
+            </p>
+            <div className="mt-1.5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h2 id="selected-material-title" className="text-2xl font-extrabold tracking-tight text-navy-deep">
+                  {t(selectedCategory.name, language)}
+                </h2>
+                {selectedCategory.description && (
+                  <p className="mt-1.5 max-w-2xl text-sm leading-6 text-muted">
+                    {t(selectedCategory.description, language)}
+                  </p>
+                )}
+              </div>
+              {!loading && (
+                <span className="w-fit shrink-0 rounded-md bg-brand-soft px-2.5 py-1.5 text-xs font-semibold text-brand">
+                  {questions.length} {language === "id" ? "contoh soal" : "example questions"}
+                </span>
+              )}
+            </div>
+          </header>
+        )}
+
         {loading ? (
-          <EmptyState loading message={language === "id" ? "Memuat soal..." : "Loading questions..."} />
+          <div className="mt-6">
+            <EmptyState loading message={language === "id" ? "Memuat soal..." : "Loading questions..."} />
+          </div>
         ) : questions.length === 0 ? (
-          <EmptyState message={t(uiText.noQuestions, language)} />
+          <div className="mt-6">
+            <EmptyState
+              message={
+                language === "id"
+                  ? "Belum ada contoh soal untuk materi ini. Pilih materi lain dari daftar."
+                  : "No example questions are available for this material yet. Choose another material from the list."
+              }
+            />
+          </div>
         ) : (
           <div>
-            <div className="mb-4">
-              <p className="text-base font-bold text-navy-deep">
-                {language === "id" ? "Soal dalam topik ini" : "Questions in this topic"}
-              </p>
-              <p className="mt-0.5 text-sm text-muted">
-                {questions.length} {language === "id" ? "soal tersedia" : "questions available"}
+            <div className="mb-4 mt-6">
+              <h3 className="text-base font-bold text-navy-deep">
+                {language === "id" ? "Contoh soal" : "Example questions"}
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-muted">
+                {language === "id"
+                  ? "Pilih soal untuk melihat rincian, variasi jawaban, dan miskonsepsi yang terkait."
+                  : "Choose a question to view its details, answer variations, and related misconceptions."}
               </p>
             </div>
-            <div className="grid gap-3.5 md:grid-cols-2">
-            {questions.map((question) => (
-              <button
-                key={question.id}
-                type="button"
-                onClick={() => onSelectQuestion(question.id)}
-                className="surface-card-hover group flex w-full cursor-pointer flex-col p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-              >
-                <p className="line-clamp-3 text-[15px] font-semibold leading-6 text-navy-deep transition-colors group-hover:text-brand">
-                  {t(question.prompt, language)}
-                </p>
-                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
-                  {question.expectedConcepts.slice(0, 2).map((concept) => (
-                    <span key={t(concept, language)} className="rounded bg-neutral px-2 py-0.5 font-medium">
-                      {t(concept, language)}
+
+            <ul className="overflow-hidden rounded-xl border border-border bg-white">
+              {questions.map((question) => (
+                <li key={question.id} className="border-b border-border last:border-b-0">
+                  <button
+                    type="button"
+                    onClick={() => onSelectQuestion(question.id)}
+                    className="group grid w-full cursor-pointer gap-4 px-4 py-5 text-left transition-colors hover:bg-neutral/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand sm:grid-cols-[6rem_minmax(0,1fr)_auto] sm:px-5"
+                  >
+                    <div>
+                      <p className="text-[11px] font-semibold text-muted">
+                        {language === "id" ? "Contoh soal" : "Example"}
+                      </p>
+                      <p className="mt-1 text-base font-extrabold text-navy-deep transition-colors group-hover:text-brand">
+                        {question.number}
+                      </p>
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="line-clamp-3 text-[15px] font-semibold leading-6 text-navy-deep">
+                        {t(question.prompt, language)}
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
+                        <span className="font-medium">
+                          {question.type === "short_answer"
+                            ? t(uiText.filterShortAnswer, language)
+                            : t(uiText.filterMultipleChoice, language)}
+                        </span>
+                        {question.expectedConcepts.slice(0, 2).map((concept) => (
+                          <span key={t(concept, language)} className="rounded bg-neutral px-2 py-1 font-medium">
+                            {t(concept, language)}
+                          </span>
+                        ))}
+                        {question.questionMisconceptionIds.length > 0 && (
+                          <span>
+                            {question.questionMisconceptionIds.length}{" "}
+                            {language === "id" ? "miskonsepsi terkait" : "related misconceptions"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <span className="inline-flex w-fit items-center gap-2 self-center rounded-lg bg-brand-soft px-3 py-2 text-xs font-semibold text-brand transition-colors group-hover:bg-brand group-hover:text-white">
+                      <BookOpenCheck size={15} strokeWidth={2} aria-hidden="true" />
+                      {language === "id" ? "Lihat soal" : "View question"}
                     </span>
-                  ))}
-                  {question.questionMisconceptionIds.length > 0 && (
-                    <span>
-                      {question.questionMisconceptionIds.length} {language === "id" ? "miskonsepsi" : "misconceptions"}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-4 flex items-center justify-between border-t border-border/70 pt-3.5">
-                  <span className="flex items-center gap-2 text-sm font-semibold text-brand">
-                    <BookOpenCheck size={15} strokeWidth={2} aria-hidden="true" />
-                    {language === "id" ? "Buka soal" : "Open question"}
-                  </span>
-                  <ArrowRight size={15} strokeWidth={2} className="text-brand transition-transform group-hover:translate-x-1" aria-hidden="true" />
-                </div>
-              </button>
-            ))}
-            </div>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }
