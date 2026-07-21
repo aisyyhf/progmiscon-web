@@ -91,8 +91,8 @@ export function LecturerSignupPage() {
             </h2>
             <p className="mt-3 text-sm leading-6 text-muted">
               {language === "id"
-                ? "Akun hanya dapat dibuat oleh email yang telah dimasukkan ke daftar reviewer."
-                : "Accounts can only be created by emails added to the reviewer allowlist."}
+                ? "Akun dosen tersedia untuk email Telkom University yang telah diverifikasi."
+                : "Lecturer accounts are available to verified Telkom University emails."}
             </p>
           </div>
         </aside>
@@ -106,8 +106,8 @@ export function LecturerSignupPage() {
             </h1>
             <p className="mt-2 text-sm leading-6 text-muted">
               {language === "id"
-                ? "Gunakan email yang telah disetujui sebagai reviewer Progmiscon."
-                : "Use an email approved as a Progmiscon reviewer."}
+                ? "Gunakan email dengan domain @telkomuniversity.ac.id."
+                : "Use an email ending in @telkomuniversity.ac.id."}
             </p>
           </header>
 
@@ -177,11 +177,20 @@ export function LecturerSignupPage() {
                 disabled={submitting}
                 placeholder={
                   language === "id"
-                    ? "nama@kampus.ac.id"
-                    : "name@university.edu"
+                    ? "nama@telkomuniversity.ac.id"
+                    : "name@telkomuniversity.ac.id"
                 }
+                aria-describedby="signup-email-hint"
                 className="academic-input px-3.5 py-3 text-sm placeholder:text-muted/55"
               />
+              <p
+                id="signup-email-hint"
+                className="mt-2 text-xs leading-5 text-muted"
+              >
+                {language === "id"
+                  ? "Email harus diverifikasi sebelum fitur dosen dapat digunakan."
+                  : "Verify the email before using lecturer features."}
+              </p>
             </div>
 
             <div>
