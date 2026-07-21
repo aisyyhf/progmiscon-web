@@ -7,6 +7,7 @@ import { useQuestions } from "../hooks/useQuestions";
 import { useLanguage } from "../hooks/useLanguage";
 import { Breadcrumb } from "../components/layout/Breadcrumb";
 import { EmptyState } from "../components/common/EmptyState";
+import { QuestionRow } from "../components/browser/QuestionRow";
 import { ConceptChip } from "../components/concept/ConceptChip";
 import { ConceptIcon } from "../components/concept/ConceptIcon";
 import { MisconceptionDrawer } from "../components/misconception/MisconceptionDrawer";
@@ -54,6 +55,11 @@ export function KonsepPage() {
         : [],
     [currentConcept, misconceptions],
   );
+  const conceptQuestions = useMemo(() => {
+    if (!currentConcept) return [];
+    const questionIds = new Set(currentConcept.relatedQuestionIds);
+    return allQuestions.filter((question) => questionIds.has(question.id));
+  }, [allQuestions, currentConcept]);
   const relatedConcepts = useMemo(() => {
     if (!currentConcept) return [];
     const directRelations = currentConcept.relatedConceptIds
@@ -171,7 +177,7 @@ export function KonsepPage() {
         )}
       </section>
 
-      <section>
+      <section className="mb-8">
         <h2 className="text-xl font-bold text-navy-deep">
           {t(uiText.conceptMisconceptions, language)} {t(currentConcept.name, language)}
         </h2>
@@ -201,6 +207,28 @@ export function KonsepPage() {
                   </div>
                 </button>
               </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section>
+        <h2 className="text-xl font-bold text-navy-deep">
+          {language === "id" ? "Contoh Soal" : "Example Questions"} {t(currentConcept.name, language)}
+        </h2>
+        {conceptQuestions.length === 0 ? (
+          <div className="mt-4">
+            <EmptyState message={t(uiText.noQuestions, language)} />
+          </div>
+        ) : (
+          <ul className="mt-4 divide-y divide-border rounded-lg border border-border bg-white">
+            {conceptQuestions.map((question) => (
+              <QuestionRow
+                key={question.id}
+                metaItems={[question.id]}
+                promptPreview={t(question.prompt, language)}
+                onClick={() => navigate(`/question/${question.id}`)}
+              />
             ))}
           </ul>
         )}
