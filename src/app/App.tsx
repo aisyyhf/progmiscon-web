@@ -12,6 +12,7 @@ import {
   useLecturerAuth,
 } from "../hooks/useLecturerAuth";
 import { AppShell } from "../components/layout/AppShell";
+import { EmptyState } from "../components/common/EmptyState";
 import { HomePage } from "../pages/HomePage";
 import { MateriPage } from "../pages/MateriPage";
 import { KonsepPage } from "../pages/KonsepPage";
@@ -21,22 +22,51 @@ import { LecturerLoginPage } from "../pages/LecturerLoginPage";
 import { LecturerSignupPage } from "../pages/LecturerSignupPage";
 import { LecturerReviewPage } from "../pages/LecturerReviewPage";
 import { LecturerReviewHistoryPage } from "../pages/LecturerReviewHistoryPage";
+import { AdminPage } from "../pages/AdminPage";
 
 function LecturerOnly({ children }: { children: ReactNode }) {
   const { isLecturer, loading } = useLecturerAuth();
 
   if (loading) {
     return (
-      <div
-        role="status"
-        className="mx-auto max-w-xl rounded-lg bg-white px-5 py-8 text-center text-sm text-muted shadow-[0_8px_28px_rgba(30,41,59,0.06)]"
-      >
-        Memeriksa sesi dosen...
+      <div className="mx-auto max-w-xl">
+        <EmptyState loading message="Memeriksa sesi dosen..." />
       </div>
     );
   }
 
   return isLecturer ? children : <Navigate to="/dosen/login" replace />;
+}
+
+function AdminOnly({ children }: { children: ReactNode }) {
+  const { isLecturer, isAdmin, loading, adminAccessError } = useLecturerAuth();
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-xl">
+        <EmptyState loading message="Memeriksa hak akses Admin..." />
+      </div>
+    );
+  }
+
+  if (!isLecturer) {
+    return <Navigate to="/dosen/login" replace />;
+  }
+
+  if (adminAccessError) {
+    return (
+      <div className="mx-auto max-w-xl">
+        <p
+          role="alert"
+          className="rounded-lg border border-incorrect-border bg-incorrect-bg px-5 py-4 text-sm leading-6 text-incorrect"
+        >
+          {adminAccessError}
+        </p>
+      </div>
+    );
+  }
+
+  return isAdmin ? children : <Navigate to="/home" replace />;
 }
 
 function LegacyQuestionRedirect() {
@@ -92,6 +122,14 @@ export default function App() {
                   <LecturerOnly>
                     <LecturerReviewHistoryPage />
                   </LecturerOnly>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <AdminOnly>
+                    <AdminPage />
+                  </AdminOnly>
                 }
               />
               <Route path="*" element={<Navigate to="/home" replace />} />

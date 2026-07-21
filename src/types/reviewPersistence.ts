@@ -58,3 +58,21 @@ export type ReviewerHistory = {
   questionReviews: QuestionReviewHistoryItem[];
   answerReviews: AnswerReviewHistoryItem[];
 };
+
+export type AdminReviewer = {
+  reviewerId: string;
+  fullName: string;
+  email: string;
+};
+
+export type AdminQuestionReviewHistoryItem = QuestionReviewHistoryItem &
+  AdminReviewer;
+
+export type AdminAnswerReviewHistoryItem = AnswerReviewHistoryItem &
+  AdminReviewer;
+
+export type AdminReviewHistory = {
+  questionReviews: AdminQuestionReviewHistoryItem[];
+  answerReviews: AdminAnswerReviewHistoryItem[];
+  reviewers: AdminReviewer[];
+};

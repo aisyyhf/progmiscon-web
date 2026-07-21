@@ -1,36 +1,26 @@
 import { NavLink } from "react-router-dom";
 import { useLanguage } from "../../hooks/useLanguage";
-import { useLecturerAuth } from "../../hooks/useLecturerAuth";
-import { t, uiText } from "../../utils/translation";
+import { t } from "../../utils/translation";
 import { cn } from "../../utils/cn";
-
-const links = [
-  { to: "/home", label: uiText.navHome },
-  { to: "/materi", label: uiText.navMateri },
-  { to: "/konsep", label: uiText.navKonsep },
-  { to: "/miskonsepsi", label: uiText.navMiskonsepsi },
-];
+import { useNavLinks } from "./useNavLinks";
 
 export function NavTabs() {
   const { language } = useLanguage();
-  const { isLecturer } = useLecturerAuth();
-  const visibleLinks = isLecturer
-    ? [...links, { to: "/review", label: uiText.navReview }]
-    : links;
+  const links = useNavLinks();
 
   return (
-    <nav className="flex w-max min-w-full items-center justify-center gap-0.5 whitespace-nowrap">
-      {visibleLinks.map((link) => (
+    <nav className="flex w-max items-center justify-center gap-1 whitespace-nowrap">
+      {links.map((link) => (
         <NavLink
           key={link.to}
           to={link.to}
           end={link.to === "/home"}
           className={({ isActive }) =>
             cn(
-              "rounded-md px-2 py-2 text-[13px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:px-2.5 md:px-3 md:text-sm",
+              "relative rounded-md px-2.5 py-2 text-[13px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:px-3 md:text-sm",
               isActive
-                ? "bg-brand-soft text-brand"
-                : "text-muted hover:bg-neutral hover:text-navy-deep",
+                ? "text-brand after:absolute after:inset-x-2.5 after:-bottom-[1px] after:h-[2px] after:rounded-full after:bg-brand after:content-['']"
+                : "text-muted hover:text-navy-deep",
             )
           }
         >

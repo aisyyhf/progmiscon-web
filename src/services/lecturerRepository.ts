@@ -38,3 +38,13 @@ export async function getLecturerProfile(
     updatedAt: data.updated_at,
   };
 }
+
+export async function getCurrentUserAdminAccess(): Promise<boolean> {
+  const { data, error } = await supabase.rpc("current_user_is_admin");
+
+  if (error) {
+    throw new Error(`Hak akses Admin gagal diperiksa: ${error.message}`);
+  }
+
+  return data === true;
+}

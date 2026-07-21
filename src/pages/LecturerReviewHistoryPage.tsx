@@ -5,7 +5,6 @@ import {
   CalendarDays,
   Code2,
   FileQuestion,
-  History,
   MessageSquareText,
   MinusCircle,
   PlusCircle,
@@ -56,15 +55,15 @@ function DetailBlock({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border border-border bg-neutral/55 p-4">
-      <div className="flex items-center gap-2 text-sm font-bold text-navy-deep">
+    <section>
+      <div className="flex items-center gap-2 text-xs font-semibold text-muted">
         <span className="text-brand" aria-hidden="true">
           {icon}
         </span>
         {title}
       </div>
 
-      <div className="mt-2 text-sm leading-6 text-muted">{children}</div>
+      <div className="mt-2 text-sm leading-6 text-navy-deep">{children}</div>
     </section>
   );
 }
@@ -83,16 +82,16 @@ function MisconceptionList({
   }
 
   return (
-    <ul className="space-y-2">
+    <ul className="space-y-1.5">
       {ids.map((id) => (
         <li
           key={id}
-          className="rounded-md bg-white px-3 py-2 text-navy-deep shadow-sm"
+          className="rounded-md border border-border bg-white px-3 py-2 text-navy-deep"
         >
           <span className="font-semibold">
             {misconceptionTitles.get(id) ?? id}
           </span>
-          <span className="ml-2 text-xs text-muted">{id}</span>
+          <span className="ml-2 text-xs text-muted/70">{id}</span>
         </li>
       ))}
     </ul>
@@ -114,7 +113,7 @@ function QuestionHistoryCard({
     review.hasIncorrectMisconceptions || review.hasAdditionalMisconceptions;
 
   return (
-    <details className="group overflow-hidden rounded-xl border border-border bg-white shadow-[0_8px_28px_rgba(30,41,59,0.05)]">
+    <details className="group overflow-hidden rounded-lg border border-border bg-white">
       <summary className="cursor-pointer list-none px-5 py-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
         <div className="flex items-start gap-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
@@ -124,17 +123,15 @@ function QuestionHistoryCard({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <p className="text-sm font-bold text-navy-deep">
-                {language === "id"
-                  ? `Validasi Soal ${review.questionId}`
-                  : `Question Validation ${review.questionId}`}
+                {language === "id" ? "Validasi Soal" : "Question Validation"}
               </p>
 
               <span
                 className={cn(
-                  "rounded-full px-2.5 py-1 text-[11px] font-bold",
+                  "rounded-md border px-2.5 py-1 text-[11px] font-semibold",
                   hasChanges
-                    ? "bg-warning-bg text-warning"
-                    : "bg-correct-bg text-correct",
+                    ? "border-warning-border bg-warning-bg text-warning"
+                    : "border-correct-border bg-correct-bg text-correct",
                 )}
               >
                 {hasChanges
@@ -148,14 +145,17 @@ function QuestionHistoryCard({
             </div>
 
             {questionPrompt && (
-              <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted">
+              <p className="mt-2 line-clamp-2 text-[13px] font-normal leading-6 text-navy-deep">
                 {questionPrompt}
               </p>
             )}
 
-            <p className="mt-3 flex items-center gap-1.5 text-xs text-muted">
-              <CalendarDays size={13} strokeWidth={2} aria-hidden="true" />
-              {formatReviewDate(review.updatedAt, language)}
+            <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+              <span className="flex items-center gap-1.5">
+                <CalendarDays size={13} strokeWidth={2} aria-hidden="true" />
+                {formatReviewDate(review.updatedAt, language)}
+              </span>
+              <span className="text-muted/70">{review.questionId}</span>
             </p>
           </div>
 
@@ -265,7 +265,7 @@ function AnswerHistoryCard({
     review.hasMismatchedMisconceptions || review.hasAdditionalMisconceptions;
 
   return (
-    <details className="group overflow-hidden rounded-xl border border-border bg-white shadow-[0_8px_28px_rgba(30,41,59,0.05)]">
+    <details className="group overflow-hidden rounded-lg border border-border bg-white">
       <summary className="cursor-pointer list-none px-5 py-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
         <div className="flex items-start gap-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
@@ -275,21 +275,15 @@ function AnswerHistoryCard({
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <p className="text-sm font-bold text-navy-deep">
-                {language === "id"
-                  ? `Validasi Jawaban ${review.answerId}`
-                  : `Answer Validation ${review.answerId}`}
+                {language === "id" ? "Validasi Jawaban" : "Answer Validation"}
               </p>
-
-              <span className="text-xs text-muted">
-                {language === "id" ? "Soal" : "Question"} {review.questionId}
-              </span>
 
               <span
                 className={cn(
-                  "rounded-full px-2.5 py-1 text-[11px] font-bold",
+                  "rounded-md border px-2.5 py-1 text-[11px] font-semibold",
                   hasChanges
-                    ? "bg-warning-bg text-warning"
-                    : "bg-correct-bg text-correct",
+                    ? "border-warning-border bg-warning-bg text-warning"
+                    : "border-correct-border bg-correct-bg text-correct",
                 )}
               >
                 {hasChanges
@@ -314,9 +308,14 @@ function AnswerHistoryCard({
               </p>
             )}
 
-            <p className="mt-3 flex items-center gap-1.5 text-xs text-muted">
-              <CalendarDays size={13} strokeWidth={2} aria-hidden="true" />
-              {formatReviewDate(review.updatedAt, language)}
+            <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+              <span className="flex items-center gap-1.5">
+                <CalendarDays size={13} strokeWidth={2} aria-hidden="true" />
+                {formatReviewDate(review.updatedAt, language)}
+              </span>
+              <span className="text-muted/70">
+                {language === "id" ? "Soal" : "Question"} {review.questionId} / {review.answerId}
+              </span>
             </p>
           </div>
 
@@ -504,11 +503,7 @@ export function LecturerReviewHistoryPage() {
         {language === "id" ? "Kembali ke Review" : "Back to Review"}
       </Link>
 
-      <header className="mb-7 flex items-start gap-4">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
-          <History size={23} strokeWidth={2} aria-hidden="true" />
-        </span>
-
+      <header className="mb-7">
         <div>
           <h1 className="page-title">
             {language === "id" ? "Riwayat Review Saya" : "My Review History"}
@@ -532,7 +527,7 @@ export function LecturerReviewHistoryPage() {
       )}
 
       <div
-        className="mb-6 grid grid-cols-2 gap-1 rounded-lg border border-border bg-neutral p-1 sm:w-fit"
+        className="segmented-control mb-6 w-full sm:w-auto"
         role="tablist"
         aria-label={
           language === "id" ? "Jenis riwayat review" : "Review history type"
@@ -543,14 +538,8 @@ export function LecturerReviewHistoryPage() {
           role="tab"
           aria-selected={mode === "question"}
           onClick={() => setMode("question")}
-          className={cn(
-            "flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:min-w-44",
-            mode === "question"
-              ? "bg-white text-brand shadow-sm"
-              : "text-muted hover:bg-white/60 hover:text-navy-deep",
-          )}
+          className="segmented-tab sm:min-w-44"
         >
-          <FileQuestion size={17} strokeWidth={2} aria-hidden="true" />
           {language === "id" ? "Validasi Soal" : "Question Validation"}
         </button>
 
@@ -559,20 +548,15 @@ export function LecturerReviewHistoryPage() {
           role="tab"
           aria-selected={mode === "answer"}
           onClick={() => setMode("answer")}
-          className={cn(
-            "flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:min-w-44",
-            mode === "answer"
-              ? "bg-white text-brand shadow-sm"
-              : "text-muted hover:bg-white/60 hover:text-navy-deep",
-          )}
+          className="segmented-tab sm:min-w-44"
         >
-          <Code2 size={17} strokeWidth={2} aria-hidden="true" />
           {language === "id" ? "Validasi Jawaban" : "Answer Validation"}
         </button>
       </div>
 
       {loading ? (
         <EmptyState
+          loading
           message={
             language === "id"
               ? "Memuat riwayat review..."

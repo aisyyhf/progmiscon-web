@@ -8,6 +8,7 @@ import { useLanguage } from "../hooks/useLanguage";
 import { Breadcrumb } from "../components/layout/Breadcrumb";
 import { EmptyState } from "../components/common/EmptyState";
 import { ConceptChip } from "../components/concept/ConceptChip";
+import { ConceptIcon } from "../components/concept/ConceptIcon";
 import { MisconceptionDrawer } from "../components/misconception/MisconceptionDrawer";
 import { buildConcepts } from "../utils/concepts";
 import { t, uiText } from "../utils/translation";
@@ -92,25 +93,27 @@ export function KonsepPage() {
               <li key={concept.id} className="min-w-0">
                 <Link
                   to={`/konsep/${concept.id}`}
-                  className="group flex min-h-60 flex-col rounded-lg bg-white p-5 shadow-[0_7px_24px_rgba(30,41,59,0.055)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_14px_32px_rgba(30,41,59,0.09)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="surface-card-hover group flex h-full flex-col p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
-                  <span className="flex items-center justify-between">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-md bg-neutral text-navy">
-                      <Braces size={18} strokeWidth={2} aria-hidden="true" />
+                  <span className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand">
+                      <ConceptIcon name={concept.name} />
                     </span>
-                    <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand">
-                      {count} {language === "id" ? "miskonsepsi" : "misconceptions"}
+                    <span className="text-lg font-bold text-navy-deep transition-colors group-hover:text-brand">
+                      {t(concept.name, language)}
                     </span>
                   </span>
-                  <span className="mt-5 text-lg font-bold text-navy-deep transition-colors group-hover:text-brand">
-                    {t(concept.name, language)}
-                  </span>
-                  <span className="mt-2 line-clamp-3 text-sm leading-6 text-muted">
+                  <span className="mt-2 line-clamp-2 text-sm leading-6 text-muted">
                     {t(concept.description, language)}
                   </span>
-                  <span className="mt-auto flex items-center gap-2 pt-5 text-sm font-semibold text-brand">
-                    {language === "id" ? "Pelajari konsep" : "Explore concept"}
-                    <ArrowRight size={15} strokeWidth={2} className="transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                  <span className="mt-auto flex items-center justify-between pt-5">
+                    <span className="flex items-center gap-2 text-sm font-semibold text-brand">
+                      {language === "id" ? "Pelajari konsep" : "Explore concept"}
+                      <ArrowRight size={15} strokeWidth={2} className="transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                    </span>
+                    <span className="text-xs text-muted">
+                      {count} {language === "id" ? "miskonsepsi" : "misconceptions"}
+                    </span>
                   </span>
                 </Link>
               </li>
@@ -147,7 +150,7 @@ export function KonsepPage() {
         </div>
       </header>
 
-      <section className="mb-8 rounded-lg bg-[#eef2f6] p-5">
+      <section className="mb-8 rounded-lg bg-neutral p-5">
         <h2 className="text-base font-bold text-navy-deep">
           {t(uiText.relatedConcepts, language)}
         </h2>
@@ -186,7 +189,7 @@ export function KonsepPage() {
                 <button
                   type="button"
                   onClick={() => openDrawer(misconception.id)}
-                  className="group flex h-full w-full cursor-pointer items-start gap-4 rounded-lg bg-white px-5 py-4 text-left shadow-[0_5px_18px_rgba(30,41,59,0.05)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_10px_25px_rgba(30,41,59,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="surface-card-hover group flex h-full w-full cursor-pointer items-start gap-4 px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   <div className="min-w-0">
                     <h3 className="text-base font-semibold text-navy-deep transition-colors group-hover:text-brand">

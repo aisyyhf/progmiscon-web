@@ -10,13 +10,22 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import type { LecturerProfile, LecturerSignUpResult } from "../types";
-import { getLecturerProfile } from "../services/lecturerRepository";
+import {
+  getCurrentUserAdminAccess,
+  getLecturerProfile,
+} from "../services/lecturerRepository";
 import { supabase } from "../services/supabaseClient";
+import {
+  isTelkomLecturerEmail,
+  normalizeLecturerEmail,
+} from "../utils/lecturerEmail";
 
 type LecturerAuthContextValue = {
   user: User | null;
   profile: LecturerProfile | null;
   isLecturer: boolean;
+  isAdmin: boolean;
+  adminAccessError: string;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (
@@ -30,10 +39,6 @@ type LecturerAuthContextValue = {
 const LecturerAuthContext = createContext<LecturerAuthContextValue | undefined>(
   undefined,
 );
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
 
 function authErrorMessage(error: unknown): string {
   let rawMessage = "";
@@ -75,11 +80,24 @@ function authErrorMessage(error: unknown): string {
   }
 
   if (
-    normalized.includes("lecturer_email_not_allowed") ||
+    normalized.includes("lecturer_email_domain_not_allowed")
+  ) {
+    return "Gunakan email dengan domain @telkomuniversity.ac.id.";
+  }
+
+  if (normalized.includes("lecturer_email_not_verified")) {
+    return "Email belum diverifikasi. Periksa kotak masuk atau folder spam.";
+  }
+
+  if (normalized.includes("lecturer_email_not_allowed")) {
+    return "Email belum terdaftar sebagai reviewer Progmiscon.";
+  }
+
+  if (
     normalized.includes("database error saving new user") ||
     rawMessage.trim() === "{}"
   ) {
-    return "Email belum terdaftar sebagai reviewer Progmiscon.";
+    return "Akun belum dapat dibuat. Periksa email dan coba kembali.";
   }
 
   if (normalized.includes("email_address_not_authorized")) {
@@ -119,6 +137,8 @@ function authErrorMessage(error: unknown): string {
 export function LecturerAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<LecturerProfile | null>(null);
+  const [adminAccess, setAdminAccess] = useState(false);
+  const [adminAccessError, setAdminAccessError] = useState("");
   const [loading, setLoading] = useState(true);
   const syncRequestId = useRef(0);
 
@@ -133,6 +153,8 @@ export function LecturerAuthProvider({ children }: { children: ReactNode }) {
       if (!nextUser) {
         if (requestId === syncRequestId.current) {
           setProfile(null);
+          setAdminAccess(false);
+          setAdminAccessError("");
           setLoading(false);
         }
         return false;
@@ -145,13 +167,34 @@ export function LecturerAuthProvider({ children }: { children: ReactNode }) {
           return Boolean(nextProfile?.active);
         }
 
+        let nextAdminAccess = false;
+        let nextAdminAccessError = "";
+
+        if (nextProfile?.active) {
+          try {
+            nextAdminAccess = await getCurrentUserAdminAccess();
+          } catch (error) {
+            console.error("[Progmiscon] Hak akses Admin gagal diperiksa", error);
+            nextAdminAccessError =
+              "Hak akses Admin belum dapat diperiksa. Pastikan migration Admin sudah dijalankan di Supabase.";
+          }
+        }
+
+        if (requestId !== syncRequestId.current) {
+          return Boolean(nextProfile?.active);
+        }
+
         setProfile(nextProfile ?? null);
+        setAdminAccess(nextAdminAccess);
+        setAdminAccessError(nextAdminAccessError);
         return Boolean(nextProfile?.active);
       } catch (error) {
         console.error("[Progmiscon] Profil dosen gagal dimuat", error);
 
         if (requestId === syncRequestId.current) {
           setProfile(null);
+          setAdminAccess(false);
+          setAdminAccessError("");
         }
         return false;
       } finally {
@@ -198,7 +241,7 @@ export function LecturerAuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(
     async (email: string, password: string) => {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: normalizeEmail(email),
+        email: normalizeLecturerEmail(email),
         password,
       });
 
@@ -225,8 +268,14 @@ export function LecturerAuthProvider({ children }: { children: ReactNode }) {
       email: string,
       password: string,
     ): Promise<LecturerSignUpResult> => {
+      if (!isTelkomLecturerEmail(email)) {
+        throw new Error(
+          "Gunakan email dengan domain @telkomuniversity.ac.id.",
+        );
+      }
+
       const { data, error } = await supabase.auth.signUp({
-        email: normalizeEmail(email),
+        email: normalizeLecturerEmail(email),
         password,
         options: {
           data: {
@@ -274,12 +323,14 @@ export function LecturerAuthProvider({ children }: { children: ReactNode }) {
       user,
       profile,
       isLecturer: Boolean(user && profile?.active),
+      isAdmin: Boolean(user && profile?.active && adminAccess),
+      adminAccessError,
       loading,
       login,
       signup,
       logout,
     }),
-    [loading, login, logout, profile, signup, user],
+    [adminAccess, adminAccessError, loading, login, logout, profile, signup, user],
   );
 
   return (

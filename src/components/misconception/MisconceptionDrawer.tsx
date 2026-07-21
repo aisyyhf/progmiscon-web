@@ -60,7 +60,7 @@ export function MisconceptionDrawer({
             type="button"
             onClick={onClose}
             aria-label={language === "id" ? "Tutup" : "Close"}
-            className="cursor-pointer rounded-md p-1 text-muted transition-colors hover:bg-bg hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+            className="cursor-pointer rounded-md p-1 text-muted transition-colors hover:bg-bg hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             ✕
           </button>

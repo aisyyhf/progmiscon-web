@@ -1,4 +1,8 @@
 import type {
+  AdminAnswerReviewHistoryItem,
+  AdminQuestionReviewHistoryItem,
+  AdminReviewer,
+  AdminReviewHistory,
   AnswerReviewHistoryItem,
   AnswerReviewValues,
   QuestionReviewHistoryItem,
@@ -47,6 +51,12 @@ type AnswerReviewHistoryRow = {
   updated_at: string;
 };
 
+type ReviewerProfileRow = {
+  user_id: string;
+  full_name: string;
+  email: string;
+};
+
 function storageError(scope: string, error: { message?: string }): Error {
   const detail = error.message?.trim();
 
@@ -91,6 +101,40 @@ function mapAnswerReviewHistory(
     note: row.note,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+function mapReviewer(row: ReviewerProfileRow): AdminReviewer {
+  return {
+    reviewerId: row.user_id,
+    fullName: row.full_name,
+    email: row.email,
+  };
+}
+
+function mapAdminQuestionReviewHistory(
+  row: QuestionReviewHistoryRow,
+  reviewers: Map<string, AdminReviewer>,
+): AdminQuestionReviewHistoryItem {
+  const reviewer = reviewers.get(row.reviewer_id);
+
+  return {
+    ...mapQuestionReviewHistory(row),
+    fullName: reviewer?.fullName ?? row.reviewer_id,
+    email: reviewer?.email ?? "",
+  };
+}
+
+function mapAdminAnswerReviewHistory(
+  row: AnswerReviewHistoryRow,
+  reviewers: Map<string, AdminReviewer>,
+): AdminAnswerReviewHistoryItem {
+  const reviewer = reviewers.get(row.reviewer_id);
+
+  return {
+    ...mapAnswerReviewHistory(row),
+    fullName: reviewer?.fullName ?? row.reviewer_id,
+    email: reviewer?.email ?? "",
   };
 }
 
@@ -164,6 +208,74 @@ export async function getReviewerHistory(
   return {
     questionReviews: questionRows.map(mapQuestionReviewHistory),
     answerReviews: answerRows.map(mapAnswerReviewHistory),
+  };
+}
+
+export async function getAdminReviewHistory(): Promise<AdminReviewHistory> {
+  const [questionResult, answerResult] = await Promise.all([
+    supabase
+      .from("question_reviews")
+      .select(
+        "id,reviewer_id,question_id,has_incorrect_misconceptions,removed_misconception_ids,removal_reason,has_additional_misconceptions,additional_misconception_ids,addition_reason,note,created_at,updated_at",
+      )
+      .order("updated_at", { ascending: false }),
+
+    supabase
+      .from("answer_reviews")
+      .select(
+        "id,reviewer_id,answer_id,question_id,has_mismatched_misconceptions,removed_misconception_ids,removal_reason,has_additional_misconceptions,additional_misconception_ids,addition_reason,note,created_at,updated_at",
+      )
+      .order("updated_at", { ascending: false }),
+  ]);
+
+  if (questionResult.error) {
+    throw storageError("Riwayat validasi soal Admin dimuat", questionResult.error);
+  }
+
+  if (answerResult.error) {
+    throw storageError("Riwayat validasi jawaban Admin dimuat", answerResult.error);
+  }
+
+  const questionRows = (questionResult.data ??
+    []) as QuestionReviewHistoryRow[];
+  const answerRows = (answerResult.data ??
+    []) as AnswerReviewHistoryRow[];
+  const reviewerIds = [
+    ...new Set([
+      ...questionRows.map((row) => row.reviewer_id),
+      ...answerRows.map((row) => row.reviewer_id),
+    ]),
+  ];
+
+  let reviewers: AdminReviewer[] = [];
+
+  if (reviewerIds.length > 0) {
+    const { data, error } = await supabase.rpc(
+      "get_admin_reviewer_profiles",
+      { input_reviewer_ids: reviewerIds },
+    );
+
+    if (error) {
+      throw storageError("Profil reviewer Admin dimuat", error);
+    }
+
+    reviewers = ((data ?? []) as ReviewerProfileRow[])
+      .map(mapReviewer)
+      .sort((a, b) => a.fullName.localeCompare(b.fullName));
+  }
+
+  const reviewerMap = new Map(
+    reviewers.map((reviewer) => [reviewer.reviewerId, reviewer]),
+  );
+
+  return {
+    questionReviews: questionRows.map((row) =>
+      mapAdminQuestionReviewHistory(row, reviewerMap),
+    ),
+    answerReviews: answerRows.map((row) =>
+      mapAdminAnswerReviewHistory(row, reviewerMap),
+    ),
+    reviewers,
   };
 }
 

@@ -59,7 +59,7 @@ export function MisconceptionPreviewModal({
         <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
           <div>
             {category && (
-              <p className="text-[11px] font-medium uppercase tracking-wide text-gold">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-brand">
                 {t(category.name, language)}
               </p>
             )}
@@ -71,7 +71,7 @@ export function MisconceptionPreviewModal({
             type="button"
             onClick={onClose}
             aria-label={language === "id" ? "Tutup" : "Close"}
-            className="cursor-pointer rounded-md p-1 text-muted transition-colors hover:bg-bg hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+            className="cursor-pointer rounded-md p-1 text-muted transition-colors hover:bg-bg hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             x
           </button>
@@ -117,7 +117,7 @@ export function MisconceptionPreviewModal({
                         <button
                           type="button"
                           onClick={() => onSelectRelatedQuestion(question.id)}
-                          className="w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                          className="w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                         >
                           <p className="text-xs font-medium uppercase tracking-wide text-muted">
                             {[

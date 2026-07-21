@@ -11,7 +11,6 @@ import {
 import { Button } from "../components/common/Button";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLecturerAuth } from "../hooks/useLecturerAuth";
-import { ShieldCheck } from "lucide-react";
 
 export function LecturerLoginPage() {
   const { language } = useLanguage();
@@ -55,36 +54,19 @@ export function LecturerLoginPage() {
   const emailConfirmed = searchParams.get("confirmed") === "1";
 
   return (
-    <div className="mx-auto w-full max-w-4xl py-4 md:py-8">
-      <section className="grid overflow-hidden rounded-lg bg-white shadow-[0_18px_50px_rgba(30,41,59,0.09)] md:grid-cols-[0.85fr_1.15fr]">
-        <aside className="flex flex-col bg-navy p-6 text-white md:p-8">
-          <Link
-            to="/home"
-            className="inline-flex items-center gap-2.5 self-start font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
-          >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">
-              <img
-                src="/progmiscon-logo.png"
-                alt=""
-                className="h-full w-full scale-[1.4] object-cover contrast-200"
-              />
-            </span>
-            Progmiscon
-          </Link>
-
-          <div className="mt-10 md:mt-auto md:pt-24">
-            <ShieldCheck
-              size={24}
-              strokeWidth={1.8}
-              className="text-white/70"
-              aria-hidden="true"
-            />
-            <p className="mt-4 text-lg font-bold">
+    <div className="mx-auto w-full max-w-4xl py-4 md:py-10">
+      <section className="grid overflow-hidden rounded-xl border border-border bg-white md:grid-cols-[0.8fr_1.2fr]">
+        <aside className="flex min-h-56 flex-col justify-center border-b border-border bg-brand-soft p-6 md:min-h-full md:border-b-0 md:border-r md:p-8">
+          <div>
+            <p className="text-sm font-semibold text-brand">
+              {language === "id" ? "Portal dosen" : "Lecturer portal"}
+            </p>
+            <h2 className="mt-3 text-2xl font-bold leading-tight text-navy-deep">
               {language === "id"
                 ? "Ruang review akademik"
                 : "Academic review workspace"}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-white/65">
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-muted">
               {language === "id"
                 ? "Tinjau jawaban mahasiswa dan validasi pemetaan miskonsepsi secara terarah."
                 : "Review student answers and validate misconception mappings in one focused workspace."}
@@ -94,12 +76,7 @@ export function LecturerLoginPage() {
 
         <div className="p-6 md:p-8">
           <header>
-            <p className="text-sm font-semibold text-brand">
-              {language === "id"
-                ? "Akun Dosen"
-                : "Lecturer Account"}
-            </p>
-            <h1 className="mt-2 text-2xl font-bold text-navy-deep">
+            <h1 className="text-2xl font-bold text-navy-deep">
               {language === "id"
                 ? "Masuk sebagai dosen"
                 : "Sign in as a lecturer"}
