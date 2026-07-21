@@ -17,20 +17,27 @@ import { useLanguage } from "../hooks/useLanguage";
 import { useMisconceptions } from "../hooks/useMisconceptions";
 import { useQuestions } from "../hooks/useQuestions";
 import { useAllStudentAnswers } from "../hooks/useStudentAnswers";
+import { getMasterData } from "../services/masterDataRepository";
 import { getAdminReviewHistory } from "../services/reviewPersistenceRepository";
 import type {
   AdminAnswerReviewHistoryItem,
   AdminQuestionReviewHistoryItem,
   AdminReviewHistory,
   Language,
+  MasterData,
 } from "../types";
 import { cn } from "../utils/cn";
 import { downloadCsvFile, exportDateStamp } from "../utils/reviewCsv";
 import { t } from "../utils/translation";
+import {
+  buildUpdatedAnswerMisconceptionRelations,
+  buildUpdatedQuestionMisconceptionRelations,
+} from "../utils/updatedMisconceptionRelations";
 
 type AdminTab = "history" | "downloads";
 type HistoryMode = "question" | "answer";
 type ChangeFilter = "all" | "changed" | "unchanged";
+type DownloadMetric = { label: string; value: number };
 
 const emptyHistory: AdminReviewHistory = {
   questionReviews: [],
@@ -444,6 +451,8 @@ function DownloadCard({
   downloadLabel,
   loadingLabel,
   onDownload,
+  metrics,
+  errorMessage,
 }: {
   icon: React.ReactNode;
   title: string;
@@ -455,6 +464,8 @@ function DownloadCard({
   downloadLabel: string;
   loadingLabel: string;
   onDownload: () => void;
+  metrics?: DownloadMetric[];
+  errorMessage?: string;
 }) {
   return (
     <article className="surface-card flex flex-col p-5">
@@ -479,7 +490,7 @@ function DownloadCard({
           type="button"
           variant="primary"
           className="whitespace-nowrap"
-          disabled={loading || count === 0}
+          disabled={loading || count === 0 || Boolean(errorMessage)}
           onClick={onDownload}
         >
           <Download size={16} strokeWidth={2} aria-hidden="true" />
@@ -487,7 +498,22 @@ function DownloadCard({
         </Button>
       </div>
 
-      {!loading && count === 0 && (
+      {metrics && metrics.length > 0 && (
+        <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-border pt-4">
+          {metrics.map((metric) => (
+            <div key={metric.label}>
+              <dt className="text-xs font-semibold text-muted">{metric.label}</dt>
+              <dd className="mt-1 text-sm font-bold text-navy-deep">{metric.value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+
+      {!loading && errorMessage ? (
+        <p role="alert" className="mt-4 text-sm leading-6 text-brand">
+          {errorMessage}
+        </p>
+      ) : !loading && count === 0 && (
         <p role="status" className="mt-4 text-sm leading-6 text-muted">
           {emptyMessage}
         </p>
@@ -507,6 +533,9 @@ export function AdminPage() {
   const [history, setHistory] = useState<AdminReviewHistory>(emptyHistory);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
+  const [masterData, setMasterData] = useState<MasterData | null>(null);
+  const [masterDataLoading, setMasterDataLoading] = useState(true);
+  const [masterDataError, setMasterDataError] = useState("");
   const [search, setSearch] = useState("");
   const [reviewerId, setReviewerId] = useState("all");
   const [changeFilter, setChangeFilter] = useState<ChangeFilter>("all");
@@ -548,6 +577,38 @@ export function AdminPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    const loadMasterData = async () => {
+      setMasterDataLoading(true);
+      setMasterDataError("");
+
+      try {
+        const result = await getMasterData();
+        if (active) setMasterData(result);
+      } catch (error) {
+        if (!active) return;
+
+        console.error("[Progmiscon] Relasi master Admin gagal dimuat", error);
+        setMasterData(null);
+        setMasterDataError(
+          error instanceof Error
+            ? error.message
+            : "Relasi master belum dapat dimuat.",
+        );
+      } finally {
+        if (active) setMasterDataLoading(false);
+      }
+    };
+
+    void loadMasterData();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const questionMap = useMemo(
     () => new Map(questions.map((question) => [question.id, question])),
     [questions],
@@ -576,6 +637,37 @@ export function AdminPage() {
         history.answerReviews.filter(answerReviewHasChanges).length,
     }),
     [history],
+  );
+  const validMisconceptionIds = useMemo(
+    () =>
+      new Set(
+        (masterData?.misconceptions ?? [])
+          .map((misconception) => misconception.misconception_id.trim())
+          .filter(Boolean),
+      ),
+    [masterData],
+  );
+  const updatedQuestionRelations = useMemo(
+    () =>
+      masterData
+        ? buildUpdatedQuestionMisconceptionRelations(
+            masterData.questionMisconceptions,
+            history.questionReviews,
+            validMisconceptionIds,
+          )
+        : null,
+    [history.questionReviews, masterData, validMisconceptionIds],
+  );
+  const updatedAnswerRelations = useMemo(
+    () =>
+      masterData
+        ? buildUpdatedAnswerMisconceptionRelations(
+            masterData.answerMisconceptions,
+            history.answerReviews,
+            validMisconceptionIds,
+          )
+        : null,
+    [history.answerReviews, masterData, validMisconceptionIds],
   );
   const query = search.trim().toLowerCase();
   const filteredQuestionReviews = useMemo(
@@ -678,6 +770,48 @@ export function AdminPage() {
         "updated_at",
       ],
       rows,
+    );
+  };
+
+  const questionRelationError =
+    masterDataError ||
+    (updatedQuestionRelations?.invalidAddedMisconceptionIds.length
+      ? `${language === "id" ? "Unduhan ditahan karena ID miskonsepsi tambahan tidak ada di master" : "Download is blocked because added misconception IDs are absent from the master"}: ${updatedQuestionRelations.invalidAddedMisconceptionIds.join(", ")}.`
+      : "");
+  const answerRelationError =
+    masterDataError ||
+    (updatedAnswerRelations?.invalidAddedMisconceptionIds.length
+      ? `${language === "id" ? "Unduhan ditahan karena ID miskonsepsi tambahan tidak ada di master" : "Download is blocked because added misconception IDs are absent from the master"}: ${updatedAnswerRelations.invalidAddedMisconceptionIds.join(", ")}.`
+      : "");
+
+  const downloadUpdatedQuestionRelations = () => {
+    if (!updatedQuestionRelations || questionRelationError) return;
+
+    downloadCsvFile(
+      `question_misconceptions_updated_${exportDateStamp()}.csv`,
+      ["question_id", "misconception_id", "source", "active"],
+      updatedQuestionRelations.relations.map((relation) => [
+        relation.question_id,
+        relation.misconception_id,
+        relation.source,
+        relation.active,
+      ]),
+    );
+  };
+
+  const downloadUpdatedAnswerRelations = () => {
+    if (!updatedAnswerRelations || answerRelationError) return;
+
+    downloadCsvFile(
+      `answer_misconceptions_updated_${exportDateStamp()}.csv`,
+      ["answer_id", "misconception_id", "reason_ind", "reason_en", "active"],
+      updatedAnswerRelations.relations.map((relation) => [
+        relation.answer_id,
+        relation.misconception_id,
+        relation.reason_ind,
+        relation.reason_en,
+        relation.active,
+      ]),
     );
   };
 
@@ -1057,6 +1191,68 @@ export function AdminPage() {
               />
             </div>
           )}
+
+          <div className="mb-5 mt-10 border-t border-border pt-8">
+            <h2 className="text-base font-bold text-navy-deep">
+              {language === "id"
+                ? "Dataset Relasi Terbaru"
+                : "Latest Relationship Dataset"}
+            </h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">
+              {language === "id"
+                ? "Dataset ini menerapkan review terbaru untuk setiap soal atau jawaban ke relasi master secara lokal. Mengunduh file tidak mengubah Google Sheets secara otomatis."
+                : "This dataset applies the latest review for each question or answer to the master relationships locally. Downloading it does not automatically change Google Sheets."}
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <DownloadCard
+              icon={<FileQuestion size={19} strokeWidth={2} aria-hidden="true" />}
+              title={language === "id" ? "Relasi Soal–Miskonsepsi Terbaru" : "Latest Question–Misconception Relationships"}
+              description={language === "id" ? "Salinan relasi master soal dengan perubahan dari review terbaru tiap soal." : "A copy of the master question relationships with changes from the latest review for each question."}
+              emptyMessage={language === "id" ? "Belum ada relasi soal master untuk diunduh." : "There are no master question relationships to download."}
+              countLabel={language === "id" ? "Relasi terbaru" : "Updated relationships"}
+              count={updatedQuestionRelations?.relations.length ?? 0}
+              loading={masterDataLoading || historyLoading}
+              metrics={[
+                {
+                  label: language === "id" ? "Relasi master" : "Master relationships",
+                  value: updatedQuestionRelations?.masterRelationCount ?? 0,
+                },
+                {
+                  label: language === "id" ? "Review item diterapkan" : "Applied review items",
+                  value: updatedQuestionRelations?.appliedReviewItemCount ?? 0,
+                },
+              ]}
+              errorMessage={questionRelationError}
+              downloadLabel={language === "id" ? "Unduh Question Relations CSV" : "Download Question Relations CSV"}
+              loadingLabel={language === "id" ? "Memuat..." : "Loading..."}
+              onDownload={downloadUpdatedQuestionRelations}
+            />
+            <DownloadCard
+              icon={<Code2 size={19} strokeWidth={2} aria-hidden="true" />}
+              title={language === "id" ? "Relasi Jawaban–Miskonsepsi Terbaru" : "Latest Answer–Misconception Relationships"}
+              description={language === "id" ? "Salinan relasi master jawaban dengan perubahan dari review terbaru tiap jawaban." : "A copy of the master answer relationships with changes from the latest review for each answer."}
+              emptyMessage={language === "id" ? "Belum ada relasi jawaban master untuk diunduh." : "There are no master answer relationships to download."}
+              countLabel={language === "id" ? "Relasi terbaru" : "Updated relationships"}
+              count={updatedAnswerRelations?.relations.length ?? 0}
+              loading={masterDataLoading || historyLoading}
+              metrics={[
+                {
+                  label: language === "id" ? "Relasi master" : "Master relationships",
+                  value: updatedAnswerRelations?.masterRelationCount ?? 0,
+                },
+                {
+                  label: language === "id" ? "Review item diterapkan" : "Applied review items",
+                  value: updatedAnswerRelations?.appliedReviewItemCount ?? 0,
+                },
+              ]}
+              errorMessage={answerRelationError}
+              downloadLabel={language === "id" ? "Unduh Answer Relations CSV" : "Download Answer Relations CSV"}
+              loadingLabel={language === "id" ? "Memuat..." : "Loading..."}
+              onDownload={downloadUpdatedAnswerRelations}
+            />
+          </div>
         </section>
       )}
     </div>
