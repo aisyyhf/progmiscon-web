@@ -20,7 +20,7 @@ export function EmptyState({
   }
 
   return (
-    <div className="academic-panel-quiet flex min-h-40 items-center justify-center px-6 py-12 text-center">
+    <div className="academic-panel-quiet flex items-center justify-center px-6 py-8 text-center">
       <div className="max-w-sm text-sm leading-6 text-muted">{message}</div>
     </div>
   );

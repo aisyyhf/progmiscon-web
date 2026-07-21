@@ -163,7 +163,7 @@ export function QuestionReview({ questionId }: { questionId: string }) {
         </section>
       )}
 
-      <div className="scroll-reveal grid grid-cols-1 gap-5 xl:grid-cols-2 xl:items-start">
+      <div className="scroll-reveal grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] xl:items-start">
         <QuestionPanel
           question={question}
           concepts={concepts}

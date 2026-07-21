@@ -62,11 +62,7 @@ export function HomePage() {
   return (
     <div className="mx-auto max-w-5xl space-y-16 py-2 md:space-y-20 md:py-6">
       <section className="text-center">
-        <p className="inline-flex items-center gap-2 text-sm font-semibold text-brand">
-          <span className="h-1.5 w-1.5 rounded-full bg-red" aria-hidden="true" />
-          {t(uiText.homeTitle, language)}
-        </p>
-        <h1 className="mx-auto mt-4 max-w-3xl text-4xl font-extrabold leading-tight tracking-tight text-navy-deep md:text-5xl">
+        <h1 className="mx-auto max-w-3xl text-4xl font-extrabold leading-tight tracking-tight text-navy-deep md:text-5xl">
           {language === "id"
             ? "Pahami cara mahasiswa berpikir saat menyelesaikan soal pemrograman."
             : "Understand how students think when solving programming questions."}
@@ -93,9 +89,9 @@ export function HomePage() {
         </div>
       </section>
 
-      <section aria-label={language === "id" ? "Alur pengetahuan" : "Knowledge path"}>
-        <ol className="grid grid-cols-2 gap-x-4 gap-y-6 rounded-xl border border-border bg-neutral/60 px-5 py-6 sm:grid-cols-4 md:px-8">
-          {journey.map((item, index) => {
+      <section aria-label={language === "id" ? "Cakupan Progmiscon" : "What Progmiscon covers"}>
+        <ul className="grid grid-cols-2 gap-x-4 gap-y-6 rounded-xl border border-border bg-neutral/60 px-5 py-7 sm:grid-cols-4 md:px-8">
+          {journey.map((item) => {
             const Icon = item.icon;
             return (
               <li key={item.label} className="flex flex-col items-center text-center">
@@ -104,18 +100,10 @@ export function HomePage() {
                 </span>
                 <span className="mt-2.5 text-sm font-bold text-navy-deep">{item.label}</span>
                 <span className="mt-0.5 text-xs text-muted">{item.detail}</span>
-                {index < journey.length - 1 && (
-                  <ArrowRight
-                    size={14}
-                    strokeWidth={2}
-                    aria-hidden="true"
-                    className="mt-3 hidden text-border sm:block"
-                  />
-                )}
               </li>
             );
           })}
-        </ol>
+        </ul>
       </section>
 
       <section aria-labelledby="explore-title">

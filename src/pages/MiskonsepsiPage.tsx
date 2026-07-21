@@ -15,7 +15,7 @@ import { useLanguage } from "../hooks/useLanguage";
 import { t, uiText } from "../utils/translation";
 import { cn } from "../utils/cn";
 import { getAnswerVariations } from "../utils/misconceptionExploration";
-import { BrainCircuit, Search } from "lucide-react";
+import { BrainCircuit, ChevronDown, Search } from "lucide-react";
 
 export function MiskonsepsiPage() {
   const { misconceptionId } = useParams();
@@ -58,6 +58,7 @@ function MiskonsepsiDetailPage({
 }) {
   const { language } = useLanguage();
   const [query, setQuery] = useState("");
+  const [listOpen, setListOpen] = useState(false);
   const { misconception } = useMisconception(misconceptionId);
   const { categories } = useCategories();
   const { misconceptions: relatedMisconceptions } = useMisconceptionsByIds(
@@ -129,11 +130,26 @@ function MiskonsepsiDetailPage({
         </div>
       </div>
 
-      <section className="scroll-reveal grid grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
-        <aside className="rounded-lg border border-border bg-white p-4 lg:sticky lg:top-24">
-          <label htmlFor="misconception-search" className="academic-label">
-            {language === "id" ? "Daftar Miskonsepsi" : "Misconception List"}
-          </label>
+      <section className="scroll-reveal grid grid-cols-1 gap-5 lg:grid-cols-[280px_minmax(0,1fr)] lg:items-start">
+        <aside className="rounded-lg border border-border bg-white p-3.5 lg:sticky lg:top-24">
+          <button
+            type="button"
+            onClick={() => setListOpen((current) => !current)}
+            aria-expanded={listOpen}
+            aria-controls="misconception-list-panel"
+            className="flex w-full cursor-pointer items-center justify-between gap-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand lg:pointer-events-none"
+          >
+            <span className="academic-label">
+              {language === "id" ? "Daftar Miskonsepsi" : "Misconception List"}
+            </span>
+            <ChevronDown
+              size={15}
+              strokeWidth={2}
+              aria-hidden="true"
+              className={cn("text-muted transition-transform lg:hidden", listOpen && "rotate-180")}
+            />
+          </button>
+          <div id="misconception-list-panel" className={cn(listOpen ? "block" : "hidden", "lg:block")}>
           <div className="relative mt-3">
             <Search size={16} strokeWidth={2} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted" aria-hidden="true" />
             <input
@@ -145,7 +161,7 @@ function MiskonsepsiDetailPage({
               className="academic-input py-2.5 pl-9 pr-3 text-sm placeholder:text-muted/65"
             />
           </div>
-          <div className="thin-scroll mt-4 max-h-56 overflow-y-auto pr-1 lg:max-h-[60vh]">
+          <div className="thin-scroll mt-3 max-h-64 overflow-y-auto pr-1 lg:max-h-[62vh]">
             {filteredMisconceptions.length === 0 ? (
               <p className="px-2 py-3 text-sm text-muted">
                 {language === "id" ? "Tidak ada miskonsepsi yang cocok." : "No matching misconceptions."}
@@ -169,6 +185,7 @@ function MiskonsepsiDetailPage({
                 );
               })
             )}
+          </div>
           </div>
         </aside>
 
@@ -200,28 +217,6 @@ function MiskonsepsiDetailPage({
               <p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-navy-deep">
                 {t(misconception.fix, language)}
               </p>
-            </section>
-
-            <section className="pt-5">
-              <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
-                {t(uiText.relatedMisconceptions, language)}
-              </p>
-              {relatedMisconceptions.length === 0 ? (
-                <p className="text-sm text-muted">
-                  {language === "id" ? "Belum ada miskonsepsi terkait." : "No related misconceptions yet."}
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {relatedMisconceptions.map((related) => (
-                    <MisconceptionChip
-                      key={related.id}
-                      label={t(related.title, language)}
-                      tone="related"
-                      onClick={() => onNavigate(`/miskonsepsi/${related.id}`)}
-                    />
-                  ))}
-                </div>
-              )}
             </section>
 
             <section className="pt-5">
@@ -285,6 +280,24 @@ function MiskonsepsiDetailPage({
                 </ul>
               )}
             </section>
+
+            {relatedMisconceptions.length > 0 && (
+              <section className="pt-5">
+                <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
+                  {t(uiText.relatedMisconceptions, language)}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {relatedMisconceptions.map((related) => (
+                    <MisconceptionChip
+                      key={related.id}
+                      label={t(related.title, language)}
+                      tone="related"
+                      onClick={() => onNavigate(`/miskonsepsi/${related.id}`)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         </main>
       </section>

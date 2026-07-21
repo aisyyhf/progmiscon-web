@@ -113,7 +113,7 @@ export function QuestionPanel({
           <p className="academic-label mb-2">
             {t(uiText.referencePseudocode, language)}
           </p>
-          <pre className="whitespace-pre-wrap rounded-md border border-border bg-neutral px-4 py-3 font-mono text-xs leading-6 text-navy-deep">
+          <pre className="whitespace-pre-wrap rounded-md border border-border bg-neutral px-4 py-3 font-mono text-[13px] leading-6 text-navy-deep">
             {reference.pseudocode}
           </pre>
         </div>

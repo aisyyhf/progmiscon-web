@@ -92,25 +92,25 @@ export function KonsepPage() {
               <li key={concept.id} className="min-w-0">
                 <Link
                   to={`/konsep/${concept.id}`}
-                  className="surface-card-hover group flex min-h-60 flex-col p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="surface-card-hover group flex h-full flex-col p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
-                  <span className="flex items-center justify-between">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-md bg-neutral text-navy">
-                      <Braces size={18} strokeWidth={2} aria-hidden="true" />
+                  <span className="flex items-start justify-between gap-3">
+                    <span className="text-lg font-bold text-navy-deep transition-colors group-hover:text-brand">
+                      {t(concept.name, language)}
                     </span>
-                    <span className="rounded-full bg-brand-soft px-2.5 py-1 text-xs font-semibold text-brand">
-                      {count} {language === "id" ? "miskonsepsi" : "misconceptions"}
-                    </span>
+                    <Braces size={17} strokeWidth={2} aria-hidden="true" className="mt-1 shrink-0 text-brand/60" />
                   </span>
-                  <span className="mt-5 text-lg font-bold text-navy-deep transition-colors group-hover:text-brand">
-                    {t(concept.name, language)}
-                  </span>
-                  <span className="mt-2 line-clamp-3 text-sm leading-6 text-muted">
+                  <span className="mt-2 line-clamp-2 text-sm leading-6 text-muted">
                     {t(concept.description, language)}
                   </span>
-                  <span className="mt-auto flex items-center gap-2 pt-5 text-sm font-semibold text-brand">
-                    {language === "id" ? "Pelajari konsep" : "Explore concept"}
-                    <ArrowRight size={15} strokeWidth={2} className="transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                  <span className="mt-auto flex items-center justify-between pt-5">
+                    <span className="flex items-center gap-2 text-sm font-semibold text-brand">
+                      {language === "id" ? "Pelajari konsep" : "Explore concept"}
+                      <ArrowRight size={15} strokeWidth={2} className="transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                    </span>
+                    <span className="text-xs text-muted">
+                      {count} {language === "id" ? "miskonsepsi" : "misconceptions"}
+                    </span>
                   </span>
                 </Link>
               </li>

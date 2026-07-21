@@ -123,7 +123,7 @@ export function AnswerCasePanel({
                         )}
                       </div>
                     ) : (
-                      <pre className="whitespace-pre-wrap font-mono text-xs leading-6 text-navy-deep">{answer.answerText}</pre>
+                      <pre className="whitespace-pre-wrap font-mono text-[13px] leading-6 text-navy-deep">{answer.answerText}</pre>
                     )}
                   </div>
                   <AnswerStatusBar status={answer.status} />

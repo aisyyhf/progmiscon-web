@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { ChevronDown, History, LogOut, Menu, UserRound, X } from "lucide-react";
 import { NavTabs } from "../navigation/NavTabs";
-import { LanguageToggle } from "../navigation/LanguageToggle";
 import { useNavLinks } from "../navigation/useNavLinks";
 import { useLecturerAuth } from "../../hooks/useLecturerAuth";
 import { useLanguage } from "../../hooks/useLanguage";
@@ -57,7 +56,6 @@ export function TopNav() {
         </div>
 
         <div className="hidden items-center gap-2 justify-self-end md:flex">
-          <LanguageToggle />
           {isLecturer ? (
             <details className="group relative">
               <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-navy transition-colors hover:bg-neutral focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
@@ -205,13 +203,6 @@ export function TopNav() {
               {language === "id" ? "Akun Dosen" : "Lecturer Account"}
             </Link>
           )}
-
-          <div className="mt-4 flex items-center justify-between">
-            <span className="text-xs font-semibold text-muted">
-              {language === "id" ? "Bahasa" : "Language"}
-            </span>
-            <LanguageToggle />
-          </div>
         </div>
       </div>
     </header>

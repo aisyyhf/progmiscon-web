@@ -3,7 +3,7 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { t, uiText } from "../../utils/translation";
 import { cn } from "../../utils/cn";
 import { EmptyState } from "../common/EmptyState";
-import { ArrowRight, BookOpenCheck, FileCode2 } from "lucide-react";
+import { ArrowRight, BookOpenCheck } from "lucide-react";
 
 export function MaterialBrowser({
   categories,
@@ -67,40 +67,35 @@ export function MaterialBrowser({
                 {questions.length} {language === "id" ? "soal tersedia" : "questions available"}
               </p>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-3.5 md:grid-cols-2">
             {questions.map((question) => (
               <button
                 key={question.id}
                 type="button"
                 onClick={() => onSelectQuestion(question.id)}
-                className="surface-card-hover group flex min-h-56 w-full cursor-pointer flex-col p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="surface-card-hover group flex w-full cursor-pointer flex-col p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
-                <div className="flex items-center justify-between">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-md bg-neutral text-navy">
-                    <FileCode2 size={18} strokeWidth={2} aria-hidden="true" />
-                  </span>
-                  <span className="text-xs font-medium text-muted">
-                    {question.questionMisconceptionIds.length} {language === "id" ? "miskonsepsi" : "misconceptions"}
-                  </span>
-                </div>
-                <p className="mt-5 line-clamp-3 text-base font-bold leading-6 text-navy-deep transition-colors group-hover:text-brand">
+                <p className="line-clamp-3 text-[15px] font-semibold leading-6 text-navy-deep transition-colors group-hover:text-brand">
                   {t(question.prompt, language)}
                 </p>
-                {question.expectedConcepts.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-1.5">
-                    {question.expectedConcepts.slice(0, 2).map((concept) => (
-                      <span key={t(concept, language)} className="rounded bg-neutral px-2 py-1 text-xs font-medium text-muted">
-                        {t(concept, language)}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                <div className="mt-auto flex items-center justify-between border-t border-border/70 pt-4">
+                <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
+                  {question.expectedConcepts.slice(0, 2).map((concept) => (
+                    <span key={t(concept, language)} className="rounded bg-neutral px-2 py-0.5 font-medium">
+                      {t(concept, language)}
+                    </span>
+                  ))}
+                  {question.questionMisconceptionIds.length > 0 && (
+                    <span>
+                      {question.questionMisconceptionIds.length} {language === "id" ? "miskonsepsi" : "misconceptions"}
+                    </span>
+                  )}
+                </div>
+                <div className="mt-4 flex items-center justify-between border-t border-border/70 pt-3.5">
                   <span className="flex items-center gap-2 text-sm font-semibold text-brand">
-                    <BookOpenCheck size={16} strokeWidth={2} aria-hidden="true" />
+                    <BookOpenCheck size={15} strokeWidth={2} aria-hidden="true" />
                     {language === "id" ? "Buka soal" : "Open question"}
                   </span>
-                  <ArrowRight size={16} strokeWidth={2} className="text-brand transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                  <ArrowRight size={15} strokeWidth={2} className="text-brand transition-transform group-hover:translate-x-1" aria-hidden="true" />
                 </div>
               </button>
             ))}
