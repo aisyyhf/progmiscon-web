@@ -1,6 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { ChevronDown, History, LogOut, Menu, UserRound, X } from "lucide-react";
+import {
+  ChevronDown,
+  History,
+  LogOut,
+  Menu,
+  ShieldCheck,
+  UserRound,
+  X,
+} from "lucide-react";
 import { NavTabs } from "../navigation/NavTabs";
 import { useNavLinks } from "../navigation/useNavLinks";
 import { useLecturerAuth } from "../../hooks/useLecturerAuth";
@@ -10,7 +18,7 @@ import { cn } from "../../utils/cn";
 
 export function TopNav() {
   const { language } = useLanguage();
-  const { isLecturer, profile, logout } = useLecturerAuth();
+  const { isLecturer, isAdmin, profile, logout } = useLecturerAuth();
   const location = useLocation();
   const links = useNavLinks();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -92,6 +100,16 @@ export function TopNav() {
                       ? "Riwayat Review Saya"
                       : "My Review History"}
                   </Link>
+
+                  {isAdmin && (
+                    <Link
+                      to="/admin"
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2.5 text-left text-xs font-semibold text-muted transition-colors hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                    >
+                      <ShieldCheck size={14} strokeWidth={2} aria-hidden="true" />
+                      Admin Progmiscon
+                    </Link>
+                  )}
 
                   <button
                     type="button"
@@ -180,6 +198,15 @@ export function TopNav() {
                   <History size={16} strokeWidth={2} aria-hidden="true" />
                   {language === "id" ? "Riwayat Review Saya" : "My Review History"}
                 </Link>
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    className="flex min-h-12 items-center gap-2.5 rounded-md px-3 text-sm font-semibold text-navy-deep hover:bg-neutral focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  >
+                    <ShieldCheck size={16} strokeWidth={2} aria-hidden="true" />
+                    Admin Progmiscon
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={() => {

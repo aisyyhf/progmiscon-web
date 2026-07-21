@@ -10,13 +10,18 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import type { LecturerProfile, LecturerSignUpResult } from "../types";
-import { getLecturerProfile } from "../services/lecturerRepository";
+import {
+  getCurrentUserAdminAccess,
+  getLecturerProfile,
+} from "../services/lecturerRepository";
 import { supabase } from "../services/supabaseClient";
 
 type LecturerAuthContextValue = {
   user: User | null;
   profile: LecturerProfile | null;
   isLecturer: boolean;
+  isAdmin: boolean;
+  adminAccessError: string;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   signup: (
@@ -119,6 +124,8 @@ function authErrorMessage(error: unknown): string {
 export function LecturerAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<LecturerProfile | null>(null);
+  const [adminAccess, setAdminAccess] = useState(false);
+  const [adminAccessError, setAdminAccessError] = useState("");
   const [loading, setLoading] = useState(true);
   const syncRequestId = useRef(0);
 
@@ -133,6 +140,8 @@ export function LecturerAuthProvider({ children }: { children: ReactNode }) {
       if (!nextUser) {
         if (requestId === syncRequestId.current) {
           setProfile(null);
+          setAdminAccess(false);
+          setAdminAccessError("");
           setLoading(false);
         }
         return false;
@@ -145,13 +154,34 @@ export function LecturerAuthProvider({ children }: { children: ReactNode }) {
           return Boolean(nextProfile?.active);
         }
 
+        let nextAdminAccess = false;
+        let nextAdminAccessError = "";
+
+        if (nextProfile?.active) {
+          try {
+            nextAdminAccess = await getCurrentUserAdminAccess();
+          } catch (error) {
+            console.error("[Progmiscon] Hak akses Admin gagal diperiksa", error);
+            nextAdminAccessError =
+              "Hak akses Admin belum dapat diperiksa. Pastikan migration Admin sudah dijalankan di Supabase.";
+          }
+        }
+
+        if (requestId !== syncRequestId.current) {
+          return Boolean(nextProfile?.active);
+        }
+
         setProfile(nextProfile ?? null);
+        setAdminAccess(nextAdminAccess);
+        setAdminAccessError(nextAdminAccessError);
         return Boolean(nextProfile?.active);
       } catch (error) {
         console.error("[Progmiscon] Profil dosen gagal dimuat", error);
 
         if (requestId === syncRequestId.current) {
           setProfile(null);
+          setAdminAccess(false);
+          setAdminAccessError("");
         }
         return false;
       } finally {
@@ -274,12 +304,14 @@ export function LecturerAuthProvider({ children }: { children: ReactNode }) {
       user,
       profile,
       isLecturer: Boolean(user && profile?.active),
+      isAdmin: Boolean(user && profile?.active && adminAccess),
+      adminAccessError,
       loading,
       login,
       signup,
       logout,
     }),
-    [loading, login, logout, profile, signup, user],
+    [adminAccess, adminAccessError, loading, login, logout, profile, signup, user],
   );
 
   return (
