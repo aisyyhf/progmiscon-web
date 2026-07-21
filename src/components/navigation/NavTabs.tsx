@@ -9,7 +9,7 @@ export function NavTabs() {
   const links = useNavLinks();
 
   return (
-    <nav className="flex w-max min-w-full items-center justify-center gap-1 whitespace-nowrap">
+    <nav className="flex w-max items-center justify-center gap-1 whitespace-nowrap">
       {links.map((link) => (
         <NavLink
           key={link.to}
