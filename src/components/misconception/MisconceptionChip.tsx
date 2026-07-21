@@ -7,20 +7,22 @@ export function MisconceptionChip({
   onClick,
   selected,
   tone = "question",
+  className,
 }: {
   label: string;
   onClick: () => void;
   selected?: boolean;
   tone?: MisconceptionChipTone;
+  className?: string;
 }) {
   const toneClasses: Record<MisconceptionChipTone, { idle: string; selected: string }> = {
     question: {
-      idle: "border-brand/25 bg-brand-soft/45 text-navy-deep hover:border-brand/55 hover:bg-brand-soft",
+      idle: "border-border bg-white text-navy-deep hover:border-brand/45 hover:bg-brand-soft/35",
       selected: "border-brand bg-brand-soft text-brand",
     },
     student: {
-      idle: "border-incorrect-border bg-incorrect-bg/70 text-incorrect hover:border-incorrect hover:bg-incorrect-bg",
-      selected: "border-incorrect-border bg-incorrect-bg text-incorrect",
+      idle: "border-brand/25 bg-brand-soft/70 text-brand-deep hover:border-brand/55 hover:bg-brand-soft",
+      selected: "border-brand bg-brand-soft text-brand-deep",
     },
     related: {
       idle: "border-navy/20 bg-white text-navy-deep hover:border-navy/45 hover:bg-bg",
@@ -39,6 +41,7 @@ export function MisconceptionChip({
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         "hover:-translate-y-0.5 active:translate-y-0 active:shadow-none",
         selected ? toneClasses[tone].selected : toneClasses[tone].idle,
+        className,
       )}
     >
       <span>{label}</span>

@@ -2,24 +2,47 @@ import { useLanguage } from "../../hooks/useLanguage";
 
 export function AnswerVisualization() {
   const { language } = useLanguage();
+  const visualizationLabel =
+    language === "id"
+      ? "Alur jawaban dari mulai, membaca data, lalu bercabang ke pemeriksaan dan keluaran"
+      : "Answer flow from start and reading data to checking and output";
 
   return (
-    <section className="academic-panel-quiet p-5">
-      <p className="academic-label">
+    <section className="rounded-lg border border-border bg-white p-5">
+      <h3 className="text-sm font-bold text-navy-deep">
         {language === "id" ? "Visualisasi Jawaban" : "Answer Visualization"}
-      </p>
-      <div className="mt-4 grid max-w-md grid-cols-[1fr_1fr] gap-x-4 gap-y-2 rounded-md border border-border bg-white p-5 font-mono text-[11px] font-semibold text-navy-deep">
-        <div className="col-span-2 justify-self-center rounded border border-brand/30 bg-brand-soft px-3 py-2 text-brand">
+      </h3>
+
+      <figure
+        aria-label={visualizationLabel}
+        className="mt-4 flex w-full flex-col items-center overflow-hidden rounded-lg border border-border bg-bg px-5 py-7 font-mono text-[11px] font-semibold text-navy-deep sm:px-8"
+      >
+        <div className="min-w-24 rounded-full bg-brand px-5 py-2 text-center text-white shadow-sm">
           START
         </div>
-        <div className="col-span-2 h-3 justify-self-center border-l border-navy/30" />
-        <div className="col-span-2 justify-self-center rounded border border-navy/20 bg-bg px-3 py-2">
+
+        <div aria-hidden="true" className="h-4 w-px bg-navy/25" />
+
+        <div className="min-w-28 rounded-full border border-navy/20 bg-white px-5 py-2 text-center shadow-sm">
           READ / TRACE
         </div>
-        <div className="col-span-2 h-3 justify-self-center border-l border-navy/30" />
-        <div className="justify-self-end rounded border border-border bg-white px-3 py-2">CHECK</div>
-        <div className="justify-self-start rounded border border-border bg-white px-3 py-2">OUTPUT</div>
-      </div>
+
+        <div aria-hidden="true" className="relative h-7 w-full max-w-sm">
+          <span className="absolute left-1/2 top-0 h-3.5 w-px -translate-x-1/2 bg-navy/25" />
+          <span className="absolute left-1/4 right-1/4 top-3.5 h-px bg-navy/25" />
+          <span className="absolute bottom-0 left-1/4 top-3.5 w-px -translate-x-1/2 bg-navy/25" />
+          <span className="absolute bottom-0 left-3/4 top-3.5 w-px -translate-x-1/2 bg-navy/25" />
+        </div>
+
+        <div className="grid w-full max-w-sm grid-cols-2 gap-6 sm:gap-12">
+          <div className="justify-self-center rounded-full border border-navy/20 bg-white px-5 py-2 text-center shadow-sm">
+            CHECK
+          </div>
+          <div className="justify-self-center rounded-full border border-navy/20 bg-white px-5 py-2 text-center shadow-sm">
+            OUTPUT
+          </div>
+        </div>
+      </figure>
     </section>
   );
 }

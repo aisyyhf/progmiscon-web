@@ -6,8 +6,9 @@ import { findConceptByText } from "../../utils/concepts";
 import { cn } from "../../utils/cn";
 import { getQuestionReference } from "../../utils/questionReference";
 import { ConceptChip } from "../concept/ConceptChip";
+import { ConceptIcon } from "../concept/ConceptIcon";
 import { MisconceptionChip } from "../misconception/MisconceptionChip";
-import { ChevronLeft, ChevronRight, FileQuestion } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 export function QuestionPanel({
   question,
@@ -33,12 +34,12 @@ export function QuestionPanel({
   const reference = getQuestionReference(question);
 
   return (
-    <section className="relative min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
-      <div className="flex items-center justify-between gap-4">
-        <span className="flex items-center gap-2 text-sm font-semibold text-muted">
-          <FileQuestion size={17} strokeWidth={2} className="text-brand" aria-hidden="true" />
+    <div className="grid min-w-0 gap-4">
+      <section className="relative overflow-hidden rounded-lg border border-border bg-white p-5 md:p-6">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="text-lg font-bold text-navy-deep">
           {language === "id" ? "Soal" : "Question"}
-        </span>
+          </h2>
         {relatedQuestionIndex !== undefined && relatedQuestionTotal !== undefined && relatedQuestionIndex >= 0 && (
         <div className="flex items-center gap-3">
           <p className="text-xs font-medium text-muted">
@@ -72,7 +73,7 @@ export function QuestionPanel({
         )}
       </div>
 
-      <p className="mt-4 max-w-4xl whitespace-pre-wrap text-xl font-bold leading-8 text-navy-deep">
+      <p className="mt-4 max-w-4xl whitespace-pre-wrap text-[13px] font-normal leading-6 text-navy-deep">
         {t(question.prompt, language)}
       </p>
 
@@ -118,46 +119,50 @@ export function QuestionPanel({
           </pre>
         </div>
       )}
+      </section>
 
-      <div className="mt-6 grid gap-4 border-t border-border pt-5">
-        {question.expectedConcepts.length > 0 && (
-          <section className="rounded-lg bg-neutral p-4">
-            <p className="academic-label mb-2">{t(uiText.expectedConcepts, language)}</p>
-            <div className="flex flex-wrap gap-2">
-              {question.expectedConcepts.map((concept) => {
-                const resolvedConcept = findConceptByText(concepts, concept);
-                return (
-                  <ConceptChip
-                    key={resolvedConcept?.id ?? t(concept, language)}
-                    label={t(concept, language)}
-                    onClick={() => onSelectConcept(resolvedConcept?.id ?? question.categoryId)}
-                  />
-                );
-              })}
-            </div>
-          </section>
-        )}
-
-        <section className="rounded-lg bg-brand-soft/45 p-4">
-          <p className="academic-label mb-2 text-brand">
-            {language === "id" ? "Miskonsepsi yang Mungkin Muncul" : "Possible Misconceptions"}
-          </p>
-          {misconceptions.length === 0 ? (
-            <p className="text-sm text-muted">{t(uiText.emptyMisconceptions, language)}</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {misconceptions.map((misconception) => (
-                <MisconceptionChip
-                  key={misconception.id}
-                  label={t(misconception.title, language)}
-                  tone="question"
-                  onClick={() => onSelectMisconception(misconception.id)}
+      {question.expectedConcepts.length > 0 && (
+        <section className="rounded-lg border border-border bg-white p-5 md:p-6">
+          <h2 className="text-base font-bold text-navy-deep">
+            {language === "id" ? "Konsep" : "Concepts"}
+          </h2>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {question.expectedConcepts.map((concept) => {
+              const resolvedConcept = findConceptByText(concepts, concept);
+              return (
+                <ConceptChip
+                  key={resolvedConcept?.id ?? t(concept, language)}
+                  label={t(concept, language)}
+                  icon={<ConceptIcon name={resolvedConcept?.name ?? concept} size={15} />}
+                  showArrow={false}
+                  onClick={() => onSelectConcept(resolvedConcept?.id ?? question.categoryId)}
                 />
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
         </section>
-      </div>
-    </section>
+      )}
+
+      <section className="rounded-lg border border-border bg-white p-5 md:p-6">
+        <h2 className="text-base font-bold text-navy-deep">
+          {language === "id" ? "Miskonsepsi yang Mungkin Muncul" : "Possible Misconceptions"}
+        </h2>
+        {misconceptions.length === 0 ? (
+          <p className="mt-3 text-sm text-muted">{t(uiText.emptyMisconceptions, language)}</p>
+        ) : (
+          <div className="mt-3 grid gap-2">
+            {misconceptions.map((misconception) => (
+              <MisconceptionChip
+                key={misconception.id}
+                label={t(misconception.title, language)}
+                tone="question"
+                className="w-full justify-between px-3.5 py-3 text-left"
+                onClick={() => onSelectMisconception(misconception.id)}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
   );
 }

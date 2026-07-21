@@ -8,6 +8,7 @@ import { useLanguage } from "../hooks/useLanguage";
 import { Breadcrumb } from "../components/layout/Breadcrumb";
 import { EmptyState } from "../components/common/EmptyState";
 import { ConceptChip } from "../components/concept/ConceptChip";
+import { ConceptIcon } from "../components/concept/ConceptIcon";
 import { MisconceptionDrawer } from "../components/misconception/MisconceptionDrawer";
 import { buildConcepts } from "../utils/concepts";
 import { t, uiText } from "../utils/translation";
@@ -94,11 +95,13 @@ export function KonsepPage() {
                   to={`/konsep/${concept.id}`}
                   className="surface-card-hover group flex h-full flex-col p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
-                  <span className="flex items-start justify-between gap-3">
+                  <span className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand">
+                      <ConceptIcon name={concept.name} />
+                    </span>
                     <span className="text-lg font-bold text-navy-deep transition-colors group-hover:text-brand">
                       {t(concept.name, language)}
                     </span>
-                    <Braces size={17} strokeWidth={2} aria-hidden="true" className="mt-1 shrink-0 text-brand/60" />
                   </span>
                   <span className="mt-2 line-clamp-2 text-sm leading-6 text-muted">
                     {t(concept.description, language)}

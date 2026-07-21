@@ -54,8 +54,9 @@ export function TopNav() {
               className="h-full w-full scale-[1.4] object-cover contrast-200"
             />
           </span>
-          <span className="text-[15px] font-bold text-navy-deep transition-colors group-hover:text-brand">
-            Progmiscon
+          <span className="text-lg font-bold tracking-tight">
+            <span className="text-brand">Prog</span>
+            <span className="text-navy-deep">miscon</span>
           </span>
         </Link>
 

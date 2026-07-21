@@ -1,13 +1,18 @@
+import type { ReactNode } from "react";
 import { cn } from "../../utils/cn";
 
 export function ConceptChip({
   label,
   onClick,
   selected,
+  icon,
+  showArrow = true,
 }: {
   label: string;
   onClick: () => void;
   selected?: boolean;
+  icon?: ReactNode;
+  showArrow?: boolean;
 }) {
   return (
     <button
@@ -24,10 +29,17 @@ export function ConceptChip({
           : "border-navy/20 bg-white text-navy-deep hover:border-brand/35 hover:bg-brand-soft/40",
       )}
     >
+      {icon && (
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand-soft text-brand">
+          {icon}
+        </span>
+      )}
       <span>{label}</span>
-      <span aria-hidden="true" className="text-[11px] opacity-75">
-        {"\u2192"}
-      </span>
+      {showArrow && (
+        <span aria-hidden="true" className="text-[11px] opacity-75">
+          {"\u2192"}
+        </span>
+      )}
     </button>
   );
 }

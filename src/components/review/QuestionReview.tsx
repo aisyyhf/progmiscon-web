@@ -156,7 +156,7 @@ export function QuestionReview({ questionId }: { questionId: string }) {
           <button
             type="button"
             onClick={resetExploration}
-            className="shrink-0 cursor-pointer self-start rounded-md bg-white/10 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-white/18 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:self-auto"
+            className="shrink-0 cursor-pointer self-start rounded-md border border-brand bg-brand px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:border-brand-deep hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:self-auto"
           >
             {language === "id" ? "Keluar dari Eksplorasi" : "Exit Exploration"}
           </button>
