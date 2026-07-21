@@ -34,7 +34,7 @@ export function AssessmentBrowser({
               aria-current={active}
               className={cn(
                 "block w-full cursor-pointer rounded-md border px-3 py-2 text-left text-sm transition",
-                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
+                "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                 active
                   ? "border-navy bg-navy text-white shadow-[0_1px_2px_rgba(15,23,42,0.10)]"
                   : "border-transparent text-navy-deep hover:border-navy/30 hover:bg-surface hover:shadow-sm",

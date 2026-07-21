@@ -8,7 +8,7 @@ export function AnswerVisualization() {
       <p className="academic-label">
         {language === "id" ? "Visualisasi Jawaban" : "Answer Visualization"}
       </p>
-      <div className="mt-4 grid max-w-md grid-cols-[1fr_1fr] gap-x-4 gap-y-2 rounded-md border border-border bg-white p-5 font-mono text-[11px] font-semibold text-navy-deep shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+      <div className="mt-4 grid max-w-md grid-cols-[1fr_1fr] gap-x-4 gap-y-2 rounded-md border border-border bg-white p-5 font-mono text-[11px] font-semibold text-navy-deep">
         <div className="col-span-2 justify-self-center rounded border border-brand/30 bg-brand-soft px-3 py-2 text-brand">
           START
         </div>

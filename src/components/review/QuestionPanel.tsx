@@ -33,7 +33,7 @@ export function QuestionPanel({
   const reference = getQuestionReference(question);
 
   return (
-    <section className="relative min-w-0 overflow-hidden rounded-lg bg-white p-5 shadow-[0_8px_28px_rgba(30,41,59,0.06)] md:p-7">
+    <section className="relative min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
       <div className="flex items-center justify-between gap-4">
         <span className="flex items-center gap-2 text-sm font-semibold text-muted">
           <FileQuestion size={17} strokeWidth={2} className="text-brand" aria-hidden="true" />

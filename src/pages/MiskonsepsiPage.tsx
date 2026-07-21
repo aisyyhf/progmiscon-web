@@ -130,7 +130,7 @@ function MiskonsepsiDetailPage({
       </div>
 
       <section className="scroll-reveal grid grid-cols-1 gap-5 lg:grid-cols-[300px_minmax(0,1fr)] lg:items-start">
-        <aside className="rounded-lg bg-white p-4 shadow-[0_8px_28px_rgba(30,41,59,0.06)] lg:sticky lg:top-24">
+        <aside className="rounded-lg border border-border bg-white p-4 lg:sticky lg:top-24">
           <label htmlFor="misconception-search" className="academic-label">
             {language === "id" ? "Daftar Miskonsepsi" : "Misconception List"}
           </label>
@@ -172,9 +172,9 @@ function MiskonsepsiDetailPage({
           </div>
         </aside>
 
-        <main className="relative min-w-0 overflow-hidden rounded-lg bg-white p-6 shadow-[0_8px_28px_rgba(30,41,59,0.06)] md:p-8">
+        <main className="relative min-w-0 overflow-hidden rounded-lg border border-border bg-white p-6 md:p-8">
           {category && (
-            <p className="text-[11px] font-medium uppercase tracking-wide text-gold">
+            <p className="text-[11px] font-medium uppercase tracking-wide text-brand">
               {t(category.name, language)}
             </p>
           )}
@@ -270,7 +270,7 @@ function MiskonsepsiDetailPage({
                         <button
                           type="button"
                           onClick={() => onNavigate(`/question/${answer.questionId}?case=${answer.id}`)}
-                          className="w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                          className="w-full cursor-pointer px-4 py-3 text-left transition-colors hover:bg-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                         >
                           <p className="text-xs font-medium uppercase tracking-wide text-muted">
                             {answerCaseLabel(caseIndex, questionAnswers.length, language)}

@@ -29,7 +29,7 @@ export function StudentNavigator({
           type="button"
           onClick={() => previousId && onSelectStudent(previousId)}
           disabled={!previousId}
-          className="cursor-pointer rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-navy-deep transition hover:-translate-y-px hover:border-navy/50 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold active:translate-y-0"
+          className="cursor-pointer rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-navy-deep transition hover:-translate-y-px hover:border-navy/50 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0"
           aria-label={t(uiText.previous, language)}
         >
           ← {t(uiText.previous, language)}
@@ -39,7 +39,7 @@ export function StudentNavigator({
           aria-label={t(uiText.selectStudent, language)}
           value={selectedStudentId}
           onChange={(event) => onSelectStudent(event.target.value)}
-          className="cursor-pointer rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-navy-deep transition hover:border-navy/50 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+          className="cursor-pointer rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-navy-deep transition hover:border-navy/50 hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         >
           {filteredStudentIds.map((id) => {
             const student = allStudents.find((s) => s.id === id);
@@ -56,7 +56,7 @@ export function StudentNavigator({
           type="button"
           onClick={() => nextId && onSelectStudent(nextId)}
           disabled={!nextId}
-          className="cursor-pointer rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-navy-deep transition hover:-translate-y-px hover:border-navy/50 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold active:translate-y-0"
+          className="cursor-pointer rounded-md border border-border bg-surface px-2.5 py-1.5 text-sm text-navy-deep transition hover:-translate-y-px hover:border-navy/50 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-y-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0"
           aria-label={t(uiText.next, language)}
         >
           {t(uiText.next, language)} →

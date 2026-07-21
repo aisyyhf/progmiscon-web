@@ -91,7 +91,7 @@ function ReviewCompletedState({
   const isQuestion = mode === "question";
 
   return (
-    <section className="rounded-xl border border-border bg-white px-6 py-10 text-center shadow-[0_8px_28px_rgba(30,41,59,0.05)]">
+    <section className="rounded-xl border border-border bg-white px-6 py-10 text-center">
       <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-soft text-brand">
         <History
           size={22}
@@ -275,7 +275,7 @@ export function LecturerReviewPage() {
 
       <section id="question-validation-panel" role="tabpanel" hidden={mode !== "question"}>
         {loading ? (
-          <EmptyState message={language === "id" ? "Memuat tugas validasi..." : "Loading validation tasks..."} />
+          <EmptyState loading message={language === "id" ? "Memuat tugas validasi..." : "Loading validation tasks..."} />
         ) : questionTask ? (
           <QuestionValidationWorkspace
             key={questionTask.id}
@@ -301,7 +301,7 @@ export function LecturerReviewPage() {
 
       <section id="answer-validation-panel" role="tabpanel" hidden={mode !== "answer"}>
         {loading ? (
-          <EmptyState message={language === "id" ? "Memuat tugas validasi..." : "Loading validation tasks..."} />
+          <EmptyState loading message={language === "id" ? "Memuat tugas validasi..." : "Loading validation tasks..."} />
         ) : answerTask && answerQuestion && answer && suggestedMisconception ? (
           <AnswerValidationWorkspace
             key={answerTask.id}
@@ -413,7 +413,7 @@ function QuestionValidationWorkspace({
 
   return (
     <div className="scroll-reveal">
-      <section className="mb-4 flex items-center gap-4 rounded-lg bg-white px-5 py-4 shadow-[0_8px_24px_rgba(30,41,59,0.05)]">
+      <section className="mb-4 flex items-center gap-4 rounded-lg border border-border bg-white px-5 py-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
           <FileQuestion size={20} strokeWidth={2} aria-hidden="true" />
         </span>
@@ -428,7 +428,7 @@ function QuestionValidationWorkspace({
       </section>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        <article className="min-w-0 overflow-hidden rounded-lg bg-white p-5 shadow-[0_8px_28px_rgba(30,41,59,0.06)] md:p-7">
+        <article className="min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
           <section className="rounded-lg bg-neutral p-5">
             <p className="academic-label">{language === "id" ? "Soal" : "Question"}</p>
             <p className="mt-2 max-w-3xl whitespace-pre-wrap text-xl font-bold leading-8 text-navy-deep">
@@ -482,7 +482,7 @@ function QuestionValidationWorkspace({
           </section>
         </article>
 
-        <aside className="rounded-lg bg-white p-5 shadow-[0_8px_28px_rgba(30,41,59,0.06)] md:p-6 lg:sticky lg:top-24">
+        <aside className="rounded-lg border border-border bg-white p-5 md:p-6 lg:sticky lg:top-24">
           <p className="text-base font-bold text-navy-deep">
             {language === "id" ? "Form validasi soal" : "Question validation form"}
           </p>
@@ -759,7 +759,7 @@ function AnswerValidationWorkspace({
 
   return (
     <div className="scroll-reveal">
-      <section className="mb-4 flex items-center gap-4 rounded-lg bg-white px-5 py-4 shadow-[0_8px_24px_rgba(30,41,59,0.05)]">
+      <section className="mb-4 flex items-center gap-4 rounded-lg border border-border bg-white px-5 py-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
           <Code2 size={20} strokeWidth={2} aria-hidden="true" />
         </span>
@@ -774,7 +774,7 @@ function AnswerValidationWorkspace({
       </section>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
-        <article className="min-w-0 overflow-hidden rounded-lg bg-white p-5 shadow-[0_8px_28px_rgba(30,41,59,0.06)] md:p-7">
+        <article className="min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
           <section className="rounded-lg bg-neutral p-5">
             <p className="academic-label">{language === "id" ? "Soal sebagai konteks" : "Question context"}</p>
             <p className="mt-2 max-w-3xl whitespace-pre-wrap text-base font-semibold leading-7 text-navy-deep">
@@ -814,7 +814,7 @@ function AnswerValidationWorkspace({
           </section>
         </article>
 
-        <aside className="rounded-lg bg-white p-5 shadow-[0_8px_28px_rgba(30,41,59,0.06)] md:p-6 lg:sticky lg:top-24">
+        <aside className="rounded-lg border border-border bg-white p-5 md:p-6 lg:sticky lg:top-24">
           <p className="text-base font-bold text-navy-deep">
             {language === "id" ? "Form validasi jawaban" : "Answer validation form"}
           </p>

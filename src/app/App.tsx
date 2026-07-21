@@ -12,6 +12,7 @@ import {
   useLecturerAuth,
 } from "../hooks/useLecturerAuth";
 import { AppShell } from "../components/layout/AppShell";
+import { EmptyState } from "../components/common/EmptyState";
 import { HomePage } from "../pages/HomePage";
 import { MateriPage } from "../pages/MateriPage";
 import { KonsepPage } from "../pages/KonsepPage";
@@ -27,11 +28,8 @@ function LecturerOnly({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div
-        role="status"
-        className="mx-auto max-w-xl rounded-lg bg-white px-5 py-8 text-center text-sm text-muted shadow-[0_8px_28px_rgba(30,41,59,0.06)]"
-      >
-        Memeriksa sesi dosen...
+      <div className="mx-auto max-w-xl">
+        <EmptyState loading message="Memeriksa sesi dosen..." />
       </div>
     );
   }

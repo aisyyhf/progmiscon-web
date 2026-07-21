@@ -46,7 +46,7 @@ function FilterGroup<T extends string>({
           aria-pressed={value === option.value}
           className={cn(
             "cursor-pointer rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold",
+            "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
             value === option.value
               ? "border-navy bg-navy text-white"
               : "border-border bg-white text-muted hover:border-navy/35 hover:bg-bg hover:text-navy-deep",

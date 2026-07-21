@@ -1,21 +1,18 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Segoe UI Variable", "Aptos", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
-  --color-brand: #990000;
-  --color-brand-deep: #740000;
-  --color-brand-soft: #f9eded;
-  --color-secondary: #1e293b;
-  --color-tertiary: #475569;
-  --color-neutral: #f8fafc;
-  --color-navy: #1e293b;
-  --color-navy-deep: #172033;
-  --color-gold: #990000;
-  --color-gold-soft: #f9eded;
-  --color-bg: #f7f8fb;
+  --font-sans: "Plus Jakarta Sans", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  --color-brand: #b6252a;
+  --color-brand-deep: #8f1c20;
+  --color-brand-soft: #faecec;
+  --color-red: #ed1e28;
+  --color-neutral: #f6f5f4;
+  --color-navy: #2b2624;
+  --color-navy-deep: #211d1b;
+  --color-bg: #fbfaf9;
   --color-surface: #ffffff;
-  --color-border: #dbe2ea;
-  --color-muted: #5f6f82;
+  --color-border: #e6e2df;
+  --color-muted: #6b6560;
   --color-correct: #027a48;
   --color-correct-bg: #ecfdf3;
   --color-correct-border: #a6f4c5;
@@ -52,7 +49,6 @@ body {
 
 * {
   box-sizing: border-box;
-  letter-spacing: 0 !important;
 }
 
 button,
@@ -77,7 +73,7 @@ a:active {
 }
 
 ::selection {
-  background: rgb(153 0 0 / 0.16);
+  background: rgb(182 37 42 / 0.16);
   color: var(--color-navy-deep);
 }
 
@@ -101,9 +97,10 @@ a:active {
 .page-title {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: clamp(1.75rem, 3vw, 2.25rem);
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: clamp(1.875rem, 3.4vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
   color: var(--color-navy-deep);
 }
 
@@ -111,33 +108,28 @@ a:active {
   max-width: 42rem;
   margin: 0;
   color: var(--color-muted);
-  font-size: 0.925rem;
-  line-height: 1.6;
+  font-size: 0.95rem;
+  line-height: 1.65;
 }
 
 .academic-panel {
-  border: 1px solid rgb(226 232 240 / 0.8);
-  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
   background: white;
-  box-shadow:
-    0 1px 2px rgb(30 41 59 / 0.035),
-    0 12px 30px rgb(30 41 59 / 0.055);
+  box-shadow: 0 1px 2px rgb(35 32 30 / 0.04);
 }
 
 .academic-panel-quiet {
-  border: 0;
-  border-radius: 8px;
-  background: #f3f6f9;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-neutral);
 }
 
 .workspace-sheet {
   overflow: hidden;
-  border: 1px solid rgb(226 232 240 / 0.8);
-  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
   background: white;
-  box-shadow:
-    0 1px 2px rgb(30 41 59 / 0.035),
-    0 14px 34px rgb(30 41 59 / 0.06);
 }
 
 .workspace-section {
@@ -152,12 +144,13 @@ a:active {
   color: var(--color-muted);
   font-size: 0.75rem;
   font-weight: 600;
+  letter-spacing: 0.02em;
   line-height: 1.4;
 }
 
 .academic-input {
   width: 100%;
-  border: 1px solid #cdd6e1;
+  border: 1px solid var(--color-border);
   border-radius: 7px;
   background: white;
   color: var(--color-navy-deep);
@@ -165,13 +158,53 @@ a:active {
 }
 
 .academic-input:hover {
-  border-color: #aab6c5;
+  border-color: #c9c2bd;
 }
 
 .academic-input:focus {
   border-color: var(--color-brand);
   background: white;
-  box-shadow: 0 0 0 3px rgb(153 0 0 / 0.1);
+  box-shadow: 0 0 0 3px rgb(182 37 42 / 0.1);
+}
+
+.surface-card {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: white;
+}
+
+.surface-card-hover {
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: white;
+  transition: border-color 200ms ease, transform 200ms ease;
+}
+
+.surface-card-hover:hover {
+  border-color: rgb(182 37 42 / 0.35);
+  transform: translateY(-2px);
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-neutral);
+  border-radius: 8px;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.65), transparent);
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .scroll-reveal {

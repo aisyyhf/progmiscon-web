@@ -92,7 +92,7 @@ export function KonsepPage() {
               <li key={concept.id} className="min-w-0">
                 <Link
                   to={`/konsep/${concept.id}`}
-                  className="group flex min-h-60 flex-col rounded-lg bg-white p-5 shadow-[0_7px_24px_rgba(30,41,59,0.055)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_14px_32px_rgba(30,41,59,0.09)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="surface-card-hover group flex min-h-60 flex-col p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   <span className="flex items-center justify-between">
                     <span className="flex h-9 w-9 items-center justify-center rounded-md bg-neutral text-navy">
@@ -147,7 +147,7 @@ export function KonsepPage() {
         </div>
       </header>
 
-      <section className="mb-8 rounded-lg bg-[#eef2f6] p-5">
+      <section className="mb-8 rounded-lg bg-neutral p-5">
         <h2 className="text-base font-bold text-navy-deep">
           {t(uiText.relatedConcepts, language)}
         </h2>
@@ -186,7 +186,7 @@ export function KonsepPage() {
                 <button
                   type="button"
                   onClick={() => openDrawer(misconception.id)}
-                  className="group flex h-full w-full cursor-pointer items-start gap-4 rounded-lg bg-white px-5 py-4 text-left shadow-[0_5px_18px_rgba(30,41,59,0.05)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_10px_25px_rgba(30,41,59,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="surface-card-hover group flex h-full w-full cursor-pointer items-start gap-4 px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   <div className="min-w-0">
                     <h3 className="text-base font-semibold text-navy-deep transition-colors group-hover:text-brand">

@@ -23,7 +23,7 @@ export function MateriPage() {
     }
   }, [categories, selectedCategoryId]);
 
-  const { questions } = useQuestionsByCategory(selectedCategoryId);
+  const { questions, loading } = useQuestionsByCategory(selectedCategoryId);
 
   const handleSelectCategory = (categoryId: string) => {
     setSelectedCategoryId(categoryId);
@@ -49,6 +49,7 @@ export function MateriPage() {
         selectedCategoryId={selectedCategoryId}
         onSelectCategory={handleSelectCategory}
         questions={questions}
+        loading={loading}
         onSelectQuestion={(questionId) => navigate(`/question/${questionId}`)}
       />
     </div>

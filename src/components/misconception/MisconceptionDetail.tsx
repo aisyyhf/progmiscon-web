@@ -63,7 +63,7 @@ export function MisconceptionDetail({
     <div className="space-y-6">
       <div>
         {category && (
-          <p className="text-[11px] font-medium uppercase tracking-wide text-gold">{t(category.name, language)}</p>
+          <p className="text-[11px] font-medium uppercase tracking-wide text-brand">{t(category.name, language)}</p>
         )}
         <h2 className="mt-1 text-xl font-bold text-navy-deep">
           {t(misconception.title, language)}
@@ -179,7 +179,7 @@ export function MisconceptionDetail({
                   <button
                     type="button"
                     onClick={() => onSelectRelatedQuestion(question.id)}
-                    className="w-full cursor-pointer text-left text-sm hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                    className="w-full cursor-pointer text-left text-sm hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                   >
                     <span className="font-medium text-navy-deep">{question.number}</span>
                     <span className="ml-2 text-muted">

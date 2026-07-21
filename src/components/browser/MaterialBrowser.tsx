@@ -10,12 +10,14 @@ export function MaterialBrowser({
   selectedCategoryId,
   onSelectCategory,
   questions,
+  loading = false,
   onSelectQuestion,
 }: {
   categories: Category[];
   selectedCategoryId: string | undefined;
   onSelectCategory: (categoryId: string) => void;
   questions: Question[];
+  loading?: boolean;
   onSelectQuestion: (questionId: string) => void;
 }) {
   const { language } = useLanguage();
@@ -24,7 +26,7 @@ export function MaterialBrowser({
     <div className="scroll-reveal space-y-6">
       <nav
         aria-label={language === "id" ? "Topik materi" : "Material topics"}
-        className="hide-scrollbar overflow-x-auto rounded-lg bg-white p-2 shadow-[0_8px_24px_rgba(30,41,59,0.055)] md:overflow-visible"
+        className="hide-scrollbar overflow-x-auto rounded-lg border border-border bg-white p-2 md:overflow-visible"
       >
         <div className="flex min-w-max gap-1.5 md:min-w-0 md:flex-wrap">
           {categories.map((category) => {
@@ -51,7 +53,9 @@ export function MaterialBrowser({
       </nav>
 
       <div className="min-w-0">
-        {questions.length === 0 ? (
+        {loading ? (
+          <EmptyState loading message={language === "id" ? "Memuat soal..." : "Loading questions..."} />
+        ) : questions.length === 0 ? (
           <EmptyState message={t(uiText.noQuestions, language)} />
         ) : (
           <div>
@@ -69,7 +73,7 @@ export function MaterialBrowser({
                 key={question.id}
                 type="button"
                 onClick={() => onSelectQuestion(question.id)}
-                className="group flex min-h-56 w-full cursor-pointer flex-col rounded-lg bg-white p-5 text-left shadow-[0_7px_24px_rgba(30,41,59,0.055)] transition-[transform,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_14px_32px_rgba(30,41,59,0.09)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                className="surface-card-hover group flex min-h-56 w-full cursor-pointer flex-col p-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
                 <div className="flex items-center justify-between">
                   <span className="flex h-9 w-9 items-center justify-center rounded-md bg-neutral text-navy">

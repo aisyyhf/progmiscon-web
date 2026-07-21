@@ -35,7 +35,7 @@ export function MisconceptionChip({
       aria-label={label}
       aria-pressed={selected}
       className={cn(
-        "inline-flex cursor-pointer items-center gap-2 rounded-md border px-3.5 py-2 text-xs font-semibold shadow-[0_3px_12px_rgba(16,35,63,0.055)] transition-all",
+        "inline-flex cursor-pointer items-center gap-2 rounded-md border px-3.5 py-2 text-xs font-semibold transition-all",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
         "hover:-translate-y-0.5 active:translate-y-0 active:shadow-none",
         selected ? toneClasses[tone].selected : toneClasses[tone].idle,

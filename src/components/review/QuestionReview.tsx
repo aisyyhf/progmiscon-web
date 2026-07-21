@@ -139,7 +139,7 @@ export function QuestionReview({ questionId }: { questionId: string }) {
       />
 
       {selectedMisconception && (
-        <section className="mb-5 flex flex-col gap-4 rounded-lg bg-navy px-5 py-4 text-white shadow-[0_10px_28px_rgba(30,41,59,0.12)] sm:flex-row sm:items-center sm:justify-between">
+        <section className="mb-5 flex flex-col gap-4 rounded-lg bg-navy px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-white/65">
               {language === "id" ? "Eksplorasi Miskonsepsi" : "Misconception Exploration"}

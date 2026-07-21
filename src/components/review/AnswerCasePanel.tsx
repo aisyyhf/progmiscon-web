@@ -43,8 +43,8 @@ export function AnswerCasePanel({
   const getCaseIndex = (answerId: string) => answers.findIndex((item) => item.id === answerId);
 
   return (
-    <section className="relative min-w-0 overflow-hidden rounded-lg bg-white shadow-[0_8px_28px_rgba(30,41,59,0.06)]">
-      <div className="flex flex-col gap-3 bg-[#eef2f6] px-5 py-4 sm:flex-row sm:items-end sm:justify-between md:px-7">
+    <section className="relative min-w-0 overflow-hidden rounded-lg border border-border bg-white">
+      <div className="flex flex-col gap-3 border-b border-border bg-neutral px-5 py-4 sm:flex-row sm:items-end sm:justify-between md:px-7">
         <div className="w-full sm:max-w-xs">
           <label htmlFor="answer-misconception-filter" className="flex items-center gap-2 text-xs font-semibold text-muted">
             <Filter size={14} strokeWidth={2} aria-hidden="true" />

@@ -18,7 +18,7 @@ export function QuestionRow({
       <button
         type="button"
         onClick={onClick}
-        className="flex w-full cursor-pointer items-start justify-between gap-4 rounded-md border border-transparent px-4 py-3.5 text-left transition hover:-translate-y-px hover:border-navy/25 hover:bg-bg/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold active:translate-y-0"
+        className="flex w-full cursor-pointer items-start justify-between gap-4 rounded-md border border-transparent px-4 py-3.5 text-left transition hover:-translate-y-px hover:border-navy/25 hover:bg-bg/80 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0"
       >
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-muted">{metaItems.join(" · ")}</p>

@@ -78,8 +78,8 @@ export function LecturerSignupPage() {
   };
 
   return (
-    <div className="mx-auto w-full max-w-4xl py-4 md:py-8">
-      <section className="grid overflow-hidden rounded-lg bg-white shadow-[0_18px_50px_rgba(30,41,59,0.09)] md:grid-cols-[0.85fr_1.15fr]">
+    <div className="mx-auto w-full max-w-4xl py-4 md:py-10">
+      <section className="grid overflow-hidden rounded-xl border border-border bg-white md:grid-cols-[0.85fr_1.15fr]">
         <aside className="flex flex-col bg-navy p-6 text-white md:p-8">
           <Link
             to="/home"
