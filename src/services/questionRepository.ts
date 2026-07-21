@@ -1,7 +1,8 @@
 import type { Question } from "../types";
 import { mockQuestions } from "../data/mockQuestions";
 import { usesGoogleSheets } from "../config/masterDataConfig";
-import { getSheetQuestions } from "./masterDataRepository";
+import { getMasterData, getSheetQuestions } from "./masterDataRepository";
+import { filterQuestionsByTopicRelations } from "../utils/filters";
 
 export async function getQuestions(): Promise<Question[]> {
   return usesGoogleSheets() ? getSheetQuestions() : mockQuestions;
@@ -14,7 +15,12 @@ export async function getQuestionById(id: string): Promise<Question | undefined>
 
 export async function getQuestionsByCategory(categoryId: string): Promise<Question[]> {
   const questions = await getQuestions();
-  return questions.filter((question) => question.categoryId === categoryId);
+  if (!usesGoogleSheets()) {
+    return questions.filter((question) => question.categoryId === categoryId);
+  }
+
+  const { questionTopics } = await getMasterData();
+  return filterQuestionsByTopicRelations(questions, questionTopics, categoryId);
 }
 
 export async function getQuestionsByAssessment(assessmentId: string): Promise<Question[]> {

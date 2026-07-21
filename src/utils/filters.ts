@@ -1,8 +1,26 @@
 import type { Assessment, AssessmentKind, Question, QuestionType, StudentAnswer } from "../types";
+import type { QuestionTopicRow } from "../types/masterData";
 
 export type AssessmentKindFilter = "all" | AssessmentKind;
 export type QuestionTypeFilter = "all" | QuestionType;
 export type StudentFilter = "all" | "correct" | "incorrect" | "has_misconception";
+
+export function filterQuestionsByTopicRelations(
+  questions: Question[],
+  relations: QuestionTopicRow[],
+  topicId: string,
+): Question[] {
+  const matchingQuestionIds = new Set(
+    relations
+      .filter((relation) => {
+        const role = relation.role.trim().toLowerCase();
+        return relation.topic_id.trim() === topicId && (role === "primary" || role === "related");
+      })
+      .map((relation) => relation.question_id.trim()),
+  );
+
+  return questions.filter((question) => matchingQuestionIds.has(question.id));
+}
 
 export function filterQuestionsByAssessmentKind(
   questions: Question[],

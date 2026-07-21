@@ -97,6 +97,7 @@ export function MaterialBrowser({
                 >
                   <button
                     type="button"
+                    data-question-id={question.id}
                     onClick={() => onSelectQuestion(question.id)}
                     className="group flex min-h-64 w-full cursor-pointer flex-col rounded-xl border border-border bg-white p-5 text-left shadow-[0_2px_8px_rgba(33,29,27,0.05)] transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_8px_24px_rgba(33,29,27,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                   >

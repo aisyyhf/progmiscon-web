@@ -116,7 +116,15 @@ export async function getSheetQuestions(): Promise<Question[]> {
 
   return data.questions
     .filter((row) => isActiveValue(row.active))
-    .sort((a, b) => numberValue(a.order_no, Number.MAX_SAFE_INTEGER) - numberValue(b.order_no, Number.MAX_SAFE_INTEGER))
+    .sort((a, b) => {
+      const orderDifference =
+        numberValue(a.order_no, Number.MAX_SAFE_INTEGER) - numberValue(b.order_no, Number.MAX_SAFE_INTEGER);
+      if (orderDifference !== 0) return orderDifference;
+
+      const questionIdA = text(a.question_id);
+      const questionIdB = text(b.question_id);
+      return questionIdA < questionIdB ? -1 : questionIdA > questionIdB ? 1 : 0;
+    })
     .map((row): Question | undefined => {
       const questionId = text(row.question_id);
       const topicRelations = questionTopicMap.get(questionId) ?? [];
