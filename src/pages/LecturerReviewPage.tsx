@@ -1,10 +1,4 @@
 import { useEffect, useState } from "react";
-import {
-  Code2,
-  FileQuestion,
-  History,
-  Send,
-} from "lucide-react";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
@@ -34,6 +28,7 @@ import {
   saveQuestionReview,
 } from "../services/reviewPersistenceRepository";
 import { Link } from "react-router-dom";
+import { PseudocodeBlock } from "../components/review/PseudocodeBlock";
 
 type ReviewMode = "question" | "answer";
 
@@ -91,16 +86,8 @@ function ReviewCompletedState({
   const isQuestion = mode === "question";
 
   return (
-    <section className="rounded-xl border border-border bg-white px-6 py-10 text-center">
-      <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-soft text-brand">
-        <History
-          size={22}
-          strokeWidth={2}
-          aria-hidden="true"
-        />
-      </span>
-
-      <h2 className="mt-4 text-lg font-bold text-navy-deep">
+    <section className="rounded-lg border border-border bg-white px-6 py-10 text-center">
+      <h2 className="text-lg font-bold text-navy-deep">
         {language === "id"
           ? `Tidak ada validasi ${
               isQuestion ? "soal" : "jawaban"
@@ -124,11 +111,6 @@ function ReviewCompletedState({
         to="/review/riwayat"
         className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       >
-        <History
-          size={16}
-          strokeWidth={2}
-          aria-hidden="true"
-        />
         {language === "id"
           ? "Lihat Riwayat Review Saya"
           : "View My Review History"}
@@ -234,7 +216,7 @@ export function LecturerReviewPage() {
       )}
 
       <div
-        className="mb-6 grid w-full grid-cols-2 gap-1 rounded-lg border border-border bg-neutral p-1 sm:w-fit"
+        className="segmented-control mb-6 w-full sm:w-auto"
         role="tablist"
         aria-label={language === "id" ? "Jenis validasi" : "Validation type"}
       >
@@ -244,14 +226,8 @@ export function LecturerReviewPage() {
           aria-selected={mode === "question"}
           aria-controls="question-validation-panel"
           onClick={() => setMode("question")}
-          className={cn(
-            "flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-[background-color,color,box-shadow] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:min-w-44",
-            mode === "question"
-              ? "bg-white text-brand shadow-[0_2px_8px_rgba(30,41,59,0.08)]"
-              : "text-muted hover:bg-white/60 hover:text-navy-deep",
-          )}
+          className="segmented-tab sm:min-w-44"
         >
-          <FileQuestion size={17} strokeWidth={2} aria-hidden="true" />
           <span>{language === "id" ? "Validasi Soal" : "Question Validation"}</span>
         </button>
 
@@ -261,14 +237,8 @@ export function LecturerReviewPage() {
           aria-selected={mode === "answer"}
           aria-controls="answer-validation-panel"
           onClick={() => setMode("answer")}
-          className={cn(
-            "flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-[background-color,color,box-shadow] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:min-w-44",
-            mode === "answer"
-              ? "bg-white text-brand shadow-[0_2px_8px_rgba(30,41,59,0.08)]"
-              : "text-muted hover:bg-white/60 hover:text-navy-deep",
-          )}
+          className="segmented-tab sm:min-w-44"
         >
-          <Code2 size={17} strokeWidth={2} aria-hidden="true" />
           <span>{language === "id" ? "Validasi Jawaban" : "Answer Validation"}</span>
         </button>
       </div>
@@ -413,12 +383,9 @@ function QuestionValidationWorkspace({
 
   return (
     <div className="scroll-reveal">
-      <section className="mb-4 flex items-center gap-4 rounded-lg border border-border bg-white px-5 py-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-          <FileQuestion size={20} strokeWidth={2} aria-hidden="true" />
-        </span>
+      <section className="mb-4 rounded-lg border border-border bg-white px-5 py-4">
         <div>
-          <p className="text-xs font-bold text-brand">{language === "id" ? "VALIDASI SOAL" : "QUESTION VALIDATION"}</p>
+          <h2 className="text-lg font-bold text-navy-deep">{language === "id" ? "Validasi soal" : "Question validation"}</h2>
           <p className="mt-1 text-sm text-muted">
             {language === "id"
               ? "Menilai kemungkinan miskonsepsi pada soal"
@@ -427,11 +394,11 @@ function QuestionValidationWorkspace({
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
         <article className="min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
           <section className="rounded-lg bg-neutral p-5">
             <p className="academic-label">{language === "id" ? "Soal" : "Question"}</p>
-            <p className="mt-2 max-w-3xl whitespace-pre-wrap text-xl font-bold leading-8 text-navy-deep">
+            <p className="mt-2 max-w-3xl whitespace-pre-wrap text-[14px] font-normal leading-7 text-navy-deep">
               {t(question.prompt, language)}
             </p>
           </section>
@@ -444,7 +411,7 @@ function QuestionValidationWorkspace({
                   <li
                     key={option.id}
                     className={cn(
-                      "flex items-start gap-2 rounded-md border px-4 py-3 text-sm",
+                      "flex items-start gap-2 rounded-md border px-4 py-3 text-[13px] leading-6",
                       option.isCorrect ? "border-correct-border bg-correct-bg/55" : "border-border bg-white",
                     )}
                   >
@@ -464,9 +431,9 @@ function QuestionValidationWorkspace({
           {reference.pseudocode && (
             <section className="mt-6 border-t border-border pt-5">
               <p className="academic-label mb-2">{language === "id" ? "Pseudocode acuan" : "Reference pseudocode"}</p>
-              <pre className="whitespace-pre-wrap rounded-md border border-border bg-neutral px-4 py-3 font-mono text-xs leading-6 text-navy-deep">
-                {reference.pseudocode}
-              </pre>
+              <div className="overflow-hidden rounded-md border border-border">
+                <PseudocodeBlock code={reference.pseudocode} />
+              </div>
             </section>
           )}
 
@@ -659,7 +626,6 @@ function QuestionValidationWorkspace({
             aria-describedby={!canSubmit ? "question-validation-help" : undefined}
             className="mt-4 w-full justify-center"
           >
-            <Send size={16} strokeWidth={2} aria-hidden="true" />
             {submitting
               ? language === "id"
                 ? "Menyimpan..."
@@ -759,12 +725,9 @@ function AnswerValidationWorkspace({
 
   return (
     <div className="scroll-reveal">
-      <section className="mb-4 flex items-center gap-4 rounded-lg border border-border bg-white px-5 py-4">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-          <Code2 size={20} strokeWidth={2} aria-hidden="true" />
-        </span>
+      <section className="mb-4 rounded-lg border border-border bg-white px-5 py-4">
         <div>
-          <p className="text-xs font-bold text-brand">{language === "id" ? "VALIDASI JAWABAN" : "ANSWER VALIDATION"}</p>
+          <h2 className="text-lg font-bold text-navy-deep">{language === "id" ? "Validasi jawaban" : "Answer validation"}</h2>
           <p className="mt-1 text-sm text-muted">
             {language === "id"
               ? "Menilai pola miskonsepsi pada jawaban"
@@ -773,11 +736,11 @@ function AnswerValidationWorkspace({
         </div>
       </section>
 
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
         <article className="min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
           <section className="rounded-lg bg-neutral p-5">
             <p className="academic-label">{language === "id" ? "Soal sebagai konteks" : "Question context"}</p>
-            <p className="mt-2 max-w-3xl whitespace-pre-wrap text-base font-semibold leading-7 text-navy-deep">
+            <p className="mt-2 max-w-3xl whitespace-pre-wrap text-[14px] font-normal leading-7 text-navy-deep">
               {t(question.prompt, language)}
             </p>
           </section>
@@ -787,13 +750,13 @@ function AnswerValidationWorkspace({
               {language === "id" ? "Variasi jawaban" : "Answer variation"}
             </p>
             <div className="overflow-hidden rounded-md border border-border">
-              <div className="bg-bg p-5">
+              <div className={selectedOption ? "bg-bg p-5" : "bg-navy-deep"}>
                 {selectedOption ? (
                   <p className="text-sm text-navy-deep">
                     <span className="font-medium">{selectedOption.label}.</span> {t(selectedOption.text, language)}
                   </p>
                 ) : (
-                  <pre className="whitespace-pre-wrap font-mono text-xs leading-6 text-navy-deep">{answer.answerText}</pre>
+                  <PseudocodeBlock code={answer.answerText ?? ""} />
                 )}
               </div>
               <AnswerStatusBar status={answer.status} />
@@ -999,7 +962,6 @@ function AnswerValidationWorkspace({
             aria-describedby={!canSubmit ? "answer-validation-help" : undefined}
             className="mt-4 w-full justify-center"
           >
-            <Send size={16} strokeWidth={2} aria-hidden="true" />
             {submitting
               ? language === "id"
                 ? "Menyimpan..."

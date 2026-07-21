@@ -22,8 +22,11 @@ export function AssessmentBrowser({
   const { language } = useLanguage();
 
   return (
-    <div className="grid grid-cols-1 gap-8 md:grid-cols-[260px_1fr]">
-      <nav aria-label="Ujian" className="space-y-1">
+    <div className="grid grid-cols-1 gap-5 md:grid-cols-[280px_1fr] md:items-start">
+      <nav aria-label="Ujian" className="space-y-1 rounded-lg border border-border bg-white p-4 md:sticky md:top-24">
+        <p className="mb-3 text-lg font-bold text-navy-deep">
+          {language === "id" ? "Daftar Ujian" : "Assessment List"}
+        </p>
         {assessments.map((assessment) => {
           const active = assessment.id === selectedAssessmentId;
           return (
@@ -33,11 +36,11 @@ export function AssessmentBrowser({
               onClick={() => onSelectAssessment(assessment.id)}
               aria-current={active}
               className={cn(
-                "block w-full cursor-pointer rounded-md border px-3 py-2 text-left text-sm transition",
+                "block w-full cursor-pointer rounded-md px-3 py-2.5 text-left text-sm font-medium transition",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                 active
-                  ? "border-navy bg-navy text-white shadow-[0_1px_2px_rgba(15,23,42,0.10)]"
-                  : "border-transparent text-navy-deep hover:border-navy/30 hover:bg-surface hover:shadow-sm",
+                  ? "bg-brand text-white"
+                  : "text-muted hover:bg-neutral hover:text-navy-deep",
               )}
             >
               {t(assessment.title, language)}
@@ -46,7 +49,7 @@ export function AssessmentBrowser({
         })}
       </nav>
 
-      <div>
+      <div className="min-w-0">
         <QuestionList
           questions={questions}
           assessments={assessments}

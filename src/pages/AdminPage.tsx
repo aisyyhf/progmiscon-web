@@ -4,12 +4,9 @@ import {
   Code2,
   Download,
   FileQuestion,
-  History,
   MessageSquareText,
   MinusCircle,
   PlusCircle,
-  ShieldCheck,
-  UsersRound,
 } from "lucide-react";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
@@ -89,7 +86,7 @@ function DetailBlock({
 }) {
   return (
     <section>
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted">
+      <div className="flex items-center gap-2 text-xs font-semibold text-muted">
         <span className="text-brand" aria-hidden="true">
           {icon}
         </span>
@@ -250,10 +247,10 @@ function ChangeStatus({
   return (
     <span
       className={cn(
-        "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+        "rounded-md border px-2.5 py-1 text-[11px] font-semibold",
         hasChanges
-          ? "bg-warning-bg text-warning"
-          : "bg-correct-bg text-correct",
+          ? "border-warning-border bg-warning-bg text-warning"
+          : "border-correct-border bg-correct-bg text-correct",
       )}
     >
       {hasChanges
@@ -296,7 +293,7 @@ function QuestionReviewCard({
   const hasChanges = questionReviewHasChanges(review);
 
   return (
-    <details className="group overflow-hidden rounded-xl border border-border bg-white">
+    <details className="group overflow-hidden rounded-lg border border-border bg-white">
       <summary className="cursor-pointer list-none px-5 py-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
         <div className="flex items-start gap-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
@@ -312,7 +309,7 @@ function QuestionReviewCard({
             <p className="mt-3 text-xs font-semibold text-muted">
               {language === "id" ? "ID Soal" : "Question ID"}: {review.questionId}
             </p>
-            <p className="mt-1 line-clamp-2 text-sm leading-6 text-muted">
+            <p className="mt-1 line-clamp-2 text-[13px] font-normal leading-6 text-navy-deep">
               {questionPrompt ??
                 (language === "id"
                   ? "Isi soal tidak tersedia di data master."
@@ -361,7 +358,7 @@ function AnswerReviewCard({
   const hasChanges = answerReviewHasChanges(review);
 
   return (
-    <details className="group overflow-hidden rounded-xl border border-border bg-white">
+    <details className="group overflow-hidden rounded-lg border border-border bg-white">
       <summary className="cursor-pointer list-none px-5 py-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
         <div className="flex items-start gap-4">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
@@ -415,27 +412,20 @@ function AnswerReviewCard({
 }
 
 function SummaryItem({
-  icon,
   label,
   value,
   loading,
 }: {
-  icon: React.ReactNode;
   label: string;
   value: number;
   loading: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 px-5 py-4 sm:px-6">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-        {icon}
-      </span>
-      <div>
-        <dt className="text-xs font-semibold text-muted">{label}</dt>
-        <dd className="mt-0.5 text-xl font-bold tracking-tight text-navy-deep">
-          {loading ? <span className="skeleton block h-6 w-10" /> : value}
-        </dd>
-      </div>
+    <div className="px-5 py-4 sm:px-6">
+      <dt className="text-xs font-semibold text-muted">{label}</dt>
+      <dd className="mt-1 text-2xl font-bold tracking-tight text-navy-deep">
+        {loading ? <span className="skeleton block h-7 w-10" /> : value}
+      </dd>
     </div>
   );
 }
@@ -817,11 +807,7 @@ export function AdminPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <header className="mb-8 flex items-start gap-4">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-soft text-brand">
-          <ShieldCheck size={23} strokeWidth={2} aria-hidden="true" />
-        </span>
-
+      <header className="mb-8">
         <div>
           <h1 className="page-title">Admin Progmiscon</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
@@ -840,25 +826,21 @@ export function AdminPage() {
         </div>
         <dl className="grid sm:grid-cols-2 lg:grid-cols-4">
           <SummaryItem
-            icon={<FileQuestion size={17} strokeWidth={2} aria-hidden="true" />}
             label={language === "id" ? "Review soal" : "Question reviews"}
             value={summary.questionReviews}
             loading={historyLoading}
           />
           <SummaryItem
-            icon={<Code2 size={17} strokeWidth={2} aria-hidden="true" />}
             label={language === "id" ? "Review jawaban" : "Answer reviews"}
             value={summary.answerReviews}
             loading={historyLoading}
           />
           <SummaryItem
-            icon={<UsersRound size={17} strokeWidth={2} aria-hidden="true" />}
             label={language === "id" ? "Dosen reviewer" : "Lecturer reviewers"}
             value={summary.reviewers}
             loading={historyLoading}
           />
           <SummaryItem
-            icon={<History size={17} strokeWidth={2} aria-hidden="true" />}
             label={language === "id" ? "Review dengan perubahan" : "Reviews with changes"}
             value={summary.changedReviews}
             loading={historyLoading}
@@ -876,7 +858,7 @@ export function AdminPage() {
       )}
 
       <div
-        className="mt-7 grid grid-cols-2 gap-1 rounded-lg border border-border bg-neutral p-1 sm:w-fit"
+        className="segmented-control mt-7 w-full sm:w-auto"
         role="tablist"
         aria-label={language === "id" ? "Menu Admin" : "Admin menu"}
       >
@@ -887,14 +869,8 @@ export function AdminPage() {
           aria-selected={tab === "history"}
           aria-controls="admin-panel-history"
           onClick={() => setTab("history")}
-          className={cn(
-            "flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:min-w-44",
-            tab === "history"
-              ? "bg-white text-brand shadow-sm"
-              : "text-muted hover:bg-white/60 hover:text-navy-deep",
-          )}
+          className="segmented-tab sm:min-w-44"
         >
-          <History size={17} strokeWidth={2} aria-hidden="true" />
           {language === "id" ? "Riwayat Review" : "Review History"}
         </button>
 
@@ -905,14 +881,8 @@ export function AdminPage() {
           aria-selected={tab === "downloads"}
           aria-controls="admin-panel-downloads"
           onClick={() => setTab("downloads")}
-          className={cn(
-            "flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:min-w-44",
-            tab === "downloads"
-              ? "bg-white text-brand shadow-sm"
-              : "text-muted hover:bg-white/60 hover:text-navy-deep",
-          )}
+          className="segmented-tab sm:min-w-44"
         >
-          <Download size={17} strokeWidth={2} aria-hidden="true" />
           {language === "id" ? "Unduh Data" : "Download Data"}
         </button>
       </div>
@@ -925,7 +895,7 @@ export function AdminPage() {
           className="mt-5"
         >
           <div
-            className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-neutral p-1 sm:w-fit"
+            className="segmented-control w-full sm:w-auto"
             role="tablist"
             aria-label={
               language === "id" ? "Jenis validasi" : "Validation type"
@@ -938,14 +908,8 @@ export function AdminPage() {
               aria-selected={mode === "question"}
               aria-controls="admin-history-question-panel"
               onClick={() => setMode("question")}
-              className={cn(
-                "flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:min-w-44",
-                mode === "question"
-                  ? "bg-white text-brand shadow-sm"
-                  : "text-muted hover:bg-white/60 hover:text-navy-deep",
-              )}
+              className="segmented-tab sm:min-w-44"
             >
-              <FileQuestion size={17} strokeWidth={2} aria-hidden="true" />
               {language === "id" ? "Validasi Soal" : "Question Validation"}
             </button>
 
@@ -956,19 +920,13 @@ export function AdminPage() {
               aria-selected={mode === "answer"}
               aria-controls="admin-history-answer-panel"
               onClick={() => setMode("answer")}
-              className={cn(
-                "flex min-h-10 cursor-pointer items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:min-w-44",
-                mode === "answer"
-                  ? "bg-white text-brand shadow-sm"
-                  : "text-muted hover:bg-white/60 hover:text-navy-deep",
-              )}
+              className="segmented-tab sm:min-w-44"
             >
-              <Code2 size={17} strokeWidth={2} aria-hidden="true" />
               {language === "id" ? "Validasi Jawaban" : "Answer Validation"}
             </button>
           </div>
 
-          <div className="mt-5 grid gap-4 rounded-xl border border-border bg-white p-5 md:grid-cols-3">
+          <div className="mt-5 grid gap-4 rounded-lg border border-border bg-white p-5 md:grid-cols-3">
             <label className="grid gap-2 text-sm font-semibold text-navy-deep">
               {language === "id"
                 ? mode === "question"

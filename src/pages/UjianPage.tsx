@@ -24,12 +24,12 @@ export function UjianPage() {
   const { questions } = useQuestionsByAssessment(selectedAssessmentId);
 
   return (
-    <div>
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-navy-deep">
+    <div className="mx-auto max-w-6xl">
+      <div className="mb-7">
+        <h1 className="page-title">
           {t(uiText.ujianTitle, language)}
         </h1>
-        <p className="mt-1 text-sm text-muted">{t(uiText.ujianDescription, language)}</p>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">{t(uiText.ujianDescription, language)}</p>
       </div>
 
       <AssessmentBrowser

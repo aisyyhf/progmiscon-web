@@ -16,12 +16,12 @@
   --color-correct: #027a48;
   --color-correct-bg: #ecfdf3;
   --color-correct-border: #a6f4c5;
-  --color-incorrect: #c2410c;
-  --color-incorrect-bg: #fff7ed;
-  --color-incorrect-border: #fdba74;
-  --color-warning: #b54708;
-  --color-warning-bg: #fffaeb;
-  --color-warning-border: #fec84b;
+  --color-incorrect: #a91f24;
+  --color-incorrect-bg: #fff0f0;
+  --color-incorrect-border: #efb2b5;
+  --color-warning: #8f1c20;
+  --color-warning-bg: #faecec;
+  --color-warning-border: #e9b9bb;
 }
 
 :root {
@@ -167,6 +167,47 @@ a:active {
   border-color: var(--color-brand);
   background: white;
   box-shadow: 0 0 0 3px rgb(182 37 42 / 0.1);
+}
+
+.segmented-control {
+  display: inline-grid;
+  grid-auto-flow: column;
+  gap: 0.25rem;
+  max-width: 100%;
+  padding: 0.25rem;
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 9px;
+  background: white;
+}
+
+.segmented-tab {
+  min-height: 2.5rem;
+  padding: 0.5rem 1rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  white-space: nowrap;
+}
+
+.segmented-tab:hover {
+  background: var(--color-neutral);
+  color: var(--color-navy-deep);
+}
+
+.segmented-tab[aria-selected="true"] {
+  background: var(--color-brand);
+  color: white;
+}
+
+.segmented-tab:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
 }
 
 .surface-card {
