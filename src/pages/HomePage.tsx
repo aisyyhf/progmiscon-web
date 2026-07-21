@@ -1,3 +1,12 @@
+import {
+  ArrowRight,
+  BookOpen,
+  BrainCircuit,
+  Code2,
+  FileQuestion,
+  MessageSquareText,
+  Search,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCategories } from "../hooks/useCategories";
 import { useLanguage } from "../hooks/useLanguage";
@@ -11,147 +20,213 @@ export function HomePage() {
   const { misconceptions } = useMisconceptions();
   const { questions } = useQuestions();
 
-  const pages = [
+  const categoryExamples = categories
+    .slice(0, 3)
+    .map((category) => t(category.name, language))
+    .join(" / ");
+  const misconceptionExamples = misconceptions
+    .slice(0, 2)
+    .map((misconception) => t(misconception.title, language))
+    .join(" / ");
+
+  const knowledgeItems = [
     {
       to: "/materi",
-      title: { id: "Materi", en: "Materials" },
-      description: {
-        id: "Mulai dari topik perkuliahan dan temukan soal beserta pola jawaban yang tersedia.",
-        en: "Start with a course topic and find its questions and available answer patterns.",
-      },
+      icon: BookOpen,
+      title: language === "id" ? "Materi" : "Materials",
+      detail: `${categories.length} ${language === "id" ? "topik" : "topics"}`,
+    },
+    {
+      to: "/materi",
+      icon: FileQuestion,
+      title: language === "id" ? "Soal" : "Questions",
+      detail: `${questions.length} ${language === "id" ? "soal" : "questions"}`,
+    },
+    {
+      to: "/materi",
+      icon: MessageSquareText,
+      title: language === "id" ? "Jawaban" : "Answers",
+      detail: language === "id" ? "Pola mahasiswa" : "Student patterns",
+    },
+    {
+      to: "/miskonsepsi",
+      icon: BrainCircuit,
+      title: language === "id" ? "Miskonsepsi" : "Misconceptions",
+      detail: `${misconceptions.length} ${language === "id" ? "terpetakan" : "mapped"}`,
+    },
+  ];
+
+  const exploreItems = [
+    {
+      to: "/materi",
+      icon: BookOpen,
+      title: language === "id" ? "Materi" : "Materials",
+      description:
+        language === "id"
+          ? "Mulai dari topik perkuliahan dan temukan soal beserta pola jawaban yang tersedia."
+          : "Start with a course topic and find its questions and available answer patterns.",
+      examples: categoryExamples,
       action: language === "id" ? "Jelajahi materi" : "Explore materials",
     },
     {
       to: "/konsep",
-      title: { id: "Konsep", en: "Concepts" },
-      description: {
-        id: "Pahami ide pemrograman dan lihat miskonsepsi yang berhubungan dengannya.",
-        en: "Understand programming ideas and see the misconceptions connected to them.",
-      },
-      action: language === "id" ? "Buka direktori konsep" : "Open concept directory",
+      icon: BrainCircuit,
+      title: language === "id" ? "Konsep" : "Concepts",
+      description:
+        language === "id"
+          ? "Pahami ide pemrograman dan lihat miskonsepsi yang berhubungan dengannya."
+          : "Understand programming ideas and see the misconceptions connected to them.",
+      examples: categoryExamples,
+      action:
+        language === "id" ? "Buka direktori konsep" : "Open concept directory",
     },
     {
       to: "/miskonsepsi",
-      title: { id: "Miskonsepsi", en: "Misconceptions" },
-      description: {
-        id: "Pelajari pola kesalahan, koreksi, serta contoh soal dan jawaban yang berkaitan.",
-        en: "Study error patterns, corrections, and their related questions and answers.",
-      },
-      action: language === "id" ? "Telusuri miskonsepsi" : "Browse misconceptions",
-    },
-  ];
-
-  const stats = [
-    {
-      value: categories.length,
-      label: language === "id" ? "topik materi" : "material topics",
-    },
-    {
-      value: questions.length,
-      label: language === "id" ? "contoh soal" : "sample questions",
-    },
-    {
-      value: misconceptions.length,
-      label: language === "id" ? "miskonsepsi" : "misconceptions",
+      icon: Search,
+      title: language === "id" ? "Miskonsepsi" : "Misconceptions",
+      description:
+        language === "id"
+          ? "Pelajari pola kesalahan, koreksi, serta contoh soal dan jawaban yang berkaitan."
+          : "Study error patterns, corrections, and their related questions and answers.",
+      examples: misconceptionExamples,
+      action:
+        language === "id" ? "Telusuri miskonsepsi" : "Browse misconceptions",
     },
   ];
 
   return (
-    <div className="mx-auto max-w-6xl space-y-12 py-3 md:space-y-16 md:py-7">
-      <section className="overflow-hidden rounded-xl border border-border bg-brand-soft px-6 py-9 sm:px-9 sm:py-11 lg:px-12 lg:py-14">
-        <div className="max-w-4xl">
-          <h1 className="text-[2.35rem] font-extrabold leading-[1.14] tracking-tight text-navy-deep sm:text-5xl">
+    <div className="mx-auto max-w-6xl space-y-14 pb-4 md:space-y-20">
+      <section className="grid overflow-hidden rounded-xl border border-border bg-white shadow-[0_18px_48px_rgba(43,38,36,0.06)] lg:grid-cols-[1.08fr_0.92fr]">
+        <div className="px-6 py-10 sm:px-10 sm:py-12 lg:px-12 lg:py-14">
+          <div className="flex items-center gap-2 text-sm font-semibold text-brand">
+            <Code2 aria-hidden="true" size={18} strokeWidth={2} />
+            <span>Progmiscon</span>
+          </div>
+
+          <h1 className="mt-6 max-w-xl text-[2.35rem] font-extrabold leading-[1.16] tracking-[-0.025em] text-navy-deep sm:text-[2.7rem] lg:text-[3rem]">
             {language === "id"
-              ? "Pahami pola pikir di balik jawaban pemrograman."
-              : "Understand the thinking behind programming answers."}
+              ? "Pahami cara mahasiswa berpikir saat menyelesaikan soal pemrograman."
+              : "Understand how students think when solving programming questions."}
           </h1>
-          <p className="mt-5 max-w-2xl text-[15px] leading-7 text-muted">
+
+          <p className="mt-6 max-w-2xl text-[15px] leading-7 text-muted">
             {t(uiText.homeDescription, language)}
           </p>
 
           <div className="mt-7 flex flex-wrap items-center gap-3">
             <Link
               to="/materi"
-              className="inline-flex items-center rounded-md bg-brand px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-3 text-sm font-semibold text-white shadow-[0_10px_22px_rgba(182,37,42,0.18)] transition hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
               {language === "id" ? "Mulai dari materi" : "Start with materials"}
+              <ArrowRight aria-hidden="true" size={16} />
             </Link>
             <Link
               to="/miskonsepsi"
-              className="inline-flex items-center rounded-md border border-brand/25 bg-white px-5 py-3 text-sm font-semibold text-brand transition-colors hover:border-brand/45 hover:bg-white/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+              className="inline-flex items-center gap-2 rounded-md bg-neutral px-5 py-3 text-sm font-semibold text-navy transition hover:bg-border/70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
-              {language === "id" ? "Lihat miskonsepsi" : "View misconceptions"}
+              <Search aria-hidden="true" size={17} />
+              {language === "id" ? "Telusuri miskonsepsi" : "Browse misconceptions"}
             </Link>
           </div>
         </div>
+
+        <aside className="border-t border-border bg-neutral/75 px-6 py-9 sm:px-10 lg:border-l lg:border-t-0 lg:px-10 lg:py-11">
+          <h2 className="text-sm font-semibold text-navy-deep">
+            {language === "id" ? "Alur pengetahuan" : "Knowledge map"}
+          </h2>
+          <p className="mt-2 max-w-md text-sm leading-6 text-muted">
+            {language === "id"
+              ? "Setiap miskonsepsi dapat ditelusuri kembali ke soal dan pola jawabannya."
+              : "Each misconception can be traced back to its question and answer pattern."}
+          </p>
+
+          <ol className="mt-6 space-y-3">
+            {knowledgeItems.map((item, index) => {
+              const Icon = item.icon;
+
+              return (
+                <li key={item.title}>
+                  <Link
+                    to={item.to}
+                    className="group flex items-center gap-4 rounded-lg border border-transparent bg-white px-4 py-3.5 transition hover:border-brand/25 hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  >
+                    <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-brand-soft text-brand">
+                      <Icon aria-hidden="true" size={20} strokeWidth={2} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-bold text-navy-deep">
+                        {item.title}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted">
+                        {item.detail}
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold tabular-nums text-muted/65">
+                      {String(index + 1).padStart(2, "0")}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ol>
+        </aside>
       </section>
 
-      <dl
-        className="grid grid-cols-3 divide-x divide-border border-y border-border py-5"
-        aria-label={language === "id" ? "Ringkasan konten" : "Content summary"}
-      >
-        {stats.map((stat) => (
-          <div key={stat.label} className="px-3 text-center sm:px-6">
-            <dd className="text-2xl font-bold tabular-nums text-navy-deep sm:text-3xl">
-              {stat.value}
-            </dd>
-            <dt className="mt-1 text-xs leading-5 text-muted sm:text-sm">
-              {stat.label}
-            </dt>
-          </div>
-        ))}
-      </dl>
-
       <section aria-labelledby="explore-title">
-        <div className="mb-6">
-          <h2 id="explore-title" className="text-2xl font-bold text-navy-deep">
-            {language === "id" ? "Jelajahi Progmiscon" : "Explore Progmiscon"}
-          </h2>
-          <p className="mt-1.5 text-sm text-muted">
-            {language === "id"
-              ? "Pilih informasi yang ingin kamu pelajari."
-              : "Choose what you want to learn about."}
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 id="explore-title" className="text-2xl font-bold text-navy-deep">
+              {language === "id" ? "Pilih cara menjelajah" : "Choose how to explore"}
+            </h2>
+            <p className="mt-1.5 text-sm text-muted">
+              {language === "id"
+                ? "Masuk dari sudut pandang yang paling relevan."
+                : "Start from the perspective most relevant to you."}
+            </p>
+          </div>
+          <p className="max-w-sm text-xs leading-5 text-muted sm:text-right">
+            {t(uiText.homeLecturerPortalNote, language)}
           </p>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[1.08fr_0.92fr] lg:grid-rows-2">
-          {pages.map((page, index) => (
-            <Link
-              key={page.to}
-              to={page.to}
-              className={`group flex flex-col rounded-xl border p-6 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:p-7 ${
-                index === 0
-                  ? "border-brand/20 bg-brand-soft hover:border-brand/40 lg:row-span-2 lg:justify-center"
-                  : "border-border bg-white hover:border-brand/30 hover:bg-neutral/40"
-              }`}
-            >
-              <h3
-                className={
-                  index === 0
-                    ? "text-2xl font-bold text-navy-deep"
-                    : "text-lg font-bold text-navy-deep"
-                }
+        <div className="grid gap-4 md:grid-cols-3">
+          {exploreItems.map((item) => {
+            const Icon = item.icon;
+
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="group flex min-h-72 flex-col rounded-xl border border-border bg-white p-6 transition hover:-translate-y-1 hover:border-brand/30 hover:shadow-[0_16px_36px_rgba(43,38,36,0.07)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
               >
-                {t(page.title, language)}
-              </h3>
-              <p
-                className={`mt-2 max-w-xl text-sm leading-6 text-muted ${
-                  index === 0 ? "sm:text-[15px] sm:leading-7" : ""
-                }`}
-              >
-                {t(page.description, language)}
-              </p>
-              <span className="mt-5 text-sm font-semibold text-brand group-hover:text-brand-deep">
-                {page.action}
-              </span>
-            </Link>
-          ))}
+                <span className="grid size-11 place-items-center rounded-lg bg-brand-soft text-brand">
+                  <Icon aria-hidden="true" size={21} strokeWidth={2} />
+                </span>
+                <h3 className="mt-6 text-lg font-bold text-navy-deep">
+                  {item.title}
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-muted">
+                  {item.description}
+                </p>
+                {item.examples && (
+                  <p className="mt-3 line-clamp-2 text-xs leading-5 text-muted/75">
+                    {item.examples}
+                  </p>
+                )}
+                <span className="mt-auto inline-flex items-center gap-2 pt-7 text-sm font-semibold text-brand group-hover:text-brand-deep">
+                  {item.action}
+                  <ArrowRight
+                    aria-hidden="true"
+                    size={16}
+                    className="transition-transform group-hover:translate-x-1"
+                  />
+                </span>
+              </Link>
+            );
+          })}
         </div>
       </section>
-
-      <p className="text-center text-xs text-muted">
-        {t(uiText.homeLecturerPortalNote, language)}
-      </p>
     </div>
   );
 }
