@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   UsersRound,
 } from "lucide-react";
+import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
 import { useLanguage } from "../hooks/useLanguage";
 import { useMisconceptions } from "../hooks/useMisconceptions";
@@ -24,6 +25,7 @@ import type {
   Language,
 } from "../types";
 import { cn } from "../utils/cn";
+import { downloadCsvFile, exportDateStamp } from "../utils/reviewCsv";
 import { t } from "../utils/translation";
 
 type AdminTab = "history" | "downloads";
@@ -47,6 +49,14 @@ function formatReviewDate(value: string, language: Language): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function sortByUpdatedAt<T extends { updatedAt: string }>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const aTime = Date.parse(a.updatedAt);
+    const bTime = Date.parse(b.updatedAt);
+    return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+  });
 }
 
 function questionReviewHasChanges(review: AdminQuestionReviewHistoryItem): boolean {
@@ -423,6 +433,69 @@ function SummaryItem({
   );
 }
 
+function DownloadCard({
+  icon,
+  title,
+  description,
+  emptyMessage,
+  countLabel,
+  count,
+  loading,
+  downloadLabel,
+  loadingLabel,
+  onDownload,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  emptyMessage: string;
+  countLabel: string;
+  count: number;
+  loading: boolean;
+  downloadLabel: string;
+  loadingLabel: string;
+  onDownload: () => void;
+}) {
+  return (
+    <article className="surface-card flex flex-col p-5">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+          {icon}
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-base font-bold text-navy-deep">{title}</h3>
+          <p className="mt-1 text-sm leading-6 text-muted">{description}</p>
+        </div>
+      </div>
+
+      <div className="mt-5 flex flex-col items-start gap-4 border-t border-border pt-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-xs font-semibold text-muted">{countLabel}</p>
+          <p className="mt-1 text-xl font-bold tracking-tight text-navy-deep">
+            {loading ? <span className="skeleton block h-6 w-10" /> : count}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="primary"
+          className="whitespace-nowrap"
+          disabled={loading || count === 0}
+          onClick={onDownload}
+        >
+          <Download size={16} strokeWidth={2} aria-hidden="true" />
+          {loading ? loadingLabel : downloadLabel}
+        </Button>
+      </div>
+
+      {!loading && count === 0 && (
+        <p role="status" className="mt-4 text-sm leading-6 text-muted">
+          {emptyMessage}
+        </p>
+      )}
+    </article>
+  );
+}
+
 export function AdminPage() {
   const { language } = useLanguage();
   const { questions, loading: questionsLoading } = useQuestions();
@@ -541,6 +614,72 @@ export function AdminPage() {
     misconceptionsLoading;
   const activeReviews =
     mode === "question" ? filteredQuestionReviews : filteredAnswerReviews;
+
+  const downloadQuestionReviews = () => {
+    const rows = sortByUpdatedAt(history.questionReviews).map((review) => [
+      review.fullName,
+      review.email,
+      review.questionId,
+      review.removedMisconceptionIds.join(";"),
+      review.additionalMisconceptionIds.join(";"),
+      review.removalReason,
+      review.additionReason,
+      review.note,
+      review.createdAt,
+      review.updatedAt,
+    ]);
+
+    downloadCsvFile(
+      `question_reviews_${exportDateStamp()}.csv`,
+      [
+        "reviewer_name",
+        "reviewer_email",
+        "question_id",
+        "removed_misconception_ids",
+        "added_misconception_ids",
+        "remove_reason",
+        "add_reason",
+        "comment",
+        "created_at",
+        "updated_at",
+      ],
+      rows,
+    );
+  };
+
+  const downloadAnswerReviews = () => {
+    const rows = sortByUpdatedAt(history.answerReviews).map((review) => [
+      review.fullName,
+      review.email,
+      review.answerId,
+      review.questionId,
+      review.removedMisconceptionIds.join(";"),
+      review.additionalMisconceptionIds.join(";"),
+      review.removalReason,
+      review.additionReason,
+      review.note,
+      review.createdAt,
+      review.updatedAt,
+    ]);
+
+    downloadCsvFile(
+      `answer_reviews_${exportDateStamp()}.csv`,
+      [
+        "reviewer_name",
+        "reviewer_email",
+        "answer_id",
+        "question_id",
+        "removed_misconception_ids",
+        "added_misconception_ids",
+        "remove_reason",
+        "add_reason",
+        "comment",
+        "created_at",
+        "updated_at",
+      ],
+      rows,
+    );
+  };
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -852,13 +991,72 @@ export function AdminPage() {
           aria-labelledby="admin-tab-downloads"
           className="mt-5"
         >
-          <EmptyState
-            message={
-              language === "id"
-                ? "Unduhan raw review dan relasi miskonsepsi akan tersedia pada tahap berikutnya."
-                : "Raw review and misconception relation downloads will be available in the next stage."
-            }
-          />
+          <div className="mb-5">
+            <h2 className="text-base font-bold text-navy-deep">
+              {language === "id" ? "Unduh raw review" : "Download raw reviews"}
+            </h2>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted">
+              {language === "id"
+                ? "File ini berisi riwayat mentah review dosen, bukan dataset master yang sudah diperbarui."
+                : "These files contain raw lecturer review history, not an updated master dataset."}
+            </p>
+          </div>
+
+          {historyLoading ? (
+            <div className="grid gap-4 md:grid-cols-2">
+              <DownloadCard
+                icon={<FileQuestion size={19} strokeWidth={2} aria-hidden="true" />}
+                title={language === "id" ? "Riwayat Validasi Soal" : "Question Validation History"}
+                description={language === "id" ? "Menyiapkan raw question reviews." : "Preparing raw question reviews."}
+                emptyMessage=""
+                countLabel={language === "id" ? "Jumlah baris" : "Rows"}
+                count={0}
+                loading
+                downloadLabel={language === "id" ? "Unduh CSV" : "Download CSV"}
+                loadingLabel={language === "id" ? "Memuat..." : "Loading..."}
+                onDownload={() => undefined}
+              />
+              <DownloadCard
+                icon={<Code2 size={19} strokeWidth={2} aria-hidden="true" />}
+                title={language === "id" ? "Riwayat Validasi Jawaban" : "Answer Validation History"}
+                description={language === "id" ? "Menyiapkan raw answer reviews." : "Preparing raw answer reviews."}
+                emptyMessage=""
+                countLabel={language === "id" ? "Jumlah baris" : "Rows"}
+                count={0}
+                loading
+                downloadLabel={language === "id" ? "Unduh CSV" : "Download CSV"}
+                loadingLabel={language === "id" ? "Memuat..." : "Loading..."}
+                onDownload={() => undefined}
+              />
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              <DownloadCard
+                icon={<FileQuestion size={19} strokeWidth={2} aria-hidden="true" />}
+                title={language === "id" ? "Riwayat Validasi Soal" : "Question Validation History"}
+                description={language === "id" ? "Unduh satu baris untuk setiap review soal dosen." : "Download one row for each lecturer question review."}
+                emptyMessage={language === "id" ? "Belum ada review soal untuk diunduh." : "There are no question reviews to download."}
+                countLabel={language === "id" ? "Jumlah baris" : "Rows"}
+                count={history.questionReviews.length}
+                loading={false}
+                downloadLabel={language === "id" ? "Unduh Question Reviews CSV" : "Download Question Reviews CSV"}
+                loadingLabel={language === "id" ? "Memuat..." : "Loading..."}
+                onDownload={downloadQuestionReviews}
+              />
+              <DownloadCard
+                icon={<Code2 size={19} strokeWidth={2} aria-hidden="true" />}
+                title={language === "id" ? "Riwayat Validasi Jawaban" : "Answer Validation History"}
+                description={language === "id" ? "Unduh satu baris untuk setiap review jawaban dosen." : "Download one row for each lecturer answer review."}
+                emptyMessage={language === "id" ? "Belum ada review jawaban untuk diunduh." : "There are no answer reviews to download."}
+                countLabel={language === "id" ? "Jumlah baris" : "Rows"}
+                count={history.answerReviews.length}
+                loading={false}
+                downloadLabel={language === "id" ? "Unduh Answer Reviews CSV" : "Download Answer Reviews CSV"}
+                loadingLabel={language === "id" ? "Memuat..." : "Loading..."}
+                onDownload={downloadAnswerReviews}
+              />
+            </div>
+          )}
         </section>
       )}
     </div>
