@@ -303,6 +303,46 @@ a:active {
   }
 }
 
+@keyframes home-hero-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes home-section-enter {
+  from {
+    opacity: 0.2;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .home-hero-copy {
+    animation: home-hero-enter 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .home-hero-visual {
+    animation: home-hero-enter 720ms 100ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  @supports (animation-timeline: view()) {
+    .home-reveal {
+      animation: home-section-enter linear both;
+      animation-timeline: view();
+      animation-range: entry 8% cover 32%;
+    }
+  }
+}
+
 @media (max-width: 767px) {
   .page-header {
     display: block;
