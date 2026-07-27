@@ -101,11 +101,13 @@ function MisconceptionList({
 function QuestionHistoryCard({
   review,
   questionPrompt,
+  typeLabel,
   misconceptionTitles,
   language,
 }: {
   review: QuestionReviewHistoryItem;
   questionPrompt?: string;
+  typeLabel?: "PS" | "MP";
   misconceptionTitles: Map<string, string>;
   language: Language;
 }) {
@@ -125,6 +127,12 @@ function QuestionHistoryCard({
               <p className="text-sm font-bold text-navy-deep">
                 {language === "id" ? "Validasi Soal" : "Question Validation"}
               </p>
+
+              {typeLabel && (
+                <span className="rounded-md bg-neutral px-2 py-1 text-[11px] font-bold text-navy-deep">
+                  {typeLabel}
+                </span>
+              )}
 
               <span
                 className={cn(
@@ -252,12 +260,14 @@ function AnswerHistoryCard({
   review,
   questionPrompt,
   answerText,
+  typeLabel,
   misconceptionTitles,
   language,
 }: {
   review: AnswerReviewHistoryItem;
   questionPrompt?: string;
   answerText?: string;
+  typeLabel?: "PS" | "MP";
   misconceptionTitles: Map<string, string>;
   language: Language;
 }) {
@@ -277,6 +287,12 @@ function AnswerHistoryCard({
               <p className="text-sm font-bold text-navy-deep">
                 {language === "id" ? "Validasi Jawaban" : "Answer Validation"}
               </p>
+
+              {typeLabel && (
+                <span className="rounded-md bg-neutral px-2 py-1 text-[11px] font-bold text-navy-deep">
+                  {typeLabel}
+                </span>
+              )}
 
               <span
                 className={cn(
@@ -576,6 +592,13 @@ export function LecturerReviewHistoryPage() {
                   questionPrompt={
                     question ? t(question.prompt, language) : undefined
                   }
+                  typeLabel={
+                    question
+                      ? question.type === "multiple_choice"
+                        ? "MP"
+                        : "PS"
+                      : undefined
+                  }
                   misconceptionTitles={misconceptionTitles}
                   language={language}
                 />
@@ -594,8 +617,12 @@ export function LecturerReviewHistoryPage() {
       ) : history.answerReviews.length > 0 ? (
         <div className="space-y-4">
           {history.answerReviews.map((review) => {
-            const question = questionMap.get(review.questionId);
             const answer = answerMap.get(review.answerId);
+            const answerQuestion = answer
+              ? questionMap.get(answer.questionId)
+              : undefined;
+            const question =
+              answerQuestion ?? questionMap.get(review.questionId);
             const selectedOption = question?.options?.find(
               (option) => option.id === answer?.selectedOptionId,
             );
@@ -612,6 +639,13 @@ export function LecturerReviewHistoryPage() {
                   question ? t(question.prompt, language) : undefined
                 }
                 answerText={answerText}
+                typeLabel={
+                  question
+                    ? question.type === "multiple_choice"
+                      ? "MP"
+                      : "PS"
+                    : undefined
+                }
                 misconceptionTitles={misconceptionTitles}
                 language={language}
               />

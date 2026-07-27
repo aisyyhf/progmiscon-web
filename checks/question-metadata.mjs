@@ -59,6 +59,13 @@ const misconception = {
   title: { id: "Judul", en: "Title" },
 };
 assert.equal(misconceptionLabel(misconception, "id"), "IO-02 — Judul");
+assert.equal(
+  misconceptionLabel(
+    { id: "IO-02", title: { id: "IO-02 — Judul", en: "IO-02 — Title" } },
+    "id",
+  ),
+  "IO-02 — Judul",
+);
 assert.equal(matchesMisconceptionSearch(misconception, " io-02 "), true);
 assert.equal(matchesMisconceptionSearch(misconception, "title"), true);
 

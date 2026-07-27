@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
@@ -24,14 +24,19 @@ import { prioritizeMisconceptions, sortReviewTasks } from "../utils/reviewPriori
 import { t } from "../utils/translation";
 import { misconceptionLabel } from "../utils/misconceptionLabel";
 import {
-  getReviewProgress,
+  getReviewProgress as getSavedReviewProgress,
   saveAnswerReview,
   saveQuestionReview,
 } from "../services/reviewPersistenceRepository";
-import { Link } from "react-router-dom";
 import { PseudocodeBlock } from "../components/review/PseudocodeBlock";
-
-type ReviewMode = "question" | "answer";
+import {
+  DEFAULT_REVIEW_WORKSPACE,
+  classifyReviewItems,
+  getReviewProgress,
+  resolveAnswerSelection,
+  selectWorkspaceItemId,
+  type ReviewWorkspace,
+} from "../utils/reviewWorkspace";
 
 function PresenceToggle({
   value,
@@ -77,46 +82,74 @@ function PresenceToggle({
   );
 }
 
-function ReviewCompletedState({
-  mode,
+function WorkspaceToolbar({
+  label,
+  itemLabel,
+  reviewed,
+  index,
+  total,
   language,
+  onPrevious,
+  onNext,
 }: {
-  mode: ReviewMode;
+  label: string;
+  itemLabel: string;
+  reviewed: number;
+  index: number;
+  total: number;
   language: Language;
+  onPrevious: () => void;
+  onNext: () => void;
 }) {
-  const isQuestion = mode === "question";
-
   return (
-    <section className="rounded-lg border border-border bg-white px-6 py-10 text-center">
-      <h2 className="text-lg font-bold text-navy-deep">
-        {language === "id"
-          ? `Tidak ada validasi ${
-              isQuestion ? "soal" : "jawaban"
-            } yang tersedia saat ini`
-          : `No ${
-              isQuestion ? "question" : "answer"
-            } validations are currently available`}
-      </h2>
+    <section className="mb-4 rounded-lg border border-border bg-white px-4 py-4 sm:px-5">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-navy-deep">{label}</h2>
+          <p className="mt-1 text-sm text-muted">
+            {language === "id"
+              ? `${reviewed} dari ${total} telah direview`
+              : `${reviewed} of ${total} reviewed`}
+          </p>
+        </div>
 
-      <p className="mx-auto mt-2 max-w-xl text-sm leading-6 text-muted">
-        {language === "id"
-          ? `Semua ${
-              isQuestion ? "soal" : "jawaban"
-            } yang tersedia untuk akun Anda telah ditinjau. Hasil review dapat dilihat melalui Riwayat Review Saya.`
-          : `All available ${
-              isQuestion ? "questions" : "answers"
-            } for your account have been reviewed. Your submissions are available in My Review History.`}
-      </p>
-
-      <Link
-        to="/review/riwayat"
-        className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-      >
-        {language === "id"
-          ? "Lihat Riwayat Review Saya"
-          : "View My Review History"}
-      </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-auto text-xs font-semibold tabular-nums text-muted sm:mr-2">
+            {itemLabel} {index + 1} {language === "id" ? "dari" : "of"} {total}
+          </span>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onPrevious}
+            disabled={index <= 0}
+          >
+            {language === "id" ? "Sebelumnya" : "Previous"}
+          </Button>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onNext}
+            disabled={index >= total - 1}
+          >
+            {language === "id" ? "Berikutnya" : "Next"}
+          </Button>
+        </div>
+      </div>
     </section>
+  );
+}
+
+function orderAnswersByTaskPriority(
+  answers: StudentAnswer[],
+  tasks: ReviewTask[],
+): StudentAnswer[] {
+  const rank = new Map(
+    sortReviewTasks(tasks).map((task, index) => [task.answerCaseId, index]),
+  );
+
+  return [...answers].sort(
+    (a, b) =>
+      (rank.get(a.id) ?? rank.size) - (rank.get(b.id) ?? rank.size),
   );
 }
 
@@ -127,7 +160,10 @@ export function LecturerReviewPage() {
   const { answers, loading: answersLoading } = useAllStudentAnswers();
   const { misconceptions, loading: misconceptionsLoading } = useMisconceptions();
   const { tasks: answerTasks, loading: reviewTasksLoading } = useReviewTasks();
-  const [mode, setMode] = useState<ReviewMode>("question");
+  const [workspace, setWorkspace] = useState<ReviewWorkspace>(
+    DEFAULT_REVIEW_WORKSPACE,
+  );
+  const [activeItemId, setActiveItemId] = useState<string>();
   const [reviewedQuestionIds, setReviewedQuestionIds] = useState<string[]>([]);
   const [reviewedAnswerIds, setReviewedAnswerIds] = useState<string[]>([]);
   const [progressLoading, setProgressLoading] = useState(true);
@@ -150,7 +186,7 @@ export function LecturerReviewPage() {
       setProgressError("");
 
       try {
-        const progress = await getReviewProgress(user.id);
+        const progress = await getSavedReviewProgress(user.id);
         if (!active) return;
         setReviewedQuestionIds(progress.questionIds);
         setReviewedAnswerIds(progress.answerIds);
@@ -174,21 +210,141 @@ export function LecturerReviewPage() {
     };
   }, [user]);
 
-  const questionTask = questions.find(
-    (question) => !reviewedQuestionIds.includes(question.id),
+  const { items: classifiedItems, questionById } = useMemo(
+    () => classifyReviewItems(questions, answers),
+    [answers, questions],
   );
-  const answerTask = sortReviewTasks(answerTasks).find(
-    (task) => !reviewedAnswerIds.includes(task.answerCaseId),
+  const workspaceItems = useMemo(
+    () => ({
+      "question-ps": classifiedItems["question-ps"],
+      "answer-ps": orderAnswersByTaskPriority(
+        classifiedItems["answer-ps"],
+        answerTasks,
+      ),
+      "question-mp": classifiedItems["question-mp"],
+      "answer-mp": orderAnswersByTaskPriority(
+        classifiedItems["answer-mp"],
+        answerTasks,
+      ),
+    }),
+    [answerTasks, classifiedItems],
   );
-  const answerQuestion = questions.find(
-    (question) => question.id === answerTask?.questionId,
+  const answerTaskById = useMemo(
+    () => new Map(answerTasks.map((task) => [task.answerCaseId, task])),
+    [answerTasks],
   );
-  const answer = answers.find(
-    (item) => item.id === answerTask?.answerCaseId,
+  const workspaceProgress = {
+    "question-ps": getReviewProgress(
+      workspaceItems["question-ps"],
+      reviewedQuestionIds,
+    ),
+    "answer-ps": getReviewProgress(
+      workspaceItems["answer-ps"],
+      reviewedAnswerIds,
+    ),
+    "question-mp": getReviewProgress(
+      workspaceItems["question-mp"],
+      reviewedQuestionIds,
+    ),
+    "answer-mp": getReviewProgress(
+      workspaceItems["answer-mp"],
+      reviewedAnswerIds,
+    ),
+  };
+  const activeItems = workspaceItems[workspace];
+  const activeReviewedIds = workspace.startsWith("question")
+    ? reviewedQuestionIds
+    : reviewedAnswerIds;
+  const resolvedActiveItemId = activeItems.some(
+    (item) => item.id === activeItemId,
+  )
+    ? activeItemId
+    : selectWorkspaceItemId(activeItems, activeReviewedIds);
+  const activeIndex = activeItems.findIndex(
+    (item) => item.id === resolvedActiveItemId,
   );
-  const suggestedMisconception = misconceptions.find(
-    (item) => item.id === answerTask?.suggestedMisconceptionId,
-  );
+  const activeQuestion =
+    workspace === "question-ps" || workspace === "question-mp"
+      ? (activeItems[activeIndex] as Question | undefined)
+      : undefined;
+  const activeAnswer =
+    workspace === "answer-ps" || workspace === "answer-mp"
+      ? (activeItems[activeIndex] as StudentAnswer | undefined)
+      : undefined;
+  const answerQuestion = activeAnswer
+    ? questionById.get(activeAnswer.questionId)
+    : undefined;
+  const answerTask = activeAnswer
+    ? answerTaskById.get(activeAnswer.id)
+    : undefined;
+  const tabs: { id: ReviewWorkspace; label: string }[] = [
+    {
+      id: "question-ps",
+      label: language === "id" ? "Soal PS" : "PS Questions",
+    },
+    {
+      id: "answer-ps",
+      label: language === "id" ? "Jawaban PS" : "PS Answers",
+    },
+    {
+      id: "question-mp",
+      label: language === "id" ? "Soal MP" : "MP Questions",
+    },
+    {
+      id: "answer-mp",
+      label: language === "id" ? "Jawaban MP" : "MP Answers",
+    },
+  ];
+  const activeTab = tabs.find((tab) => tab.id === workspace)!;
+  const itemLabel =
+    workspace.startsWith("question")
+      ? language === "id"
+        ? "Soal"
+        : "Question"
+      : language === "id"
+        ? "Jawaban"
+        : "Answer";
+  const emptyMessages: Record<ReviewWorkspace, string> = {
+    "question-ps":
+      language === "id" ? "Belum ada soal PS" : "There are no PS questions yet",
+    "answer-ps":
+      language === "id" ? "Belum ada jawaban PS" : "There are no PS answers yet",
+    "question-mp":
+      language === "id" ? "Belum ada soal MP" : "There are no MP questions yet",
+    "answer-mp":
+      language === "id" ? "Belum ada jawaban MP" : "There are no MP answers yet",
+  };
+  const selectWorkspace = (nextWorkspace: ReviewWorkspace) => {
+    const nextItems = workspaceItems[nextWorkspace];
+    const reviewedIds = nextWorkspace.startsWith("question")
+      ? reviewedQuestionIds
+      : reviewedAnswerIds;
+
+    setWorkspace(nextWorkspace);
+    setActiveItemId(selectWorkspaceItemId(nextItems, reviewedIds));
+  };
+  const selectOffset = (offset: number) => {
+    setActiveItemId(activeItems[activeIndex + offset]?.id);
+  };
+  const selectAfterQuestionReview = (questionId: string) => {
+    const nextReviewedIds = reviewedQuestionIds.includes(questionId)
+      ? reviewedQuestionIds
+      : [...reviewedQuestionIds, questionId];
+    setReviewedQuestionIds(nextReviewedIds);
+    setActiveItemId(selectWorkspaceItemId(activeItems, nextReviewedIds));
+  };
+  const selectAfterAnswerReview = (answerId: string) => {
+    const nextReviewedIds = reviewedAnswerIds.includes(answerId)
+      ? reviewedAnswerIds
+      : [...reviewedAnswerIds, answerId];
+    setReviewedAnswerIds(nextReviewedIds);
+    setActiveItemId(selectWorkspaceItemId(activeItems, nextReviewedIds));
+  };
+  const progress = workspaceProgress[workspace];
+  const hasActiveItem =
+    activeIndex >= 0 &&
+    (activeQuestion !== undefined ||
+      (activeAnswer !== undefined && answerQuestion !== undefined));
   const loading =
     questionsLoading ||
     answersLoading ||
@@ -217,89 +373,97 @@ export function LecturerReviewPage() {
       )}
 
       <div
-        className="segmented-control mb-6 w-full sm:w-auto"
+        className="review-workspace-tabs segmented-control mb-6 w-full"
         role="tablist"
-        aria-label={language === "id" ? "Jenis validasi" : "Validation type"}
+        aria-label={language === "id" ? "Workspace review" : "Review workspace"}
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "question"}
-          aria-controls="question-validation-panel"
-          onClick={() => setMode("question")}
-          className="segmented-tab sm:min-w-44"
-        >
-          <span>{language === "id" ? "Validasi Soal" : "Question Validation"}</span>
-        </button>
+        {tabs.map((tab) => {
+          const tabProgress = workspaceProgress[tab.id];
 
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "answer"}
-          aria-controls="answer-validation-panel"
-          onClick={() => setMode("answer")}
-          className="segmented-tab sm:min-w-44"
-        >
-          <span>{language === "id" ? "Validasi Jawaban" : "Answer Validation"}</span>
-        </button>
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={workspace === tab.id}
+              aria-controls="review-workspace-panel"
+              onClick={() => selectWorkspace(tab.id)}
+              className="segmented-tab min-w-0 text-center"
+            >
+              <span className="block">{tab.label}</span>
+              <span
+                className={cn(
+                  "block text-[11px] tabular-nums",
+                  workspace === tab.id ? "text-white/80" : "text-muted/75",
+                )}
+              >
+                {tabProgress.reviewed}/{tabProgress.total}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
-      <section id="question-validation-panel" role="tabpanel" hidden={mode !== "question"}>
+      <section
+        id="review-workspace-panel"
+        role="tabpanel"
+        aria-label={activeTab.label}
+      >
         {loading ? (
-          <EmptyState loading message={language === "id" ? "Memuat tugas validasi..." : "Loading validation tasks..."} />
-        ) : questionTask ? (
-          <QuestionValidationWorkspace
-            key={questionTask.id}
-            question={questionTask}
-            misconceptions={misconceptions}
-            onSubmit={async (values) => {
-              if (!user) throw new Error("Sesi dosen tidak ditemukan.");
-              await saveQuestionReview(user.id, questionTask.id, values);
-              setReviewedQuestionIds((current) =>
-                current.includes(questionTask.id)
-                  ? current
-                  : [...current, questionTask.id],
-              );
-            }}
+          <EmptyState
+            loading
+            message={
+              language === "id"
+                ? "Memuat tugas validasi..."
+                : "Loading validation tasks..."
+            }
           />
-        ) : (
-          <ReviewCompletedState
-            mode="question"
-            language={language}
-          />
-        )}
-      </section>
+        ) : hasActiveItem ? (
+          <>
+            <WorkspaceToolbar
+              label={activeTab.label}
+              itemLabel={itemLabel}
+              reviewed={progress.reviewed}
+              index={activeIndex}
+              total={progress.total}
+              language={language}
+              onPrevious={() => selectOffset(-1)}
+              onNext={() => selectOffset(1)}
+            />
 
-      <section id="answer-validation-panel" role="tabpanel" hidden={mode !== "answer"}>
-        {loading ? (
-          <EmptyState loading message={language === "id" ? "Memuat tugas validasi..." : "Loading validation tasks..."} />
-        ) : answerTask && answerQuestion && answer && suggestedMisconception ? (
-          <AnswerValidationWorkspace
-            key={answerTask.id}
-            task={answerTask}
-            question={answerQuestion}
-            answer={answer}
-            misconceptions={misconceptions}
-            onSubmit={async (values) => {
-              if (!user) throw new Error("Sesi dosen tidak ditemukan.");
-              await saveAnswerReview(
-                user.id,
-                answer.id,
-                answerQuestion.id,
-                values,
-              );
-              setReviewedAnswerIds((current) =>
-                current.includes(answer.id)
-                  ? current
-                  : [...current, answer.id],
-              );
-            }}
-          />
+            {activeQuestion ? (
+              <QuestionValidationWorkspace
+                key={activeQuestion.id}
+                question={activeQuestion}
+                misconceptions={misconceptions}
+                onSubmit={async (values) => {
+                  if (!user) throw new Error("Sesi dosen tidak ditemukan.");
+                  await saveQuestionReview(user.id, activeQuestion.id, values);
+                  selectAfterQuestionReview(activeQuestion.id);
+                }}
+              />
+            ) : activeAnswer && answerQuestion ? (
+              <AnswerValidationWorkspace
+                key={activeAnswer.id}
+                task={answerTask}
+                question={answerQuestion}
+                answer={activeAnswer}
+                misconceptions={misconceptions}
+                onSubmit={async (values) => {
+                  if (!user) throw new Error("Sesi dosen tidak ditemukan.");
+                  await saveAnswerReview(
+                    user.id,
+                    activeAnswer.id,
+                    answerQuestion.id,
+                    values,
+                  );
+                  selectAfterAnswerReview(activeAnswer.id);
+                }}
+              />
+            ) : null}
+          </>
         ) : (
-          <ReviewCompletedState
-            mode="answer"
-            language={language}
-          />
+          <EmptyState message={emptyMessages[workspace]} />
         )}
       </section>
     </div>
@@ -318,6 +482,9 @@ function QuestionValidationWorkspace({
   const { language } = useLanguage();
   const reference = getQuestionReference(question);
   const recommended = prioritizeMisconceptions(misconceptions, question.questionMisconceptionIds);
+  const misconceptionById = new Map(
+    misconceptions.map((item) => [item.id, item]),
+  );
   const currentMisconceptionIds = new Set(recommended.map((item) => item.id));
   const addableMisconceptions = misconceptions.filter((item) => !currentMisconceptionIds.has(item.id));
   const similarMisconceptions = prioritizeMisconceptions(
@@ -384,17 +551,6 @@ function QuestionValidationWorkspace({
 
   return (
     <div className="scroll-reveal">
-      <section className="mb-4 rounded-lg border border-border bg-white px-5 py-4">
-        <div>
-          <h2 className="text-lg font-bold text-navy-deep">{language === "id" ? "Validasi soal" : "Question validation"}</h2>
-          <p className="mt-1 text-sm text-muted">
-            {language === "id"
-              ? "Menilai kemungkinan miskonsepsi pada soal"
-              : "Assessing possible misconceptions in a question"}
-          </p>
-        </div>
-      </section>
-
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
         <article className="min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
           <section className="rounded-lg bg-neutral p-5">
@@ -412,12 +568,23 @@ function QuestionValidationWorkspace({
                   <li
                     key={option.id}
                     className={cn(
-                      "flex items-start gap-2 rounded-md border px-4 py-3 text-[13px] leading-6",
+                      "flex items-start gap-3 rounded-md border px-4 py-3 text-[13px] leading-6",
                       option.isCorrect ? "border-correct-border bg-correct-bg/55" : "border-border bg-white",
                     )}
                   >
                     <span className="font-semibold text-navy-deep">{option.label}.</span>
-                    <span className="text-navy-deep">{t(option.text, language)}</span>
+                    <span className="min-w-0 flex-1 text-navy-deep">
+                      <span className="block">{t(option.text, language)}</span>
+                      {option.misconceptionId &&
+                        misconceptionById.has(option.misconceptionId) && (
+                          <span className="mt-1 block text-xs text-muted">
+                            {misconceptionLabel(
+                              misconceptionById.get(option.misconceptionId)!,
+                              language,
+                            )}
+                          </span>
+                        )}
+                    </span>
                     {option.isCorrect && (
                       <span className="ml-auto shrink-0 text-xs font-semibold text-correct">
                         {language === "id" ? "Jawaban acuan" : "Reference answer"}
@@ -436,7 +603,33 @@ function QuestionValidationWorkspace({
                 <PseudocodeBlock code={reference.pseudocode} />
               </div>
             </section>
-          )}
+            )}
+
+          <section className="mt-6 border-t border-border pt-5">
+            <p className="academic-label mb-2">
+              {language === "id"
+                ? "Miskonsepsi tingkat soal"
+                : "Question-level misconceptions"}
+            </p>
+            {recommended.length > 0 ? (
+              <ul className="space-y-2">
+                {recommended.map((item) => (
+                  <li
+                    key={item.id}
+                    className="rounded-md bg-brand-soft/65 px-3 py-2 text-sm font-semibold leading-5 text-navy-deep"
+                  >
+                    {misconceptionLabel(item, language)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">
+                {language === "id"
+                  ? "Belum ada miskonsepsi yang terhubung."
+                  : "No misconceptions are linked yet."}
+              </p>
+            )}
+          </section>
 
           <section className="mt-6 border-t border-border pt-5">
             <p className="academic-label mb-2">{language === "id" ? "Konsep yang diuji" : "Assessed concepts"}</p>
@@ -648,16 +841,25 @@ function AnswerValidationWorkspace({
   misconceptions,
   onSubmit,
 }: {
-  task: ReviewTask;
+  task?: ReviewTask;
   question: Question;
   answer: StudentAnswer;
   misconceptions: Misconception[];
   onSubmit: (values: AnswerReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
-  const selectedOption = question.options?.find((option) => option.id === answer.selectedOptionId);
+  const {
+    option: selectedOption,
+    fallbackText,
+    missingSelectedOption,
+  } = resolveAnswerSelection(question, answer);
+  const misconceptionById = new Map(
+    misconceptions.map((item) => [item.id, item]),
+  );
   const linkedMisconceptions = prioritizeMisconceptions(misconceptions, [
-    task.suggestedMisconceptionId,
+    ...(task?.suggestedMisconceptionId
+      ? [task.suggestedMisconceptionId]
+      : []),
     ...answer.studentMisconceptionIds,
   ]);
   const linkedMisconceptionIds = new Set(linkedMisconceptions.map((item) => item.id));
@@ -726,17 +928,6 @@ function AnswerValidationWorkspace({
 
   return (
     <div className="scroll-reveal">
-      <section className="mb-4 rounded-lg border border-border bg-white px-5 py-4">
-        <div>
-          <h2 className="text-lg font-bold text-navy-deep">{language === "id" ? "Validasi jawaban" : "Answer validation"}</h2>
-          <p className="mt-1 text-sm text-muted">
-            {language === "id"
-              ? "Menilai pola miskonsepsi pada jawaban"
-              : "Assessing misconception patterns in an answer"}
-          </p>
-        </div>
-      </section>
-
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
         <article className="min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
           <section className="rounded-lg bg-neutral p-5">
@@ -746,35 +937,138 @@ function AnswerValidationWorkspace({
             </p>
           </section>
 
+          {question.type === "multiple_choice" && question.options && (
+            <section className="mt-6">
+              <p className="academic-label mb-2">
+                {language === "id"
+                  ? "Pilihan jawaban sebagai konteks"
+                  : "Answer options as context"}
+              </p>
+              <ul className="space-y-2">
+                {question.options.map((option) => {
+                  const selected = option.id === selectedOption?.id;
+                  const optionMisconception = option.misconceptionId
+                    ? misconceptionById.get(option.misconceptionId)
+                    : undefined;
+
+                  return (
+                    <li
+                      key={option.id}
+                      className={cn(
+                        "flex items-start gap-3 rounded-md border px-4 py-3 text-[13px] leading-6",
+                        selected
+                          ? "border-brand bg-brand-soft/55"
+                          : option.isCorrect
+                            ? "border-correct-border bg-correct-bg/55"
+                            : "border-border bg-white",
+                      )}
+                    >
+                      <span className="font-semibold text-navy-deep">
+                        {option.label}.
+                      </span>
+                      <span className="min-w-0 flex-1 text-navy-deep">
+                        <span className="block">{t(option.text, language)}</span>
+                        {optionMisconception && (
+                          <span className="mt-1 block text-xs text-muted">
+                            {misconceptionLabel(optionMisconception, language)}
+                          </span>
+                        )}
+                      </span>
+                      <span className="ml-auto flex shrink-0 flex-col items-end gap-1 text-[11px] font-semibold">
+                        {selected && (
+                          <span className="text-brand">
+                            {language === "id" ? "Dipilih" : "Selected"}
+                          </span>
+                        )}
+                        {selected && !option.isCorrect && (
+                          <span className="text-incorrect">
+                            {language === "id" ? "Salah" : "Incorrect"}
+                          </span>
+                        )}
+                        {option.isCorrect && (
+                          <span className="text-correct">
+                            {language === "id" ? "Benar" : "Correct"}
+                          </span>
+                        )}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          )}
+
           <section className="mt-6">
             <p className="mb-2 text-sm font-bold text-navy-deep">
               {language === "id" ? "Variasi jawaban" : "Answer variation"}
             </p>
+            {missingSelectedOption && (
+              <p
+                role="status"
+                className="mb-3 rounded-md border border-warning-border bg-warning-bg px-3 py-2 text-xs leading-5 text-warning"
+              >
+                {language === "id"
+                  ? "Opsi yang dipilih tidak ditemukan. Teks jawaban ditampilkan sebagai fallback."
+                  : "The selected option could not be found. The answer text is shown as a fallback."}
+              </p>
+            )}
             <div className="overflow-hidden rounded-md border border-border">
-              <div className={selectedOption ? "bg-bg p-5" : "bg-navy-deep"}>
+              <div
+                className={
+                  selectedOption || question.type === "multiple_choice"
+                    ? "bg-bg p-5"
+                    : "bg-navy-deep"
+                }
+              >
                 {selectedOption ? (
                   <p className="text-sm text-navy-deep">
                     <span className="font-medium">{selectedOption.label}.</span> {t(selectedOption.text, language)}
                   </p>
+                ) : question.type === "multiple_choice" ? (
+                  <p className="whitespace-pre-wrap text-sm text-navy-deep">
+                    {fallbackText ||
+                      (language === "id"
+                        ? "Teks jawaban tidak tersedia."
+                        : "Answer text is unavailable.")}
+                  </p>
                 ) : (
-                  <PseudocodeBlock code={answer.answerText ?? ""} />
+                  <PseudocodeBlock code={fallbackText} />
                 )}
               </div>
               <AnswerStatusBar status={answer.status} />
             </div>
           </section>
 
+          {task?.explanation && (
+            <section className="mt-6 border-t border-border pt-5">
+              <p className="academic-label mb-2">
+                {language === "id" ? "Penjelasan" : "Explanation"}
+              </p>
+              <p className="whitespace-pre-wrap text-sm leading-6 text-navy-deep">
+                {t(task.explanation, language)}
+              </p>
+            </section>
+          )}
+
           <section className="mt-6 border-t border-border pt-5">
             <p className="academic-label">
               {language === "id" ? "Miskonsepsi yang dikaitkan saat ini" : "Currently linked misconceptions"}
             </p>
-            <ul className="mt-3 space-y-2">
-              {linkedMisconceptions.map((item) => (
-                <li key={item.id} className="rounded-md bg-brand-soft/65 px-4 py-3 text-sm font-semibold leading-5 text-navy-deep">
-                  {misconceptionLabel(item, language)}
-                </li>
-              ))}
-            </ul>
+            {linkedMisconceptions.length > 0 ? (
+              <ul className="mt-3 space-y-2">
+                {linkedMisconceptions.map((item) => (
+                  <li key={item.id} className="rounded-md bg-brand-soft/65 px-4 py-3 text-sm font-semibold leading-5 text-navy-deep">
+                    {misconceptionLabel(item, language)}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-muted">
+                {language === "id"
+                  ? "Belum ada miskonsepsi yang terhubung."
+                  : "No misconceptions are linked yet."}
+              </p>
+            )}
           </section>
         </article>
 
