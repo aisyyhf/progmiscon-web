@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { LockKeyhole } from "lucide-react";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
@@ -30,13 +31,28 @@ import {
 } from "../services/reviewPersistenceRepository";
 import { PseudocodeBlock } from "../components/review/PseudocodeBlock";
 import {
-  DEFAULT_REVIEW_WORKSPACE,
   classifyReviewItems,
   getReviewProgress,
   resolveAnswerSelection,
-  selectWorkspaceItemId,
   type ReviewWorkspace,
 } from "../utils/reviewWorkspace";
+import {
+  REVIEW_SESSION_STORAGE_KEY,
+  createDefaultReviewSessionState,
+  getAnswersForQuestion,
+  getPairedWorkspace,
+  normalizeReviewSessionState,
+  parseReviewSessionState,
+  selectAfterAnswerReview,
+  selectAfterQuestionReview,
+  getReviewWorkspaceAvailability,
+  selectLinkedAnswerId,
+  selectAvailableReviewWorkspace,
+  selectStoredWorkspaceItemId,
+  serializeReviewSessionState,
+  setActiveReviewItemId,
+  type ReviewSessionState,
+} from "../utils/reviewLinking";
 
 function PresenceToggle({
   value,
@@ -83,24 +99,37 @@ function PresenceToggle({
 }
 
 function WorkspaceToolbar({
+  workspace,
   label,
   itemLabel,
   reviewed,
   index,
   total,
+  itemTotal,
   language,
+  parentQuestion,
   onPrevious,
   onNext,
 }: {
+  workspace: ReviewWorkspace;
   label: string;
   itemLabel: string;
   reviewed: number;
   index: number;
   total: number;
+  itemTotal: number;
   language: Language;
+  parentQuestion?: Question;
   onPrevious: () => void;
   onNext: () => void;
 }) {
+  const answerWorkspace = workspace.startsWith("answer");
+  const parentReference = parentQuestion
+    ? /^q/i.test(parentQuestion.number)
+      ? parentQuestion.number
+      : `Q${parentQuestion.number || parentQuestion.id}`
+    : "";
+
   return (
     <section className="mb-4 rounded-lg border border-border bg-white px-4 py-4 sm:px-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -114,9 +143,12 @@ function WorkspaceToolbar({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-auto text-xs font-semibold tabular-nums text-muted sm:mr-2">
-            {itemLabel} {index + 1} {language === "id" ? "dari" : "of"} {total}
-          </span>
+          {!answerWorkspace && (
+            <span className="mr-auto text-xs font-semibold tabular-nums text-muted sm:mr-2">
+              {itemLabel} {index + 1} {language === "id" ? "dari" : "of"}{" "}
+              {itemTotal}
+            </span>
+          )}
           <Button
             type="button"
             variant="secondary"
@@ -129,12 +161,31 @@ function WorkspaceToolbar({
             type="button"
             variant="secondary"
             onClick={onNext}
-            disabled={index >= total - 1}
+            disabled={index >= itemTotal - 1}
           >
             {language === "id" ? "Berikutnya" : "Next"}
           </Button>
         </div>
       </div>
+
+      {answerWorkspace && parentQuestion && (
+        <div className="mt-3 flex min-w-0 flex-col gap-1 rounded-md bg-neutral px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            <p className="break-words text-xs font-bold text-navy-deep">
+              {language === "id"
+                ? `Jawaban terkait untuk ${parentReference}`
+                : `Related answers for ${parentReference}`}
+            </p>
+            <p className="mt-0.5 line-clamp-2 break-words text-xs leading-5 text-muted">
+              {t(parentQuestion.prompt, language)}
+            </p>
+          </div>
+          <p className="shrink-0 text-xs font-semibold tabular-nums text-muted">
+            {itemLabel} {index + 1} {language === "id" ? "dari" : "of"}{" "}
+            {itemTotal}
+          </p>
+        </div>
+      )}
     </section>
   );
 }
@@ -153,6 +204,18 @@ function orderAnswersByTaskPriority(
   );
 }
 
+function readStoredReviewSession(): ReviewSessionState {
+  if (typeof window === "undefined") return createDefaultReviewSessionState();
+
+  try {
+    return parseReviewSessionState(
+      window.sessionStorage.getItem(REVIEW_SESSION_STORAGE_KEY),
+    );
+  } catch {
+    return createDefaultReviewSessionState();
+  }
+}
+
 export function LecturerReviewPage() {
   const { language } = useLanguage();
   const { user } = useLecturerAuth();
@@ -160,10 +223,9 @@ export function LecturerReviewPage() {
   const { answers, loading: answersLoading } = useAllStudentAnswers();
   const { misconceptions, loading: misconceptionsLoading } = useMisconceptions();
   const { tasks: answerTasks, loading: reviewTasksLoading } = useReviewTasks();
-  const [workspace, setWorkspace] = useState<ReviewWorkspace>(
-    DEFAULT_REVIEW_WORKSPACE,
+  const [reviewSession, setReviewSession] = useState<ReviewSessionState>(
+    readStoredReviewSession,
   );
-  const [activeItemId, setActiveItemId] = useState<string>();
   const [reviewedQuestionIds, setReviewedQuestionIds] = useState<string[]>([]);
   const [reviewedAnswerIds, setReviewedAnswerIds] = useState<string[]>([]);
   const [progressLoading, setProgressLoading] = useState(true);
@@ -233,6 +295,53 @@ export function LecturerReviewPage() {
     () => new Map(answerTasks.map((task) => [task.answerCaseId, task])),
     [answerTasks],
   );
+  const normalizedReviewSession = useMemo(
+    () =>
+      normalizeReviewSessionState(
+        reviewSession,
+        workspaceItems,
+        questionById,
+        reviewedQuestionIds,
+        reviewedAnswerIds,
+      ),
+    [
+      questionById,
+      reviewSession,
+      reviewedAnswerIds,
+      reviewedQuestionIds,
+      workspaceItems,
+    ],
+  );
+
+  useEffect(() => {
+    if (
+      questionsLoading ||
+      answersLoading ||
+      reviewTasksLoading ||
+      progressLoading ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    try {
+      window.sessionStorage.setItem(
+        REVIEW_SESSION_STORAGE_KEY,
+        serializeReviewSessionState(normalizedReviewSession),
+      );
+    } catch {
+      // sessionStorage can be unavailable in restricted browser contexts.
+    }
+  }, [
+    answersLoading,
+    normalizedReviewSession,
+    progressLoading,
+    questionsLoading,
+    reviewTasksLoading,
+  ]);
+
+  const { workspace, activeItemIds, activeParentQuestionIds } =
+    normalizedReviewSession;
   const workspaceProgress = {
     "question-ps": getReviewProgress(
       workspaceItems["question-ps"],
@@ -251,15 +360,27 @@ export function LecturerReviewPage() {
       reviewedAnswerIds,
     ),
   };
-  const activeItems = workspaceItems[workspace];
+  const activeParentKind = workspace.endsWith("ps") ? "ps" : "mp";
+  const activeParentQuestionId =
+    activeParentQuestionIds[activeParentKind];
+  const activeParentQuestion = activeParentQuestionId
+    ? questionById.get(activeParentQuestionId)
+    : undefined;
+  const activeItems =
+    workspace.startsWith("answer") && activeParentQuestion
+      ? getAnswersForQuestion(
+          activeParentQuestion.id,
+          workspaceItems[workspace] as StudentAnswer[],
+        )
+      : workspaceItems[workspace];
   const activeReviewedIds = workspace.startsWith("question")
     ? reviewedQuestionIds
     : reviewedAnswerIds;
-  const resolvedActiveItemId = activeItems.some(
-    (item) => item.id === activeItemId,
-  )
-    ? activeItemId
-    : selectWorkspaceItemId(activeItems, activeReviewedIds);
+  const resolvedActiveItemId = selectStoredWorkspaceItemId(
+    activeItems,
+    activeItemIds[workspace],
+    activeReviewedIds,
+  );
   const activeIndex = activeItems.findIndex(
     (item) => item.id === resolvedActiveItemId,
   );
@@ -272,11 +393,27 @@ export function LecturerReviewPage() {
       ? (activeItems[activeIndex] as StudentAnswer | undefined)
       : undefined;
   const answerQuestion = activeAnswer
-    ? questionById.get(activeAnswer.questionId)
+    ? activeParentQuestion?.id === activeAnswer.questionId
+      ? activeParentQuestion
+      : questionById.get(activeAnswer.questionId)
     : undefined;
   const answerTask = activeAnswer
     ? answerTaskById.get(activeAnswer.id)
     : undefined;
+  const activeAnswerWorkspace =
+    activeParentKind === "ps" ? "answer-ps" : "answer-mp";
+  const activeContextQuestionId =
+    activeQuestion?.id ?? activeParentQuestionId;
+  const hasLinkedAnswers = activeContextQuestionId
+    ? getAnswersForQuestion(
+        activeContextQuestionId,
+        workspaceItems[activeAnswerWorkspace],
+      ).length > 0
+    : false;
+  const workspaceAvailability = getReviewWorkspaceAvailability(
+    workspace,
+    hasLinkedAnswers,
+  );
   const tabs: { id: ReviewWorkspace; label: string }[] = [
     {
       id: "question-ps",
@@ -314,31 +451,117 @@ export function LecturerReviewPage() {
     "answer-mp":
       language === "id" ? "Belum ada jawaban MP" : "There are no MP answers yet",
   };
+  const openWorkspaceItem = (
+    nextWorkspace: ReviewWorkspace,
+    itemId: string | undefined,
+    parentQuestionId?: string,
+  ) => {
+    const kind = nextWorkspace.endsWith("ps") ? "ps" : "mp";
+    let nextActiveItemIds = setActiveReviewItemId(
+      activeItemIds,
+      nextWorkspace,
+      itemId,
+    );
+    const nextParentQuestionIds = { ...activeParentQuestionIds };
+
+    if (nextWorkspace.startsWith("question")) {
+      nextParentQuestionIds[kind] = itemId;
+      nextActiveItemIds = setActiveReviewItemId(
+        nextActiveItemIds,
+        getPairedWorkspace(nextWorkspace),
+        itemId
+          ? selectLinkedAnswerId(
+              itemId,
+              workspaceItems[getPairedWorkspace(nextWorkspace)] as StudentAnswer[],
+              reviewedAnswerIds,
+            )
+          : undefined,
+      );
+    } else {
+      const selectedAnswer = (
+        workspaceItems[nextWorkspace] as StudentAnswer[]
+      ).find(
+        (answer) => answer.id === itemId,
+      );
+      nextParentQuestionIds[kind] =
+        parentQuestionId ?? selectedAnswer?.questionId;
+    }
+
+    setReviewSession({
+      workspace: nextWorkspace,
+      activeItemIds: nextActiveItemIds,
+      activeParentQuestionIds: nextParentQuestionIds,
+    });
+  };
   const selectWorkspace = (nextWorkspace: ReviewWorkspace) => {
+    if (
+      selectAvailableReviewWorkspace(
+        workspace,
+        nextWorkspace,
+        workspaceAvailability,
+      ) !== nextWorkspace
+    ) {
+      return;
+    }
+
     const nextItems = workspaceItems[nextWorkspace];
     const reviewedIds = nextWorkspace.startsWith("question")
       ? reviewedQuestionIds
       : reviewedAnswerIds;
+    let nextItemId = selectStoredWorkspaceItemId(
+      nextItems,
+      activeItemIds[nextWorkspace],
+      reviewedIds,
+    );
+    let nextParentQuestionId =
+      activeParentQuestionIds[nextWorkspace.endsWith("ps") ? "ps" : "mp"];
 
-    setWorkspace(nextWorkspace);
-    setActiveItemId(selectWorkspaceItemId(nextItems, reviewedIds));
+    if (getPairedWorkspace(workspace) === nextWorkspace) {
+      if (
+        workspace.startsWith("question") &&
+        nextWorkspace.startsWith("answer") &&
+        activeQuestion
+      ) {
+        const linkedAnswerId = selectLinkedAnswerId(
+          activeQuestion.id,
+          nextItems as StudentAnswer[],
+          reviewedAnswerIds,
+        );
+        nextItemId = linkedAnswerId ?? nextItemId;
+        nextParentQuestionId = linkedAnswerId
+          ? activeQuestion.id
+          : (nextItems as StudentAnswer[]).find(
+              (answer) => answer.id === nextItemId,
+            )?.questionId ?? activeQuestion.id;
+      } else if (
+        workspace.startsWith("answer") &&
+        nextWorkspace.startsWith("question")
+      ) {
+        nextItemId = nextItems.some(
+          (question) => question.id === activeParentQuestionId,
+        )
+          ? activeParentQuestionId
+          : nextItemId;
+      }
+    } else if (nextWorkspace.startsWith("answer") && !nextItemId) {
+      nextItemId = selectStoredWorkspaceItemId(
+        nextItems,
+        undefined,
+        reviewedAnswerIds,
+      );
+      nextParentQuestionId = (nextItems as StudentAnswer[]).find(
+        (answer) => answer.id === nextItemId,
+      )?.questionId;
+    }
+
+    openWorkspaceItem(nextWorkspace, nextItemId, nextParentQuestionId);
   };
   const selectOffset = (offset: number) => {
-    setActiveItemId(activeItems[activeIndex + offset]?.id);
-  };
-  const selectAfterQuestionReview = (questionId: string) => {
-    const nextReviewedIds = reviewedQuestionIds.includes(questionId)
-      ? reviewedQuestionIds
-      : [...reviewedQuestionIds, questionId];
-    setReviewedQuestionIds(nextReviewedIds);
-    setActiveItemId(selectWorkspaceItemId(activeItems, nextReviewedIds));
-  };
-  const selectAfterAnswerReview = (answerId: string) => {
-    const nextReviewedIds = reviewedAnswerIds.includes(answerId)
-      ? reviewedAnswerIds
-      : [...reviewedAnswerIds, answerId];
-    setReviewedAnswerIds(nextReviewedIds);
-    setActiveItemId(selectWorkspaceItemId(activeItems, nextReviewedIds));
+    openWorkspaceItem(
+      workspace,
+      activeItems[activeIndex + offset]?.id,
+      activeParentQuestionId,
+    );
   };
   const progress = workspaceProgress[workspace];
   const hasActiveItem =
@@ -373,35 +596,80 @@ export function LecturerReviewPage() {
       )}
 
       <div
-        className="review-workspace-tabs segmented-control mb-6 w-full"
+        className="review-workspace-tabs segmented-control w-full"
         role="tablist"
         aria-label={language === "id" ? "Workspace review" : "Review workspace"}
       >
-        {tabs.map((tab) => {
-          const tabProgress = workspaceProgress[tab.id];
+        {(["ps", "mp"] as const).map((kind) => (
+          <div
+            key={kind}
+            role="presentation"
+            className="review-workspace-tab-group"
+          >
+            {tabs
+              .filter((tab) => tab.id.endsWith(kind))
+              .map((tab) => {
+                const tabProgress = workspaceProgress[tab.id];
+                const disabled = !workspaceAvailability[tab.id];
+                const answerTab = tab.id.startsWith("answer");
+                const noRelatedAnswers =
+                  tab.id === activeAnswerWorkspace && !hasLinkedAnswers;
+                const disabledReason = noRelatedAnswers
+                  ? language === "id"
+                    ? "Belum ada jawaban"
+                    : "No answers"
+                  : language === "id"
+                    ? `Pilih Soal ${kind.toUpperCase()} dahulu`
+                    : `Select a ${kind.toUpperCase()} question first`;
 
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              role="tab"
-              aria-selected={workspace === tab.id}
-              aria-controls="review-workspace-panel"
-              onClick={() => selectWorkspace(tab.id)}
-              className="segmented-tab min-w-0 text-center"
-            >
-              <span className="block">{tab.label}</span>
-              <span
-                className={cn(
-                  "block text-[11px] tabular-nums",
-                  workspace === tab.id ? "text-white/80" : "text-muted/75",
-                )}
-              >
-                {tabProgress.reviewed}/{tabProgress.total}
-              </span>
-            </button>
-          );
-        })}
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={workspace === tab.id}
+                    aria-controls="review-workspace-panel"
+                    aria-disabled={disabled}
+                    aria-label={
+                      disabled ? `${tab.label}: ${disabledReason}` : undefined
+                    }
+                    disabled={disabled}
+                    title={disabled ? disabledReason : undefined}
+                    onClick={() => selectWorkspace(tab.id)}
+                    className={cn(
+                      "segmented-tab min-w-0 text-center",
+                      answerTab
+                        ? "review-answer-tab"
+                        : "review-question-tab",
+                    )}
+                  >
+                    <span className="block">{tab.label}</span>
+                    {!answerTab && (
+                      <span
+                        className={cn(
+                          "block text-[11px] tabular-nums",
+                          workspace === tab.id
+                            ? "text-white/80"
+                            : "text-muted/75",
+                        )}
+                      >
+                        {tabProgress.reviewed}/{tabProgress.total}
+                      </span>
+                    )}
+                    {disabled && (
+                      <span
+                        aria-hidden="true"
+                        className="review-tab-disabled-status"
+                      >
+                        <LockKeyhole size={11} strokeWidth={2} />
+                        {disabledReason}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+          </div>
+        ))}
       </div>
 
       <section
@@ -421,12 +689,15 @@ export function LecturerReviewPage() {
         ) : hasActiveItem ? (
           <>
             <WorkspaceToolbar
+              workspace={workspace}
               label={activeTab.label}
               itemLabel={itemLabel}
               reviewed={progress.reviewed}
               index={activeIndex}
               total={progress.total}
+              itemTotal={activeItems.length}
               language={language}
+              parentQuestion={answerQuestion}
               onPrevious={() => selectOffset(-1)}
               onNext={() => selectOffset(1)}
             />
@@ -435,11 +706,53 @@ export function LecturerReviewPage() {
               <QuestionValidationWorkspace
                 key={activeQuestion.id}
                 question={activeQuestion}
+                answers={
+                  workspaceItems[
+                    activeQuestion.type === "multiple_choice"
+                      ? "answer-mp"
+                      : "answer-ps"
+                  ]
+                }
+                reviewedAnswerIds={reviewedAnswerIds}
+                answerTaskById={answerTaskById}
                 misconceptions={misconceptions}
+                onReviewAnswer={(answerId) =>
+                  openWorkspaceItem(
+                    activeQuestion.type === "multiple_choice"
+                      ? "answer-mp"
+                      : "answer-ps",
+                    answerId,
+                    activeQuestion.id,
+                  )
+                }
                 onSubmit={async (values) => {
                   if (!user) throw new Error("Sesi dosen tidak ditemukan.");
                   await saveQuestionReview(user.id, activeQuestion.id, values);
-                  selectAfterQuestionReview(activeQuestion.id);
+                  setReviewedQuestionIds((current) =>
+                    current.includes(activeQuestion.id)
+                      ? current
+                      : [...current, activeQuestion.id],
+                  );
+                  const target = selectAfterQuestionReview(
+                    activeQuestion,
+                    workspaceItems[
+                      activeQuestion.type === "multiple_choice"
+                        ? "question-mp"
+                        : "question-ps"
+                    ],
+                    workspaceItems[
+                      activeQuestion.type === "multiple_choice"
+                        ? "answer-mp"
+                        : "answer-ps"
+                    ],
+                    reviewedQuestionIds,
+                    reviewedAnswerIds,
+                  );
+                  openWorkspaceItem(
+                    target.workspace,
+                    target.itemId,
+                    target.parentQuestionId,
+                  );
                 }}
               />
             ) : activeAnswer && answerQuestion ? (
@@ -449,6 +762,14 @@ export function LecturerReviewPage() {
                 question={answerQuestion}
                 answer={activeAnswer}
                 misconceptions={misconceptions}
+                onBackToQuestion={() =>
+                  openWorkspaceItem(
+                    answerQuestion.type === "multiple_choice"
+                      ? "question-mp"
+                      : "question-ps",
+                    answerQuestion.id,
+                  )
+                }
                 onSubmit={async (values) => {
                   if (!user) throw new Error("Sesi dosen tidak ditemukan.");
                   await saveAnswerReview(
@@ -457,7 +778,32 @@ export function LecturerReviewPage() {
                     answerQuestion.id,
                     values,
                   );
-                  selectAfterAnswerReview(activeAnswer.id);
+                  setReviewedAnswerIds((current) =>
+                    current.includes(activeAnswer.id)
+                      ? current
+                      : [...current, activeAnswer.id],
+                  );
+                  const target = selectAfterAnswerReview(
+                    answerQuestion,
+                    activeAnswer.id,
+                    workspaceItems[
+                      answerQuestion.type === "multiple_choice"
+                        ? "question-mp"
+                        : "question-ps"
+                    ],
+                    workspaceItems[
+                      answerQuestion.type === "multiple_choice"
+                        ? "answer-mp"
+                        : "answer-ps"
+                    ],
+                    reviewedQuestionIds,
+                    reviewedAnswerIds,
+                  );
+                  openWorkspaceItem(
+                    target.workspace,
+                    target.itemId,
+                    target.parentQuestionId,
+                  );
                 }}
               />
             ) : null}
@@ -472,11 +818,19 @@ export function LecturerReviewPage() {
 
 function QuestionValidationWorkspace({
   question,
+  answers,
+  reviewedAnswerIds,
+  answerTaskById,
   misconceptions,
+  onReviewAnswer,
   onSubmit,
 }: {
   question: Question;
+  answers: StudentAnswer[];
+  reviewedAnswerIds: string[];
+  answerTaskById: Map<string, ReviewTask>;
   misconceptions: Misconception[];
+  onReviewAnswer: (answerId: string) => void;
   onSubmit: (values: QuestionReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
@@ -491,6 +845,8 @@ function QuestionValidationWorkspace({
     addableMisconceptions,
     recommended.flatMap((item) => item.relatedMisconceptionIds),
   );
+  const relatedAnswers = getAnswersForQuestion(question.id, answers);
+  const reviewedAnswers = new Set(reviewedAnswerIds);
   const [hasIncorrectMisconceptions, setHasIncorrectMisconceptions] = useState<boolean | null>(null);
   const [removedMisconceptionIds, setRemovedMisconceptionIds] = useState<string[]>([]);
   const [removalReason, setRemovalReason] = useState("");
@@ -640,6 +996,141 @@ function QuestionValidationWorkspace({
                 </span>
               ))}
             </div>
+          </section>
+
+          <section
+            className="mt-6 border-t border-border pt-5"
+            aria-labelledby="related-answers-title"
+          >
+            <h3
+              id="related-answers-title"
+              className="text-sm font-bold text-navy-deep"
+            >
+              {language === "id" ? "Jawaban terkait" : "Related answers"}
+            </h3>
+
+            {relatedAnswers.length > 0 ? (
+              <ul className="mt-3 grid min-w-0 gap-3 md:grid-cols-2">
+                {relatedAnswers.map((answer, index) => {
+                  const { option, fallbackText } = resolveAnswerSelection(
+                    question,
+                    answer,
+                  );
+                  const task = answerTaskById.get(answer.id);
+                  const linkedMisconceptions = prioritizeMisconceptions(
+                    misconceptions,
+                    [
+                      ...(option?.misconceptionId
+                        ? [option.misconceptionId]
+                        : []),
+                      ...(task?.suggestedMisconceptionId
+                        ? [task.suggestedMisconceptionId]
+                        : []),
+                      ...answer.studentMisconceptionIds,
+                    ],
+                  );
+                  const snippet =
+                    fallbackText.length > 240
+                      ? `${fallbackText.slice(0, 240)}...`
+                      : fallbackText;
+
+                  return (
+                    <li
+                      key={answer.id}
+                      className="min-w-0 rounded-md border border-border bg-bg p-4"
+                    >
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                        <p className="text-sm font-bold text-navy-deep">
+                          {language === "id" ? "Jawaban" : "Answer"} {index + 1}
+                        </p>
+                        <div className="flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                          <span
+                            className={cn(
+                              "rounded px-2 py-1",
+                              answer.status === "correct"
+                                ? "bg-correct-bg text-correct"
+                                : "bg-incorrect-bg text-incorrect",
+                            )}
+                          >
+                            {answer.status === "correct"
+                              ? language === "id"
+                                ? "Benar"
+                                : "Correct"
+                              : language === "id"
+                                ? "Salah"
+                                : "Incorrect"}
+                          </span>
+                          <span className="rounded bg-neutral px-2 py-1 text-navy-deep">
+                            {reviewedAnswers.has(answer.id)
+                              ? language === "id"
+                                ? "Sudah direview"
+                                : "Reviewed"
+                              : language === "id"
+                                ? "Belum direview"
+                                : "Not reviewed"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {question.type === "multiple_choice" ? (
+                        <p className="mt-3 break-words rounded-md bg-white px-3 py-2 text-sm leading-6 text-navy-deep">
+                          {option
+                            ? `${option.label}. ${t(option.text, language)}`
+                            : fallbackText ||
+                              (language === "id"
+                                ? "Teks jawaban tidak tersedia."
+                                : "Answer text is unavailable.")}
+                        </p>
+                      ) : (
+                        <pre className="mt-3 max-h-28 overflow-auto whitespace-pre-wrap break-words rounded-md bg-navy-deep p-3 font-mono text-xs leading-5 text-white">
+                          {snippet ||
+                            (language === "id"
+                              ? "Teks jawaban tidak tersedia."
+                              : "Answer text is unavailable.")}
+                        </pre>
+                      )}
+
+                      {linkedMisconceptions.length > 0 && (
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold text-muted">
+                            {language === "id"
+                              ? "Miskonsepsi terkait"
+                              : "Linked misconceptions"}
+                          </p>
+                          <ul className="mt-1 space-y-1">
+                            {linkedMisconceptions.map((item) => (
+                              <li
+                                key={item.id}
+                                className="break-words text-xs leading-5 text-navy-deep"
+                              >
+                                {misconceptionLabel(item, language)}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => onReviewAnswer(answer.id)}
+                        className="mt-4 w-full justify-center sm:w-auto"
+                      >
+                        {language === "id"
+                          ? "Review jawaban ini"
+                          : "Review this answer"}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-muted">
+                {language === "id"
+                  ? "Belum ada jawaban terkait untuk soal ini"
+                  : "There are no related answers for this question"}
+              </p>
+            )}
           </section>
         </article>
 
@@ -839,12 +1330,14 @@ function AnswerValidationWorkspace({
   question,
   answer,
   misconceptions,
+  onBackToQuestion,
   onSubmit,
 }: {
   task?: ReviewTask;
   question: Question;
   answer: StudentAnswer;
   misconceptions: Misconception[];
+  onBackToQuestion: () => void;
   onSubmit: (values: AnswerReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
@@ -928,6 +1421,17 @@ function AnswerValidationWorkspace({
 
   return (
     <div className="scroll-reveal">
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={onBackToQuestion}
+        className="mb-4"
+      >
+        {language === "id"
+          ? "Kembali ke soal ini"
+          : "Back to this question"}
+      </Button>
+
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
         <article className="min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
           <section className="rounded-lg bg-neutral p-5">
