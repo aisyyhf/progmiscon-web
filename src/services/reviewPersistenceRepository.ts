@@ -10,15 +10,11 @@ import type {
   ReviewerHistory,
   ReviewProgress,
 } from "../types";
+import {
+  mapReviewStatusRow,
+  type ReviewStatusRow,
+} from "../utils/reviewStatus";
 import { supabase } from "./supabaseClient";
-
-type QuestionReviewProgressRow = {
-  question_id: string;
-};
-
-type AnswerReviewProgressRow = {
-  answer_id: string;
-};
 
 type QuestionReviewHistoryRow = {
   id: string;
@@ -138,37 +134,14 @@ function mapAdminAnswerReviewHistory(
   };
 }
 
-export async function getReviewProgress(
-  reviewerId: string,
-): Promise<ReviewProgress> {
-  const [questionResult, answerResult] = await Promise.all([
-    supabase
-      .from("question_reviews")
-      .select("question_id")
-      .eq("reviewer_id", reviewerId),
-    supabase
-      .from("answer_reviews")
-      .select("answer_id")
-      .eq("reviewer_id", reviewerId),
-  ]);
+export async function getReviewProgress(): Promise<ReviewProgress> {
+  const { data, error } = await supabase.rpc("get_my_review_status");
 
-  if (questionResult.error) {
-    throw storageError("Progres validasi soal dimuat", questionResult.error);
+  if (error) {
+    throw storageError("Progres validasi dimuat", error);
   }
 
-  if (answerResult.error) {
-    throw storageError("Progres validasi jawaban dimuat", answerResult.error);
-  }
-
-  const questionRows = (questionResult.data ??
-    []) as QuestionReviewProgressRow[];
-
-  const answerRows = (answerResult.data ?? []) as AnswerReviewProgressRow[];
-
-  return {
-    questionIds: [...new Set(questionRows.map((row) => row.question_id))],
-    answerIds: [...new Set(answerRows.map((row) => row.answer_id))],
-  };
+  return mapReviewStatusRow((data?.[0] as ReviewStatusRow | undefined) ?? null);
 }
 
 export async function getReviewerHistory(

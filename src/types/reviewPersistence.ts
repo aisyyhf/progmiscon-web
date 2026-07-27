@@ -21,6 +21,9 @@ export type AnswerReviewValues = {
 export type ReviewProgress = {
   questionIds: string[];
   answerIds: string[];
+  questionReviewCount: number;
+  answerReviewCount: number;
+  latestUpdatedAt: string | null;
 };
 
 export type QuestionReviewHistoryItem = {
