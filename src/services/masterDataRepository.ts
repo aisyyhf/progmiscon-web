@@ -13,6 +13,12 @@ import type {
 import { masterDataConfig } from "../config/masterDataConfig";
 import { loadCsv } from "./csvClient";
 import { isActiveValue, validateMasterData } from "../utils/masterDataValidation";
+import {
+  buildQuestionOptions,
+  normalizeQuestionType,
+  normalizeWeek,
+  selectedOptionIdForAnswer,
+} from "../utils/questionMetadata";
 
 let masterDataPromise: Promise<MasterData> | undefined;
 
@@ -98,6 +104,8 @@ export async function getSheetQuestions(): Promise<Question[]> {
   const categoryMap = new Map(categories.map((category) => [category.id, category]));
   const questionTopicMap = new Map<string, typeof data.questionTopics>();
   const questionMisconceptionMap = new Map<string, string[]>();
+  const answersByQuestion = new Map<string, AnswerRow[]>();
+  const answerMisconceptionMap = new Map<string, string[]>();
 
   for (const relation of data.questionTopics) {
     const questionId = text(relation.question_id);
@@ -112,6 +120,22 @@ export async function getSheetQuestions(): Promise<Question[]> {
     const current = questionMisconceptionMap.get(questionId) ?? [];
     current.push(text(relation.misconception_id));
     questionMisconceptionMap.set(questionId, current);
+  }
+
+  for (const answer of data.answers) {
+    if (!isActiveValue(answer.active)) continue;
+    const questionId = text(answer.question_id);
+    const current = answersByQuestion.get(questionId) ?? [];
+    current.push(answer);
+    answersByQuestion.set(questionId, current);
+  }
+
+  for (const relation of data.answerMisconceptions) {
+    if (!isActiveValue(relation.active)) continue;
+    const answerId = text(relation.answer_id);
+    const current = answerMisconceptionMap.get(answerId) ?? [];
+    current.push(text(relation.misconception_id));
+    answerMisconceptionMap.set(answerId, current);
   }
 
   return data.questions
@@ -138,19 +162,35 @@ export async function getSheetQuestions(): Promise<Question[]> {
       const expectedConcepts = topicRelations
         .map((relation) => categoryMap.get(text(relation.topic_id))?.name)
         .filter((value): value is LocalizedText => Boolean(value));
+      const type = normalizeQuestionType(row.question_type) ?? "short_answer";
+      const titleFallback = text(row.source_no) || questionId;
+      const title =
+        text(row.title_ind) || text(row.title_en)
+          ? localized(row.title_ind, row.title_en)
+          : codeExample(titleFallback);
 
       return {
         id: questionId,
         assessmentId: "asm-master",
         categoryId,
         number: text(row.source_no) || questionId,
-        type: "short_answer",
+        title,
+        week: normalizeWeek(row.week),
+        sourceSystem: text(row.source_system) || null,
+        sourceKey: text(row.source_key) || null,
+        sourceCode: text(row.source_code) || null,
+        level: text(row.level) || null,
+        type,
         prompt: localized(
           promptWithCode(row.question_ind, row.question_code),
           promptWithCode(row.question_en, row.question_code),
         ),
         expectedConcepts: expectedConcepts.length > 0 ? expectedConcepts : [categoryMap.get(categoryId)!.name],
         questionMisconceptionIds: [...new Set(questionMisconceptionMap.get(questionId) ?? [])],
+        options:
+          type === "multiple_choice"
+            ? buildQuestionOptions(answersByQuestion.get(questionId) ?? [], answerMisconceptionMap)
+            : undefined,
       };
     })
     .filter((question): question is Question => Boolean(question));
@@ -233,10 +273,13 @@ function uniqueLocalizedTexts(values: LocalizedText[]): LocalizedText[] {
 export async function getSheetAnswers(): Promise<StudentAnswer[]> {
   const data = await getMasterData();
 
-  const activeQuestionIds = new Set(
+  const questionTypeMap = new Map(
     data.questions
       .filter((row) => isActiveValue(row.active))
-      .map((row) => text(row.question_id)),
+      .map((row) => [
+        text(row.question_id),
+        normalizeQuestionType(row.question_type) ?? "short_answer",
+      ]),
   );
 
   const relationsByAnswer = new Map<
@@ -265,7 +308,7 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
     .filter(
       (row) =>
         isActiveValue(row.active) &&
-        activeQuestionIds.has(text(row.question_id)),
+        questionTypeMap.has(text(row.question_id)),
     )
     .sort((a, b) => {
       const questionOrder =
@@ -282,6 +325,7 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
     })
     .map((row) => {
       const answerId = text(row.answer_id);
+      const questionId = text(row.question_id);
       const relation = relationsByAnswer.get(answerId);
       const status = text(row.status).toLowerCase() as StudentAnswer["status"];
 
@@ -303,10 +347,14 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
 
       return {
         id: answerId,
-        questionId: text(row.question_id),
+        questionId,
         studentId: `anonymous-${answerId}`,
         status,
         answerText: text(row.answer_text),
+        selectedOptionId: selectedOptionIdForAnswer(
+          questionTypeMap.get(questionId) ?? "short_answer",
+          answerId,
+        ),
         checks: [],
         masteredConcepts: [],
         incorrectElements,

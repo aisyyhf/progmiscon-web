@@ -26,6 +26,7 @@ import type {
 import { cn } from "../utils/cn";
 import { downloadCsvFile, exportDateStamp } from "../utils/reviewCsv";
 import { t } from "../utils/translation";
+import { misconceptionLabel } from "../utils/misconceptionLabel";
 import {
   buildUpdatedAnswerMisconceptionRelations,
   buildUpdatedQuestionMisconceptionRelations,
@@ -125,7 +126,6 @@ function MisconceptionList({
             <p className="font-semibold">
               {title ?? missingTitle}
             </p>
-            <p className="mt-0.5 text-xs text-muted">{id}</p>
           </li>
         );
       })}
@@ -612,7 +612,7 @@ export function AdminPage() {
       new Map(
         misconceptions.map((misconception) => [
           misconception.id,
-          t(misconception.title, language),
+          misconceptionLabel(misconception, language),
         ]),
       ),
     [language, misconceptions],

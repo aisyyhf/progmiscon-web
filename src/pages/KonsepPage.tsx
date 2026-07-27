@@ -13,6 +13,7 @@ import { ConceptIcon } from "../components/concept/ConceptIcon";
 import { MisconceptionDrawer } from "../components/misconception/MisconceptionDrawer";
 import { buildConcepts } from "../utils/concepts";
 import { t, uiText } from "../utils/translation";
+import { misconceptionLabel } from "../utils/misconceptionLabel";
 
 function isDefined<T>(value: T | undefined): value is T {
   return value !== undefined;
@@ -199,7 +200,7 @@ export function KonsepPage() {
                 >
                   <div className="min-w-0">
                     <h3 className="text-base font-semibold text-navy-deep transition-colors group-hover:text-brand">
-                      {t(misconception.title, language)}
+                      {misconceptionLabel(misconception, language)}
                     </h3>
                     <p className="mt-1 line-clamp-2 max-w-3xl text-sm leading-6 text-muted">
                       {t(misconception.wrong, language)}

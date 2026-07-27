@@ -7,8 +7,18 @@ function concept(categoryId: string) {
   return category.name;
 }
 
+const unknownMetadata = {
+  title: { id: "", en: "" },
+  week: null,
+  sourceSystem: null,
+  sourceKey: null,
+  sourceCode: null,
+  level: null,
+};
+
 export const mockQuestions: Question[] = [
   {
+    ...unknownMetadata,
     id: "q-swap",
     assessmentId: "asm-uts",
     categoryId: "cat-var",
@@ -25,6 +35,7 @@ export const mockQuestions: Question[] = [
     questionMisconceptionIds: ["mc-swap-no-temp"],
   },
   {
+    ...unknownMetadata,
     id: "q-print15",
     assessmentId: "asm-uts",
     categoryId: "cat-loop",
@@ -41,6 +52,7 @@ export const mockQuestions: Question[] = [
     questionMisconceptionIds: ["mc-loop-boundary"],
   },
   {
+    ...unknownMetadata,
     id: "q-evenodd",
     assessmentId: "asm-uts",
     categoryId: "cat-ifelse",
@@ -97,6 +109,7 @@ export const mockQuestions: Question[] = [
     ],
   },
   {
+    ...unknownMetadata,
     id: "q-arraymax",
     assessmentId: "asm-uts",
     categoryId: "cat-array",
@@ -114,6 +127,7 @@ export const mockQuestions: Question[] = [
     questionMisconceptionIds: ["mc-offbyone-array"],
   },
   {
+    ...unknownMetadata,
     id: "q-boolrange",
     assessmentId: "asm-uts",
     categoryId: "cat-bool",
@@ -158,6 +172,7 @@ export const mockQuestions: Question[] = [
     ],
   },
   {
+    ...unknownMetadata,
     id: "q-squarefn",
     assessmentId: "asm-uas",
     categoryId: "cat-func",
@@ -173,6 +188,7 @@ export const mockQuestions: Question[] = [
     questionMisconceptionIds: ["mc-function-no-return"],
   },
   {
+    ...unknownMetadata,
     id: "q-sumio",
     assessmentId: "asm-uas",
     categoryId: "cat-io",
@@ -189,6 +205,7 @@ export const mockQuestions: Question[] = [
     questionMisconceptionIds: ["mc-io-order"],
   },
   {
+    ...unknownMetadata,
     id: "q-tracex",
     assessmentId: "asm-uas",
     categoryId: "cat-trace",
@@ -234,6 +251,7 @@ export const mockQuestions: Question[] = [
     ],
   },
   {
+    ...unknownMetadata,
     id: "q-evenloop",
     assessmentId: "asm-quiz-loop",
     categoryId: "cat-loop",
@@ -251,6 +269,7 @@ export const mockQuestions: Question[] = [
     questionMisconceptionIds: ["mc-loop-boundary", "mc-missing-increment"],
   },
   {
+    ...unknownMetadata,
     id: "q-printn",
     assessmentId: "asm-quiz-loop",
     categoryId: "cat-loop",
@@ -295,6 +314,7 @@ export const mockQuestions: Question[] = [
     ],
   },
   {
+    ...unknownMetadata,
     id: "q-triangle",
     assessmentId: "asm-latihan-ifelse",
     categoryId: "cat-ifelse",
@@ -312,6 +332,7 @@ export const mockQuestions: Question[] = [
     questionMisconceptionIds: ["mc-ifelse-missing-else", "mc-condition-reversed"],
   },
   {
+    ...unknownMetadata,
     id: "q-sumassign",
     assessmentId: "asm-latihan-ifelse",
     categoryId: "cat-var",

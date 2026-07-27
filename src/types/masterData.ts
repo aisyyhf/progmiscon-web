@@ -27,6 +27,11 @@ export type MisconceptionRow = {
 
 export type QuestionRow = {
   question_id: string;
+  question_type?: string;
+  source_system?: string;
+  source_key?: string;
+  source_code?: string;
+  level?: string;
   title_ind: string;
   title_en: string;
   question_ind: string;
@@ -57,6 +62,8 @@ export type QuestionMisconceptionRow = {
 export type AnswerRow = {
   answer_id: string;
   question_id: string;
+  source_system?: string;
+  source_key?: string;
   answer_text: string;
   status: string;
   explanation_ind: string;
