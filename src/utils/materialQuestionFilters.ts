@@ -1,0 +1,76 @@
+import type { Question } from "../types";
+
+export type MaterialQuestionTypeFilter = "all" | "ps" | "mp";
+export type MaterialWeekFilter = "all" | "unassigned" | string;
+
+export const DEFAULT_MATERIAL_QUESTION_FILTERS = {
+  searchQuery: "",
+  type: "all",
+  week: "all",
+} as const;
+
+export function getMaterialQuestionType(
+  type: Question["type"],
+): Exclude<MaterialQuestionTypeFilter, "all"> {
+  return type === "multiple_choice" ? "mp" : "ps";
+}
+
+function weekSortKey(week: string): [number, number, string] {
+  const match = /^W(\d+)(?:-(\d+))?$/i.exec(week);
+  if (!match) return [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, week];
+
+  const start = Number.parseInt(match[1], 10);
+  return [start, match[2] ? Number.parseInt(match[2], 10) : start, week];
+}
+
+export function getMaterialWeekOptions(questions: Question[]): string[] {
+  return [...new Set(questions.map((question) => question.week).filter((week): week is string => Boolean(week)))]
+    .sort((left, right) => {
+      const leftKey = weekSortKey(left);
+      const rightKey = weekSortKey(right);
+      return (
+        leftKey[0] - rightKey[0] ||
+        leftKey[1] - rightKey[1] ||
+        leftKey[2].localeCompare(rightKey[2], undefined, { numeric: true })
+      );
+    });
+}
+
+export function filterMaterialQuestions(
+  questions: Question[],
+  {
+    searchQuery = "",
+    type = "all",
+    week = "all",
+  }: {
+    searchQuery?: string;
+    type?: MaterialQuestionTypeFilter;
+    week?: MaterialWeekFilter;
+  } = {},
+): Question[] {
+  const query = searchQuery.trim().toLowerCase();
+  const seenQuestionIds = new Set<string>();
+
+  return questions.filter((question) => {
+    if (seenQuestionIds.has(question.id)) return false;
+
+    const matchesSearch =
+      !query ||
+      [
+        question.id,
+        question.number,
+        question.title.id,
+        question.title.en,
+        question.prompt.id,
+        question.prompt.en,
+      ].some((value) => value.toLowerCase().includes(query));
+    const matchesType = type === "all" || getMaterialQuestionType(question.type) === type;
+    const matchesWeek =
+      week === "all" ||
+      (week === "unassigned" ? question.week === null : question.week === week);
+
+    if (!matchesSearch || !matchesType || !matchesWeek) return false;
+    seenQuestionIds.add(question.id);
+    return true;
+  });
+}
