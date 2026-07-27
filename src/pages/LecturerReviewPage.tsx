@@ -248,7 +248,7 @@ export function LecturerReviewPage() {
       setProgressError("");
 
       try {
-        const progress = await getSavedReviewProgress(user.id);
+        const progress = await getSavedReviewProgress();
         if (!active) return;
         setReviewedQuestionIds(progress.questionIds);
         setReviewedAnswerIds(progress.answerIds);
