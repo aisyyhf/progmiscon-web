@@ -15,6 +15,7 @@ import { useLanguage } from "../hooks/useLanguage";
 import { t, uiText } from "../utils/translation";
 import { cn } from "../utils/cn";
 import { getAnswerVariations } from "../utils/misconceptionExploration";
+import { matchesMisconceptionSearch, misconceptionLabel } from "../utils/misconceptionLabel";
 import { ChevronDown, Search } from "lucide-react";
 
 export function MiskonsepsiPage() {
@@ -81,7 +82,8 @@ function MiskonsepsiDetailPage({
     const keyword = query.trim().toLocaleLowerCase();
     if (!keyword) return sortedMisconceptions;
     return sortedMisconceptions.filter((item) =>
-      [item.title, item.wrong, item.correct, item.fix].some((text) =>
+      matchesMisconceptionSearch(item, keyword) ||
+      [item.wrong, item.correct, item.fix].some((text) =>
         [text.id, text.en].some((value) => value.toLocaleLowerCase().includes(keyword)),
       ),
     );
@@ -106,7 +108,7 @@ function MiskonsepsiDetailPage({
         items={[
           { label: t(uiText.breadcrumbHome, language), to: "/" },
           { label: t(uiText.breadcrumbMiskonsepsi, language), to: "/miskonsepsi" },
-          { label: t(misconception.title, language) },
+          { label: misconceptionLabel(misconception, language) },
         ]}
       />
 
@@ -175,7 +177,7 @@ function MiskonsepsiDetailPage({
                         : "text-muted hover:bg-neutral hover:text-navy-deep",
                     )}
                   >
-                    <span className="line-clamp-2 font-medium leading-5">{t(item.title, language)}</span>
+                    <span className="line-clamp-2 font-medium leading-5">{misconceptionLabel(item, language)}</span>
                   </Link>
                 );
               })
@@ -191,7 +193,7 @@ function MiskonsepsiDetailPage({
             </p>
           )}
           <h2 className="mt-2 max-w-4xl text-2xl font-bold leading-tight text-navy-deep md:text-3xl">
-            {t(misconception.title, language)}
+            {misconceptionLabel(misconception, language)}
           </h2>
 
           <section className="mt-6">
@@ -285,7 +287,7 @@ function MiskonsepsiDetailPage({
                   {relatedMisconceptions.map((related) => (
                     <MisconceptionChip
                       key={related.id}
-                      label={t(related.title, language)}
+                      label={misconceptionLabel(related, language)}
                       tone="related"
                       onClick={() => onNavigate(`/miskonsepsi/${related.id}`)}
                     />

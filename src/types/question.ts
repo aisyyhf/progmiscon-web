@@ -15,6 +15,12 @@ export type Question = {
   assessmentId: string;
   categoryId: string;
   number: string;
+  title: LocalizedText;
+  week: string | null;
+  sourceSystem: string | null;
+  sourceKey: string | null;
+  sourceCode: string | null;
+  level: string | null;
   type: QuestionType;
   prompt: LocalizedText;
   expectedConcepts: LocalizedText[];

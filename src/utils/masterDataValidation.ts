@@ -1,4 +1,5 @@
 import type { MasterData } from "../types/masterData";
+import { normalizeQuestionType, normalizeWeek } from "./questionMetadata.ts";
 
 const TRUE_VALUES = new Set(["true", "1", "yes", "y"]);
 
@@ -31,6 +32,35 @@ export function validateMasterData(data: MasterData): string[] {
   for (const id of duplicates(data.misconceptions.map((row) => row.misconception_id))) errors.push(`misconception_id ganda: ${id}`);
   for (const id of duplicates(data.questions.map((row) => row.question_id))) errors.push(`question_id ganda: ${id}`);
   for (const id of duplicates(data.answers.map((row) => row.answer_id))) errors.push(`answer_id ganda: ${id}`);
+
+  for (const key of duplicates(
+    data.questions.map((row) => {
+      const system = row.source_system?.trim();
+      const sourceKey = row.source_key?.trim();
+      return system && sourceKey ? `${system}\u0000${sourceKey}` : "";
+    }),
+  )) {
+    errors.push(`questions source_system/source_key ganda: ${key.replace("\u0000", "/")}`);
+  }
+
+  for (const key of duplicates(
+    data.answers.map((row) => {
+      const system = row.source_system?.trim();
+      const sourceKey = row.source_key?.trim();
+      return system && sourceKey ? `${system}\u0000${sourceKey}` : "";
+    }),
+  )) {
+    errors.push(`answers source_system/source_key ganda: ${key.replace("\u0000", "/")}`);
+  }
+
+  for (const row of data.questions) {
+    if (row.question_type?.trim() && !normalizeQuestionType(row.question_type)) {
+      errors.push(`questions ${row.question_id}: question_type tidak valid`);
+    }
+    if (row.week?.trim() && !normalizeWeek(row.week)) {
+      errors.push(`questions ${row.question_id}: week tidak valid`);
+    }
+  }
 
   for (const row of data.misconceptions) {
     if (!topicIds.has(row.topic_id.trim())) errors.push(`misconceptions ${row.misconception_id}: topic_id ${row.topic_id} tidak ditemukan`);

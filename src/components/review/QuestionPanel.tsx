@@ -2,6 +2,7 @@ import type { Concept, Question } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useMisconceptionsByIds } from "../../hooks/useMisconceptions";
 import { t, uiText } from "../../utils/translation";
+import { misconceptionLabel } from "../../utils/misconceptionLabel";
 import { findConceptByText } from "../../utils/concepts";
 import { cn } from "../../utils/cn";
 import { getQuestionReference } from "../../utils/questionReference";
@@ -100,7 +101,7 @@ export function QuestionPanel({
                 </div>
                 {optionMisconception && (
                   <p className="mt-1 pl-5 text-xs text-muted">
-                    → {t(uiText.mapsToMisconception, language)}: {t(optionMisconception.title, language)}
+                    → {t(uiText.mapsToMisconception, language)}: {misconceptionLabel(optionMisconception, language)}
                   </p>
                 )}
               </li>
@@ -154,7 +155,7 @@ export function QuestionPanel({
             {misconceptions.map((misconception) => (
               <MisconceptionChip
                 key={misconception.id}
-                label={t(misconception.title, language)}
+                label={misconceptionLabel(misconception, language)}
                 tone="question"
                 className="w-full justify-between px-3.5 py-3 text-left"
                 onClick={() => onSelectMisconception(misconception.id)}

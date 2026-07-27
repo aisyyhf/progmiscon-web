@@ -24,6 +24,7 @@ import type {
 } from "../types";
 import { cn } from "../utils/cn";
 import { t } from "../utils/translation";
+import { misconceptionLabel } from "../utils/misconceptionLabel";
 
 type HistoryMode = "question" | "answer";
 
@@ -91,7 +92,6 @@ function MisconceptionList({
           <span className="font-semibold">
             {misconceptionTitles.get(id) ?? id}
           </span>
-          <span className="ml-2 text-xs text-muted/70">{id}</span>
         </li>
       ))}
     </ul>
@@ -481,7 +481,7 @@ export function LecturerReviewHistoryPage() {
       new Map(
         misconceptions.map((misconception) => [
           misconception.id,
-          t(misconception.title, language),
+          misconceptionLabel(misconception, language),
         ]),
       ),
     [language, misconceptions],

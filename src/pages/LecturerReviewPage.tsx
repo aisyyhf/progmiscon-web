@@ -22,6 +22,7 @@ import { cn } from "../utils/cn";
 import { getQuestionReference } from "../utils/questionReference";
 import { prioritizeMisconceptions, sortReviewTasks } from "../utils/reviewPriority";
 import { t } from "../utils/translation";
+import { misconceptionLabel } from "../utils/misconceptionLabel";
 import {
   getReviewProgress,
   saveAnswerReview,
@@ -506,7 +507,7 @@ function QuestionValidationWorkspace({
                             }
                             className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
                           />
-                          <span>{t(item.title, language)}</span>
+                          <span>{misconceptionLabel(item, language)}</span>
                         </label>
                       ))}
                     </div>
@@ -770,7 +771,7 @@ function AnswerValidationWorkspace({
             <ul className="mt-3 space-y-2">
               {linkedMisconceptions.map((item) => (
                 <li key={item.id} className="rounded-md bg-brand-soft/65 px-4 py-3 text-sm font-semibold leading-5 text-navy-deep">
-                  {t(item.title, language)}
+                  {misconceptionLabel(item, language)}
                 </li>
               ))}
             </ul>
@@ -834,7 +835,7 @@ function AnswerValidationWorkspace({
                             }
                             className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
                           />
-                          <span>{t(item.title, language)}</span>
+                          <span>{misconceptionLabel(item, language)}</span>
                         </label>
                       ))}
                     </div>

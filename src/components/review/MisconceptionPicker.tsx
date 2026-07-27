@@ -4,6 +4,7 @@ import type { Misconception } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
 import { t } from "../../utils/translation";
 import { cn } from "../../utils/cn";
+import { matchesMisconceptionSearch, misconceptionLabel } from "../../utils/misconceptionLabel";
 import { Button } from "../common/Button";
 
 export function MisconceptionPicker({
@@ -49,10 +50,8 @@ export function MisconceptionPicker({
   );
   const visibleItems = useMemo(() => {
     const source = view === "recommended" ? recommended : allByPriority;
-    const normalizedQuery = query.trim().toLocaleLowerCase(language);
-    if (!normalizedQuery) return source;
-    return source.filter((item) => t(item.title, language).toLocaleLowerCase(language).includes(normalizedQuery));
-  }, [allByPriority, language, query, recommended, view]);
+    return source.filter((item) => matchesMisconceptionSearch(item, query));
+  }, [allByPriority, query, recommended, view]);
 
   useEffect(() => {
     if (!open) return;
@@ -100,14 +99,14 @@ export function MisconceptionPicker({
                   <li key={item.id}>
                     <button
                       type="button"
-                      aria-label={`${language === "id" ? "Hapus" : "Remove"} ${t(item.title, language)}`}
+                      aria-label={`${language === "id" ? "Hapus" : "Remove"} ${misconceptionLabel(item, language)}`}
                       onClick={() => toggle(item.id)}
                       className="flex w-full cursor-pointer items-start gap-3 rounded-md border border-correct-border bg-correct-bg/70 px-3 py-2.5 text-left text-navy-deep transition-colors hover:bg-correct-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                     >
                       <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-correct bg-correct text-white" aria-hidden="true">
                         <Check size={13} strokeWidth={2.5} />
                       </span>
-                      <span className="text-sm font-medium leading-5">{t(item.title, language)}</span>
+                      <span className="text-sm font-medium leading-5">{misconceptionLabel(item, language)}</span>
                       <X size={15} className="ml-auto mt-0.5 shrink-0 text-muted" aria-hidden="true" />
                     </button>
                   </li>
@@ -115,11 +114,11 @@ export function MisconceptionPicker({
               }
               return (
                 <li key={item.id} className="rounded-md border border-border bg-white p-3">
-                  <p className="text-sm font-semibold leading-5 text-navy-deep">{t(item.title, language)}</p>
+                  <p className="text-sm font-semibold leading-5 text-navy-deep">{misconceptionLabel(item, language)}</p>
                   <div
                     className="mt-3 grid grid-cols-2 gap-2"
                     role="group"
-                    aria-label={`${language === "id" ? "Keputusan untuk" : "Decision for"} ${t(item.title, language)}`}
+                    aria-label={`${language === "id" ? "Keputusan untuk" : "Decision for"} ${misconceptionLabel(item, language)}`}
                   >
                     <button
                       type="button"
@@ -293,7 +292,7 @@ export function MisconceptionPicker({
                               >
                                 {selected && <Check size={11} strokeWidth={2.5} />}
                               </span>
-                              <span className="font-medium">{t(item.title, language)}</span>
+                              <span className="font-medium">{misconceptionLabel(item, language)}</span>
                             </button>
                           </li>
                         );
@@ -309,7 +308,7 @@ export function MisconceptionPicker({
                     <p className="academic-label">
                       {language === "id" ? "Ringkasan miskonsepsi" : "Misconception summary"}
                     </p>
-                    <h3 className="mt-1 text-lg font-bold text-navy-deep">{t(preview.title, language)}</h3>
+                    <h3 className="mt-1 text-lg font-bold text-navy-deep">{misconceptionLabel(preview, language)}</h3>
                     <div className="mt-5 space-y-5">
                       <section>
                         <p className="academic-label">{language === "id" ? "Pola yang keliru" : "Incorrect pattern"}</p>

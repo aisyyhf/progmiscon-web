@@ -3,6 +3,7 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { useMisconceptionsByIds } from "../../hooks/useMisconceptions";
 import { t, uiText } from "../../utils/translation";
 import { groupMisconceptionReasons } from "../../utils/misconceptionReasons";
+import { misconceptionLabel } from "../../utils/misconceptionLabel";
 import { AnswerCaseNavigator, answerCaseLabel } from "./AnswerCaseNavigator";
 import { AnswerStatusBar } from "./AnswerStatusBar";
 import { AnswerVisualization } from "./AnswerVisualization";
@@ -80,7 +81,7 @@ export function AnswerCasePanel({
             <option value="">{language === "id" ? "Semua jawaban" : "All answers"}</option>
             {filterMisconceptions.map((misconception) => (
               <option key={misconception.id} value={misconception.id}>
-                {t(misconception.title, language)}
+                {misconceptionLabel(misconception, language)}
               </option>
             ))}
           </select>
@@ -119,7 +120,7 @@ export function AnswerCasePanel({
                                   onClick={() => onSelectMisconception(selectedOptionMisconception.id)}
                                   className="cursor-pointer font-medium text-brand underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                                 >
-                                  {t(selectedOptionMisconception.title, language)}
+                                  {misconceptionLabel(selectedOptionMisconception, language)}
                                 </button>
                                 .
                               </p>
@@ -155,7 +156,7 @@ export function AnswerCasePanel({
                             className="group flex w-full cursor-pointer items-center justify-between gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                           >
                             <span className="text-sm font-semibold text-navy-deep transition-colors group-hover:text-brand">
-                              {t(misconception.title, language)}
+                              {misconceptionLabel(misconception, language)}
                             </span>
                             <ArrowRight size={16} strokeWidth={2} className="shrink-0 text-muted transition-[color,transform] group-hover:translate-x-0.5 group-hover:text-brand" aria-hidden="true" />
                           </button>

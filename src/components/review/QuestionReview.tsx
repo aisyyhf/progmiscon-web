@@ -8,6 +8,7 @@ import { useAllStudentAnswers } from "../../hooks/useStudentAnswers";
 import { t, uiText } from "../../utils/translation";
 import { buildConcepts } from "../../utils/concepts";
 import { getAnswerVariations, getMatchingAnswers, getRelatedQuestions } from "../../utils/misconceptionExploration";
+import { misconceptionLabel } from "../../utils/misconceptionLabel";
 import { Breadcrumb } from "../layout/Breadcrumb";
 import { QuestionPanel } from "./QuestionPanel";
 import { AnswerCasePanel } from "./AnswerCasePanel";
@@ -145,7 +146,7 @@ export function QuestionReview({ questionId }: { questionId: string }) {
               {language === "id" ? "Eksplorasi Miskonsepsi" : "Misconception Exploration"}
             </p>
             <h1 className="mt-1 break-words text-base font-bold text-white">
-              {t(selectedMisconception.title, language)}
+              {misconceptionLabel(selectedMisconception, language)}
             </h1>
             <p className="mt-1 text-sm tabular-nums text-white/70">
               {language === "id"
