@@ -26,6 +26,12 @@ export type ReviewProgress = {
   latestUpdatedAt: string | null;
 };
 
+export type QuestionReviewCount = {
+  questionId: string;
+  reviewCount: number;
+  latestUpdatedAt: string | null;
+};
+
 export type QuestionReviewHistoryItem = {
   id: string;
   reviewerId: string;
