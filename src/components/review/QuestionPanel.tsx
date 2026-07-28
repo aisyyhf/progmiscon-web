@@ -6,6 +6,7 @@ import { misconceptionLabel } from "../../utils/misconceptionLabel";
 import { findConceptByText } from "../../utils/concepts";
 import { cn } from "../../utils/cn";
 import { getQuestionReference } from "../../utils/questionReference";
+import { getQuestionOptionMisconceptionIds } from "../../utils/questionMetadata";
 import { ConceptChip } from "../concept/ConceptChip";
 import { ConceptIcon } from "../concept/ConceptIcon";
 import { MisconceptionChip } from "../misconception/MisconceptionChip";
@@ -31,7 +32,13 @@ export function QuestionPanel({
   onNextQuestion: () => void;
 }) {
   const { language } = useLanguage();
-  const { misconceptions } = useMisconceptionsByIds(question.questionMisconceptionIds);
+  const misconceptionIds = [
+    ...new Set([
+      ...question.questionMisconceptionIds,
+      ...(question.options?.flatMap(getQuestionOptionMisconceptionIds) ?? []),
+    ]),
+  ];
+  const { misconceptions } = useMisconceptionsByIds(misconceptionIds);
   const reference = getQuestionReference(question);
 
   return (
@@ -81,7 +88,9 @@ export function QuestionPanel({
       {question.type === "multiple_choice" && question.options && (
         <ul className="mt-5 space-y-2">
           {question.options.map((option) => {
-            const optionMisconception = misconceptions.find((m) => m.id === option.misconceptionId);
+            const optionMisconceptions = getQuestionOptionMisconceptionIds(option)
+              .map((id) => misconceptions.find((item) => item.id === id))
+              .filter((item) => item !== undefined);
             return (
               <li
                 key={option.id}
@@ -99,10 +108,21 @@ export function QuestionPanel({
                     </span>
                   )}
                 </div>
-                {optionMisconception && (
-                  <p className="mt-1 pl-5 text-xs text-muted">
-                    → {t(uiText.mapsToMisconception, language)}: {misconceptionLabel(optionMisconception, language)}
-                  </p>
+                {optionMisconceptions.length > 0 && (
+                  <ul className="mt-1 space-y-1 pl-5 text-xs text-muted">
+                    {optionMisconceptions.map((misconception) => (
+                      <li key={misconception.id}>
+                        → {t(uiText.mapsToMisconception, language)}:{" "}
+                        <button
+                          type="button"
+                          onClick={() => onSelectMisconception(misconception.id)}
+                          className="cursor-pointer text-left font-medium text-brand hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                        >
+                          {misconceptionLabel(misconception, language)}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </li>
             );

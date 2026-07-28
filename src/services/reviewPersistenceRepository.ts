@@ -3,6 +3,7 @@ import type {
   AdminQuestionReviewHistoryItem,
   AdminReviewer,
   AdminReviewHistory,
+  AnswerReviewCount,
   AnswerReviewHistoryItem,
   AnswerReviewValues,
   QuestionReviewHistoryItem,
@@ -15,7 +16,10 @@ import {
   mapReviewStatusRow,
   type ReviewStatusRow,
 } from "../utils/reviewStatus";
-import { mapQuestionReviewCountRows } from "../utils/questionReviewCounts";
+import {
+  mapAnswerReviewCountRows,
+  mapQuestionReviewCountRows,
+} from "../utils/questionReviewCounts";
 import { supabase } from "./supabaseClient";
 
 type QuestionReviewHistoryRow = {
@@ -56,6 +60,7 @@ type ReviewerProfileRow = {
 };
 
 const REVIEW_ALREADY_SUBMITTED = "REVIEW_ALREADY_SUBMITTED";
+const REVIEW_CAP_REACHED = "REVIEW_CAP_REACHED";
 
 function storageError(scope: string, error: { message?: string }): Error {
   const detail = error.message?.trim();
@@ -63,6 +68,12 @@ function storageError(scope: string, error: { message?: string }): Error {
   if (detail?.includes(REVIEW_ALREADY_SUBMITTED)) {
     return new Error(
       "Review ini sudah pernah dikirim dan tidak dapat dikirim ulang.",
+    );
+  }
+
+  if (detail?.includes(REVIEW_CAP_REACHED)) {
+    return new Error(
+      "Target ini sudah memiliki tiga reviewer. Review keempat tidak dapat disimpan.",
     );
   }
 
@@ -164,6 +175,16 @@ export async function getQuestionReviewCounts(): Promise<
   }
 
   return mapQuestionReviewCountRows(data);
+}
+
+export async function getAnswerReviewCounts(): Promise<AnswerReviewCount[]> {
+  const { data, error } = await supabase.rpc("get_answer_review_counts");
+
+  if (error) {
+    throw storageError("Status agregat review jawaban dimuat", error);
+  }
+
+  return mapAnswerReviewCountRows(data);
 }
 
 export async function getReviewerHistory(

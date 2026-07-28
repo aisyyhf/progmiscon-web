@@ -7,6 +7,7 @@ export type QuestionOption = {
   label: string;
   text: LocalizedText;
   isCorrect: boolean;
+  misconceptionIds: string[];
   misconceptionId?: string;
 };
 
@@ -22,6 +23,9 @@ export type Question = {
   sourceCode: string | null;
   level: string | null;
   type: QuestionType;
+  questionInd?: string;
+  questionEn?: string;
+  questionCode?: string;
   prompt: LocalizedText;
   expectedConcepts: LocalizedText[];
   questionMisconceptionIds: string[];
