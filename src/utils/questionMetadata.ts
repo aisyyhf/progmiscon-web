@@ -41,6 +41,18 @@ export function questionOptionLabel(order: number): string {
   return label;
 }
 
+export function getQuestionOptionMisconceptionIds(
+  option: Pick<QuestionOption, "misconceptionIds">,
+): string[] {
+  return [...new Set(
+    option.misconceptionIds
+      .map((id) => id.trim())
+      .filter(Boolean),
+  )].sort((left, right) =>
+    left.localeCompare(right, undefined, { numeric: true }),
+  );
+}
+
 export function buildQuestionOptions(
   answers: AnswerRow[],
   misconceptionIdsByAnswer: ReadonlyMap<string, string[]>,
@@ -49,7 +61,13 @@ export function buildQuestionOptions(
     .sort((a, b) => Number.parseInt(a.order_no, 10) - Number.parseInt(b.order_no, 10))
     .map((answer, index) => {
       const order = Number.parseInt(answer.order_no, 10);
-      const misconceptionIds = misconceptionIdsByAnswer.get(answer.answer_id.trim()) ?? [];
+      const misconceptionIds = [...new Set(
+        (misconceptionIdsByAnswer.get(answer.answer_id.trim()) ?? [])
+          .map((id) => id.trim())
+          .filter(Boolean),
+      )].sort((left, right) =>
+        left.localeCompare(right, undefined, { numeric: true }),
+      );
       const answerText = answer.answer_text.trim();
 
       return {
@@ -57,7 +75,9 @@ export function buildQuestionOptions(
         label: questionOptionLabel(Number.isInteger(order) && order > 0 ? order : index + 1),
         text: { id: answerText, en: answerText },
         isCorrect: answer.status.trim().toLowerCase() === "correct",
-        misconceptionId: misconceptionIds.length === 1 ? misconceptionIds[0] : undefined,
+        misconceptionId:
+          misconceptionIds.length === 1 ? misconceptionIds[0] : undefined,
+        misconceptionIds,
       };
     });
 }

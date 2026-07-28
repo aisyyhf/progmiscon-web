@@ -417,11 +417,14 @@ assert.match(
 );
 assert.match(
   page,
-  /if \(!progressLoaded \|\| activeAnswerReviewedByMe\) return;[\s\S]{0,250}saveAnswerReview/,
+  /if \([\s\S]{0,120}!progressLoaded \|\|[\s\S]{0,120}!answerCountsLoaded \|\|[\s\S]{0,120}activeAnswerLocked[\s\S]{0,40}\) return;[\s\S]{0,250}saveAnswerReview/,
 );
+assert.equal(page.match(/progressUnavailable=\{!progressLoaded\}/g)?.length, 1);
 assert.equal(
-  page.match(/progressUnavailable=\{!progressLoaded\}/g)?.length,
-  2,
+  page.match(
+    /progressUnavailable=\{!progressLoaded \|\| !answerCountsLoaded\}/g,
+  )?.length,
+  1,
 );
 assert.equal(
   page.match(/const formUnavailable = locked \|\| progressUnavailable;/g)

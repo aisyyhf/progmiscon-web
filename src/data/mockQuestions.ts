@@ -76,6 +76,7 @@ export const mockQuestions: Question[] = [
           en: "IF x MOD 2 = 1 THEN PRINT \"Even\" ELSE PRINT \"Odd\"",
         },
         isCorrect: false,
+        misconceptionIds: ["mc-condition-reversed"],
         misconceptionId: "mc-condition-reversed",
       },
       {
@@ -86,6 +87,7 @@ export const mockQuestions: Question[] = [
           en: "IF x MOD 2 = 0 THEN PRINT \"Even\"",
         },
         isCorrect: false,
+        misconceptionIds: ["mc-ifelse-missing-else"],
         misconceptionId: "mc-ifelse-missing-else",
       },
       {
@@ -96,6 +98,7 @@ export const mockQuestions: Question[] = [
           en: "IF x MOD 2 = 0 THEN PRINT \"Even\" ELSE PRINT \"Odd\"",
         },
         isCorrect: true,
+        misconceptionIds: [],
       },
       {
         id: "opt-evenodd-d",
@@ -105,6 +108,7 @@ export const mockQuestions: Question[] = [
           en: "IF x / 2 = 0 THEN PRINT \"Even\" ELSE PRINT \"Odd\"",
         },
         isCorrect: false,
+        misconceptionIds: [],
       },
     ],
   },
@@ -148,6 +152,7 @@ export const mockQuestions: Question[] = [
         label: "A",
         text: { id: "x >= 1 OR x <= 10", en: "x >= 1 OR x <= 10" },
         isCorrect: false,
+        misconceptionIds: ["mc-and-or-confusion"],
         misconceptionId: "mc-and-or-confusion",
       },
       {
@@ -155,18 +160,21 @@ export const mockQuestions: Question[] = [
         label: "B",
         text: { id: "x >= 1 AND x <= 10", en: "x >= 1 AND x <= 10" },
         isCorrect: true,
+        misconceptionIds: [],
       },
       {
         id: "opt-boolrange-c",
         label: "C",
         text: { id: "x > 1 AND x < 10", en: "x > 1 AND x < 10" },
         isCorrect: false,
+        misconceptionIds: [],
       },
       {
         id: "opt-boolrange-d",
         label: "D",
         text: { id: "x <= 1 AND x >= 10", en: "x <= 1 AND x >= 10" },
         isCorrect: false,
+        misconceptionIds: ["mc-condition-reversed"],
         misconceptionId: "mc-condition-reversed",
       },
     ],
@@ -227,6 +235,7 @@ export const mockQuestions: Question[] = [
         label: "A",
         text: { id: "6", en: "6" },
         isCorrect: false,
+        misconceptionIds: ["mc-loop-boundary"],
         misconceptionId: "mc-loop-boundary",
       },
       {
@@ -234,12 +243,14 @@ export const mockQuestions: Question[] = [
         label: "B",
         text: { id: "10", en: "10" },
         isCorrect: true,
+        misconceptionIds: [],
       },
       {
         id: "opt-tracex-c",
         label: "C",
         text: { id: "4", en: "4" },
         isCorrect: false,
+        misconceptionIds: ["mc-trace-state-loss"],
         misconceptionId: "mc-trace-state-loss",
       },
       {
@@ -247,6 +258,7 @@ export const mockQuestions: Question[] = [
         label: "D",
         text: { id: "14", en: "14" },
         isCorrect: false,
+        misconceptionIds: [],
       },
     ],
   },
@@ -290,6 +302,7 @@ export const mockQuestions: Question[] = [
         label: "A",
         text: { id: "FOR i ← 0 TO N DO PRINT i", en: "FOR i ← 0 TO N DO PRINT i" },
         isCorrect: false,
+        misconceptionIds: ["mc-wrong-init"],
         misconceptionId: "mc-wrong-init",
       },
       {
@@ -297,12 +310,14 @@ export const mockQuestions: Question[] = [
         label: "B",
         text: { id: "FOR i ← 1 TO N DO PRINT i", en: "FOR i ← 1 TO N DO PRINT i" },
         isCorrect: true,
+        misconceptionIds: [],
       },
       {
         id: "opt-printn-c",
         label: "C",
         text: { id: "FOR i ← 1 TO N - 1 DO PRINT i", en: "FOR i ← 1 TO N - 1 DO PRINT i" },
         isCorrect: false,
+        misconceptionIds: ["mc-loop-boundary"],
         misconceptionId: "mc-loop-boundary",
       },
       {
@@ -310,6 +325,7 @@ export const mockQuestions: Question[] = [
         label: "D",
         text: { id: "FOR i ← 2 TO N DO PRINT i", en: "FOR i ← 2 TO N DO PRINT i" },
         isCorrect: false,
+        misconceptionIds: [],
       },
     ],
   },

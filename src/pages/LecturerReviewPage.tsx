@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { LockKeyhole } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
 import { MisconceptionPicker } from "../components/review/MisconceptionPicker";
+import {
+  AdminAnswerContentEditor,
+  AdminQuestionContentEditor,
+} from "../components/review/AdminContentEditor";
 import { ReviewQuestionFilters } from "../components/review/ReviewQuestionFilters";
 import { useCategories } from "../hooks/useCategories";
 import { useLanguage } from "../hooks/useLanguage";
@@ -24,11 +28,13 @@ import type {
 } from "../types";
 import { cn } from "../utils/cn";
 import { getQuestionReference } from "../utils/questionReference";
+import { getQuestionOptionMisconceptionIds } from "../utils/questionMetadata";
 import { prioritizeMisconceptions, sortReviewTasks } from "../utils/reviewPriority";
 import { t } from "../utils/translation";
 import { misconceptionLabel } from "../utils/misconceptionLabel";
 import {
   getQuestionReviewCounts,
+  getAnswerReviewCounts,
   getReviewProgress as getSavedReviewProgress,
   saveAnswerReview,
   saveQuestionReview,
@@ -72,6 +78,14 @@ import {
   serializeReviewQuestionFilterSession,
   type ReviewQuestionFilterSessionState,
 } from "../utils/reviewQuestionFilterSession";
+import {
+  buildAnswerReviewValues,
+  buildQuestionReviewValues,
+  canSubmitMisconceptionReview,
+  getAdditionalMisconceptionCandidates,
+  initialMisconceptionReviewFormState,
+  misconceptionReviewFormReducer,
+} from "../utils/reviewMisconceptionForm";
 
 function PresenceToggle({
   value,
@@ -285,7 +299,7 @@ function readStoredQuestionFilters(): ReviewQuestionFilterSessionState {
 
 export function LecturerReviewPage() {
   const { language } = useLanguage();
-  const { user } = useLecturerAuth();
+  const { user, isAdmin } = useLecturerAuth();
   const navigate = useNavigate();
   const { categories, loading: categoriesLoading } = useCategories();
   const { questions, loading: questionsLoading } = useQuestions();
@@ -300,6 +314,9 @@ export function LecturerReviewPage() {
   const [questionReviewCounts, setQuestionReviewCounts] = useState<
     Map<string, number>
   >(new Map());
+  const [answerReviewCounts, setAnswerReviewCounts] = useState<
+    Map<string, number>
+  >(new Map());
   const [questionFilters, setQuestionFilters] =
     useState<ReviewQuestionFilterSessionState>(readStoredQuestionFilters);
   const [progressLoading, setProgressLoading] = useState(true);
@@ -308,6 +325,9 @@ export function LecturerReviewPage() {
   const [questionCountsLoading, setQuestionCountsLoading] = useState(true);
   const [questionCountsError, setQuestionCountsError] = useState("");
   const [questionCountsLoaded, setQuestionCountsLoaded] = useState(false);
+  const [answerCountsLoading, setAnswerCountsLoading] = useState(true);
+  const [answerCountsError, setAnswerCountsError] = useState("");
+  const [answerCountsLoaded, setAnswerCountsLoaded] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -329,12 +349,16 @@ export function LecturerReviewPage() {
       setReviewedQuestionIds([]);
       setReviewedAnswerIds([]);
       setQuestionReviewCounts(new Map());
+      setAnswerReviewCounts(new Map());
       setProgressLoading(false);
       setProgressError("");
       setProgressLoaded(false);
       setQuestionCountsLoading(false);
       setQuestionCountsError("");
       setQuestionCountsLoaded(false);
+      setAnswerCountsLoading(false);
+      setAnswerCountsError("");
+      setAnswerCountsLoaded(false);
       return () => {
         active = false;
       };
@@ -396,8 +420,39 @@ export function LecturerReviewPage() {
       }
     };
 
+    const loadAnswerCounts = async () => {
+      setAnswerCountsLoading(true);
+      setAnswerCountsError("");
+      setAnswerCountsLoaded(false);
+      setAnswerReviewCounts(new Map());
+
+      try {
+        const globalCounts = await getAnswerReviewCounts();
+        if (!active) return;
+        setAnswerReviewCounts(
+          new Map(
+            globalCounts.map(({ answerId, reviewCount }) => [
+              answerId,
+              reviewCount,
+            ]),
+          ),
+        );
+        setAnswerCountsLoaded(true);
+      } catch (error) {
+        if (!active) return;
+        console.error(
+          "[Progmiscon] Status agregat review jawaban gagal dimuat",
+          error,
+        );
+        setAnswerCountsError("Status agregat review jawaban belum dapat dimuat.");
+      } finally {
+        if (active) setAnswerCountsLoading(false);
+      }
+    };
+
     void loadPersonalProgress();
     void loadQuestionCounts();
+    void loadAnswerCounts();
 
     return () => {
       active = false;
@@ -565,6 +620,13 @@ export function LecturerReviewPage() {
   const activeAnswerReviewedByMe = activeAnswer
     ? reviewedAnswerIds.includes(activeAnswer.id)
     : false;
+  const activeAnswerGloballyComplete = activeAnswer
+    ? answerCountsLoaded &&
+      (answerReviewCounts.get(activeAnswer.id) ?? 0) >=
+        QUESTION_REVIEWED_THRESHOLD
+    : false;
+  const activeAnswerLocked =
+    activeAnswerReviewedByMe || activeAnswerGloballyComplete;
   const answerQuestion = activeAnswer
     ? activeParentQuestion?.id === activeAnswer.questionId
       ? activeParentQuestion
@@ -758,7 +820,8 @@ export function LecturerReviewPage() {
     categoriesLoading ||
     misconceptionsLoading ||
     reviewTasksLoading ||
-    progressLoading;
+    progressLoading ||
+    answerCountsLoading;
   const setActiveQuestionFilters = (
     filters: ReviewQuestionFilterValues,
   ) => {
@@ -795,6 +858,15 @@ export function LecturerReviewPage() {
           className="mb-5 rounded-md border border-warning-border bg-warning-bg px-4 py-3 text-sm text-warning"
         >
           {questionCountsError}
+        </p>
+      )}
+
+      {answerCountsError && (
+        <p
+          role="alert"
+          className="mb-5 rounded-md border border-warning-border bg-warning-bg px-4 py-3 text-sm text-warning"
+        >
+          {answerCountsError}
         </p>
       )}
 
@@ -961,6 +1033,7 @@ export function LecturerReviewPage() {
                 progressUnavailable={!progressLoaded}
                 reviewedByMe={activeQuestionReviewedByMe}
                 globallyComplete={activeQuestionGloballyComplete}
+                isAdmin={isAdmin}
                 onViewHistory={viewMyReviewHistory}
                 onReviewAnswer={(answerId) =>
                   openWorkspaceItem(
@@ -1026,8 +1099,11 @@ export function LecturerReviewPage() {
                 question={answerQuestion}
                 answer={activeAnswer}
                 misconceptions={misconceptions}
-                locked={activeAnswerReviewedByMe}
-                progressUnavailable={!progressLoaded}
+                locked={activeAnswerLocked}
+                progressUnavailable={!progressLoaded || !answerCountsLoaded}
+                reviewedByMe={activeAnswerReviewedByMe}
+                globallyComplete={activeAnswerGloballyComplete}
+                isAdmin={isAdmin}
                 onViewHistory={viewMyReviewHistory}
                 onBackToQuestion={() =>
                   openWorkspaceItem(
@@ -1038,7 +1114,11 @@ export function LecturerReviewPage() {
                   )
                 }
                 onSubmit={async (values) => {
-                  if (!progressLoaded || activeAnswerReviewedByMe) return;
+                  if (
+                    !progressLoaded ||
+                    !answerCountsLoaded ||
+                    activeAnswerLocked
+                  ) return;
                   if (!user) throw new Error("Sesi dosen tidak ditemukan.");
                   await saveAnswerReview(
                     user.id,
@@ -1051,6 +1131,14 @@ export function LecturerReviewPage() {
                       ? current
                       : [...current, activeAnswer.id],
                   );
+                  setAnswerReviewCounts((current) => {
+                    const next = new Map(current);
+                    next.set(
+                      activeAnswer.id,
+                      (next.get(activeAnswer.id) ?? 0) + 1,
+                    );
+                    return next;
+                  });
                   const target = selectAfterAnswerReview(
                     answerQuestion,
                     activeAnswer.id,
@@ -1154,8 +1242,8 @@ function ReviewLockNotice({
               </span>
             ))
           : language === "id"
-            ? `Review soal ini telah selesai oleh ${QUESTION_REVIEWED_THRESHOLD} reviewer.`
-            : `This question review has been completed by ${QUESTION_REVIEWED_THRESHOLD} reviewers.`}
+            ? `Review ${kind === "question" ? "soal" : "jawaban"} ini telah selesai oleh ${QUESTION_REVIEWED_THRESHOLD} reviewer.`
+            : `This ${kind} review has been completed by ${QUESTION_REVIEWED_THRESHOLD} reviewers.`}
       </p>
       {reviewedByMe && (
         <Button
@@ -1181,6 +1269,7 @@ function QuestionValidationWorkspace({
   progressUnavailable,
   reviewedByMe,
   globallyComplete,
+  isAdmin,
   onViewHistory,
   onReviewAnswer,
   onSubmit,
@@ -1194,6 +1283,7 @@ function QuestionValidationWorkspace({
   progressUnavailable: boolean;
   reviewedByMe: boolean;
   globallyComplete: boolean;
+  isAdmin: boolean;
   onViewHistory: () => void;
   onReviewAnswer: (answerId: string) => void;
   onSubmit: (values: QuestionReviewValues) => Promise<void>;
@@ -1204,30 +1294,35 @@ function QuestionValidationWorkspace({
   const misconceptionById = new Map(
     misconceptions.map((item) => [item.id, item]),
   );
-  const currentMisconceptionIds = new Set(recommended.map((item) => item.id));
-  const addableMisconceptions = misconceptions.filter((item) => !currentMisconceptionIds.has(item.id));
+  const addableMisconceptions = getAdditionalMisconceptionCandidates(
+    misconceptions,
+    recommended.map((item) => item.id),
+  );
   const similarMisconceptions = prioritizeMisconceptions(
     addableMisconceptions,
     recommended.flatMap((item) => item.relatedMisconceptionIds),
   );
   const relatedAnswers = getAnswersForQuestion(question.id, answers);
   const reviewedAnswers = new Set(reviewedAnswerIds);
-  const [hasIncorrectMisconceptions, setHasIncorrectMisconceptions] = useState<boolean | null>(null);
-  const [removedMisconceptionIds, setRemovedMisconceptionIds] = useState<string[]>([]);
-  const [removalReason, setRemovalReason] = useState("");
-  const [hasAdditionalMisconceptions, setHasAdditionalMisconceptions] = useState<boolean | null>(null);
-  const [additionalMisconceptionIds, setAdditionalMisconceptionIds] = useState<string[]>([]);
-  const [additionReason, setAdditionReason] = useState("");
-  const [note, setNote] = useState("");
+  const [form, dispatchForm] = useReducer(
+    misconceptionReviewFormReducer,
+    initialMisconceptionReviewFormState,
+  );
+  const {
+    removalChoice: hasIncorrectMisconceptions,
+    removedMisconceptionIds,
+    removalReason,
+    additionChoice: hasAdditionalMisconceptions,
+    additionalMisconceptionIds,
+    additionReason,
+    note,
+  } = form;
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const formUnavailable = locked || progressUnavailable;
   const canSubmit =
     !formUnavailable &&
-    hasIncorrectMisconceptions !== null &&
-    hasAdditionalMisconceptions !== null &&
-    (!hasIncorrectMisconceptions || (removedMisconceptionIds.length > 0 && removalReason.trim().length > 0)) &&
-    (!hasAdditionalMisconceptions || (additionalMisconceptionIds.length > 0 && additionReason.trim().length > 0));
+    canSubmitMisconceptionReview(form);
 
   const handleSubmit = async () => {
     if (
@@ -1244,23 +1339,7 @@ function QuestionValidationWorkspace({
     setSubmitting(true);
 
     try {
-      await onSubmit({
-        hasIncorrectMisconceptions,
-        removedMisconceptionIds: hasIncorrectMisconceptions
-          ? removedMisconceptionIds
-          : [],
-        removalReason: hasIncorrectMisconceptions
-          ? removalReason.trim()
-          : null,
-        hasAdditionalMisconceptions,
-        additionalMisconceptionIds: hasAdditionalMisconceptions
-          ? additionalMisconceptionIds
-          : [],
-        additionReason: hasAdditionalMisconceptions
-          ? additionReason.trim()
-          : null,
-        note: note.trim() || null,
-      });
+      await onSubmit(buildQuestionReviewValues(form));
     } catch (error) {
       console.error("[Progmiscon] Validasi soal gagal disimpan", error);
       setSubmitError(
@@ -1284,38 +1363,46 @@ function QuestionValidationWorkspace({
             </p>
           </section>
 
+          {isAdmin && <AdminQuestionContentEditor question={question} />}
+
           {question.options && (
             <section className="mt-6">
               <p className="academic-label mb-2">{language === "id" ? "Pilihan jawaban" : "Answer options"}</p>
               <ul className="space-y-2">
-                {question.options.map((option) => (
-                  <li
-                    key={option.id}
-                    className={cn(
-                      "flex items-start gap-3 rounded-md border px-4 py-3 text-[13px] leading-6",
-                      option.isCorrect ? "border-correct-border bg-correct-bg/55" : "border-border bg-white",
-                    )}
-                  >
-                    <span className="font-semibold text-navy-deep">{option.label}.</span>
-                    <span className="min-w-0 flex-1 text-navy-deep">
-                      <span className="block">{t(option.text, language)}</span>
-                      {option.misconceptionId &&
-                        misconceptionById.has(option.misconceptionId) && (
-                          <span className="mt-1 block text-xs text-muted">
-                            {misconceptionLabel(
-                              misconceptionById.get(option.misconceptionId)!,
-                              language,
-                            )}
+                {question.options.map((option) => {
+                  const optionMisconceptions =
+                    getQuestionOptionMisconceptionIds(option)
+                      .map((id) => misconceptionById.get(id))
+                      .filter((item) => item !== undefined);
+                  return (
+                    <li
+                      key={option.id}
+                      className={cn(
+                        "flex items-start gap-3 rounded-md border px-4 py-3 text-[13px] leading-6",
+                        option.isCorrect ? "border-correct-border bg-correct-bg/55" : "border-border bg-white",
+                      )}
+                    >
+                      <span className="font-semibold text-navy-deep">{option.label}.</span>
+                      <span className="min-w-0 flex-1 text-navy-deep">
+                        <span className="block">{t(option.text, language)}</span>
+                        {optionMisconceptions.length > 0 && (
+                          <span className="mt-1 block space-y-1 text-xs text-muted">
+                            {optionMisconceptions.map((misconception) => (
+                              <span key={misconception.id} className="block">
+                                {misconceptionLabel(misconception, language)}
+                              </span>
+                            ))}
                           </span>
                         )}
-                    </span>
-                    {option.isCorrect && (
-                      <span className="ml-auto shrink-0 text-xs font-semibold text-correct">
-                        {language === "id" ? "Jawaban acuan" : "Reference answer"}
                       </span>
-                    )}
-                  </li>
-                ))}
+                      {option.isCorrect && (
+                        <span className="ml-auto shrink-0 text-xs font-semibold text-correct">
+                          {language === "id" ? "Jawaban acuan" : "Reference answer"}
+                        </span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </section>
           )}
@@ -1388,8 +1475,8 @@ function QuestionValidationWorkspace({
                   const linkedMisconceptions = prioritizeMisconceptions(
                     misconceptions,
                     [
-                      ...(option?.misconceptionId
-                        ? [option.misconceptionId]
+                      ...(option
+                        ? getQuestionOptionMisconceptionIds(option)
                         : []),
                       ...(task?.suggestedMisconceptionId
                         ? [task.suggestedMisconceptionId]
@@ -1549,7 +1636,13 @@ function QuestionValidationWorkspace({
                   </p>
                   <PresenceToggle
                     value={hasIncorrectMisconceptions}
-                    onChange={setHasIncorrectMisconceptions}
+                    onChange={(value) =>
+                      dispatchForm({
+                        type: "set_presence",
+                        field: "removal",
+                        value,
+                      })
+                    }
                     language={language}
                     label={
                       language === "id"
@@ -1574,11 +1667,15 @@ function QuestionValidationWorkspace({
                             type="checkbox"
                             checked={removedMisconceptionIds.includes(item.id)}
                             onChange={(event) =>
-                              setRemovedMisconceptionIds((current) =>
-                                event.target.checked
-                                  ? [...current, item.id]
-                                  : current.filter((id) => id !== item.id),
-                              )
+                              dispatchForm({
+                                type: "set_ids",
+                                field: "removal",
+                                ids: event.target.checked
+                                  ? [...removedMisconceptionIds, item.id]
+                                  : removedMisconceptionIds.filter(
+                                      (id) => id !== item.id,
+                                    ),
+                              })
                             }
                             className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
                           />
@@ -1595,7 +1692,13 @@ function QuestionValidationWorkspace({
                   <textarea
                     id="removal-reason"
                     value={removalReason}
-                    onChange={(event) => setRemovalReason(event.target.value)}
+                    onChange={(event) =>
+                      dispatchForm({
+                        type: "set_reason",
+                        field: "removal",
+                        value: event.target.value,
+                      })
+                    }
                     aria-required="true"
                     placeholder={language === "id" ? "Jelaskan mengapa perlu dihapus" : "Explain why it should be removed"}
                     className="academic-input min-h-20 px-3 py-2.5 text-sm placeholder:text-muted/65"
@@ -1617,7 +1720,13 @@ function QuestionValidationWorkspace({
                   </p>
                   <PresenceToggle
                     value={hasAdditionalMisconceptions}
-                    onChange={setHasAdditionalMisconceptions}
+                    onChange={(value) =>
+                      dispatchForm({
+                        type: "set_presence",
+                        field: "addition",
+                        value,
+                      })
+                    }
                     language={language}
                     label={
                       language === "id"
@@ -1635,7 +1744,13 @@ function QuestionValidationWorkspace({
                     misconceptions={addableMisconceptions}
                     recommended={similarMisconceptions}
                     value={additionalMisconceptionIds}
-                    onChange={setAdditionalMisconceptionIds}
+                    onChange={(ids) =>
+                      dispatchForm({
+                        type: "set_ids",
+                        field: "addition",
+                        ids,
+                      })
+                    }
                     variant="selection"
                     label={language === "id" ? "Miskonsepsi yang ditambahkan" : "Misconceptions to add"}
                     helper={language === "id" ? "Anda dapat memilih lebih dari satu." : "You may select more than one."}
@@ -1648,7 +1763,13 @@ function QuestionValidationWorkspace({
                   <textarea
                     id="addition-reason"
                     value={additionReason}
-                    onChange={(event) => setAdditionReason(event.target.value)}
+                    onChange={(event) =>
+                      dispatchForm({
+                        type: "set_reason",
+                        field: "addition",
+                        value: event.target.value,
+                      })
+                    }
                     aria-required="true"
                     placeholder={language === "id" ? "Jelaskan mengapa perlu ditambahkan" : "Explain why it should be added"}
                     className="academic-input min-h-20 px-3 py-2.5 text-sm placeholder:text-muted/65"
@@ -1669,7 +1790,12 @@ function QuestionValidationWorkspace({
                   <textarea
                     id="question-validation-note"
                     value={note}
-                    onChange={(event) => setNote(event.target.value)}
+                    onChange={(event) =>
+                      dispatchForm({
+                        type: "set_note",
+                        value: event.target.value,
+                      })
+                    }
                     placeholder={language === "id" ? "Komentar opsional" : "Optional comment"}
                     className="academic-input mt-3 min-h-24 px-3 py-2.5 text-sm placeholder:text-muted/65"
                   />
@@ -1727,6 +1853,9 @@ function AnswerValidationWorkspace({
   misconceptions,
   locked,
   progressUnavailable,
+  reviewedByMe,
+  globallyComplete,
+  isAdmin,
   onViewHistory,
   onBackToQuestion,
   onSubmit,
@@ -1737,6 +1866,9 @@ function AnswerValidationWorkspace({
   misconceptions: Misconception[];
   locked: boolean;
   progressUnavailable: boolean;
+  reviewedByMe: boolean;
+  globallyComplete: boolean;
+  isAdmin: boolean;
   onViewHistory: () => void;
   onBackToQuestion: () => void;
   onSubmit: (values: AnswerReviewValues) => Promise<void>;
@@ -1751,33 +1883,41 @@ function AnswerValidationWorkspace({
     misconceptions.map((item) => [item.id, item]),
   );
   const linkedMisconceptions = prioritizeMisconceptions(misconceptions, [
+    ...(selectedOption
+      ? getQuestionOptionMisconceptionIds(selectedOption)
+      : []),
     ...(task?.suggestedMisconceptionId
       ? [task.suggestedMisconceptionId]
       : []),
     ...answer.studentMisconceptionIds,
   ]);
-  const linkedMisconceptionIds = new Set(linkedMisconceptions.map((item) => item.id));
-  const addableMisconceptions = misconceptions.filter((item) => !linkedMisconceptionIds.has(item.id));
+  const addableMisconceptions = getAdditionalMisconceptionCandidates(
+    misconceptions,
+    linkedMisconceptions.map((item) => item.id),
+  );
   const similarMisconceptions = prioritizeMisconceptions(
     addableMisconceptions,
     linkedMisconceptions.flatMap((item) => item.relatedMisconceptionIds),
   );
-  const [hasMismatchedMisconceptions, setHasMismatchedMisconceptions] = useState<boolean | null>(null);
-  const [removedMisconceptionIds, setRemovedMisconceptionIds] = useState<string[]>([]);
-  const [removalReason, setRemovalReason] = useState("");
-  const [hasAdditionalMisconceptions, setHasAdditionalMisconceptions] = useState<boolean | null>(null);
-  const [additionalMisconceptionIds, setAdditionalMisconceptionIds] = useState<string[]>([]);
-  const [additionReason, setAdditionReason] = useState("");
-  const [note, setNote] = useState("");
+  const [form, dispatchForm] = useReducer(
+    misconceptionReviewFormReducer,
+    initialMisconceptionReviewFormState,
+  );
+  const {
+    removalChoice: hasMismatchedMisconceptions,
+    removedMisconceptionIds,
+    removalReason,
+    additionChoice: hasAdditionalMisconceptions,
+    additionalMisconceptionIds,
+    additionReason,
+    note,
+  } = form;
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const formUnavailable = locked || progressUnavailable;
   const canSubmit =
     !formUnavailable &&
-    hasMismatchedMisconceptions !== null &&
-    hasAdditionalMisconceptions !== null &&
-    (!hasMismatchedMisconceptions || (removedMisconceptionIds.length > 0 && removalReason.trim().length > 0)) &&
-    (!hasAdditionalMisconceptions || (additionalMisconceptionIds.length > 0 && additionReason.trim().length > 0));
+    canSubmitMisconceptionReview(form);
 
   const handleSubmit = async () => {
     if (
@@ -1794,23 +1934,7 @@ function AnswerValidationWorkspace({
     setSubmitting(true);
 
     try {
-      await onSubmit({
-        hasMismatchedMisconceptions,
-        removedMisconceptionIds: hasMismatchedMisconceptions
-          ? removedMisconceptionIds
-          : [],
-        removalReason: hasMismatchedMisconceptions
-          ? removalReason.trim()
-          : null,
-        hasAdditionalMisconceptions,
-        additionalMisconceptionIds: hasAdditionalMisconceptions
-          ? additionalMisconceptionIds
-          : [],
-        additionReason: hasAdditionalMisconceptions
-          ? additionReason.trim()
-          : null,
-        note: note.trim() || null,
-      });
+      await onSubmit(buildAnswerReviewValues(form));
     } catch (error) {
       console.error("[Progmiscon] Validasi jawaban gagal disimpan", error);
       setSubmitError(
@@ -1845,6 +1969,8 @@ function AnswerValidationWorkspace({
             </p>
           </section>
 
+          {isAdmin && <AdminAnswerContentEditor answer={answer} />}
+
           {question.type === "multiple_choice" && question.options && (
             <section className="mt-6">
               <p className="academic-label mb-2">
@@ -1855,9 +1981,10 @@ function AnswerValidationWorkspace({
               <ul className="space-y-2">
                 {question.options.map((option) => {
                   const selected = option.id === selectedOption?.id;
-                  const optionMisconception = option.misconceptionId
-                    ? misconceptionById.get(option.misconceptionId)
-                    : undefined;
+                  const optionMisconceptions =
+                    getQuestionOptionMisconceptionIds(option)
+                      .map((id) => misconceptionById.get(id))
+                      .filter((item) => item !== undefined);
 
                   return (
                     <li
@@ -1876,9 +2003,13 @@ function AnswerValidationWorkspace({
                       </span>
                       <span className="min-w-0 flex-1 text-navy-deep">
                         <span className="block">{t(option.text, language)}</span>
-                        {optionMisconception && (
-                          <span className="mt-1 block text-xs text-muted">
-                            {misconceptionLabel(optionMisconception, language)}
+                        {optionMisconceptions.length > 0 && (
+                          <span className="mt-1 block space-y-1 text-xs text-muted">
+                            {optionMisconceptions.map((misconception) => (
+                              <span key={misconception.id} className="block">
+                                {misconceptionLabel(misconception, language)}
+                              </span>
+                            ))}
                           </span>
                         )}
                       </span>
@@ -1995,7 +2126,8 @@ function AnswerValidationWorkspace({
           ) : (
             <ReviewLockNotice
               kind="answer"
-              reviewedByMe={locked}
+              reviewedByMe={reviewedByMe}
+              globallyComplete={globallyComplete}
               onViewHistory={onViewHistory}
             />
           )}
@@ -2026,7 +2158,13 @@ function AnswerValidationWorkspace({
                   </p>
                   <PresenceToggle
                     value={hasMismatchedMisconceptions}
-                    onChange={setHasMismatchedMisconceptions}
+                    onChange={(value) =>
+                      dispatchForm({
+                        type: "set_presence",
+                        field: "removal",
+                        value,
+                      })
+                    }
                     language={language}
                     label={
                       language === "id"
@@ -2051,11 +2189,15 @@ function AnswerValidationWorkspace({
                             type="checkbox"
                             checked={removedMisconceptionIds.includes(item.id)}
                             onChange={(event) =>
-                              setRemovedMisconceptionIds((current) =>
-                                event.target.checked
-                                  ? [...current, item.id]
-                                  : current.filter((id) => id !== item.id),
-                              )
+                              dispatchForm({
+                                type: "set_ids",
+                                field: "removal",
+                                ids: event.target.checked
+                                  ? [...removedMisconceptionIds, item.id]
+                                  : removedMisconceptionIds.filter(
+                                      (id) => id !== item.id,
+                                    ),
+                              })
                             }
                             className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
                           />
@@ -2074,7 +2216,13 @@ function AnswerValidationWorkspace({
                   <textarea
                     id="answer-removal-reason"
                     value={removalReason}
-                    onChange={(event) => setRemovalReason(event.target.value)}
+                    onChange={(event) =>
+                      dispatchForm({
+                        type: "set_reason",
+                        field: "removal",
+                        value: event.target.value,
+                      })
+                    }
                     aria-required="true"
                     placeholder={language === "id" ? "Tuliskan alasan" : "Write a reason"}
                     className="academic-input min-h-20 px-3 py-2.5 text-sm placeholder:text-muted/65"
@@ -2096,7 +2244,13 @@ function AnswerValidationWorkspace({
                   </p>
                   <PresenceToggle
                     value={hasAdditionalMisconceptions}
-                    onChange={setHasAdditionalMisconceptions}
+                    onChange={(value) =>
+                      dispatchForm({
+                        type: "set_presence",
+                        field: "addition",
+                        value,
+                      })
+                    }
                     language={language}
                     label={
                       language === "id"
@@ -2114,7 +2268,13 @@ function AnswerValidationWorkspace({
                     misconceptions={addableMisconceptions}
                     recommended={similarMisconceptions}
                     value={additionalMisconceptionIds}
-                    onChange={setAdditionalMisconceptionIds}
+                    onChange={(ids) =>
+                      dispatchForm({
+                        type: "set_ids",
+                        field: "addition",
+                        ids,
+                      })
+                    }
                     variant="selection"
                     label={language === "id" ? "Miskonsepsi yang dikaitkan" : "Misconceptions to link"}
                     helper={language === "id" ? "Anda dapat memilih lebih dari satu." : "You may select more than one."}
@@ -2129,7 +2289,13 @@ function AnswerValidationWorkspace({
                   <textarea
                     id="answer-addition-reason"
                     value={additionReason}
-                    onChange={(event) => setAdditionReason(event.target.value)}
+                    onChange={(event) =>
+                      dispatchForm({
+                        type: "set_reason",
+                        field: "addition",
+                        value: event.target.value,
+                      })
+                    }
                     aria-required="true"
                     placeholder={language === "id" ? "Tuliskan alasan" : "Write a reason"}
                     className="academic-input min-h-20 px-3 py-2.5 text-sm placeholder:text-muted/65"
@@ -2150,7 +2316,12 @@ function AnswerValidationWorkspace({
                   <textarea
                     id="answer-validation-note"
                     value={note}
-                    onChange={(event) => setNote(event.target.value)}
+                    onChange={(event) =>
+                      dispatchForm({
+                        type: "set_note",
+                        value: event.target.value,
+                      })
+                    }
                     placeholder={
                       language === "id"
                         ? "Tuliskan catatan lain mengenai jawaban atau pemetaan miskonsepsinya."

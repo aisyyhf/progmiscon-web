@@ -32,6 +32,12 @@ export type QuestionReviewCount = {
   latestUpdatedAt: string | null;
 };
 
+export type AnswerReviewCount = {
+  answerId: string;
+  reviewCount: number;
+  latestUpdatedAt: string | null;
+};
+
 export type QuestionReviewHistoryItem = {
   id: string;
   reviewerId: string;

@@ -19,8 +19,15 @@ import {
   normalizeWeek,
   selectedOptionIdForAnswer,
 } from "../utils/questionMetadata";
+import {
+  applyPublishedMasterOverrides,
+  buildMisconceptionQuestionBackReferences,
+} from "../utils/effectiveMasterData";
+import { createInvalidatablePromiseCache } from "../utils/invalidatablePromiseCache";
+import { getPublishedMasterOverrides } from "./publishedOverrideRepository";
 
-let masterDataPromise: Promise<MasterData> | undefined;
+export const EFFECTIVE_MASTER_DATA_INVALIDATED =
+  "progmiscon:effective-master-data-invalidated";
 
 const text = (value: string | undefined): string => (value ?? "").trim();
 
@@ -42,7 +49,7 @@ function codeExample(value: string): LocalizedText {
 
 const unavailable = (): LocalizedText => ({ id: "Belum tersedia", en: "Not yet available" });
 
-async function loadMasterData(): Promise<MasterData> {
+async function loadBaselineMasterData(): Promise<MasterData> {
   const [topics, misconceptions, questions, questionTopics, questionMisconceptions, answers, answerMisconceptions, similarMisconceptions] = await Promise.all([
     loadCsv<TopicRow>(masterDataConfig.topicsUrl, "topics"),
     loadCsv<MisconceptionRow>(masterDataConfig.misconceptionsUrl, "misconceptions"),
@@ -72,9 +79,38 @@ async function loadMasterData(): Promise<MasterData> {
   return data;
 }
 
+const baselineMasterDataCache = createInvalidatablePromiseCache(
+  loadBaselineMasterData,
+);
+
+export function getBaselineMasterData(): Promise<MasterData> {
+  return baselineMasterDataCache.get();
+}
+
+const effectiveMasterDataCache = createInvalidatablePromiseCache(() =>
+  Promise.all([
+    getBaselineMasterData(),
+    getPublishedMasterOverrides(),
+  ]).then(([baseline, overrides]) =>
+    applyPublishedMasterOverrides(baseline, overrides),
+  ),
+);
+
 export function getMasterData(): Promise<MasterData> {
-  masterDataPromise ??= loadMasterData();
-  return masterDataPromise;
+  return effectiveMasterDataCache.get();
+}
+
+export function invalidateEffectiveMasterData(): void {
+  effectiveMasterDataCache.invalidate();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(EFFECTIVE_MASTER_DATA_INVALIDATED));
+  }
+}
+
+export function reloadBaselineMasterData(): Promise<MasterData> {
+  baselineMasterDataCache.invalidate();
+  invalidateEffectiveMasterData();
+  return baselineMasterDataCache.get();
 }
 
 export async function getSheetCategories(): Promise<Category[]> {
@@ -181,6 +217,9 @@ export async function getSheetQuestions(): Promise<Question[]> {
         sourceCode: text(row.source_code) || null,
         level: text(row.level) || null,
         type,
+        questionInd: text(row.question_ind),
+        questionEn: text(row.question_en),
+        questionCode: text(row.question_code),
         prompt: localized(
           promptWithCode(row.question_ind, row.question_code),
           promptWithCode(row.question_en, row.question_code),
@@ -198,19 +237,9 @@ export async function getSheetQuestions(): Promise<Question[]> {
 
 export async function getSheetMisconceptions(): Promise<Misconception[]> {
   const data = await getMasterData();
-  const activeQuestionIds = new Set(data.questions.filter((row) => isActiveValue(row.active)).map((row) => text(row.question_id)));
-  const relatedQuestionMap = new Map<string, Set<string>>();
+  const relatedQuestionMap =
+    buildMisconceptionQuestionBackReferences(data);
   const relatedMisconceptionMap = new Map<string, Set<string>>();
-
-  for (const relation of data.questionMisconceptions) {
-    if (!isActiveValue(relation.active)) continue;
-    const questionId = text(relation.question_id);
-    const misconceptionId = text(relation.misconception_id);
-    if (!activeQuestionIds.has(questionId)) continue;
-    const current = relatedQuestionMap.get(misconceptionId) ?? new Set<string>();
-    current.add(questionId);
-    relatedQuestionMap.set(misconceptionId, current);
-  }
 
   for (const relation of data.similarMisconceptions) {
     if (text(relation.status).toLowerCase() !== "approved") continue;
@@ -244,7 +273,7 @@ export async function getSheetMisconceptions(): Promise<Misconception[]> {
         pattern: [],
         value: description,
         relatedMisconceptionIds: [...(relatedMisconceptionMap.get(misconceptionId) ?? [])],
-        relatedQuestionIds: [...(relatedQuestionMap.get(misconceptionId) ?? [])],
+        relatedQuestionIds: relatedQuestionMap.get(misconceptionId) ?? [],
       };
     });
 }

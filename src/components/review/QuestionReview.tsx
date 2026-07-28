@@ -7,8 +7,14 @@ import { useMisconceptions } from "../../hooks/useMisconceptions";
 import { useAllStudentAnswers } from "../../hooks/useStudentAnswers";
 import { t, uiText } from "../../utils/translation";
 import { buildConcepts } from "../../utils/concepts";
-import { getAnswerVariations, getMatchingAnswers, getRelatedQuestions } from "../../utils/misconceptionExploration";
+import {
+  answerHasMisconception,
+  getAnswerVariations,
+  getMatchingAnswers,
+  getRelatedQuestions,
+} from "../../utils/misconceptionExploration";
 import { misconceptionLabel } from "../../utils/misconceptionLabel";
+import { getQuestionOptionMisconceptionIds } from "../../utils/questionMetadata";
 import { Breadcrumb } from "../layout/Breadcrumb";
 import { QuestionPanel } from "./QuestionPanel";
 import { AnswerCasePanel } from "./AnswerCasePanel";
@@ -43,9 +49,12 @@ export function QuestionReview({ questionId }: { questionId: string }) {
 
   const availableMisconceptionIds = useMemo(() => {
     const ids = new Set<string>(question?.questionMisconceptionIds ?? []);
+    question?.options?.forEach((option) =>
+      getQuestionOptionMisconceptionIds(option).forEach((id) => ids.add(id)),
+    );
     answers.forEach((answer) => answer.studentMisconceptionIds.forEach((id) => ids.add(id)));
     return [...ids];
-  }, [answers, question?.questionMisconceptionIds]);
+  }, [answers, question]);
 
   const relatedQuestions = useMemo(() => {
     if (!filterMisconceptionId || !selectedMisconception) return [];
@@ -60,19 +69,26 @@ export function QuestionReview({ questionId }: { questionId: string }) {
   const relatedAnswerCount = useMemo(
     () =>
       filterMisconceptionId
-        ? getMatchingAnswers(answerVariations, filterMisconceptionId).filter((answer) =>
+        ? getMatchingAnswers(
+            answerVariations,
+            filterMisconceptionId,
+            undefined,
+            allQuestions,
+          ).filter((answer) =>
             relatedQuestions.some((question) => question.id === answer.questionId),
           ).length
         : 0,
-    [answerVariations, filterMisconceptionId, relatedQuestions],
+    [allQuestions, answerVariations, filterMisconceptionId, relatedQuestions],
   );
 
   const filteredAnswers = useMemo(
     () =>
       filterMisconceptionId
-        ? answers.filter((answer) => answer.studentMisconceptionIds.includes(filterMisconceptionId))
+        ? answers.filter((answer) =>
+            answerHasMisconception(answer, filterMisconceptionId, question),
+          )
         : answers,
-    [answers, filterMisconceptionId],
+    [answers, filterMisconceptionId, question],
   );
 
   useEffect(() => {

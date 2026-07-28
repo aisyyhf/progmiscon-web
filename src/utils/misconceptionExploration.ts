@@ -1,4 +1,5 @@
 import type { Question, StudentAnswer } from "../types";
+import { getQuestionOptionMisconceptionIds } from "./questionMetadata.ts";
 
 function answerPatternKey(answer: StudentAnswer): string {
   const normalizedText = answer.answerText
@@ -27,12 +28,32 @@ export function getMatchingAnswers(
   answers: StudentAnswer[],
   misconceptionId: string,
   questionId?: string,
+  questions: Question[] = [],
 ): StudentAnswer[] {
+  const questionById = new Map(questions.map((question) => [question.id, question]));
   return answers.filter(
     (answer) =>
       (!questionId || answer.questionId === questionId) &&
-      answer.studentMisconceptionIds.includes(misconceptionId),
+      answerHasMisconception(
+        answer,
+        misconceptionId,
+        questionById.get(answer.questionId),
+      ),
   );
+}
+
+export function answerHasMisconception(
+  answer: StudentAnswer,
+  misconceptionId: string,
+  question?: Question,
+): boolean {
+  if (answer.studentMisconceptionIds.includes(misconceptionId)) return true;
+  const option = question?.options?.find(
+    (item) => item.id === answer.selectedOptionId,
+  );
+  return option
+    ? getQuestionOptionMisconceptionIds(option).includes(misconceptionId)
+    : false;
 }
 
 export function getRelatedQuestions(
@@ -42,7 +63,9 @@ export function getRelatedQuestions(
   relatedQuestionIds: string[],
 ): Question[] {
   const questionsWithAnswers = new Set(
-    getMatchingAnswers(answers, misconceptionId).map((answer) => answer.questionId),
+    getMatchingAnswers(answers, misconceptionId, undefined, questions).map(
+      (answer) => answer.questionId,
+    ),
   );
   const relatedIds = new Set(relatedQuestionIds);
   return questions.filter((question) => relatedIds.has(question.id) && questionsWithAnswers.has(question.id));

@@ -14,7 +14,7 @@ import { useLanguage } from "../hooks/useLanguage";
 import { useMisconceptions } from "../hooks/useMisconceptions";
 import { useQuestions } from "../hooks/useQuestions";
 import { useAllStudentAnswers } from "../hooks/useStudentAnswers";
-import { getMasterData } from "../services/masterDataRepository";
+import { getBaselineMasterData } from "../services/masterDataRepository";
 import { getAdminReviewHistory } from "../services/reviewPersistenceRepository";
 import type {
   AdminAnswerReviewHistoryItem,
@@ -31,8 +31,9 @@ import {
   buildUpdatedAnswerMisconceptionRelations,
   buildUpdatedQuestionMisconceptionRelations,
 } from "../utils/updatedMisconceptionRelations";
+import { AdminFinalizationPanel } from "../components/admin/AdminFinalizationPanel";
 
-type AdminTab = "history" | "downloads";
+type AdminTab = "finalization" | "history" | "downloads";
 type HistoryMode = "question" | "answer";
 type ChangeFilter = "all" | "changed" | "unchanged";
 type DownloadMetric = { label: string; value: number };
@@ -575,7 +576,7 @@ export function AdminPage() {
       setMasterDataError("");
 
       try {
-        const result = await getMasterData();
+        const result = await getBaselineMasterData();
         if (active) setMasterData(result);
       } catch (error) {
         if (!active) return;
@@ -812,8 +813,8 @@ export function AdminPage() {
           <h1 className="page-title">Admin Progmiscon</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
             {language === "id"
-              ? "Pantau riwayat review dosen dan siapkan unduhan data akademik secara read-only."
-              : "Monitor lecturer review history and prepare read-only academic data downloads."}
+              ? "Finalisasi consensus review, pantau riwayat dosen, dan siapkan unduhan data akademik."
+              : "Finalize review consensus, monitor lecturer history, and prepare academic data downloads."}
           </p>
         </div>
       </header>
@@ -863,6 +864,18 @@ export function AdminPage() {
         aria-label={language === "id" ? "Menu Admin" : "Admin menu"}
       >
         <button
+          id="admin-tab-finalization"
+          type="button"
+          role="tab"
+          aria-selected={tab === "finalization"}
+          aria-controls="admin-panel-finalization"
+          onClick={() => setTab("finalization")}
+          className="segmented-tab sm:min-w-44"
+        >
+          {language === "id" ? "Finalisasi" : "Finalization"}
+        </button>
+
+        <button
           id="admin-tab-history"
           type="button"
           role="tab"
@@ -887,7 +900,20 @@ export function AdminPage() {
         </button>
       </div>
 
-      {tab === "history" ? (
+      {tab === "finalization" ? (
+        <section
+          id="admin-panel-finalization"
+          role="tabpanel"
+          aria-labelledby="admin-tab-finalization"
+          className="mt-5"
+        >
+          <AdminFinalizationPanel
+            questions={questions}
+            answers={answers}
+            masterLoading={masterDataLoading}
+          />
+        </section>
+      ) : tab === "history" ? (
         <section
           id="admin-panel-history"
           role="tabpanel"

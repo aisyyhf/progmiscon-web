@@ -4,6 +4,7 @@ import { useMisconceptionsByIds } from "../../hooks/useMisconceptions";
 import { t, uiText } from "../../utils/translation";
 import { groupMisconceptionReasons } from "../../utils/misconceptionReasons";
 import { misconceptionLabel } from "../../utils/misconceptionLabel";
+import { getQuestionOptionMisconceptionIds } from "../../utils/questionMetadata";
 import { AnswerCaseNavigator, answerCaseLabel } from "./AnswerCaseNavigator";
 import { AnswerStatusBar } from "./AnswerStatusBar";
 import { AnswerVisualization } from "./AnswerVisualization";
@@ -32,15 +33,23 @@ export function AnswerCasePanel({
   const { language } = useLanguage();
   const answer = answers.find((item) => item.id === selectedAnswerId);
   const { misconceptions } = useMisconceptionsByIds(answer?.studentMisconceptionIds ?? []);
-  const { misconceptions: filterMisconceptions } = useMisconceptionsByIds(availableMisconceptionIds);
 
   const selectedOption =
     question.type === "multiple_choice"
       ? question.options?.find((option) => option.id === answer?.selectedOptionId)
       : undefined;
-  const selectedOptionMisconception = selectedOption?.misconceptionId
-    ? filterMisconceptions.find((item) => item.id === selectedOption.misconceptionId)
-    : undefined;
+  const selectedOptionMisconceptionIds = selectedOption
+    ? getQuestionOptionMisconceptionIds(selectedOption)
+    : [];
+  const { misconceptions: filterMisconceptions } = useMisconceptionsByIds([
+    ...new Set([
+      ...availableMisconceptionIds,
+      ...selectedOptionMisconceptionIds,
+    ]),
+  ]);
+  const selectedOptionMisconceptions = selectedOptionMisconceptionIds
+    .map((id) => filterMisconceptions.find((item) => item.id === id))
+    .filter((item) => item !== undefined);
 
   const getCaseIndex = (answerId: string) => answers.findIndex((item) => item.id === answerId);
   const misconceptionReasonGroups = groupMisconceptionReasons(
@@ -112,18 +121,23 @@ export function AnswerCasePanel({
                               <span className="font-medium">{selectedOption.label}.</span>{" "}
                               {t(selectedOption.text, language)}
                             </p>
-                            {selectedOptionMisconception && (
-                              <p className="mt-2 text-xs text-muted">
+                            {selectedOptionMisconceptions.length > 0 && (
+                              <div className="mt-2 text-xs text-muted">
                                 {language === "id" ? "Opsi ini memicu" : "This option triggers"}{" "}
-                                <button
-                                  type="button"
-                                  onClick={() => onSelectMisconception(selectedOptionMisconception.id)}
-                                  className="cursor-pointer font-medium text-brand underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                                >
-                                  {misconceptionLabel(selectedOptionMisconception, language)}
-                                </button>
-                                .
-                              </p>
+                                <ul className="mt-1 space-y-1">
+                                  {selectedOptionMisconceptions.map((misconception) => (
+                                    <li key={misconception.id}>
+                                      <button
+                                        type="button"
+                                        onClick={() => onSelectMisconception(misconception.id)}
+                                        className="cursor-pointer text-left font-medium text-brand underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                                      >
+                                        {misconceptionLabel(misconception, language)}
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
                             )}
                           </div>
                         ) : null}
