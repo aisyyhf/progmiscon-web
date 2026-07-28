@@ -83,6 +83,7 @@ import {
   buildQuestionReviewValues,
   canSubmitMisconceptionReview,
   getAdditionalMisconceptionCandidates,
+  getQuestionRemovalProposalIds,
   initialMisconceptionReviewFormState,
   misconceptionReviewFormReducer,
 } from "../utils/reviewMisconceptionForm";
@@ -1290,13 +1291,48 @@ function QuestionValidationWorkspace({
 }) {
   const { language } = useLanguage();
   const reference = getQuestionReference(question);
-  const recommended = prioritizeMisconceptions(misconceptions, question.questionMisconceptionIds);
+  const questionRemovalProposalIds = getQuestionRemovalProposalIds(
+    question.questionMisconceptionIds,
+  );
+  const recommended = prioritizeMisconceptions(
+    misconceptions,
+    questionRemovalProposalIds,
+  );
+  const directQuestionMisconceptionIds =
+    question.directQuestionMisconceptionIds;
+  const answerDerivedMisconceptionIds =
+    question.answerDerivedMisconceptionIds;
+  const directQuestionMisconceptionIdSet = new Set(
+    directQuestionMisconceptionIds,
+  );
+  const answerDerivedMisconceptionIdSet = new Set(
+    answerDerivedMisconceptionIds,
+  );
+  const misconceptionSourceLabel = (misconceptionId: string): string => {
+    const directlyLinked =
+      directQuestionMisconceptionIdSet.has(misconceptionId);
+    const answerDerived =
+      answerDerivedMisconceptionIdSet.has(misconceptionId);
+    if (directlyLinked && answerDerived) {
+      return language === "id"
+        ? "Terkait ke soal dan jawaban"
+        : "Linked to question and answer";
+    }
+    if (answerDerived) {
+      return language === "id"
+        ? "Diturunkan dari jawaban"
+        : "Derived from answer";
+    }
+    return language === "id"
+      ? "Terkait langsung ke soal"
+      : "Directly linked to question";
+  };
   const misconceptionById = new Map(
     misconceptions.map((item) => [item.id, item]),
   );
   const addableMisconceptions = getAdditionalMisconceptionCandidates(
     misconceptions,
-    recommended.map((item) => item.id),
+    question.questionMisconceptionIds,
   );
   const similarMisconceptions = prioritizeMisconceptions(
     addableMisconceptions,
@@ -1424,20 +1460,34 @@ function QuestionValidationWorkspace({
             </p>
             {recommended.length > 0 ? (
               <ul className="space-y-2">
-                {recommended.map((item) => (
-                  <li
-                    key={item.id}
-                    className="rounded-md bg-brand-soft/65 px-3 py-2 text-sm font-semibold leading-5 text-navy-deep"
-                  >
-                    {misconceptionLabel(item, language)}
-                  </li>
-                ))}
+                {recommended.map((item) => {
+                  return (
+                    <li
+                      key={item.id}
+                      className="rounded-md bg-brand-soft/65 px-3 py-2 text-navy-deep"
+                    >
+                      <span className="block text-sm font-semibold leading-5">
+                        {misconceptionLabel(item, language)}
+                      </span>
+                      <span className="mt-0.5 block text-xs font-medium text-muted">
+                        {misconceptionSourceLabel(item.id)}
+                      </span>
+                    </li>
+                  );
+                })}
               </ul>
             ) : (
               <p className="text-sm text-muted">
                 {language === "id"
                   ? "Belum ada miskonsepsi yang terhubung."
                   : "No misconceptions are linked yet."}
+              </p>
+            )}
+            {answerDerivedMisconceptionIds.length > 0 && (
+              <p className="mt-3 text-xs leading-5 text-muted">
+                {language === "id"
+                  ? "Relasi yang diturunkan dari jawaban tetap efektif sampai relasi jawaban terkait direview terlebih dahulu."
+                  : "Answer-derived relations remain effective until the related answer relation is reviewed first."}
               </p>
             )}
           </section>
@@ -1649,7 +1699,7 @@ function QuestionValidationWorkspace({
                         ? "Apakah ada miskonsepsi yang tidak seharusnya dicantumkan?"
                         : "Are any misconceptions listed that should not be included?"
                     }
-                    yesDisabled={recommended.length === 0}
+                    yesDisabled={questionRemovalProposalIds.length === 0}
                   />
                 </div>
               </div>
@@ -1679,7 +1729,14 @@ function QuestionValidationWorkspace({
                             }
                             className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
                           />
-                          <span>{misconceptionLabel(item, language)}</span>
+                          <span className="min-w-0">
+                            <span className="block">
+                              {misconceptionLabel(item, language)}
+                            </span>
+                            <span className="mt-0.5 block text-xs text-muted">
+                              {misconceptionSourceLabel(item.id)}
+                            </span>
+                          </span>
                         </label>
                       ))}
                     </div>

@@ -11,6 +11,12 @@ export type QuestionOption = {
   misconceptionId?: string;
 };
 
+export type QuestionMisconceptionProvenance = {
+  directQuestionMisconceptionIds: string[];
+  answerDerivedMisconceptionIds: string[];
+  questionMisconceptionIds: string[];
+};
+
 export type Question = {
   id: string;
   assessmentId: string;
@@ -28,6 +34,8 @@ export type Question = {
   questionCode?: string;
   prompt: LocalizedText;
   expectedConcepts: LocalizedText[];
-  questionMisconceptionIds: string[];
+  directQuestionMisconceptionIds: string[];
+  answerDerivedMisconceptionIds: string[];
+  questionMisconceptionIds: QuestionMisconceptionProvenance["questionMisconceptionIds"];
   options?: QuestionOption[];
 };

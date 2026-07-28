@@ -21,6 +21,7 @@ import {
 } from "../utils/questionMetadata";
 import {
   applyPublishedMasterOverrides,
+  buildEffectiveQuestionMisconceptionMap,
   buildMisconceptionQuestionBackReferences,
 } from "../utils/effectiveMasterData";
 import { createInvalidatablePromiseCache } from "../utils/invalidatablePromiseCache";
@@ -139,7 +140,8 @@ export async function getSheetQuestions(): Promise<Question[]> {
   const categories = await getSheetCategories();
   const categoryMap = new Map(categories.map((category) => [category.id, category]));
   const questionTopicMap = new Map<string, typeof data.questionTopics>();
-  const questionMisconceptionMap = new Map<string, string[]>();
+  const questionMisconceptionMap =
+    buildEffectiveQuestionMisconceptionMap(data);
   const answersByQuestion = new Map<string, AnswerRow[]>();
   const answerMisconceptionMap = new Map<string, string[]>();
 
@@ -148,14 +150,6 @@ export async function getSheetQuestions(): Promise<Question[]> {
     const current = questionTopicMap.get(questionId) ?? [];
     current.push(relation);
     questionTopicMap.set(questionId, current);
-  }
-
-  for (const relation of data.questionMisconceptions) {
-    if (!isActiveValue(relation.active)) continue;
-    const questionId = text(relation.question_id);
-    const current = questionMisconceptionMap.get(questionId) ?? [];
-    current.push(text(relation.misconception_id));
-    questionMisconceptionMap.set(questionId, current);
   }
 
   for (const answer of data.answers) {
@@ -199,6 +193,13 @@ export async function getSheetQuestions(): Promise<Question[]> {
         .map((relation) => categoryMap.get(text(relation.topic_id))?.name)
         .filter((value): value is LocalizedText => Boolean(value));
       const type = normalizeQuestionType(row.question_type) ?? "short_answer";
+      const misconceptionProvenance = questionMisconceptionMap.get(
+        questionId,
+      ) ?? {
+        directQuestionMisconceptionIds: [],
+        answerDerivedMisconceptionIds: [],
+        questionMisconceptionIds: [],
+      };
       const titleFallback = text(row.source_no) || questionId;
       const title =
         text(row.title_ind) || text(row.title_en)
@@ -225,7 +226,7 @@ export async function getSheetQuestions(): Promise<Question[]> {
           promptWithCode(row.question_en, row.question_code),
         ),
         expectedConcepts: expectedConcepts.length > 0 ? expectedConcepts : [categoryMap.get(categoryId)!.name],
-        questionMisconceptionIds: [...new Set(questionMisconceptionMap.get(questionId) ?? [])],
+        ...misconceptionProvenance,
         options:
           type === "multiple_choice"
             ? buildQuestionOptions(answersByQuestion.get(questionId) ?? [], answerMisconceptionMap)
