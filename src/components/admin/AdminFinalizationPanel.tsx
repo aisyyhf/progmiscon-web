@@ -13,6 +13,7 @@ import {
   resetQuestionMisconceptionOverride,
   syncMasterRelationBaselines,
 } from "../../services/adminOverrideRepository";
+import { normalizeEffectiveIds } from "../../utils/effectiveMasterData";
 import { Button } from "../common/Button";
 import { EmptyState } from "../common/EmptyState";
 
@@ -59,6 +60,7 @@ function ConsensusCard({
   item,
   summary,
   questionType,
+  question,
   busy,
   error,
   onPublish,
@@ -67,6 +69,7 @@ function ConsensusCard({
   item: AdminReviewConsensusItem;
   summary: string;
   questionType: string;
+  question?: Question;
   busy: boolean;
   error: string;
   onPublish: () => void;
@@ -74,6 +77,20 @@ function ConsensusCard({
 }) {
   const baselineAvailable = item.baselineMisconceptionIds !== null;
   const preview = previewConsensus(item.baselineMisconceptionIds ?? [], item);
+  const answerDerivedMisconceptionIds = normalizeEffectiveIds(
+    question?.answerDerivedMisconceptionIds ?? [],
+  );
+  const effectiveQuestionPreview = normalizeEffectiveIds([
+    ...preview,
+    ...answerDerivedMisconceptionIds,
+  ]);
+  const questionTarget = item.targetType === "question";
+  const hasAnswerDerivedRemovalVotes =
+    questionTarget &&
+    Object.entries(item.removedVotes).some(
+      ([id, votes]) =>
+        votes > 0 && answerDerivedMisconceptionIds.includes(id.trim()),
+    );
   const published = item.publishedMisconceptionIds !== null;
   const ready = item.reviewCount === 3;
   const status = !baselineAvailable
@@ -107,22 +124,63 @@ function ConsensusCard({
       </div>
 
       <div className="mt-5 grid gap-5 border-t border-border pt-5 md:grid-cols-2">
-        <section>
-          <h4 className="text-xs font-bold text-navy-deep">Relasi baseline</h4>
-          <div className="mt-2">
-            {baselineAvailable ? (
-              <IdList ids={item.baselineMisconceptionIds ?? []} />
-            ) : (
-              <p className="text-sm text-incorrect">
-                Sinkronkan baseline Google Sheets sebelum publikasi.
-              </p>
-            )}
-          </div>
-        </section>
-        <section>
-          <h4 className="text-xs font-bold text-navy-deep">Preview snapshot final</h4>
-          <div className="mt-2"><IdList ids={preview} /></div>
-        </section>
+        {questionTarget ? (
+          <>
+            <section>
+              <h4 className="text-xs font-bold text-navy-deep">
+                Baseline relasi langsung soal
+              </h4>
+              <div className="mt-2">
+                {baselineAvailable ? (
+                  <IdList ids={item.baselineMisconceptionIds ?? []} />
+                ) : (
+                  <p className="text-sm text-incorrect">
+                    Sinkronkan baseline Google Sheets sebelum publikasi.
+                  </p>
+                )}
+              </div>
+            </section>
+            <section>
+              <h4 className="text-xs font-bold text-navy-deep">
+                Preview final relasi langsung soal
+              </h4>
+              <div className="mt-2"><IdList ids={preview} /></div>
+            </section>
+            <section>
+              <h4 className="text-xs font-bold text-navy-deep">
+                Miskonsepsi turunan dari jawaban
+              </h4>
+              <div className="mt-2">
+                <IdList ids={answerDerivedMisconceptionIds} />
+              </div>
+            </section>
+            <section>
+              <h4 className="text-xs font-bold text-navy-deep">
+                Preview efektif soal setelah union
+              </h4>
+              <div className="mt-2"><IdList ids={effectiveQuestionPreview} /></div>
+            </section>
+          </>
+        ) : (
+          <>
+            <section>
+              <h4 className="text-xs font-bold text-navy-deep">Relasi baseline</h4>
+              <div className="mt-2">
+                {baselineAvailable ? (
+                  <IdList ids={item.baselineMisconceptionIds ?? []} />
+                ) : (
+                  <p className="text-sm text-incorrect">
+                    Sinkronkan baseline Google Sheets sebelum publikasi.
+                  </p>
+                )}
+              </div>
+            </section>
+            <section>
+              <h4 className="text-xs font-bold text-navy-deep">Preview snapshot final</h4>
+              <div className="mt-2"><IdList ids={preview} /></div>
+            </section>
+          </>
+        )}
         <section>
           <h4 className="text-xs font-bold text-navy-deep">Usulan hapus</h4>
           <div className="mt-2"><VoteList votes={item.removedVotes} /></div>
@@ -136,12 +194,27 @@ function ConsensusCard({
       {published && (
         <section className="mt-5 border-t border-border pt-4">
           <h4 className="text-xs font-bold text-navy-deep">
-            Snapshot aktif
+            {questionTarget ? "Snapshot langsung soal aktif" : "Snapshot aktif"}
           </h4>
           <div className="mt-2">
             <IdList ids={item.publishedMisconceptionIds ?? []} />
           </div>
         </section>
+      )}
+
+      {questionTarget && (
+        <p className="mt-4 text-xs leading-5 text-muted">
+          Publikasi kartu soal hanya menyimpan snapshot relasi langsung soal.
+          Relasi turunan tetap berasal dari snapshot jawaban yang telah
+          dipublikasikan.
+        </p>
+      )}
+      {hasAnswerDerivedRemovalVotes && (
+        <p className="mt-3 rounded-md bg-neutral px-3 py-2 text-xs leading-5 text-muted">
+          Usulan hapus yang masih berasal dari jawaban tidak akan hilang dari
+          kemungkinan miskonsepsi soal sampai relasi jawaban terkait juga
+          dihapus.
+        </p>
       )}
 
       {error && (
@@ -313,6 +386,7 @@ export function AdminFinalizationPanel({
             item={item}
             summary={summary}
             questionType={questionType}
+            question={targetType === "question" ? question : undefined}
             busy={busyId === key}
             error={actionErrors[item.targetId] ?? ""}
             onPublish={() =>

@@ -5,6 +5,7 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { t } from "../../utils/translation";
 import { cn } from "../../utils/cn";
 import { matchesMisconceptionSearch, misconceptionLabel } from "../../utils/misconceptionLabel";
+import { toggleMisconceptionSelection } from "../../utils/reviewMisconceptionForm";
 import { Button } from "../common/Button";
 
 export function MisconceptionPicker({
@@ -63,11 +64,7 @@ export function MisconceptionPicker({
   }, [open]);
 
   const toggle = (misconceptionId: string) => {
-    onChange(
-      selectedIds.has(misconceptionId)
-        ? value.filter((id) => id !== misconceptionId)
-        : [...value, misconceptionId],
-    );
+    onChange(toggleMisconceptionSelection(value, misconceptionId));
   };
 
   const openPicker = () => {
@@ -272,10 +269,8 @@ export function MisconceptionPicker({
                         const selected = selectedIds.has(item.id);
                         return (
                           <li key={item.id}>
-                            <button
-                              type="button"
+                            <label
                               onClick={() => setPreviewId(item.id)}
-                              aria-current={active}
                               className={cn(
                                 "flex w-full cursor-pointer items-start gap-3 border-l-2 px-3 py-2.5 text-left text-sm leading-5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
                                 active
@@ -283,17 +278,14 @@ export function MisconceptionPicker({
                                   : "border-transparent text-muted hover:bg-bg hover:text-navy-deep",
                               )}
                             >
-                              <span
-                                className={cn(
-                                  "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border",
-                                  selected ? "border-correct bg-correct text-white" : "border-border bg-white",
-                                )}
-                                aria-hidden="true"
-                              >
-                                {selected && <Check size={11} strokeWidth={2.5} />}
-                              </span>
+                              <input
+                                type="checkbox"
+                                checked={selected}
+                                onChange={() => toggle(item.id)}
+                                className="mt-0.5 h-4 w-4 shrink-0 accent-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                              />
                               <span className="font-medium">{misconceptionLabel(item, language)}</span>
-                            </button>
+                            </label>
                           </li>
                         );
                       })}

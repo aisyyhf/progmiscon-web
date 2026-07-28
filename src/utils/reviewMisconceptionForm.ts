@@ -46,6 +46,24 @@ export function getAdditionalMisconceptionCandidates<T extends { id: string }>(
   return misconceptions.filter((item) => !existing.has(item.id.trim()));
 }
 
+export function getQuestionRemovalProposalIds(
+  effectiveMisconceptionIds: readonly string[],
+): string[] {
+  return uniqueIds([...effectiveMisconceptionIds]);
+}
+
+export function toggleMisconceptionSelection(
+  selectedIds: readonly string[],
+  misconceptionId: string,
+): string[] {
+  const normalizedId = misconceptionId.trim();
+  const normalizedSelection = uniqueIds([...selectedIds]);
+  if (!normalizedId) return normalizedSelection;
+  return normalizedSelection.includes(normalizedId)
+    ? normalizedSelection.filter((id) => id !== normalizedId)
+    : [...normalizedSelection, normalizedId];
+}
+
 function uniqueIds(ids: string[]): string[] {
   return [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
 }

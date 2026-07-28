@@ -1,5 +1,6 @@
-import type { Question } from "../types";
-import { mockCategories } from "./mockCategories";
+import type { Question, StudentAnswer } from "../types";
+import { buildMockQuestionMisconceptionProvenance } from "../utils/mockQuestionProvenance.ts";
+import { mockCategories } from "./mockCategories.ts";
 
 function concept(categoryId: string) {
   const category = mockCategories.find((item) => item.id === categoryId);
@@ -16,7 +17,12 @@ const unknownMetadata = {
   level: null,
 };
 
-export const mockQuestions: Question[] = [
+export type MockQuestionDefinition = Omit<
+  Question,
+  "answerDerivedMisconceptionIds" | "questionMisconceptionIds"
+>;
+
+export const mockQuestionDefinitions: MockQuestionDefinition[] = [
   {
     ...unknownMetadata,
     id: "q-swap",
@@ -32,7 +38,7 @@ export const mockQuestions: Question[] = [
       concept("cat-var"),
       concept("cat-trace"),
     ],
-    questionMisconceptionIds: ["mc-swap-no-temp"],
+    directQuestionMisconceptionIds: ["mc-swap-no-temp"],
   },
   {
     ...unknownMetadata,
@@ -49,7 +55,7 @@ export const mockQuestions: Question[] = [
       concept("cat-loop"),
       concept("cat-io"),
     ],
-    questionMisconceptionIds: ["mc-loop-boundary"],
+    directQuestionMisconceptionIds: ["mc-loop-boundary"],
   },
   {
     ...unknownMetadata,
@@ -66,7 +72,7 @@ export const mockQuestions: Question[] = [
       concept("cat-ifelse"),
       concept("cat-operator"),
     ],
-    questionMisconceptionIds: ["mc-condition-reversed", "mc-ifelse-missing-else"],
+    directQuestionMisconceptionIds: ["mc-condition-reversed", "mc-ifelse-missing-else"],
     options: [
       {
         id: "opt-evenodd-a",
@@ -128,7 +134,7 @@ export const mockQuestions: Question[] = [
       concept("cat-loop"),
       concept("cat-var"),
     ],
-    questionMisconceptionIds: ["mc-offbyone-array"],
+    directQuestionMisconceptionIds: ["mc-offbyone-array"],
   },
   {
     ...unknownMetadata,
@@ -145,7 +151,7 @@ export const mockQuestions: Question[] = [
       concept("cat-bool"),
       concept("cat-operator"),
     ],
-    questionMisconceptionIds: ["mc-and-or-confusion", "mc-condition-reversed"],
+    directQuestionMisconceptionIds: ["mc-and-or-confusion", "mc-condition-reversed"],
     options: [
       {
         id: "opt-boolrange-a",
@@ -193,7 +199,7 @@ export const mockQuestions: Question[] = [
     expectedConcepts: [
       concept("cat-func"),
     ],
-    questionMisconceptionIds: ["mc-function-no-return"],
+    directQuestionMisconceptionIds: ["mc-function-no-return"],
   },
   {
     ...unknownMetadata,
@@ -210,7 +216,7 @@ export const mockQuestions: Question[] = [
       concept("cat-io"),
       concept("cat-operator"),
     ],
-    questionMisconceptionIds: ["mc-io-order"],
+    directQuestionMisconceptionIds: ["mc-io-order"],
   },
   {
     ...unknownMetadata,
@@ -228,7 +234,7 @@ export const mockQuestions: Question[] = [
       concept("cat-loop"),
       concept("cat-var"),
     ],
-    questionMisconceptionIds: ["mc-trace-state-loss", "mc-loop-boundary"],
+    directQuestionMisconceptionIds: ["mc-trace-state-loss", "mc-loop-boundary"],
     options: [
       {
         id: "opt-tracex-a",
@@ -278,7 +284,7 @@ export const mockQuestions: Question[] = [
       concept("cat-operator"),
       concept("cat-io"),
     ],
-    questionMisconceptionIds: ["mc-loop-boundary", "mc-missing-increment"],
+    directQuestionMisconceptionIds: ["mc-loop-boundary", "mc-missing-increment"],
   },
   {
     ...unknownMetadata,
@@ -295,7 +301,7 @@ export const mockQuestions: Question[] = [
       concept("cat-loop"),
       concept("cat-io"),
     ],
-    questionMisconceptionIds: ["mc-wrong-init", "mc-loop-boundary"],
+    directQuestionMisconceptionIds: ["mc-wrong-init", "mc-loop-boundary"],
     options: [
       {
         id: "opt-printn-a",
@@ -345,7 +351,7 @@ export const mockQuestions: Question[] = [
       concept("cat-bool"),
       concept("cat-operator"),
     ],
-    questionMisconceptionIds: ["mc-ifelse-missing-else", "mc-condition-reversed"],
+    directQuestionMisconceptionIds: ["mc-ifelse-missing-else", "mc-condition-reversed"],
   },
   {
     ...unknownMetadata,
@@ -362,6 +368,18 @@ export const mockQuestions: Question[] = [
       concept("cat-var"),
       concept("cat-operator"),
     ],
-    questionMisconceptionIds: [],
+    directQuestionMisconceptionIds: [],
   },
 ];
+
+export function buildMockQuestions(
+  answers: readonly Pick<
+    StudentAnswer,
+    "questionId" | "studentMisconceptionIds"
+  >[],
+): Question[] {
+  return mockQuestionDefinitions.map((question) => ({
+    ...question,
+    ...buildMockQuestionMisconceptionProvenance(question, answers),
+  }));
+}

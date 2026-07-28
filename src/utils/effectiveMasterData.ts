@@ -4,6 +4,8 @@ import type {
   QuestionMisconceptionRow,
 } from "../types/masterData";
 import type { PublishedMasterOverrides } from "../types/effectiveOverrides";
+import type { QuestionMisconceptionProvenance } from "../types/question";
+import { isActiveValue } from "./masterDataValidation.ts";
 
 export function normalizeEffectiveIds(ids: readonly string[]): string[] {
   return [...new Set(ids.map((id) => id.trim()).filter(Boolean))].sort(
@@ -36,8 +38,65 @@ export function buildConsensusSnapshot(
   ]);
 }
 
-const isActive = (value: string): boolean =>
-  ["1", "true", "yes", "active"].includes(value.trim().toLowerCase());
+export function buildEffectiveQuestionMisconceptionMap(
+  data: Pick<
+    MasterData,
+    "questions" | "answers" | "questionMisconceptions" | "answerMisconceptions"
+  >,
+): Map<string, QuestionMisconceptionProvenance> {
+  const directByQuestion = new Map<string, string[]>();
+  const derivedByQuestion = new Map<string, string[]>();
+  const questionIdByAnswerId = new Map(
+    data.answers
+      .filter((row) => isActiveValue(row.active))
+      .map((row) => [row.answer_id.trim(), row.question_id.trim()]),
+  );
+
+  for (const relation of data.questionMisconceptions) {
+    if (!isActiveValue(relation.active)) continue;
+    const questionId = relation.question_id.trim();
+    const current = directByQuestion.get(questionId) ?? [];
+    current.push(relation.misconception_id);
+    directByQuestion.set(questionId, current);
+  }
+
+  for (const relation of data.answerMisconceptions) {
+    if (!isActiveValue(relation.active)) continue;
+    const questionId = questionIdByAnswerId.get(relation.answer_id.trim());
+    if (!questionId) continue;
+    const current = derivedByQuestion.get(questionId) ?? [];
+    current.push(relation.misconception_id);
+    derivedByQuestion.set(questionId, current);
+  }
+
+  const questionIds = new Set([
+    ...data.questions.map((row) => row.question_id.trim()).filter(Boolean),
+    ...directByQuestion.keys(),
+    ...derivedByQuestion.keys(),
+  ]);
+
+  return new Map(
+    [...questionIds].map((questionId) => {
+      const directQuestionMisconceptionIds = normalizeEffectiveIds(
+        directByQuestion.get(questionId) ?? [],
+      );
+      const answerDerivedMisconceptionIds = normalizeEffectiveIds(
+        derivedByQuestion.get(questionId) ?? [],
+      );
+      return [
+        questionId,
+        {
+          directQuestionMisconceptionIds,
+          answerDerivedMisconceptionIds,
+          questionMisconceptionIds: normalizeEffectiveIds([
+            ...directQuestionMisconceptionIds,
+            ...answerDerivedMisconceptionIds,
+          ]),
+        },
+      ];
+    }),
+  );
+}
 
 export function buildMisconceptionQuestionBackReferences(
   data: Pick<
@@ -50,12 +109,12 @@ export function buildMisconceptionQuestionBackReferences(
 ): Map<string, string[]> {
   const activeQuestionIds = new Set(
     data.questions
-      .filter((row) => isActive(row.active))
+      .filter((row) => isActiveValue(row.active))
       .map((row) => row.question_id.trim()),
   );
   const questionIdByAnswerId = new Map(
     data.answers
-      .filter((row) => isActive(row.active))
+      .filter((row) => isActiveValue(row.active))
       .map((row) => [row.answer_id.trim(), row.question_id.trim()]),
   );
   const references = new Map<string, Set<string>>();
@@ -67,12 +126,12 @@ export function buildMisconceptionQuestionBackReferences(
   };
 
   for (const relation of data.questionMisconceptions) {
-    if (isActive(relation.active)) {
+    if (isActiveValue(relation.active)) {
       add(relation.misconception_id.trim(), relation.question_id.trim());
     }
   }
   for (const relation of data.answerMisconceptions) {
-    if (isActive(relation.active)) {
+    if (isActiveValue(relation.active)) {
       add(
         relation.misconception_id.trim(),
         questionIdByAnswerId.get(relation.answer_id.trim()) ?? "",

@@ -1,6 +1,6 @@
 import type { AnswerCheck, LocalizedText, StudentAnswer } from "../types";
-import { mockStudents } from "./mockStudents";
-import { mockQuestions } from "./mockQuestions";
+import { mockStudents } from "./mockStudents.ts";
+import { mockQuestionDefinitions } from "./mockQuestions.ts";
 
 type Pattern = {
   status: StudentAnswer["status"];
@@ -22,7 +22,8 @@ function checks(output: boolean, logic: boolean, pseudocode: boolean, concept: b
 }
 
 const conceptsOf = (questionId: string): LocalizedText[] =>
-  mockQuestions.find((q) => q.id === questionId)?.expectedConcepts ?? [];
+  mockQuestionDefinitions.find((q) => q.id === questionId)?.expectedConcepts ??
+  [];
 
 function buildAnswers(questionId: string, patterns: Pattern[]): StudentAnswer[] {
   return mockStudents.map((student, i) => {

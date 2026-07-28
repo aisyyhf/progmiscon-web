@@ -220,10 +220,10 @@ const aggregateFunction = repository.match(
   /export async function getQuestionReviewCounts\(\)[\s\S]*?(?=\nexport async function)/,
 )?.[0];
 const personalProgressLoader = page.match(
-  /const loadPersonalProgress = async \(\) => \{[\s\S]*?(?=\n    const loadQuestionCounts)/,
+  /const loadPersonalProgress = async \(\) => \{[\s\S]*?(?=\r?\n\s*const loadQuestionCounts)/,
 )?.[0];
 const questionCountsLoader = page.match(
-  /const loadQuestionCounts = async \(\) => \{[\s\S]*?(?=\n\n    void loadPersonalProgress)/,
+  /const loadQuestionCounts = async \(\) => \{[\s\S]*?(?=\r?\n\s*const loadAnswerCounts)/,
 )?.[0];
 const pageLoadingExpression = page.match(
   /const loading =([\s\S]*?);/,

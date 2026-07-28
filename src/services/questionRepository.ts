@@ -1,8 +1,11 @@
 import type { Question } from "../types";
-import { mockQuestions } from "../data/mockQuestions";
+import { buildMockQuestions } from "../data/mockQuestions";
+import { mockStudentAnswers } from "../data/mockStudentAnswers";
 import { usesGoogleSheets } from "../config/masterDataConfig";
 import { getMasterData, getSheetQuestions } from "./masterDataRepository";
 import { filterQuestionsByTopicRelations } from "../utils/filters";
+
+const mockQuestions = buildMockQuestions(mockStudentAnswers);
 
 export async function getQuestions(): Promise<Question[]> {
   return usesGoogleSheets() ? getSheetQuestions() : mockQuestions;
