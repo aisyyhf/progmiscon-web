@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { LockKeyhole } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
 import { MisconceptionPicker } from "../components/review/MisconceptionPicker";
+import { ReviewQuestionFilters } from "../components/review/ReviewQuestionFilters";
+import { useCategories } from "../hooks/useCategories";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLecturerAuth } from "../hooks/useLecturerAuth";
 import { useQuestions } from "../hooks/useQuestions";
@@ -25,6 +28,7 @@ import { prioritizeMisconceptions, sortReviewTasks } from "../utils/reviewPriori
 import { t } from "../utils/translation";
 import { misconceptionLabel } from "../utils/misconceptionLabel";
 import {
+  getQuestionReviewCounts,
   getReviewProgress as getSavedReviewProgress,
   saveAnswerReview,
   saveQuestionReview,
@@ -53,6 +57,21 @@ import {
   setActiveReviewItemId,
   type ReviewSessionState,
 } from "../utils/reviewLinking";
+import {
+  DEFAULT_REVIEW_QUESTION_FILTERS,
+  QUESTION_REVIEWED_THRESHOLD,
+  REVIEW_FILTER_ALL,
+  filterReviewQuestions,
+  getQuestionReviewStatus,
+  type ReviewQuestionFilters as ReviewQuestionFilterValues,
+} from "../utils/reviewQuestionFilters";
+import {
+  REVIEW_QUESTION_FILTER_SESSION_KEY,
+  createDefaultReviewQuestionFilterSession,
+  parseReviewQuestionFilterSession,
+  serializeReviewQuestionFilterSession,
+  type ReviewQuestionFilterSessionState,
+} from "../utils/reviewQuestionFilterSession";
 
 function PresenceToggle({
   value,
@@ -108,6 +127,7 @@ function WorkspaceToolbar({
   itemTotal,
   language,
   parentQuestion,
+  questionReviewCount,
   onPrevious,
   onNext,
 }: {
@@ -120,10 +140,29 @@ function WorkspaceToolbar({
   itemTotal: number;
   language: Language;
   parentQuestion?: Question;
+  questionReviewCount?: number;
   onPrevious: () => void;
   onNext: () => void;
 }) {
   const answerWorkspace = workspace.startsWith("answer");
+  const questionReviewStatus =
+    questionReviewCount === undefined
+      ? undefined
+      : getQuestionReviewStatus(questionReviewCount);
+  const questionReviewStatusLabel =
+    questionReviewStatus === "reviewed"
+      ? language === "id"
+        ? `Selesai direview: ${QUESTION_REVIEWED_THRESHOLD} reviewer atau lebih`
+        : `Reviewed: ${QUESTION_REVIEWED_THRESHOLD} or more reviewers`
+      : questionReviewStatus === "under_review"
+        ? language === "id"
+          ? `Sedang direview: ${questionReviewCount}/${QUESTION_REVIEWED_THRESHOLD} reviewer`
+          : `Under review: ${questionReviewCount}/${QUESTION_REVIEWED_THRESHOLD} reviewers`
+        : questionReviewStatus === "unreviewed"
+          ? language === "id"
+            ? `Belum direview: 0/${QUESTION_REVIEWED_THRESHOLD} reviewer`
+            : `Not reviewed: 0/${QUESTION_REVIEWED_THRESHOLD} reviewers`
+          : undefined;
   const parentReference = parentQuestion
     ? /^q/i.test(parentQuestion.number)
       ? parentQuestion.number
@@ -140,6 +179,20 @@ function WorkspaceToolbar({
               ? `${reviewed} dari ${total} telah direview`
               : `${reviewed} of ${total} reviewed`}
           </p>
+          {questionReviewStatusLabel && (
+            <span
+              className={cn(
+                "mt-2 inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold",
+                questionReviewStatus === "reviewed"
+                  ? "border-correct-border bg-correct-bg text-correct"
+                  : questionReviewStatus === "under_review"
+                    ? "border-warning-border bg-warning-bg text-warning"
+                    : "border-border bg-neutral text-muted",
+              )}
+            >
+              {questionReviewStatusLabel}
+            </span>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -216,9 +269,25 @@ function readStoredReviewSession(): ReviewSessionState {
   }
 }
 
+function readStoredQuestionFilters(): ReviewQuestionFilterSessionState {
+  if (typeof window === "undefined") {
+    return createDefaultReviewQuestionFilterSession();
+  }
+
+  try {
+    return parseReviewQuestionFilterSession(
+      window.sessionStorage.getItem(REVIEW_QUESTION_FILTER_SESSION_KEY),
+    );
+  } catch {
+    return createDefaultReviewQuestionFilterSession();
+  }
+}
+
 export function LecturerReviewPage() {
   const { language } = useLanguage();
   const { user } = useLecturerAuth();
+  const navigate = useNavigate();
+  const { categories, loading: categoriesLoading } = useCategories();
   const { questions, loading: questionsLoading } = useQuestions();
   const { answers, loading: answersLoading } = useAllStudentAnswers();
   const { misconceptions, loading: misconceptionsLoading } = useMisconceptions();
@@ -228,30 +297,60 @@ export function LecturerReviewPage() {
   );
   const [reviewedQuestionIds, setReviewedQuestionIds] = useState<string[]>([]);
   const [reviewedAnswerIds, setReviewedAnswerIds] = useState<string[]>([]);
+  const [questionReviewCounts, setQuestionReviewCounts] = useState<
+    Map<string, number>
+  >(new Map());
+  const [questionFilters, setQuestionFilters] =
+    useState<ReviewQuestionFilterSessionState>(readStoredQuestionFilters);
   const [progressLoading, setProgressLoading] = useState(true);
   const [progressError, setProgressError] = useState("");
+  const [progressLoaded, setProgressLoaded] = useState(false);
+  const [questionCountsLoading, setQuestionCountsLoading] = useState(true);
+  const [questionCountsError, setQuestionCountsError] = useState("");
+  const [questionCountsLoaded, setQuestionCountsLoaded] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      window.sessionStorage.setItem(
+        REVIEW_QUESTION_FILTER_SESSION_KEY,
+        serializeReviewQuestionFilterSession(questionFilters),
+      );
+    } catch {
+      // sessionStorage can be unavailable in restricted browser contexts.
+    }
+  }, [questionFilters]);
 
   useEffect(() => {
     let active = true;
 
-    const loadProgress = async () => {
-      if (!user) {
-        if (active) {
-          setReviewedQuestionIds([]);
-          setReviewedAnswerIds([]);
-          setProgressLoading(false);
-        }
-        return;
-      }
+    if (!user) {
+      setReviewedQuestionIds([]);
+      setReviewedAnswerIds([]);
+      setQuestionReviewCounts(new Map());
+      setProgressLoading(false);
+      setProgressError("");
+      setProgressLoaded(false);
+      setQuestionCountsLoading(false);
+      setQuestionCountsError("");
+      setQuestionCountsLoaded(false);
+      return () => {
+        active = false;
+      };
+    }
 
+    const loadPersonalProgress = async () => {
       setProgressLoading(true);
       setProgressError("");
+      setProgressLoaded(false);
 
       try {
         const progress = await getSavedReviewProgress();
         if (!active) return;
         setReviewedQuestionIds(progress.questionIds);
         setReviewedAnswerIds(progress.answerIds);
+        setProgressLoaded(true);
       } catch (error) {
         if (!active) return;
         console.error("[Progmiscon] Progres review gagal dimuat", error);
@@ -265,7 +364,40 @@ export function LecturerReviewPage() {
       }
     };
 
-    void loadProgress();
+    const loadQuestionCounts = async () => {
+      setQuestionCountsLoading(true);
+      setQuestionCountsError("");
+      setQuestionCountsLoaded(false);
+      setQuestionReviewCounts(new Map());
+
+      try {
+        const globalCounts = await getQuestionReviewCounts();
+        if (!active) return;
+        setQuestionReviewCounts(
+          new Map(
+            globalCounts.map(({ questionId, reviewCount }) => [
+              questionId,
+              reviewCount,
+            ]),
+          ),
+        );
+        setQuestionCountsLoaded(true);
+      } catch (error) {
+        if (!active) return;
+        console.error(
+          "[Progmiscon] Status agregat review soal gagal dimuat",
+          error,
+        );
+        setQuestionCountsError(
+          "Status agregat review belum dapat dimuat.",
+        );
+      } finally {
+        if (active) setQuestionCountsLoading(false);
+      }
+    };
+
+    void loadPersonalProgress();
+    void loadQuestionCounts();
 
     return () => {
       active = false;
@@ -276,7 +408,7 @@ export function LecturerReviewPage() {
     () => classifyReviewItems(questions, answers),
     [answers, questions],
   );
-  const workspaceItems = useMemo(
+  const allWorkspaceItems = useMemo(
     () => ({
       "question-ps": classifiedItems["question-ps"],
       "answer-ps": orderAnswersByTaskPriority(
@@ -291,6 +423,34 @@ export function LecturerReviewPage() {
     }),
     [answerTasks, classifiedItems],
   );
+  const effectiveQuestionFilters = useMemo<ReviewQuestionFilterSessionState>(
+    () => ({
+      ps: questionCountsLoaded
+        ? questionFilters.ps
+        : { ...questionFilters.ps, status: REVIEW_FILTER_ALL },
+      mp: questionCountsLoaded
+        ? questionFilters.mp
+        : { ...questionFilters.mp, status: REVIEW_FILTER_ALL },
+    }),
+    [questionCountsLoaded, questionFilters],
+  );
+  const navigableWorkspaceItems = useMemo(
+    () => ({
+      "question-ps": filterReviewQuestions(
+        allWorkspaceItems["question-ps"],
+        questionReviewCounts,
+        effectiveQuestionFilters.ps,
+      ),
+      "answer-ps": allWorkspaceItems["answer-ps"],
+      "question-mp": filterReviewQuestions(
+        allWorkspaceItems["question-mp"],
+        questionReviewCounts,
+        effectiveQuestionFilters.mp,
+      ),
+      "answer-mp": allWorkspaceItems["answer-mp"],
+    }),
+    [allWorkspaceItems, effectiveQuestionFilters, questionReviewCounts],
+  );
   const answerTaskById = useMemo(
     () => new Map(answerTasks.map((task) => [task.answerCaseId, task])),
     [answerTasks],
@@ -299,7 +459,7 @@ export function LecturerReviewPage() {
     () =>
       normalizeReviewSessionState(
         reviewSession,
-        workspaceItems,
+        navigableWorkspaceItems,
         questionById,
         reviewedQuestionIds,
         reviewedAnswerIds,
@@ -309,7 +469,7 @@ export function LecturerReviewPage() {
       reviewSession,
       reviewedAnswerIds,
       reviewedQuestionIds,
-      workspaceItems,
+      navigableWorkspaceItems,
     ],
   );
 
@@ -344,19 +504,19 @@ export function LecturerReviewPage() {
     normalizedReviewSession;
   const workspaceProgress = {
     "question-ps": getReviewProgress(
-      workspaceItems["question-ps"],
+      allWorkspaceItems["question-ps"],
       reviewedQuestionIds,
     ),
     "answer-ps": getReviewProgress(
-      workspaceItems["answer-ps"],
+      allWorkspaceItems["answer-ps"],
       reviewedAnswerIds,
     ),
     "question-mp": getReviewProgress(
-      workspaceItems["question-mp"],
+      allWorkspaceItems["question-mp"],
       reviewedQuestionIds,
     ),
     "answer-mp": getReviewProgress(
-      workspaceItems["answer-mp"],
+      allWorkspaceItems["answer-mp"],
       reviewedAnswerIds,
     ),
   };
@@ -370,9 +530,9 @@ export function LecturerReviewPage() {
     workspace.startsWith("answer") && activeParentQuestion
       ? getAnswersForQuestion(
           activeParentQuestion.id,
-          workspaceItems[workspace] as StudentAnswer[],
+          navigableWorkspaceItems[workspace] as StudentAnswer[],
         )
-      : workspaceItems[workspace];
+      : navigableWorkspaceItems[workspace];
   const activeReviewedIds = workspace.startsWith("question")
     ? reviewedQuestionIds
     : reviewedAnswerIds;
@@ -392,6 +552,19 @@ export function LecturerReviewPage() {
     workspace === "answer-ps" || workspace === "answer-mp"
       ? (activeItems[activeIndex] as StudentAnswer | undefined)
       : undefined;
+  const activeQuestionReviewedByMe = activeQuestion
+    ? reviewedQuestionIds.includes(activeQuestion.id)
+    : false;
+  const activeQuestionGloballyComplete = activeQuestion
+    ? questionCountsLoaded &&
+      (questionReviewCounts.get(activeQuestion.id) ?? 0) >=
+        QUESTION_REVIEWED_THRESHOLD
+    : false;
+  const activeQuestionLocked =
+    activeQuestionReviewedByMe || activeQuestionGloballyComplete;
+  const activeAnswerReviewedByMe = activeAnswer
+    ? reviewedAnswerIds.includes(activeAnswer.id)
+    : false;
   const answerQuestion = activeAnswer
     ? activeParentQuestion?.id === activeAnswer.questionId
       ? activeParentQuestion
@@ -407,7 +580,7 @@ export function LecturerReviewPage() {
   const hasLinkedAnswers = activeContextQuestionId
     ? getAnswersForQuestion(
         activeContextQuestionId,
-        workspaceItems[activeAnswerWorkspace],
+        allWorkspaceItems[activeAnswerWorkspace],
       ).length > 0
     : false;
   const workspaceAvailability = getReviewWorkspaceAvailability(
@@ -472,14 +645,16 @@ export function LecturerReviewPage() {
         itemId
           ? selectLinkedAnswerId(
               itemId,
-              workspaceItems[getPairedWorkspace(nextWorkspace)] as StudentAnswer[],
+              allWorkspaceItems[
+                getPairedWorkspace(nextWorkspace)
+              ] as StudentAnswer[],
               reviewedAnswerIds,
             )
           : undefined,
       );
     } else {
       const selectedAnswer = (
-        workspaceItems[nextWorkspace] as StudentAnswer[]
+        allWorkspaceItems[nextWorkspace] as StudentAnswer[]
       ).find(
         (answer) => answer.id === itemId,
       );
@@ -504,7 +679,7 @@ export function LecturerReviewPage() {
       return;
     }
 
-    const nextItems = workspaceItems[nextWorkspace];
+    const nextItems = navigableWorkspaceItems[nextWorkspace];
     const reviewedIds = nextWorkspace.startsWith("question")
       ? reviewedQuestionIds
       : reviewedAnswerIds;
@@ -564,6 +739,15 @@ export function LecturerReviewPage() {
     );
   };
   const progress = workspaceProgress[workspace];
+  const questionWorkspace =
+    workspace === "question-ps" || workspace === "question-mp";
+  const allActiveQuestionItems = questionWorkspace
+    ? allWorkspaceItems[workspace]
+    : [];
+  const noFilteredQuestions =
+    questionWorkspace &&
+    allActiveQuestionItems.length > 0 &&
+    activeItems.length === 0;
   const hasActiveItem =
     activeIndex >= 0 &&
     (activeQuestion !== undefined ||
@@ -571,9 +755,19 @@ export function LecturerReviewPage() {
   const loading =
     questionsLoading ||
     answersLoading ||
+    categoriesLoading ||
     misconceptionsLoading ||
     reviewTasksLoading ||
     progressLoading;
+  const setActiveQuestionFilters = (
+    filters: ReviewQuestionFilterValues,
+  ) => {
+    setQuestionFilters((current) => ({
+      ...current,
+      [activeParentKind]: filters,
+    }));
+  };
+  const viewMyReviewHistory = () => navigate("/review/riwayat");
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -592,6 +786,15 @@ export function LecturerReviewPage() {
           className="mb-5 rounded-md border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect"
         >
           {progressError}
+        </p>
+      )}
+
+      {questionCountsError && (
+        <p
+          role="alert"
+          className="mb-5 rounded-md border border-warning-border bg-warning-bg px-4 py-3 text-sm text-warning"
+        >
+          {questionCountsError}
         </p>
       )}
 
@@ -677,6 +880,20 @@ export function LecturerReviewPage() {
         role="tabpanel"
         aria-label={activeTab.label}
       >
+        {questionWorkspace && !loading && (
+          <ReviewQuestionFilters
+            questions={allActiveQuestionItems as Question[]}
+            categories={categories}
+            misconceptions={misconceptions}
+            filters={questionFilters[activeParentKind]}
+            resultCount={activeItems.length}
+            statusAvailable={questionCountsLoaded}
+            statusLoading={questionCountsLoading}
+            statusError={questionCountsError}
+            onChange={setActiveQuestionFilters}
+          />
+        )}
+
         {loading ? (
           <EmptyState
             loading
@@ -686,6 +903,25 @@ export function LecturerReviewPage() {
                 : "Loading validation tasks..."
             }
           />
+        ) : noFilteredQuestions ? (
+          <div className="academic-panel-quiet flex flex-col items-center justify-center gap-4 px-6 py-10 text-center">
+            <p className="max-w-sm text-sm leading-6 text-muted">
+              {language === "id"
+                ? "Tidak ada soal yang cocok dengan filter aktif."
+                : "No questions match the active filters."}
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() =>
+                setActiveQuestionFilters({
+                  ...DEFAULT_REVIEW_QUESTION_FILTERS,
+                })
+              }
+            >
+              {language === "id" ? "Reset filter" : "Reset filters"}
+            </Button>
+          </div>
         ) : hasActiveItem ? (
           <>
             <WorkspaceToolbar
@@ -698,6 +934,11 @@ export function LecturerReviewPage() {
               itemTotal={activeItems.length}
               language={language}
               parentQuestion={answerQuestion}
+              questionReviewCount={
+                activeQuestion && questionCountsLoaded
+                  ? (questionReviewCounts.get(activeQuestion.id) ?? 0)
+                  : undefined
+              }
               onPrevious={() => selectOffset(-1)}
               onNext={() => selectOffset(1)}
             />
@@ -707,7 +948,7 @@ export function LecturerReviewPage() {
                 key={activeQuestion.id}
                 question={activeQuestion}
                 answers={
-                  workspaceItems[
+                  allWorkspaceItems[
                     activeQuestion.type === "multiple_choice"
                       ? "answer-mp"
                       : "answer-ps"
@@ -716,6 +957,11 @@ export function LecturerReviewPage() {
                 reviewedAnswerIds={reviewedAnswerIds}
                 answerTaskById={answerTaskById}
                 misconceptions={misconceptions}
+                locked={activeQuestionLocked}
+                progressUnavailable={!progressLoaded}
+                reviewedByMe={activeQuestionReviewedByMe}
+                globallyComplete={activeQuestionGloballyComplete}
+                onViewHistory={viewMyReviewHistory}
                 onReviewAnswer={(answerId) =>
                   openWorkspaceItem(
                     activeQuestion.type === "multiple_choice"
@@ -726,21 +972,39 @@ export function LecturerReviewPage() {
                   )
                 }
                 onSubmit={async (values) => {
+                  if (!progressLoaded || activeQuestionLocked) return;
                   if (!user) throw new Error("Sesi dosen tidak ditemukan.");
+                  const alreadyReviewed = reviewedQuestionIds.includes(
+                    activeQuestion.id,
+                  );
                   await saveQuestionReview(user.id, activeQuestion.id, values);
                   setReviewedQuestionIds((current) =>
                     current.includes(activeQuestion.id)
                       ? current
                       : [...current, activeQuestion.id],
                   );
+                  if (
+                    !alreadyReviewed &&
+                    progressLoaded &&
+                    questionCountsLoaded
+                  ) {
+                    setQuestionReviewCounts((current) => {
+                      const next = new Map(current);
+                      next.set(
+                        activeQuestion.id,
+                        (next.get(activeQuestion.id) ?? 0) + 1,
+                      );
+                      return next;
+                    });
+                  }
                   const target = selectAfterQuestionReview(
                     activeQuestion,
-                    workspaceItems[
+                    navigableWorkspaceItems[
                       activeQuestion.type === "multiple_choice"
                         ? "question-mp"
                         : "question-ps"
                     ],
-                    workspaceItems[
+                    allWorkspaceItems[
                       activeQuestion.type === "multiple_choice"
                         ? "answer-mp"
                         : "answer-ps"
@@ -762,6 +1026,9 @@ export function LecturerReviewPage() {
                 question={answerQuestion}
                 answer={activeAnswer}
                 misconceptions={misconceptions}
+                locked={activeAnswerReviewedByMe}
+                progressUnavailable={!progressLoaded}
+                onViewHistory={viewMyReviewHistory}
                 onBackToQuestion={() =>
                   openWorkspaceItem(
                     answerQuestion.type === "multiple_choice"
@@ -771,6 +1038,7 @@ export function LecturerReviewPage() {
                   )
                 }
                 onSubmit={async (values) => {
+                  if (!progressLoaded || activeAnswerReviewedByMe) return;
                   if (!user) throw new Error("Sesi dosen tidak ditemukan.");
                   await saveAnswerReview(
                     user.id,
@@ -786,12 +1054,12 @@ export function LecturerReviewPage() {
                   const target = selectAfterAnswerReview(
                     answerQuestion,
                     activeAnswer.id,
-                    workspaceItems[
+                    navigableWorkspaceItems[
                       answerQuestion.type === "multiple_choice"
                         ? "question-mp"
                         : "question-ps"
                     ],
-                    workspaceItems[
+                    allWorkspaceItems[
                       answerQuestion.type === "multiple_choice"
                         ? "answer-mp"
                         : "answer-ps"
@@ -816,12 +1084,104 @@ export function LecturerReviewPage() {
   );
 }
 
+function ReviewProgressUnavailableNotice() {
+  const { language } = useLanguage();
+
+  return (
+    <div
+      role="alert"
+      className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect"
+    >
+      <p className="font-semibold leading-6">
+        {language === "id"
+          ? "Status review Anda belum dapat dimuat. Muat ulang halaman sebelum melanjutkan review."
+          : "Your review status could not be loaded. Reload the page before continuing the review."}
+      </p>
+      <Button
+        type="button"
+        variant="secondary"
+        onClick={() => window.location.reload()}
+        className="mt-3"
+      >
+        {language === "id" ? "Muat ulang" : "Reload"}
+      </Button>
+    </div>
+  );
+}
+
+function ReviewLockNotice({
+  kind,
+  reviewedByMe,
+  globallyComplete = false,
+  onViewHistory,
+}: {
+  kind: "question" | "answer";
+  reviewedByMe: boolean;
+  globallyComplete?: boolean;
+  onViewHistory: () => void;
+}) {
+  const { language } = useLanguage();
+  const personalMessage =
+    kind === "question"
+      ? language === "id"
+        ? ["Anda sudah mereview soal ini.", "Review tidak dapat dikirim ulang."]
+        : [
+            "You have already reviewed this question.",
+            "The review cannot be resubmitted.",
+          ]
+      : language === "id"
+        ? [
+            "Anda sudah mereview jawaban ini.",
+            "Review tidak dapat dikirim ulang.",
+          ]
+        : [
+            "You have already reviewed this answer.",
+            "The review cannot be resubmitted.",
+          ];
+
+  if (!reviewedByMe && !globallyComplete) return null;
+
+  return (
+    <div
+      role="status"
+      className="mt-5 rounded-md border border-warning-border bg-warning-bg px-4 py-3 text-sm text-warning"
+    >
+      <p className="font-semibold leading-6">
+        {reviewedByMe
+          ? personalMessage.map((sentence) => (
+              <span key={sentence} className="block">
+                {sentence}
+              </span>
+            ))
+          : language === "id"
+            ? `Review soal ini telah selesai oleh ${QUESTION_REVIEWED_THRESHOLD} reviewer.`
+            : `This question review has been completed by ${QUESTION_REVIEWED_THRESHOLD} reviewers.`}
+      </p>
+      {reviewedByMe && (
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={onViewHistory}
+          className="mt-3"
+        >
+          {language === "id" ? "Lihat review saya" : "View my review"}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function QuestionValidationWorkspace({
   question,
   answers,
   reviewedAnswerIds,
   answerTaskById,
   misconceptions,
+  locked,
+  progressUnavailable,
+  reviewedByMe,
+  globallyComplete,
+  onViewHistory,
   onReviewAnswer,
   onSubmit,
 }: {
@@ -830,6 +1190,11 @@ function QuestionValidationWorkspace({
   reviewedAnswerIds: string[];
   answerTaskById: Map<string, ReviewTask>;
   misconceptions: Misconception[];
+  locked: boolean;
+  progressUnavailable: boolean;
+  reviewedByMe: boolean;
+  globallyComplete: boolean;
+  onViewHistory: () => void;
   onReviewAnswer: (answerId: string) => void;
   onSubmit: (values: QuestionReviewValues) => Promise<void>;
 }) {
@@ -856,7 +1221,9 @@ function QuestionValidationWorkspace({
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const formUnavailable = locked || progressUnavailable;
   const canSubmit =
+    !formUnavailable &&
     hasIncorrectMisconceptions !== null &&
     hasAdditionalMisconceptions !== null &&
     (!hasIncorrectMisconceptions || (removedMisconceptionIds.length > 0 && removalReason.trim().length > 0)) &&
@@ -864,6 +1231,7 @@ function QuestionValidationWorkspace({
 
   const handleSubmit = async () => {
     if (
+      formUnavailable ||
       !canSubmit ||
       submitting ||
       hasIncorrectMisconceptions === null ||
@@ -1144,7 +1512,30 @@ function QuestionValidationWorkspace({
               : "Review the possible misconceptions listed for this question."}
           </p>
 
-          <div className="mt-6 space-y-6">
+          {progressUnavailable ? (
+            <ReviewProgressUnavailableNotice />
+          ) : (
+            <ReviewLockNotice
+              kind="question"
+              reviewedByMe={reviewedByMe}
+              globallyComplete={globallyComplete}
+              onViewHistory={onViewHistory}
+            />
+          )}
+
+          <fieldset
+            disabled={formUnavailable}
+            aria-disabled={formUnavailable}
+            className={cn(
+              "mt-6 space-y-6",
+              formUnavailable && "opacity-65",
+            )}
+          >
+            <legend className="sr-only">
+              {language === "id"
+                ? "Isian validasi soal"
+                : "Question validation fields"}
+            </legend>
             <section aria-labelledby="remove-misconception-question">
               <div className="flex items-start gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand-soft text-xs font-bold text-brand" aria-hidden="true">
@@ -1285,9 +1676,9 @@ function QuestionValidationWorkspace({
                 </div>
               </div>
             </section>
-          </div>
+          </fieldset>
 
-          {submitError && (
+          {!formUnavailable && submitError && (
             <p
               role="alert"
               className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2.5 text-xs leading-5 text-incorrect"
@@ -1296,7 +1687,7 @@ function QuestionValidationWorkspace({
             </p>
           )}
 
-          {!canSubmit && (
+          {!formUnavailable && !canSubmit && (
             <p id="question-validation-help" className="mt-5 text-xs leading-5 text-muted">
               {language === "id"
                 ? "Jawab kedua pertanyaan dan lengkapi pilihan serta alasan jika memilih Ada."
@@ -1304,21 +1695,25 @@ function QuestionValidationWorkspace({
             </p>
           )}
 
-          <Button
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={!canSubmit || submitting}
-            aria-describedby={!canSubmit ? "question-validation-help" : undefined}
-            className="mt-4 w-full justify-center"
-          >
-            {submitting
-              ? language === "id"
-                ? "Menyimpan..."
-                : "Saving..."
-              : language === "id"
-                ? "Simpan & lanjut"
-                : "Save & continue"}
-          </Button>
+          {!formUnavailable && (
+            <Button
+              variant="primary"
+              onClick={handleSubmit}
+              disabled={!canSubmit || submitting}
+              aria-describedby={
+                !canSubmit ? "question-validation-help" : undefined
+              }
+              className="mt-4 w-full justify-center"
+            >
+              {submitting
+                ? language === "id"
+                  ? "Menyimpan..."
+                  : "Saving..."
+                : language === "id"
+                  ? "Simpan & lanjut"
+                  : "Save & continue"}
+            </Button>
+          )}
         </aside>
       </div>
     </div>
@@ -1330,6 +1725,9 @@ function AnswerValidationWorkspace({
   question,
   answer,
   misconceptions,
+  locked,
+  progressUnavailable,
+  onViewHistory,
   onBackToQuestion,
   onSubmit,
 }: {
@@ -1337,6 +1735,9 @@ function AnswerValidationWorkspace({
   question: Question;
   answer: StudentAnswer;
   misconceptions: Misconception[];
+  locked: boolean;
+  progressUnavailable: boolean;
+  onViewHistory: () => void;
   onBackToQuestion: () => void;
   onSubmit: (values: AnswerReviewValues) => Promise<void>;
 }) {
@@ -1370,7 +1771,9 @@ function AnswerValidationWorkspace({
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const formUnavailable = locked || progressUnavailable;
   const canSubmit =
+    !formUnavailable &&
     hasMismatchedMisconceptions !== null &&
     hasAdditionalMisconceptions !== null &&
     (!hasMismatchedMisconceptions || (removedMisconceptionIds.length > 0 && removalReason.trim().length > 0)) &&
@@ -1378,6 +1781,7 @@ function AnswerValidationWorkspace({
 
   const handleSubmit = async () => {
     if (
+      formUnavailable ||
       !canSubmit ||
       submitting ||
       hasMismatchedMisconceptions === null ||
@@ -1586,7 +1990,29 @@ function AnswerValidationWorkspace({
               : "Evaluate labels based on the pattern visible in this answer variation."}
           </p>
 
-          <div className="mt-6 space-y-6">
+          {progressUnavailable ? (
+            <ReviewProgressUnavailableNotice />
+          ) : (
+            <ReviewLockNotice
+              kind="answer"
+              reviewedByMe={locked}
+              onViewHistory={onViewHistory}
+            />
+          )}
+
+          <fieldset
+            disabled={formUnavailable}
+            aria-disabled={formUnavailable}
+            className={cn(
+              "mt-6 space-y-6",
+              formUnavailable && "opacity-65",
+            )}
+          >
+            <legend className="sr-only">
+              {language === "id"
+                ? "Isian validasi jawaban"
+                : "Answer validation fields"}
+            </legend>
             <section aria-labelledby="remove-answer-misconception-question">
               <div className="flex items-start gap-3">
                 <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand-soft text-xs font-bold text-brand" aria-hidden="true">
@@ -1735,9 +2161,9 @@ function AnswerValidationWorkspace({
                 </div>
               </div>
             </section>
-          </div>
+          </fieldset>
 
-          {submitError && (
+          {!formUnavailable && submitError && (
             <p
               role="alert"
               className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2.5 text-xs leading-5 text-incorrect"
@@ -1746,7 +2172,7 @@ function AnswerValidationWorkspace({
             </p>
           )}
 
-          {!canSubmit && (
+          {!formUnavailable && !canSubmit && (
             <p id="answer-validation-help" className="mt-5 text-xs leading-5 text-muted">
               {language === "id"
                 ? "Jawab kedua pertanyaan dan lengkapi pilihan serta alasan jika memilih Ada."
@@ -1754,21 +2180,25 @@ function AnswerValidationWorkspace({
             </p>
           )}
 
-          <Button
-            variant="primary"
-            onClick={handleSubmit}
-            disabled={!canSubmit || submitting}
-            aria-describedby={!canSubmit ? "answer-validation-help" : undefined}
-            className="mt-4 w-full justify-center"
-          >
-            {submitting
-              ? language === "id"
-                ? "Menyimpan..."
-                : "Saving..."
-              : language === "id"
-                ? "Simpan & lanjut"
-                : "Save & continue"}
-          </Button>
+          {!formUnavailable && (
+            <Button
+              variant="primary"
+              onClick={handleSubmit}
+              disabled={!canSubmit || submitting}
+              aria-describedby={
+                !canSubmit ? "answer-validation-help" : undefined
+              }
+              className="mt-4 w-full justify-center"
+            >
+              {submitting
+                ? language === "id"
+                  ? "Menyimpan..."
+                  : "Saving..."
+                : language === "id"
+                  ? "Simpan & lanjut"
+                  : "Save & continue"}
+            </Button>
+          )}
         </aside>
       </div>
     </div>
