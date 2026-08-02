@@ -1,8 +1,77 @@
 import type {
+  AdminReviewConsensusItem,
   Question,
   QuestionOption,
+  ReviewTask,
   StudentAnswer,
 } from "../types";
+
+export function isAnswerReviewEligible(
+  question: Pick<Question, "type"> | undefined,
+): boolean {
+  return question?.type === "multiple_choice";
+}
+
+export function assertAnswerReviewEligible(
+  question: Pick<Question, "type"> | undefined,
+): void {
+  if (!isAnswerReviewEligible(question)) {
+    throw new Error(
+      "Jawaban PS hanya tersedia sebagai evidence dan tidak dapat direview.",
+    );
+  }
+}
+
+export function getAnswerWorkspaceForQuestion(
+  question: Pick<Question, "type">,
+): "answer-ps" | "answer-mp" {
+  return isAnswerReviewEligible(question) ? "answer-mp" : "answer-ps";
+}
+
+export function filterEligibleAnswerReviewTasks(
+  tasks: readonly ReviewTask[],
+  questionById: ReadonlyMap<string, Pick<Question, "type">>,
+): ReviewTask[] {
+  return tasks.filter((task) =>
+    isAnswerReviewEligible(questionById.get(task.questionId)),
+  );
+}
+
+export function filterEligibleAnswerReviewIds(
+  answerIds: readonly string[],
+  answers: readonly Pick<StudentAnswer, "id" | "questionId">[],
+  questionById: ReadonlyMap<string, Pick<Question, "type">>,
+): string[] {
+  const answerById = new Map(answers.map((answer) => [answer.id, answer]));
+  return answerIds.filter((answerId) => {
+    const answer = answerById.get(answerId);
+    return Boolean(
+      answer && isAnswerReviewEligible(questionById.get(answer.questionId)),
+    );
+  });
+}
+
+export function filterEligibleAnswerReviewCounts(
+  counts: ReadonlyMap<string, number>,
+  answers: readonly Pick<StudentAnswer, "id" | "questionId">[],
+  questionById: ReadonlyMap<string, Pick<Question, "type">>,
+): Map<string, number> {
+  const eligibleIds = new Set(
+    filterEligibleAnswerReviewIds([...counts.keys()], answers, questionById),
+  );
+  return new Map([...counts].filter(([answerId]) => eligibleIds.has(answerId)));
+}
+
+export function filterAdminReviewConsensusItems(
+  items: readonly AdminReviewConsensusItem[],
+  questionById: ReadonlyMap<string, Pick<Question, "type">>,
+): AdminReviewConsensusItem[] {
+  return items.filter(
+    (item) =>
+      item.targetType === "question" ||
+      isAnswerReviewEligible(questionById.get(item.questionId)),
+  );
+}
 
 export type ReviewWorkspace =
   | "question-ps"
@@ -37,7 +106,7 @@ export function classifyReviewItems(
   };
 
   for (const question of questions) {
-    items[question.type === "multiple_choice" ? "question-mp" : "question-ps"].push(
+    items[isAnswerReviewEligible(question) ? "question-mp" : "question-ps"].push(
       question,
     );
   }
@@ -45,7 +114,7 @@ export function classifyReviewItems(
   for (const answer of answers) {
     const question = questionById.get(answer.questionId);
     if (!question) continue;
-    items[question.type === "multiple_choice" ? "answer-mp" : "answer-ps"].push(
+    items[getAnswerWorkspaceForQuestion(question)].push(
       answer,
     );
   }

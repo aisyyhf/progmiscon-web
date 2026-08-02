@@ -21,6 +21,8 @@ import {
   mapQuestionReviewCountRows,
 } from "../utils/questionReviewCounts";
 import { supabase } from "./supabaseClient";
+import { getQuestionById } from "./questionRepository";
+import { assertAnswerReviewEligible } from "../utils/reviewWorkspace";
 
 type QuestionReviewHistoryRow = {
   id: string;
@@ -328,6 +330,8 @@ export async function saveAnswerReview(
   questionId: string,
   values: AnswerReviewValues,
 ): Promise<void> {
+  assertAnswerReviewEligible(await getQuestionById(questionId));
+
   const { error } = await supabase
     .from("answer_reviews")
     .upsert(

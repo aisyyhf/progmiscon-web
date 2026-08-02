@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { LockKeyhole } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
@@ -15,6 +15,7 @@ import { useLanguage } from "../hooks/useLanguage";
 import { useLecturerAuth } from "../hooks/useLecturerAuth";
 import { useQuestions } from "../hooks/useQuestions";
 import { useAllStudentAnswers } from "../hooks/useStudentAnswers";
+import { useStudents } from "../hooks/useStudents";
 import { useReviewTasks } from "../hooks/useReviewTasks";
 import { useMisconceptions } from "../hooks/useMisconceptions";
 import type {
@@ -40,9 +41,14 @@ import {
   saveQuestionReview,
 } from "../services/reviewPersistenceRepository";
 import { PseudocodeBlock } from "../components/review/PseudocodeBlock";
+import { PsAnswerEvidenceWorkspace } from "../components/review/PsAnswerEvidenceWorkspace";
 import {
   classifyReviewItems,
+  filterEligibleAnswerReviewCounts,
+  filterEligibleAnswerReviewIds,
+  getAnswerWorkspaceForQuestion,
   getReviewProgress,
+  isAnswerReviewEligible,
   resolveAnswerSelection,
   type ReviewWorkspace,
 } from "../utils/reviewWorkspace";
@@ -298,20 +304,30 @@ function readStoredQuestionFilters(): ReviewQuestionFilterSessionState {
   }
 }
 
-export function LecturerReviewPage() {
+export function LecturerReviewPage({
+  initialAnswerId,
+}: {
+  initialAnswerId?: string;
+} = {}) {
   const { language } = useLanguage();
   const { user, isAdmin } = useLecturerAuth();
   const navigate = useNavigate();
   const { categories, loading: categoriesLoading } = useCategories();
   const { questions, loading: questionsLoading } = useQuestions();
-  const { answers, loading: answersLoading } = useAllStudentAnswers();
+  const {
+    answers,
+    loading: answersLoading,
+    error: answersError,
+  } = useAllStudentAnswers();
+  const { students, loading: studentsLoading } = useStudents();
   const { misconceptions, loading: misconceptionsLoading } = useMisconceptions();
   const { tasks: answerTasks, loading: reviewTasksLoading } = useReviewTasks();
   const [reviewSession, setReviewSession] = useState<ReviewSessionState>(
     readStoredReviewSession,
   );
   const [reviewedQuestionIds, setReviewedQuestionIds] = useState<string[]>([]);
-  const [reviewedAnswerIds, setReviewedAnswerIds] = useState<string[]>([]);
+  const [savedReviewedAnswerIds, setReviewedAnswerIds] = useState<string[]>([]);
+  const [handledInitialAnswerId, setHandledInitialAnswerId] = useState("");
   const [questionReviewCounts, setQuestionReviewCounts] = useState<
     Map<string, number>
   >(new Map());
@@ -464,6 +480,24 @@ export function LecturerReviewPage() {
     () => classifyReviewItems(questions, answers),
     [answers, questions],
   );
+  const reviewedAnswerIds = useMemo(
+    () =>
+      filterEligibleAnswerReviewIds(
+        savedReviewedAnswerIds,
+        answers,
+        questionById,
+      ),
+    [answers, questionById, savedReviewedAnswerIds],
+  );
+  const eligibleAnswerReviewCounts = useMemo(
+    () =>
+      filterEligibleAnswerReviewCounts(
+        answerReviewCounts,
+        answers,
+        questionById,
+      ),
+    [answerReviewCounts, answers, questionById],
+  );
   const allWorkspaceItems = useMemo(
     () => ({
       "question-ps": classifiedItems["question-ps"],
@@ -563,10 +597,7 @@ export function LecturerReviewPage() {
       allWorkspaceItems["question-ps"],
       reviewedQuestionIds,
     ),
-    "answer-ps": getReviewProgress(
-      allWorkspaceItems["answer-ps"],
-      reviewedAnswerIds,
-    ),
+    "answer-ps": { reviewed: 0, total: 0 },
     "question-mp": getReviewProgress(
       allWorkspaceItems["question-mp"],
       reviewedQuestionIds,
@@ -622,12 +653,16 @@ export function LecturerReviewPage() {
     ? reviewedAnswerIds.includes(activeAnswer.id)
     : false;
   const activeAnswerGloballyComplete = activeAnswer
-    ? answerCountsLoaded &&
-      (answerReviewCounts.get(activeAnswer.id) ?? 0) >=
+    ? isAnswerReviewEligible(questionById.get(activeAnswer.questionId)) &&
+      answerCountsLoaded &&
+      (eligibleAnswerReviewCounts.get(activeAnswer.id) ?? 0) >=
         QUESTION_REVIEWED_THRESHOLD
     : false;
   const activeAnswerLocked =
-    activeAnswerReviewedByMe || activeAnswerGloballyComplete;
+    isAnswerReviewEligible(
+      activeAnswer ? questionById.get(activeAnswer.questionId) : undefined,
+    ) &&
+    (activeAnswerReviewedByMe || activeAnswerGloballyComplete);
   const answerQuestion = activeAnswer
     ? activeParentQuestion?.id === activeAnswer.questionId
       ? activeParentQuestion
@@ -657,7 +692,7 @@ export function LecturerReviewPage() {
     },
     {
       id: "answer-ps",
-      label: language === "id" ? "Jawaban PS" : "PS Answers",
+      label: language === "id" ? "Evidence PS" : "PS Evidence",
     },
     {
       id: "question-mp",
@@ -681,56 +716,64 @@ export function LecturerReviewPage() {
     "question-ps":
       language === "id" ? "Belum ada soal PS" : "There are no PS questions yet",
     "answer-ps":
-      language === "id" ? "Belum ada jawaban PS" : "There are no PS answers yet",
+      language === "id"
+        ? "Belum ada evidence jawaban untuk soal ini"
+        : "There is no answer evidence for this question yet",
     "question-mp":
       language === "id" ? "Belum ada soal MP" : "There are no MP questions yet",
     "answer-mp":
       language === "id" ? "Belum ada jawaban MP" : "There are no MP answers yet",
   };
-  const openWorkspaceItem = (
-    nextWorkspace: ReviewWorkspace,
-    itemId: string | undefined,
-    parentQuestionId?: string,
-  ) => {
-    const kind = nextWorkspace.endsWith("ps") ? "ps" : "mp";
-    let nextActiveItemIds = setActiveReviewItemId(
+  const openWorkspaceItem = useCallback(
+    (
+      nextWorkspace: ReviewWorkspace,
+      itemId: string | undefined,
+      parentQuestionId?: string,
+    ) => {
+      const kind = nextWorkspace.endsWith("ps") ? "ps" : "mp";
+      let nextActiveItemIds = setActiveReviewItemId(
+        activeItemIds,
+        nextWorkspace,
+        itemId,
+      );
+      const nextParentQuestionIds = { ...activeParentQuestionIds };
+
+      if (nextWorkspace.startsWith("question")) {
+        nextParentQuestionIds[kind] = itemId;
+        nextActiveItemIds = setActiveReviewItemId(
+          nextActiveItemIds,
+          getPairedWorkspace(nextWorkspace),
+          itemId
+            ? selectLinkedAnswerId(
+                itemId,
+                allWorkspaceItems[
+                  getPairedWorkspace(nextWorkspace)
+                ] as StudentAnswer[],
+                reviewedAnswerIds,
+              )
+            : undefined,
+        );
+      } else {
+        const selectedAnswer = (
+          allWorkspaceItems[nextWorkspace] as StudentAnswer[]
+        ).find((answer) => answer.id === itemId);
+        nextParentQuestionIds[kind] =
+          parentQuestionId ?? selectedAnswer?.questionId;
+      }
+
+      setReviewSession({
+        workspace: nextWorkspace,
+        activeItemIds: nextActiveItemIds,
+        activeParentQuestionIds: nextParentQuestionIds,
+      });
+    },
+    [
       activeItemIds,
-      nextWorkspace,
-      itemId,
-    );
-    const nextParentQuestionIds = { ...activeParentQuestionIds };
-
-    if (nextWorkspace.startsWith("question")) {
-      nextParentQuestionIds[kind] = itemId;
-      nextActiveItemIds = setActiveReviewItemId(
-        nextActiveItemIds,
-        getPairedWorkspace(nextWorkspace),
-        itemId
-          ? selectLinkedAnswerId(
-              itemId,
-              allWorkspaceItems[
-                getPairedWorkspace(nextWorkspace)
-              ] as StudentAnswer[],
-              reviewedAnswerIds,
-            )
-          : undefined,
-      );
-    } else {
-      const selectedAnswer = (
-        allWorkspaceItems[nextWorkspace] as StudentAnswer[]
-      ).find(
-        (answer) => answer.id === itemId,
-      );
-      nextParentQuestionIds[kind] =
-        parentQuestionId ?? selectedAnswer?.questionId;
-    }
-
-    setReviewSession({
-      workspace: nextWorkspace,
-      activeItemIds: nextActiveItemIds,
-      activeParentQuestionIds: nextParentQuestionIds,
-    });
-  };
+      activeParentQuestionIds,
+      allWorkspaceItems,
+      reviewedAnswerIds,
+    ],
+  );
   const selectWorkspace = (nextWorkspace: ReviewWorkspace) => {
     if (
       selectAvailableReviewWorkspace(
@@ -765,12 +808,8 @@ export function LecturerReviewPage() {
           nextItems as StudentAnswer[],
           reviewedAnswerIds,
         );
-        nextItemId = linkedAnswerId ?? nextItemId;
-        nextParentQuestionId = linkedAnswerId
-          ? activeQuestion.id
-          : (nextItems as StudentAnswer[]).find(
-              (answer) => answer.id === nextItemId,
-            )?.questionId ?? activeQuestion.id;
+        nextItemId = linkedAnswerId;
+        nextParentQuestionId = activeQuestion.id;
       } else if (
         workspace.startsWith("answer") &&
         nextWorkspace.startsWith("question")
@@ -801,6 +840,42 @@ export function LecturerReviewPage() {
       activeParentQuestionId,
     );
   };
+
+  useEffect(() => {
+    if (
+      !initialAnswerId ||
+      handledInitialAnswerId === initialAnswerId ||
+      questionsLoading ||
+      answersLoading
+    ) {
+      return;
+    }
+
+    const answer = answers.find((item) => item.id === initialAnswerId);
+    const question = answer ? questionById.get(answer.questionId) : undefined;
+    setHandledInitialAnswerId(initialAnswerId);
+
+    if (!answer || !question) {
+      navigate("/review", { replace: true });
+      return;
+    }
+
+    openWorkspaceItem(
+      getAnswerWorkspaceForQuestion(question),
+      answer.id,
+      question.id,
+    );
+  }, [
+    answers,
+    answersLoading,
+    handledInitialAnswerId,
+    initialAnswerId,
+    navigate,
+    openWorkspaceItem,
+    questionById,
+    questionsLoading,
+  ]);
+
   const progress = workspaceProgress[workspace];
   const questionWorkspace =
     workspace === "question-ps" || workspace === "question-mp";
@@ -815,6 +890,13 @@ export function LecturerReviewPage() {
     activeIndex >= 0 &&
     (activeQuestion !== undefined ||
       (activeAnswer !== undefined && answerQuestion !== undefined));
+  const activePsEvidence =
+    workspace === "answer-ps" && activeParentQuestion
+      ? getAnswersForQuestion(
+          activeParentQuestion.id,
+          allWorkspaceItems["answer-ps"],
+        )
+      : [];
   const loading =
     questionsLoading ||
     answersLoading ||
@@ -822,7 +904,8 @@ export function LecturerReviewPage() {
     misconceptionsLoading ||
     reviewTasksLoading ||
     progressLoading ||
-    answerCountsLoading;
+    (workspace === "answer-mp" && answerCountsLoading) ||
+    (workspace === "answer-ps" && studentsLoading);
   const setActiveQuestionFilters = (
     filters: ReviewQuestionFilterValues,
   ) => {
@@ -839,8 +922,8 @@ export function LecturerReviewPage() {
         <h1 className="page-title">Review</h1>
         <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
           {language === "id"
-            ? "Validasi hubungan antara soal, jawaban mahasiswa, dan miskonsepsi."
-            : "Validate the relationship between questions, student answers, and misconceptions."}
+            ? "Review soal, baca evidence jawaban PS, dan validasi jawaban MP."
+            : "Review questions, read PS answer evidence, and validate MP answers."}
         </p>
       </header>
 
@@ -853,6 +936,17 @@ export function LecturerReviewPage() {
         </p>
       )}
 
+      {answersError && workspace !== "answer-ps" && (
+        <p
+          role="alert"
+          className="mb-5 rounded-md border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect"
+        >
+          {language === "id"
+            ? "Evidence jawaban belum dapat dimuat."
+            : "Answer evidence could not be loaded."}
+        </p>
+      )}
+
       {questionCountsError && (
         <p
           role="alert"
@@ -862,7 +956,7 @@ export function LecturerReviewPage() {
         </p>
       )}
 
-      {answerCountsError && (
+      {answerCountsError && workspace === "answer-mp" && (
         <p
           role="alert"
           className="mb-5 rounded-md border border-warning-border bg-warning-bg px-4 py-3 text-sm text-warning"
@@ -995,6 +1089,31 @@ export function LecturerReviewPage() {
               {language === "id" ? "Reset filter" : "Reset filters"}
             </Button>
           </div>
+        ) : workspace === "answer-ps" && activeParentQuestion ? (
+          <PsAnswerEvidenceWorkspace
+            question={activeParentQuestion}
+            answers={activePsEvidence}
+            activeAnswerId={activeItemIds["answer-ps"]}
+            students={students}
+            misconceptions={misconceptions}
+            error={
+              answersError
+                ? language === "id"
+                  ? "Evidence jawaban belum dapat dimuat."
+                  : "Answer evidence could not be loaded."
+                : undefined
+            }
+            onSelectAnswer={(answerId) =>
+              openWorkspaceItem(
+                "answer-ps",
+                answerId,
+                activeParentQuestion.id,
+              )
+            }
+            onBackToQuestion={() =>
+              openWorkspaceItem("question-ps", activeParentQuestion.id)
+            }
+          />
         ) : hasActiveItem ? (
           <>
             <WorkspaceToolbar
@@ -1339,6 +1458,7 @@ function QuestionValidationWorkspace({
     recommended.flatMap((item) => item.relatedMisconceptionIds),
   );
   const relatedAnswers = getAnswersForQuestion(question.id, answers);
+  const answerReviewEligible = isAnswerReviewEligible(question);
   const reviewedAnswers = new Set(reviewedAnswerIds);
   const [form, dispatchForm] = useReducer(
     misconceptionReviewFormReducer,
@@ -1485,9 +1605,13 @@ function QuestionValidationWorkspace({
             )}
             {answerDerivedMisconceptionIds.length > 0 && (
               <p className="mt-3 text-xs leading-5 text-muted">
-                {language === "id"
-                  ? "Relasi yang diturunkan dari jawaban tetap efektif sampai relasi jawaban terkait direview terlebih dahulu."
-                  : "Answer-derived relations remain effective until the related answer relation is reviewed first."}
+                {answerReviewEligible
+                  ? language === "id"
+                    ? "Relasi yang diturunkan dari jawaban tetap efektif sampai relasi jawaban terkait direview terlebih dahulu."
+                    : "Answer-derived relations remain effective until the related answer relation is reviewed first."
+                  : language === "id"
+                    ? "Relasi yang diturunkan dari jawaban tetap ditampilkan sebagai evidence dan bukan pekerjaan review jawaban."
+                    : "Answer-derived relations remain visible as evidence and are not answer-review work."}
               </p>
             )}
           </section>
@@ -1511,7 +1635,13 @@ function QuestionValidationWorkspace({
               id="related-answers-title"
               className="text-sm font-bold text-navy-deep"
             >
-              {language === "id" ? "Jawaban terkait" : "Related answers"}
+              {answerReviewEligible
+                ? language === "id"
+                  ? "Jawaban terkait"
+                  : "Related answers"
+                : language === "id"
+                  ? "Evidence jawaban terkait"
+                  : "Related answer evidence"}
             </h3>
 
             {relatedAnswers.length > 0 ? (
@@ -1566,13 +1696,15 @@ function QuestionValidationWorkspace({
                                 : "Incorrect"}
                           </span>
                           <span className="rounded bg-neutral px-2 py-1 text-navy-deep">
-                            {reviewedAnswers.has(answer.id)
-                              ? language === "id"
-                                ? "Sudah direview"
-                                : "Reviewed"
-                              : language === "id"
-                                ? "Belum direview"
-                                : "Not reviewed"}
+                            {answerReviewEligible
+                              ? reviewedAnswers.has(answer.id)
+                                ? language === "id"
+                                  ? "Sudah direview"
+                                  : "Reviewed"
+                                : language === "id"
+                                  ? "Belum direview"
+                                  : "Not reviewed"
+                              : "Evidence"}
                           </span>
                         </div>
                       </div>
@@ -1622,8 +1754,12 @@ function QuestionValidationWorkspace({
                         className="mt-4 w-full justify-center sm:w-auto"
                       >
                         {language === "id"
-                          ? "Review jawaban ini"
-                          : "Review this answer"}
+                          ? answerReviewEligible
+                            ? "Review jawaban ini"
+                            : "Lihat evidence"
+                          : answerReviewEligible
+                            ? "Review this answer"
+                            : "View evidence"}
                       </Button>
                     </li>
                   );

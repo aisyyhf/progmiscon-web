@@ -5,9 +5,10 @@ import { useAsyncData } from "./useAsyncData";
 export function useAllStudentAnswers(): {
   answers: StudentAnswer[];
   loading: boolean;
+  error: Error | null;
 } {
-  const { data, loading } = useAsyncData<StudentAnswer[]>(getAnswers, [], []);
-  return { answers: data, loading };
+  const { data, loading, error } = useAsyncData<StudentAnswer[]>(getAnswers, [], []);
+  return { answers: data, loading, error };
 }
 
 export function useStudentAnswers(questionId: string | undefined): {

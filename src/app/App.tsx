@@ -77,6 +77,11 @@ function LegacyQuestionRedirect() {
   );
 }
 
+function LecturerAnswerReviewRoute() {
+  const { answerId } = useParams<{ answerId: string }>();
+  return <LecturerReviewPage initialAnswerId={answerId} />;
+}
+
 export default function App() {
   return (
     <LanguageProvider>
@@ -113,6 +118,14 @@ export default function App() {
                 element={
                   <LecturerOnly>
                     <LecturerReviewPage />
+                  </LecturerOnly>
+                }
+              />
+              <Route
+                path="/review/answer/:answerId"
+                element={
+                  <LecturerOnly>
+                    <LecturerAnswerReviewRoute />
                   </LecturerOnly>
                 }
               />

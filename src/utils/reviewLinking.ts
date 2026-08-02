@@ -1,5 +1,6 @@
 import type { Question, StudentAnswer } from "../types";
 import {
+  isAnswerReviewEligible,
   selectWorkspaceItemId,
   type ReviewWorkspaceItems,
   type ReviewWorkspace,
@@ -58,6 +59,30 @@ export function getAnswersForQuestion(
   });
 }
 
+export function selectEvidenceAnswerId(
+  questionId: string,
+  answers: readonly StudentAnswer[],
+  preferredAnswerId?: string,
+): string | undefined {
+  const evidence = getAnswersForQuestion(questionId, answers);
+  return evidence.some((answer) => answer.id === preferredAnswerId)
+    ? preferredAnswerId
+    : evidence[0]?.id;
+}
+
+export function selectAdjacentEvidenceAnswerId(
+  questionId: string,
+  answers: readonly StudentAnswer[],
+  currentAnswerId: string | undefined,
+  offset: -1 | 1,
+): string | undefined {
+  const evidence = getAnswersForQuestion(questionId, answers);
+  const currentIndex = evidence.findIndex(
+    (answer) => answer.id === currentAnswerId,
+  );
+  return evidence[currentIndex + offset]?.id;
+}
+
 export function selectLinkedAnswerId(
   questionId: string,
   answers: readonly StudentAnswer[],
@@ -104,7 +129,7 @@ export function getReviewWorkspaceAvailability(
 
   return {
     "question-ps": true,
-    "answer-ps": psContext && hasLinkedAnswers,
+    "answer-ps": psContext,
     "question-mp": true,
     "answer-mp": !psContext && hasLinkedAnswers,
   };
@@ -234,6 +259,7 @@ export function normalizeReviewSessionState(
     const answerWorkspace = kind === "ps" ? "answer-ps" : "answer-mp";
     const workspaceQuestions = items[questionWorkspace];
     const workspaceAnswers = items[answerWorkspace];
+    const workspaceReviewedAnswerIds = kind === "mp" ? reviewedAnswerIds : [];
     const storedParentId = state.activeParentQuestionIds[kind];
     const storedParentIsValid = workspaceQuestions.some(
       (question) => question.id === storedParentId,
@@ -250,14 +276,14 @@ export function normalizeReviewSessionState(
     let activeAnswerId = selectStoredWorkspaceItemId(
       linkedAnswers,
       storedAnswer?.id,
-      reviewedAnswerIds,
+      workspaceReviewedAnswerIds,
     );
 
     if (!parentQuestionId) {
       const fallbackAnswer = selectFallbackAnswer(
         workspaceAnswers,
         storedAnswer?.id,
-        reviewedAnswerIds,
+        workspaceReviewedAnswerIds,
       );
       parentQuestionId = fallbackAnswer?.questionId;
       linkedAnswers = parentQuestionId
@@ -266,7 +292,7 @@ export function normalizeReviewSessionState(
       activeAnswerId = selectStoredWorkspaceItemId(
         linkedAnswers,
         fallbackAnswer?.id,
-        reviewedAnswerIds,
+        workspaceReviewedAnswerIds,
       );
     }
 
@@ -283,7 +309,7 @@ export function normalizeReviewSessionState(
       ? selectStoredWorkspaceItemId(
           getAnswersForQuestion(parentQuestionId, items[answerWorkspace]),
           state.activeItemIds[answerWorkspace],
-          reviewedAnswerIds,
+          kind === "mp" ? reviewedAnswerIds : [],
         )
       : undefined;
   } else {
@@ -297,7 +323,7 @@ export function normalizeReviewSessionState(
       const fallbackAnswer = selectFallbackAnswer(
         workspaceAnswers,
         state.activeItemIds[state.workspace],
-        reviewedAnswerIds,
+        kind === "mp" ? reviewedAnswerIds : [],
       );
       activeItemIds[state.workspace] = fallbackAnswer?.id;
       activeParentQuestionIds[kind] = fallbackAnswer?.questionId;
@@ -339,6 +365,18 @@ export function selectAfterQuestionReview(
   const nextReviewedQuestionIds = reviewedQuestionIds.includes(question.id)
     ? reviewedQuestionIds
     : [...reviewedQuestionIds, question.id];
+
+  if (!isAnswerReviewEligible(question)) {
+    return {
+      workspace: "question-ps",
+      itemId: selectNextQuestionId(
+        questions,
+        nextReviewedQuestionIds,
+        question.id,
+      ),
+    };
+  }
+
   const answerId = selectUnreviewedLinkedAnswerId(
     question.id,
     answers,
@@ -371,6 +409,17 @@ export function selectAfterAnswerReview(
   reviewedQuestionIds: readonly string[],
   reviewedAnswerIds: readonly string[],
 ): ReviewNavigationTarget {
+  if (!isAnswerReviewEligible(question)) {
+    return {
+      workspace: "question-ps",
+      itemId: selectNextQuestionId(
+        questions,
+        reviewedQuestionIds,
+        question.id,
+      ),
+    };
+  }
+
   const nextReviewedAnswerIds = reviewedAnswerIds.includes(answerId)
     ? reviewedAnswerIds
     : [...reviewedAnswerIds, answerId];

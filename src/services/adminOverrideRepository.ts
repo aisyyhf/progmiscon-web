@@ -13,6 +13,12 @@ import {
   reloadBaselineMasterData,
 } from "./masterDataRepository";
 import { supabase } from "./supabaseClient";
+import { getAnswers } from "./answerRepository";
+import { getQuestions } from "./questionRepository";
+import {
+  assertAnswerReviewEligible,
+  filterAdminReviewConsensusItems,
+} from "../utils/reviewWorkspace";
 
 type AdminReviewConsensusRow = {
   target_type: "question" | "answer";
@@ -69,7 +75,7 @@ export async function getAdminReviewConsensus(): Promise<
   const { data, error } = await supabase.rpc("get_admin_review_consensus");
   if (error) throw adminError("Consensus review dimuat", error);
 
-  return ((data ?? []) as AdminReviewConsensusRow[]).map((row) => ({
+  const items = ((data ?? []) as AdminReviewConsensusRow[]).map((row) => ({
     targetType: row.target_type,
     targetId: row.target_id,
     questionId: row.question_id,
@@ -81,6 +87,11 @@ export async function getAdminReviewConsensus(): Promise<
     baselineMisconceptionIds: row.baseline_misconception_ids,
     baselineSyncedAt: row.baseline_synced_at,
   }));
+  const questions = await getQuestions();
+  return filterAdminReviewConsensusItems(
+    items,
+    new Map(questions.map((question) => [question.id, question])),
+  );
 }
 
 export function previewConsensus(
@@ -104,9 +115,19 @@ export async function publishQuestionMisconceptionOverride(
   );
 }
 
+async function assertReviewableAnswerId(answerId: string): Promise<void> {
+  const [answers, questions] = await Promise.all([getAnswers(), getQuestions()]);
+  const answer = answers.find((item) => item.id === answerId);
+  assertAnswerReviewEligible(
+    questions.find((question) => question.id === answer?.questionId),
+  );
+}
+
 export async function publishAnswerMisconceptionOverride(
   answerId: string,
 ): Promise<void> {
+  await assertReviewableAnswerId(answerId);
+
   await runAdminMutation(
     "publish_answer_misconception_override",
     { input_answer_id: answerId },
@@ -245,6 +266,7 @@ export async function resetQuestionMisconceptionOverride(
 export async function resetAnswerMisconceptionOverride(
   answerId: string,
 ): Promise<void> {
+  await assertReviewableAnswerId(answerId);
   await runAdminMutation(
     "reset_answer_misconception_override",
     { input_answer_id: answerId },
