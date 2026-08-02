@@ -379,6 +379,15 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
         id: answerId,
         questionId,
         studentId: `anonymous-${answerId}`,
+        explanation:
+          fallbackExplanation.id || fallbackExplanation.en
+            ? fallbackExplanation
+            : relation?.reasons.length
+              ? combineLocalizedTexts(relation.reasons)
+              : undefined,
+        sourceSystem: text(row.source_system) || null,
+        sourceKey: text(row.source_key) || null,
+        order: text(row.order_no) ? numberValue(row.order_no) : null,
         status,
         answerText: text(row.answer_text),
         selectedOptionId: selectedOptionIdForAnswer(

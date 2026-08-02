@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import {
   DEFAULT_REVIEW_WORKSPACE,
+  assertAnswerReviewEligible,
   classifyReviewItems,
+  filterEligibleAnswerReviewCounts,
+  filterEligibleAnswerReviewIds,
+  filterEligibleAnswerReviewTasks,
   getReviewProgress,
+  isAnswerReviewEligible,
   resolveAnswerSelection,
   selectWorkspaceItemId,
 } from "../src/utils/reviewWorkspace.ts";
@@ -37,6 +42,7 @@ const answers = [
 ];
 
 const { items } = classifyReviewItems(questions, answers);
+const questionById = new Map(questions.map((question) => [question.id, question]));
 
 assert.deepEqual(items["question-ps"].map(({ id }) => id), ["Q-PS-1", "Q-PS-2"]);
 assert.deepEqual(items["question-mp"].map(({ id }) => id), ["Q-MP-1"]);
@@ -75,14 +81,45 @@ assert.deepEqual(getReviewProgress(items["question-mp"], ["Q-PS-1"]), {
   reviewed: 0,
   total: 1,
 });
-assert.deepEqual(getReviewProgress(items["answer-ps"], ["A-PS-1"]), {
-  reviewed: 1,
-  total: 1,
-});
+const eligibleAnswerIds = filterEligibleAnswerReviewIds(
+  ["A-PS-1", "A-MP-1"],
+  answers,
+  questionById,
+);
+assert.deepEqual(eligibleAnswerIds, ["A-MP-1"]);
+assert.deepEqual(
+  filterEligibleAnswerReviewCounts(
+    new Map([
+      ["A-PS-1", 3],
+      ["A-MP-1", 2],
+    ]),
+    answers,
+    questionById,
+  ),
+  new Map([["A-MP-1", 2]]),
+);
 assert.deepEqual(getReviewProgress(items["answer-mp"], ["A-MP-1"]), {
   reviewed: 1,
   total: 2,
 });
+
+assert.equal(isAnswerReviewEligible(questions[0]), false);
+assert.equal(isAnswerReviewEligible(questions[1]), true);
+assert.throws(
+  () => assertAnswerReviewEligible(questions[0]),
+  /evidence.*tidak dapat direview/i,
+);
+assert.doesNotThrow(() => assertAnswerReviewEligible(questions[1]));
+assert.deepEqual(
+  filterEligibleAnswerReviewTasks(
+    [
+      { id: "T-PS", questionId: "Q-PS-1" },
+      { id: "T-MP", questionId: "Q-MP-1" },
+    ],
+    questionById,
+  ).map(({ id }) => id),
+  ["T-MP"],
+);
 
 assert.equal(DEFAULT_REVIEW_WORKSPACE, "question-ps");
 assert.equal(

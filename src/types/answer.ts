@@ -13,6 +13,10 @@ export type StudentAnswer = {
   id: string;
   questionId: string;
   studentId: string;
+  explanation?: LocalizedText;
+  sourceSystem?: string | null;
+  sourceKey?: string | null;
+  order?: number | null;
   status: AnswerStatus;
   answerText?: string;
   selectedOptionId?: string;

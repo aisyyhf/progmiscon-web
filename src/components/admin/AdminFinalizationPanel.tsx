@@ -14,6 +14,7 @@ import {
   syncMasterRelationBaselines,
 } from "../../services/adminOverrideRepository";
 import { normalizeEffectiveIds } from "../../utils/effectiveMasterData";
+import { filterAdminReviewConsensusItems } from "../../utils/reviewWorkspace";
 import { Button } from "../common/Button";
 import { EmptyState } from "../common/EmptyState";
 
@@ -296,6 +297,10 @@ export function AdminFinalizationPanel({
     () => new Map(answers.map((answer) => [answer.id, answer])),
     [answers],
   );
+  const eligibleItems = useMemo(
+    () => filterAdminReviewConsensusItems(items, questionMap),
+    [items, questionMap],
+  );
   const latestSync = useMemo(
     () =>
       items.reduce<string | null>(
@@ -367,7 +372,7 @@ export function AdminFinalizationPanel({
   }
 
   const renderItems = (targetType: "question" | "answer") =>
-    items
+    eligibleItems
       .filter((item) => item.targetType === targetType)
       .map((item) => {
         const question = questionMap.get(item.questionId);
@@ -447,7 +452,7 @@ export function AdminFinalizationPanel({
         </div>
       </section>
 
-      {items.length === 0 ? (
+      {eligibleItems.length === 0 ? (
         <EmptyState message="Belum ada target review untuk difinalisasi." />
       ) : (
         <>

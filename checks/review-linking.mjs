@@ -6,10 +6,12 @@ import {
   getReviewWorkspaceAvailability,
   normalizeReviewSessionState,
   parseReviewSessionState,
+  selectAdjacentEvidenceAnswerId,
   selectAfterAnswerReview,
   selectAfterQuestionReview,
   selectAvailableReviewWorkspace,
   selectLinkedAnswerId,
+  selectEvidenceAnswerId,
   selectStoredWorkspaceItemId,
   serializeReviewSessionState,
   setActiveReviewItemId,
@@ -85,9 +87,8 @@ const afterQuestion = selectAfterQuestionReview(
   ["A-PS-1"],
 );
 assert.deepEqual(afterQuestion, {
-  workspace: "answer-ps",
-  itemId: "A-PS-2",
-  parentQuestionId: "Q-PS-1",
+  workspace: "question-ps",
+  itemId: "Q-PS-2",
 });
 
 const afterQuestionWithoutAnswers = selectAfterQuestionReview(
@@ -127,9 +128,8 @@ const afterFirstAnswer = selectAfterAnswerReview(
   [],
 );
 assert.deepEqual(afterFirstAnswer, {
-  workspace: "answer-ps",
-  itemId: "A-PS-2",
-  parentQuestionId: "Q-PS-1",
+  workspace: "question-ps",
+  itemId: "Q-PS-2",
 });
 
 const afterLastAnswer = selectAfterAnswerReview(
@@ -185,14 +185,36 @@ const noAnswerAvailability = getReviewWorkspaceAvailability(
   "question-ps",
   false,
 );
-assert.equal(noAnswerAvailability["answer-ps"], false);
+assert.equal(noAnswerAvailability["answer-ps"], true);
 assert.equal(
   selectAvailableReviewWorkspace(
     "question-ps",
     "answer-ps",
     noAnswerAvailability,
   ),
-  "question-ps",
+  "answer-ps",
+);
+
+assert.equal(selectEvidenceAnswerId("Q-PS-1", answers), "A-PS-1");
+assert.equal(
+  selectEvidenceAnswerId("Q-PS-1", answers, "A-PS-2"),
+  "A-PS-2",
+);
+assert.equal(
+  selectEvidenceAnswerId("Q-PS-2", answers, "A-PS-2"),
+  "A-PS-3",
+);
+assert.equal(
+  selectAdjacentEvidenceAnswerId("Q-PS-1", answers, "A-PS-1", 1),
+  "A-PS-2",
+);
+assert.equal(
+  selectAdjacentEvidenceAnswerId("Q-PS-1", answers, "A-PS-2", 1),
+  undefined,
+);
+assert.equal(
+  selectAdjacentEvidenceAnswerId("Q-PS-1", answers, "A-PS-1", -1),
+  undefined,
 );
 
 const switchedTypeAvailability = getReviewWorkspaceAvailability(
@@ -286,7 +308,7 @@ const invalidStoredIds = normalizeReviewSessionState(
   ["A-PS-1"],
 );
 assert.equal(invalidStoredIds.activeItemIds["question-ps"], "Q-PS-1");
-assert.equal(invalidStoredIds.activeItemIds["answer-ps"], "A-PS-2");
+assert.equal(invalidStoredIds.activeItemIds["answer-ps"], "A-PS-1");
 assert.equal(invalidStoredIds.activeParentQuestionIds.ps, "Q-PS-1");
 
 assert.equal(serialized.includes("reviewedQuestionIds"), false);
