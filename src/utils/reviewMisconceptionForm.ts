@@ -25,7 +25,8 @@ export type MisconceptionReviewFormAction =
       field: "removal" | "addition";
       value: string;
     }
-  | { type: "set_note"; value: string };
+  | { type: "set_note"; value: string }
+  | { type: "reset" };
 
 export const initialMisconceptionReviewFormState: MisconceptionReviewFormState =
   {
@@ -37,6 +38,20 @@ export const initialMisconceptionReviewFormState: MisconceptionReviewFormState =
     additionReason: "",
     note: "",
   };
+
+export function isMisconceptionReviewFormDirty(
+  state: MisconceptionReviewFormState,
+): boolean {
+  return (
+    state.removalChoice !== null ||
+    state.removedMisconceptionIds.length > 0 ||
+    state.removalReason.length > 0 ||
+    state.additionChoice !== null ||
+    state.additionalMisconceptionIds.length > 0 ||
+    state.additionReason.length > 0 ||
+    state.note.length > 0
+  );
+}
 
 export function getAdditionalMisconceptionCandidates<T extends { id: string }>(
   misconceptions: readonly T[],
@@ -72,6 +87,10 @@ export function misconceptionReviewFormReducer(
   state: MisconceptionReviewFormState,
   action: MisconceptionReviewFormAction,
 ): MisconceptionReviewFormState {
+  if (action.type === "reset") {
+    return { ...initialMisconceptionReviewFormState };
+  }
+
   if (action.type === "set_presence") {
     if (action.field === "removal") {
       return {

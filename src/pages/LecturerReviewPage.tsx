@@ -10,6 +10,7 @@ import {
   AdminQuestionContentEditor,
 } from "../components/review/AdminContentEditor";
 import { ReviewQuestionFilters } from "../components/review/ReviewQuestionFilters";
+import { MpQuestionQuizNavigator } from "../components/review/MpQuestionQuizNavigator";
 import { useCategories } from "../hooks/useCategories";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLecturerAuth } from "../hooks/useLecturerAuth";
@@ -78,6 +79,16 @@ import {
   type ReviewQuestionFilters as ReviewQuestionFilterValues,
 } from "../utils/reviewQuestionFilters";
 import {
+  buildMpQuestionNavigatorItems,
+  getNextMpWeekKey,
+  groupMpQuestionsByWeek,
+  isMpWeekComplete,
+  isMpWeekGloballyComplete,
+  resolveMpActiveWeek,
+  selectValidMpQuestionId,
+  shouldWarnForMpQuestionNavigation,
+} from "../utils/mpQuestionNavigator";
+import {
   REVIEW_QUESTION_FILTER_SESSION_KEY,
   createDefaultReviewQuestionFilterSession,
   parseReviewQuestionFilterSession,
@@ -91,6 +102,7 @@ import {
   getAdditionalMisconceptionCandidates,
   getQuestionRemovalProposalIds,
   initialMisconceptionReviewFormState,
+  isMisconceptionReviewFormDirty,
   misconceptionReviewFormReducer,
 } from "../utils/reviewMisconceptionForm";
 
@@ -336,6 +348,8 @@ export function LecturerReviewPage({
   >(new Map());
   const [questionFilters, setQuestionFilters] =
     useState<ReviewQuestionFilterSessionState>(readStoredQuestionFilters);
+  const [mpWeekResolved, setMpWeekResolved] = useState(false);
+  const [mpQuestionReviewDirty, setMpQuestionReviewDirty] = useState(false);
   const [progressLoading, setProgressLoading] = useState(true);
   const [progressError, setProgressError] = useState("");
   const [progressLoaded, setProgressLoaded] = useState(false);
@@ -358,6 +372,17 @@ export function LecturerReviewPage({
       // sessionStorage can be unavailable in restricted browser contexts.
     }
   }, [questionFilters]);
+
+  useEffect(() => {
+    if (!mpQuestionReviewDirty || typeof window === "undefined") return;
+
+    const preventUnsavedExit = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", preventUnsavedExit);
+    return () => window.removeEventListener("beforeunload", preventUnsavedExit);
+  }, [mpQuestionReviewDirty]);
 
   useEffect(() => {
     let active = true;
@@ -513,6 +538,36 @@ export function LecturerReviewPage({
     }),
     [answerTasks, classifiedItems],
   );
+  const mpQuestionWeeks = useMemo(
+    () => groupMpQuestionsByWeek(allWorkspaceItems["question-mp"]),
+    [allWorkspaceItems],
+  );
+  const restoredMpQuestionId = reviewSession.activeItemIds["question-mp"];
+  const activeMpWeekKey = resolveMpActiveWeek(
+    mpQuestionWeeks,
+    questionFilters.mp.week,
+    mpWeekResolved ? undefined : restoredMpQuestionId,
+  );
+  const activeMpWeekQuestions = useMemo(
+    () =>
+      mpQuestionWeeks.find((week) => week.key === activeMpWeekKey)?.questions ??
+      [],
+    [activeMpWeekKey, mpQuestionWeeks],
+  );
+
+  useEffect(() => {
+    if (questionsLoading || mpWeekResolved) return;
+
+    setQuestionFilters((current) => ({
+      ...current,
+      mp: {
+        ...current.mp,
+        week: activeMpWeekKey ?? REVIEW_FILTER_ALL,
+      },
+    }));
+    setMpWeekResolved(true);
+  }, [activeMpWeekKey, mpWeekResolved, questionsLoading]);
+
   const effectiveQuestionFilters = useMemo<ReviewQuestionFilterSessionState>(
     () => ({
       ps: questionCountsLoaded
@@ -524,6 +579,22 @@ export function LecturerReviewPage({
     }),
     [questionCountsLoaded, questionFilters],
   );
+  const matchingMpWeekQuestions = useMemo(
+    () =>
+      filterReviewQuestions(
+        activeMpWeekQuestions,
+        questionReviewCounts,
+        {
+          ...effectiveQuestionFilters.mp,
+          week: REVIEW_FILTER_ALL,
+        },
+      ),
+    [
+      activeMpWeekQuestions,
+      effectiveQuestionFilters.mp,
+      questionReviewCounts,
+    ],
+  );
   const navigableWorkspaceItems = useMemo(
     () => ({
       "question-ps": filterReviewQuestions(
@@ -532,14 +603,15 @@ export function LecturerReviewPage({
         effectiveQuestionFilters.ps,
       ),
       "answer-ps": allWorkspaceItems["answer-ps"],
-      "question-mp": filterReviewQuestions(
-        allWorkspaceItems["question-mp"],
-        questionReviewCounts,
-        effectiveQuestionFilters.mp,
-      ),
+      "question-mp": matchingMpWeekQuestions,
       "answer-mp": allWorkspaceItems["answer-mp"],
     }),
-    [allWorkspaceItems, effectiveQuestionFilters, questionReviewCounts],
+    [
+      allWorkspaceItems,
+      effectiveQuestionFilters.ps,
+      matchingMpWeekQuestions,
+      questionReviewCounts,
+    ],
   );
   const answerTaskById = useMemo(
     () => new Map(answerTasks.map((task) => [task.answerCaseId, task])),
@@ -649,6 +721,42 @@ export function LecturerReviewPage({
     : false;
   const activeQuestionLocked =
     activeQuestionReviewedByMe || activeQuestionGloballyComplete;
+  const matchingMpQuestionIds = useMemo(
+    () => new Set(matchingMpWeekQuestions.map((question) => question.id)),
+    [matchingMpWeekQuestions],
+  );
+  const mpNavigatorItems = useMemo(
+    () =>
+      buildMpQuestionNavigatorItems(
+        activeMpWeekQuestions,
+        matchingMpQuestionIds,
+        questionReviewCounts,
+        reviewedQuestionIds,
+        workspace === "question-mp" ? activeQuestion?.id : undefined,
+      ),
+    [
+      activeMpWeekQuestions,
+      activeQuestion?.id,
+      matchingMpQuestionIds,
+      questionReviewCounts,
+      reviewedQuestionIds,
+      workspace,
+    ],
+  );
+  const mpWeekComplete =
+    progressLoaded &&
+    isMpWeekComplete(activeMpWeekQuestions, reviewedQuestionIds);
+  const mpWeekGloballyComplete =
+    questionCountsLoaded &&
+    isMpWeekGloballyComplete(
+      activeMpWeekQuestions,
+      questionReviewCounts,
+      QUESTION_REVIEWED_THRESHOLD,
+    );
+  const nextMpWeekKey = getNextMpWeekKey(
+    mpQuestionWeeks,
+    activeMpWeekKey,
+  );
   const activeAnswerReviewedByMe = activeAnswer
     ? reviewedAnswerIds.includes(activeAnswer.id)
     : false;
@@ -774,6 +882,41 @@ export function LecturerReviewPage({
       reviewedAnswerIds,
     ],
   );
+  const confirmMpQuestionNavigation = useCallback(
+    (nextWorkspace: ReviewWorkspace, nextQuestionId: string | undefined) => {
+      if (
+        !shouldWarnForMpQuestionNavigation(
+          mpQuestionReviewDirty,
+          workspace,
+          activeQuestion?.id,
+          nextWorkspace,
+          nextQuestionId,
+        )
+      ) {
+        return true;
+      }
+
+      return window.confirm(
+        language === "id"
+          ? "Review pada soal ini belum disimpan. Tetap pindah soal?"
+          : "This question review has not been saved. Continue to another question?",
+      );
+    },
+    [activeQuestion?.id, language, mpQuestionReviewDirty, workspace],
+  );
+  const requestOpenWorkspaceItem = useCallback(
+    (
+      nextWorkspace: ReviewWorkspace,
+      itemId: string | undefined,
+      parentQuestionId?: string,
+    ) => {
+      if (!confirmMpQuestionNavigation(nextWorkspace, itemId)) return false;
+      setMpQuestionReviewDirty(false);
+      openWorkspaceItem(nextWorkspace, itemId, parentQuestionId);
+      return true;
+    },
+    [confirmMpQuestionNavigation, openWorkspaceItem],
+  );
   const selectWorkspace = (nextWorkspace: ReviewWorkspace) => {
     if (
       selectAvailableReviewWorkspace(
@@ -831,10 +974,14 @@ export function LecturerReviewPage({
       )?.questionId;
     }
 
-    openWorkspaceItem(nextWorkspace, nextItemId, nextParentQuestionId);
+    requestOpenWorkspaceItem(
+      nextWorkspace,
+      nextItemId,
+      nextParentQuestionId,
+    );
   };
   const selectOffset = (offset: number) => {
-    openWorkspaceItem(
+    requestOpenWorkspaceItem(
       workspace,
       activeItems[activeIndex + offset]?.id,
       activeParentQuestionId,
@@ -909,10 +1056,81 @@ export function LecturerReviewPage({
   const setActiveQuestionFilters = (
     filters: ReviewQuestionFilterValues,
   ) => {
+    if (activeParentKind === "mp") {
+      const nextFilters = {
+        ...filters,
+        week: activeMpWeekKey ?? filters.week,
+      };
+      const nextMatchingQuestions = filterReviewQuestions(
+        activeMpWeekQuestions,
+        questionReviewCounts,
+        {
+          ...(questionCountsLoaded
+            ? nextFilters
+            : { ...nextFilters, status: REVIEW_FILTER_ALL }),
+          week: REVIEW_FILTER_ALL,
+        },
+      );
+      const nextQuestionId = selectValidMpQuestionId(
+        activeMpWeekQuestions,
+        new Set(nextMatchingQuestions.map((question) => question.id)),
+        activeQuestion?.id,
+      );
+
+      if (
+        workspace === "question-mp" &&
+        !confirmMpQuestionNavigation("question-mp", nextQuestionId)
+      ) {
+        return;
+      }
+
+      setQuestionFilters((current) => ({
+        ...current,
+        mp: nextFilters,
+      }));
+      if (
+        workspace === "question-mp" &&
+        nextQuestionId !== activeQuestion?.id
+      ) {
+        setMpQuestionReviewDirty(false);
+        openWorkspaceItem("question-mp", nextQuestionId);
+      }
+      return;
+    }
+
     setQuestionFilters((current) => ({
       ...current,
       [activeParentKind]: filters,
     }));
+  };
+  const selectMpWeek = (weekKey: string) => {
+    if (weekKey === activeMpWeekKey) return;
+
+    const weekQuestions =
+      mpQuestionWeeks.find((week) => week.key === weekKey)?.questions ?? [];
+    const nextFilters = { ...questionFilters.mp, week: weekKey };
+    const nextMatchingQuestions = filterReviewQuestions(
+      weekQuestions,
+      questionReviewCounts,
+      {
+        ...(questionCountsLoaded
+          ? nextFilters
+          : { ...nextFilters, status: REVIEW_FILTER_ALL }),
+        week: REVIEW_FILTER_ALL,
+      },
+    );
+    const nextQuestionId = selectValidMpQuestionId(
+      weekQuestions,
+      new Set(nextMatchingQuestions.map((question) => question.id)),
+    );
+
+    if (!confirmMpQuestionNavigation("question-mp", nextQuestionId)) return;
+    setMpQuestionReviewDirty(false);
+    setQuestionFilters((current) => ({
+      ...current,
+      mp: { ...current.mp, week: weekKey },
+    }));
+    openWorkspaceItem("question-mp", nextQuestionId);
   };
   const viewMyReviewHistory = () => navigate("/review/riwayat");
 
@@ -1047,9 +1265,32 @@ export function LecturerReviewPage({
         role="tabpanel"
         aria-label={activeTab.label}
       >
+        {workspace === "question-mp" && !loading && mpQuestionWeeks.length > 0 && (
+          <MpQuestionQuizNavigator
+            weeks={mpQuestionWeeks}
+            activeWeek={activeMpWeekKey}
+            items={mpNavigatorItems}
+            matchingCount={matchingMpWeekQuestions.length}
+            countsAvailable={questionCountsLoaded}
+            countsLoading={questionCountsLoading}
+            countsError={questionCountsError}
+            weekComplete={mpWeekComplete}
+            weekGloballyComplete={mpWeekGloballyComplete}
+            nextWeek={nextMpWeekKey}
+            onSelectWeek={selectMpWeek}
+            onSelectQuestion={(questionId) =>
+              requestOpenWorkspaceItem("question-mp", questionId)
+            }
+          />
+        )}
+
         {questionWorkspace && !loading && (
           <ReviewQuestionFilters
-            questions={allActiveQuestionItems as Question[]}
+            questions={
+              workspace === "question-mp"
+                ? activeMpWeekQuestions
+                : (allActiveQuestionItems as Question[])
+            }
             categories={categories}
             misconceptions={misconceptions}
             filters={questionFilters[activeParentKind]}
@@ -1057,6 +1298,8 @@ export function LecturerReviewPage({
             statusAvailable={questionCountsLoaded}
             statusLoading={questionCountsLoading}
             statusError={questionCountsError}
+            showWeek={workspace !== "question-mp"}
+            describeMatches={workspace === "question-mp"}
             onChange={setActiveQuestionFilters}
           />
         )}
@@ -1155,8 +1398,13 @@ export function LecturerReviewPage({
                 globallyComplete={activeQuestionGloballyComplete}
                 isAdmin={isAdmin}
                 onViewHistory={viewMyReviewHistory}
+                onDirtyChange={
+                  workspace === "question-mp"
+                    ? setMpQuestionReviewDirty
+                    : undefined
+                }
                 onReviewAnswer={(answerId) =>
-                  openWorkspaceItem(
+                  requestOpenWorkspaceItem(
                     activeQuestion.type === "multiple_choice"
                       ? "answer-mp"
                       : "answer-ps",
@@ -1205,6 +1453,7 @@ export function LecturerReviewPage({
                     reviewedQuestionIds,
                     reviewedAnswerIds,
                   );
+                  setMpQuestionReviewDirty(false);
                   openWorkspaceItem(
                     target.workspace,
                     target.itemId,
@@ -1391,6 +1640,7 @@ function QuestionValidationWorkspace({
   globallyComplete,
   isAdmin,
   onViewHistory,
+  onDirtyChange,
   onReviewAnswer,
   onSubmit,
 }: {
@@ -1405,6 +1655,7 @@ function QuestionValidationWorkspace({
   globallyComplete: boolean;
   isAdmin: boolean;
   onViewHistory: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
   onReviewAnswer: (answerId: string) => void;
   onSubmit: (values: QuestionReviewValues) => Promise<void>;
 }) {
@@ -1475,10 +1726,15 @@ function QuestionValidationWorkspace({
   } = form;
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const formDirty = isMisconceptionReviewFormDirty(form);
   const formUnavailable = locked || progressUnavailable;
   const canSubmit =
     !formUnavailable &&
     canSubmitMisconceptionReview(form);
+
+  useEffect(() => {
+    onDirtyChange?.(formDirty);
+  }, [formDirty, onDirtyChange]);
 
   const handleSubmit = async () => {
     if (
@@ -1496,6 +1752,8 @@ function QuestionValidationWorkspace({
 
     try {
       await onSubmit(buildQuestionReviewValues(form));
+      dispatchForm({ type: "reset" });
+      onDirtyChange?.(false);
     } catch (error) {
       console.error("[Progmiscon] Validasi soal gagal disimpan", error);
       setSubmitError(
@@ -1514,6 +1772,9 @@ function QuestionValidationWorkspace({
         <article className="min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
           <section className="rounded-lg bg-neutral p-5">
             <p className="academic-label">{language === "id" ? "Soal" : "Question"}</p>
+            <p className="mt-1 text-xs font-semibold tabular-nums text-muted">
+              Question ID {question.id} · {question.number}
+            </p>
             <p className="mt-2 max-w-3xl whitespace-pre-wrap text-[14px] font-normal leading-7 text-navy-deep">
               {t(question.prompt, language)}
             </p>

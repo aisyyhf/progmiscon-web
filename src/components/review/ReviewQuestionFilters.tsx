@@ -21,6 +21,8 @@ export function ReviewQuestionFilters({
   statusAvailable,
   statusLoading,
   statusError,
+  showWeek = true,
+  describeMatches = false,
   onChange,
 }: {
   questions: readonly Question[];
@@ -31,6 +33,8 @@ export function ReviewQuestionFilters({
   statusAvailable: boolean;
   statusLoading: boolean;
   statusError: string;
+  showWeek?: boolean;
+  describeMatches?: boolean;
   onChange: (filters: ReviewQuestionFilterValues) => void;
 }) {
   const { language } = useLanguage();
@@ -61,7 +65,9 @@ export function ReviewQuestionFilters({
       aria-label={language === "id" ? "Filter soal" : "Question filters"}
       className="mb-4 rounded-lg border border-border bg-white p-4 sm:p-5"
     >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+      <div
+        className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${showWeek ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}
+      >
         <label className="sm:col-span-2 lg:col-span-2">
           <span className="mb-1.5 block text-xs font-semibold text-navy-deep">
             {language === "id" ? "Cari Question ID" : "Search Question ID"}
@@ -120,7 +126,7 @@ export function ReviewQuestionFilters({
           )}
         </label>
 
-        <label>
+        {showWeek && <label>
           <span className="mb-1.5 block text-xs font-semibold text-navy-deep">
             Week
           </span>
@@ -141,7 +147,7 @@ export function ReviewQuestionFilters({
               </option>
             ))}
           </select>
-        </label>
+        </label>}
 
         <label>
           <span className="mb-1.5 block text-xs font-semibold text-navy-deep">
@@ -196,13 +202,20 @@ export function ReviewQuestionFilters({
       <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm font-medium tabular-nums text-muted" aria-live="polite">
           {language === "id"
-            ? `${resultCount} dari ${questions.length} soal`
-            : `${resultCount} of ${questions.length} questions`}
+            ? `${resultCount} dari ${questions.length} soal${describeMatches ? " cocok dengan filter" : ""}`
+            : `${resultCount} of ${questions.length} questions${describeMatches ? " match the filters" : ""}`}
         </p>
         <Button
           type="button"
           variant="secondary"
-          onClick={() => onChange({ ...DEFAULT_REVIEW_QUESTION_FILTERS })}
+          onClick={() =>
+            onChange({
+              ...DEFAULT_REVIEW_QUESTION_FILTERS,
+              week: showWeek
+                ? DEFAULT_REVIEW_QUESTION_FILTERS.week
+                : filters.week,
+            })
+          }
           className="w-full justify-center sm:w-auto"
         >
           {language === "id" ? "Reset filter" : "Reset filters"}
