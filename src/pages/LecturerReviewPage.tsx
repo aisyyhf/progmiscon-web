@@ -1136,15 +1136,6 @@ export function LecturerReviewPage({
 
   return (
     <div className="mx-auto max-w-6xl">
-      <header className="mb-6">
-        <h1 className="page-title">Review</h1>
-        <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
-          {language === "id"
-            ? "Review soal, baca evidence jawaban PS, dan validasi jawaban MP."
-            : "Review questions, read PS answer evidence, and validate MP answers."}
-        </p>
-      </header>
-
       {progressError && (
         <p
           role="alert"
