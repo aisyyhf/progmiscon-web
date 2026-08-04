@@ -5,6 +5,7 @@ import {
   Copy,
   ListFilter,
   LockKeyhole,
+  Users,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
@@ -82,7 +83,6 @@ import {
   REVIEW_FILTER_ALL,
   filterReviewQuestions,
   getActiveReviewQuestionFilterCount,
-  getQuestionReviewStatus,
   type ReviewQuestionFilters as ReviewQuestionFilterValues,
 } from "../utils/reviewQuestionFilters";
 import {
@@ -1038,19 +1038,15 @@ export function LecturerReviewPage({
     questionWorkspace && !loading && filterPanelOpen;
   const currentPosition = activeIndex >= 0 ? activeIndex + 1 : 0;
   const workspaceSummary =
-    workspace === "question-ps"
+    questionWorkspace
       ? language === "id"
-        ? `Menampilkan ${activeItems.length} dari ${allActiveQuestionItems.length} soal`
-        : `Showing ${activeItems.length} of ${allActiveQuestionItems.length} questions`
-      : workspace === "question-mp"
-        ? language === "id"
-          ? `Menampilkan ${activeItems.length} dari ${activeMpWeekQuestions.length} soal`
-          : `Showing ${activeItems.length} of ${activeMpWeekQuestions.length} questions`
-        : workspace === "answer-ps"
-          ? `Evidence ${currentPosition} ${language === "id" ? "dari" : "of"} ${activeItems.length}`
-          : language === "id"
-            ? `Jawaban ${currentPosition} dari ${activeItems.length}`
-            : `Answer ${currentPosition} of ${activeItems.length}`;
+        ? `${progress.reviewed} dari ${progress.total} soal sudah Anda review`
+        : `You have reviewed ${progress.reviewed} of ${progress.total} questions`
+      : workspace === "answer-ps"
+        ? `Evidence ${currentPosition} ${language === "id" ? "dari" : "of"} ${activeItems.length}`
+        : language === "id"
+          ? `Jawaban ${currentPosition} dari ${activeItems.length}`
+          : `Answer ${currentPosition} of ${activeItems.length}`;
   const filterButtonLabel =
     activeFilterCount > 0
       ? language === "id"
@@ -1417,8 +1413,6 @@ export function LecturerReviewPage({
               <QuestionValidationWorkspace
                 key={activeQuestion.id}
                 question={activeQuestion}
-                reviewed={progress.reviewed}
-                total={progress.total}
                 index={activeIndex}
                 itemTotal={activeItems.length}
                 questionReviewCount={
@@ -1676,8 +1670,6 @@ function ReviewLockNotice({
 
 function QuestionValidationWorkspace({
   question,
-  reviewed,
-  total,
   index,
   itemTotal,
   questionReviewCount,
@@ -1698,8 +1690,6 @@ function QuestionValidationWorkspace({
   onSubmit,
 }: {
   question: Question;
-  reviewed: number;
-  total: number;
   index: number;
   itemTotal: number;
   questionReviewCount?: number;
@@ -1742,24 +1732,17 @@ function QuestionValidationWorkspace({
       ? localizedPrompt.slice(0, -question.questionCode.length).trimEnd()
       : localizedPrompt);
   const pseudocode = question.questionCode?.trim() || reference.pseudocode;
-  const questionReviewStatus =
+  const reviewerCount =
     questionReviewCount === undefined
       ? undefined
-      : getQuestionReviewStatus(questionReviewCount);
-  const questionReviewStatusLabel =
-    questionReviewStatus === "reviewed"
-      ? language === "id"
-        ? "Selesai direview"
-        : "Reviewed"
-      : questionReviewStatus === "under_review"
-        ? language === "id"
-          ? "Sedang direview"
-          : "Under review"
-        : questionReviewStatus === "unreviewed"
-          ? language === "id"
-            ? "Belum direview"
-            : "Not reviewed"
-          : undefined;
+      : Math.min(questionReviewCount, QUESTION_REVIEWED_THRESHOLD);
+  const reviewerLabel = language === "id" ? "Reviewer" : "Reviewers";
+  const reviewerCountLabel =
+    reviewerCount === undefined
+      ? ""
+      : language === "id"
+        ? `${reviewerCount} dari ${QUESTION_REVIEWED_THRESHOLD} reviewer telah mereview soal ini`
+        : `${reviewerCount} of ${QUESTION_REVIEWED_THRESHOLD} reviewers have reviewed this question`;
   const questionRemovalProposalIds = getQuestionRemovalProposalIds(
     question.questionMisconceptionIds,
   );
@@ -1871,7 +1854,7 @@ function QuestionValidationWorkspace({
         <article className="min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
           <section aria-labelledby="review-question-title">
             <nav
-              className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border pb-5 sm:gap-4"
+              className="flex items-center justify-between gap-2 border-b border-border pb-5 sm:gap-4"
               aria-label={
                 language === "id"
                   ? "Navigasi soal review"
@@ -1888,12 +1871,6 @@ function QuestionValidationWorkspace({
                 <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
                 {language === "id" ? "Sebelumnya" : "Previous"}
               </Button>
-              <span className="text-center text-xs font-semibold tabular-nums text-muted">
-                <span className="hidden sm:inline">
-                  {language === "id" ? "Soal " : "Question "}
-                </span>
-                {index + 1}/{itemTotal}
-              </span>
               <Button
                 type="button"
                 variant="secondary"
@@ -1944,29 +1921,30 @@ function QuestionValidationWorkspace({
                 </dl>
               </div>
 
-              <div className="flex flex-wrap gap-2 md:max-w-52 md:justify-end">
-                {questionReviewStatusLabel && (
+              <div className="flex md:justify-end">
+                {reviewerCount !== undefined && (
                   <span
+                    aria-label={reviewerCountLabel}
                     className={cn(
-                      "inline-flex items-center rounded-md border px-2.5 py-1.5 text-xs font-semibold",
-                      questionReviewStatus === "reviewed"
+                      "inline-flex min-w-[96px] items-center gap-2 rounded-md border px-2.5 py-2",
+                      reviewerCount === QUESTION_REVIEWED_THRESHOLD
                         ? "border-correct-border bg-correct-bg text-correct"
-                        : questionReviewStatus === "under_review"
-                          ? "border-warning-border bg-warning-bg text-warning"
+                        : reviewerCount > 0
+                          ? "border-brand/25 bg-brand-soft text-brand"
                           : "border-border bg-neutral text-muted",
                     )}
                   >
-                    {questionReviewStatusLabel}
+                    <Users size={16} strokeWidth={2} aria-hidden="true" />
+                    <span className="grid leading-none">
+                      <span className="text-sm font-bold tabular-nums">
+                        {reviewerCount}/{QUESTION_REVIEWED_THRESHOLD}
+                      </span>
+                      <span className="mt-1 text-[10px] font-semibold">
+                        {reviewerLabel}
+                      </span>
+                    </span>
                   </span>
                 )}
-                {questionReviewCount !== undefined && (
-                  <span className="inline-flex items-center rounded-md border border-border bg-white px-2.5 py-1.5 text-xs font-semibold tabular-nums text-navy-deep">
-                    {questionReviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer
-                  </span>
-                )}
-                <span className="inline-flex items-center rounded-md bg-neutral px-2.5 py-1.5 text-xs font-semibold tabular-nums text-muted">
-                  {reviewed}/{total} {language === "id" ? "direview" : "reviewed"}
-                </span>
               </div>
             </header>
 
