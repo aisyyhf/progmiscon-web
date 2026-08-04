@@ -88,6 +88,10 @@ export const uiText = {
   relatedQuestions: { id: "Soal Terkait", en: "Related Questions" },
   expectedConcepts: { id: "Konsep", en: "Concept" },
   incorrectElements: { id: "Elemen yang Salah", en: "Incorrect Elements" },
+  astStructure: { id: "Struktur AST", en: "AST Structure" },
+  astAvailable: { id: "AST Tersedia", en: "AST Available" },
+  astUnavailable: { id: "AST Belum Tersedia", en: "AST Unavailable" },
+  astUnavailableMessage: { id: "AST belum tersedia.", en: "AST is unavailable." },
 
   viewInConcepts: { id: "Lihat di Konsep", en: "View in Concepts" },
 
