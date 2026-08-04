@@ -1282,17 +1282,17 @@ export function LecturerReviewPage({
               aria-label={filterButtonLabel}
               onClick={() => setFilterPanelOpen((open) => !open)}
               className={cn(
-                "min-h-10 shrink-0 justify-center",
+                "min-h-8 shrink-0 justify-center !gap-1.5 !px-2.5 !py-1.5 !text-xs",
                 activeFilterCount > 0 &&
                   "border-brand/45 bg-brand-soft text-brand hover:border-brand/60 hover:bg-brand-soft",
               )}
             >
-              <ListFilter size={16} strokeWidth={2} aria-hidden="true" />
+              <ListFilter size={14} strokeWidth={2} aria-hidden="true" />
               <span>Filter</span>
               {activeFilterCount > 0 && (
                 <span
                   aria-hidden="true"
-                  className="inline-flex min-w-5 items-center justify-center rounded bg-brand px-1.5 py-0.5 text-[11px] leading-none text-white"
+                  className="inline-flex min-w-4 items-center justify-center rounded bg-brand px-1 py-0.5 text-[10px] leading-none text-white"
                 >
                   {activeFilterCount}
                 </span>
@@ -1856,7 +1856,7 @@ function QuestionValidationWorkspace({
         <article className="review-folder-primary min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
           <section aria-labelledby="review-question-title">
             <nav
-              className="flex items-center justify-between gap-2 pb-4 sm:gap-4"
+              className="-mt-1 flex items-center justify-between gap-2 pb-3 sm:gap-4"
               aria-label={
                 language === "id"
                   ? "Navigasi soal review"
@@ -1865,23 +1865,23 @@ function QuestionValidationWorkspace({
             >
               <Button
                 type="button"
-                variant="secondary"
+                variant="ghost"
                 onClick={onPrevious}
                 disabled={index <= 0}
-                className="min-h-8 min-w-0 justify-self-start !gap-1.5 !px-2.5 !py-1.5 !text-xs"
+                className="min-h-7 min-w-0 justify-self-start !gap-1 !px-0.5 !py-1 !text-[11px] hover:!bg-transparent hover:text-brand hover:underline"
               >
-                <ChevronLeft size={14} strokeWidth={2} aria-hidden="true" />
+                <ChevronLeft size={12} strokeWidth={2} aria-hidden="true" />
                 {language === "id" ? "Sebelumnya" : "Previous"}
               </Button>
               <Button
                 type="button"
-                variant="secondary"
+                variant="ghost"
                 onClick={onNext}
                 disabled={index >= itemTotal - 1}
-                className="min-h-8 min-w-0 justify-self-end !gap-1.5 !px-2.5 !py-1.5 !text-xs"
+                className="min-h-7 min-w-0 justify-self-end !gap-1 !px-0.5 !py-1 !text-[11px] hover:!bg-transparent hover:text-brand hover:underline"
               >
                 {language === "id" ? "Berikutnya" : "Next"}
-                <ChevronRight size={14} strokeWidth={2} aria-hidden="true" />
+                <ChevronRight size={12} strokeWidth={2} aria-hidden="true" />
               </Button>
             </nav>
 
@@ -2227,13 +2227,8 @@ function QuestionValidationWorkspace({
         </article>
 
         <aside className="rounded-lg border border-border bg-white p-5 md:p-6 lg:sticky lg:top-24">
-          <p className="text-base font-bold text-navy-deep">
+          <p className="text-sm font-bold uppercase tracking-[0.04em] text-navy-deep">
             {language === "id" ? "Form validasi soal" : "Question validation form"}
-          </p>
-          <p className="mt-1 text-sm leading-6 text-muted">
-            {language === "id"
-              ? "Tinjau daftar kemungkinan miskonsepsi pada soal ini."
-              : "Review the possible misconceptions listed for this question."}
           </p>
 
           {progressUnavailable ? (
