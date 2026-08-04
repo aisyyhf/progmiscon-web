@@ -1731,6 +1731,9 @@ function QuestionValidationWorkspace({
         value && values.indexOf(value) === itemIndex,
     )
     .join(" / ");
+  const questionIdentityParts = questionIdentity
+    ? questionIdentity.split(" / ")
+    : [];
   const localizedPrompt = t(question.prompt, language);
   const localizedQuestionText =
     (language === "id" ? question.questionInd : question.questionEn)?.trim() ||
@@ -1889,19 +1892,32 @@ function QuestionValidationWorkspace({
               </Button>
             </nav>
 
-            <header className="mt-6 grid gap-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+            <header className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
               <div className="min-w-0">
-                <p className="font-mono text-xs font-bold tabular-nums text-brand">
-                  {questionIdentity}
+                <p
+                  className="font-mono text-[11px] font-bold leading-4 tracking-[0.02em] tabular-nums text-brand"
+                  aria-label={questionIdentity || undefined}
+                >
+                  {questionIdentityParts[0]}
+                  {questionIdentityParts.length > 1 && (
+                    <>
+                      <span className="mx-1 text-muted/60" aria-hidden="true">
+                        /
+                      </span>
+                      <span className="text-brand/75">
+                        {questionIdentityParts.slice(1).join(" / ")}
+                      </span>
+                    </>
+                  )}
                 </p>
                 <h2
                   id="review-question-title"
-                  className="mt-2 text-xl font-extrabold leading-tight tracking-[-0.02em] text-navy-deep md:text-2xl"
+                  className="mt-1 text-xl font-extrabold leading-[1.15] tracking-[-0.02em] text-navy-deep md:text-2xl"
                 >
                   {questionTitle}
                 </h2>
-                <dl className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs leading-5 text-muted">
-                  <div className="flex gap-1.5">
+                <dl className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1.5 text-xs leading-5 text-muted">
+                  <div className="flex min-w-0 items-baseline gap-1.5">
                     <dt className="font-semibold text-navy-deep">
                       {language === "id" ? "Minggu" : "Week"}:
                     </dt>
@@ -1910,7 +1926,7 @@ function QuestionValidationWorkspace({
                         (language === "id" ? "Belum tersedia" : "Unavailable")}
                     </dd>
                   </div>
-                  <div className="flex min-w-0 gap-1.5">
+                  <div className="flex min-w-0 items-baseline gap-1.5">
                     <dt className="shrink-0 font-semibold text-navy-deep">
                       KC:
                     </dt>
