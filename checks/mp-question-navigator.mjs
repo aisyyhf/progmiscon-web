@@ -209,7 +209,7 @@ const pageSource = readFileSync(
 assert.doesNotMatch(navigatorSource, /Nomor soal tetap sama|week\.questions\.length/);
 assert.match(
   navigatorSource,
-  /grid-cols-\[repeat\(auto-fit,minmax\(3rem,1fr\)\)\]/,
+  /grid-cols-\[repeat\(auto-fit,minmax\(2\.5rem,1fr\)\)\]/,
   "the compact grid must adapt to the sidebar width",
 );
 assert.match(
