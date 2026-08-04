@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -1188,6 +1189,25 @@ export function LecturerReviewPage({
     openWorkspaceItem("question-mp", nextQuestionId);
   };
   const viewMyReviewHistory = () => navigate("/review/riwayat");
+  const mpQuestionNavigation =
+    workspace === "question-mp" && !loading && mpQuestionWeeks.length > 0 ? (
+      <MpQuestionQuizNavigator
+        weeks={mpQuestionWeeks}
+        activeWeek={activeMpWeekKey}
+        items={mpNavigatorItems}
+        matchingCount={matchingMpWeekQuestions.length}
+        countsAvailable={questionCountsLoaded}
+        countsLoading={questionCountsLoading}
+        countsError={questionCountsError}
+        weekComplete={mpWeekComplete}
+        weekGloballyComplete={mpWeekGloballyComplete}
+        nextWeek={nextMpWeekKey}
+        onSelectWeek={selectMpWeek}
+        onSelectQuestion={(questionId) =>
+          requestOpenWorkspaceItem("question-mp", questionId)
+        }
+      />
+    ) : undefined;
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -1373,25 +1393,6 @@ export function LecturerReviewPage({
           />
         )}
 
-        {workspace === "question-mp" && !loading && mpQuestionWeeks.length > 0 && (
-          <MpQuestionQuizNavigator
-            weeks={mpQuestionWeeks}
-            activeWeek={activeMpWeekKey}
-            items={mpNavigatorItems}
-            matchingCount={matchingMpWeekQuestions.length}
-            countsAvailable={questionCountsLoaded}
-            countsLoading={questionCountsLoading}
-            countsError={questionCountsError}
-            weekComplete={mpWeekComplete}
-            weekGloballyComplete={mpWeekGloballyComplete}
-            nextWeek={nextMpWeekKey}
-            onSelectWeek={selectMpWeek}
-            onSelectQuestion={(questionId) =>
-              requestOpenWorkspaceItem("question-mp", questionId)
-            }
-          />
-        )}
-
         {loading ? (
           <EmptyState
             loading
@@ -1402,23 +1403,35 @@ export function LecturerReviewPage({
             }
           />
         ) : noFilteredQuestions ? (
-          <div className="academic-panel-quiet flex flex-col items-center justify-center gap-4 px-6 py-10 text-center">
-            <p className="max-w-sm text-sm leading-6 text-muted">
-              {language === "id"
-                ? "Tidak ada soal yang cocok dengan filter aktif."
-                : "No questions match the active filters."}
-            </p>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() =>
-                setActiveQuestionFilters({
-                  ...DEFAULT_REVIEW_QUESTION_FILTERS,
-                })
-              }
-            >
-              {language === "id" ? "Reset filter" : "Reset filters"}
-            </Button>
+          <div
+            className={cn(
+              workspace === "question-mp" && mpQuestionNavigation &&
+                "grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start",
+            )}
+          >
+            <div className="academic-panel-quiet flex flex-col items-center justify-center gap-4 px-6 py-10 text-center">
+              <p className="max-w-sm text-sm leading-6 text-muted">
+                {language === "id"
+                  ? "Tidak ada soal yang cocok dengan filter aktif."
+                  : "No questions match the active filters."}
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() =>
+                  setActiveQuestionFilters({
+                    ...DEFAULT_REVIEW_QUESTION_FILTERS,
+                  })
+                }
+              >
+                {language === "id" ? "Reset filter" : "Reset filters"}
+              </Button>
+            </div>
+            {mpQuestionNavigation && (
+              <aside className="lg:sticky lg:top-24">
+                {mpQuestionNavigation}
+              </aside>
+            )}
           </div>
         ) : workspace === "answer-ps" && activeParentQuestion ? (
           <PsAnswerEvidenceWorkspace
@@ -1478,6 +1491,11 @@ export function LecturerReviewPage({
                 submittedReviewLoading={questionReviewHistoryLoading}
                 submittedReviewError={questionReviewHistoryError}
                 isAdmin={isAdmin}
+                sidebarNavigation={
+                  workspace === "question-mp"
+                    ? mpQuestionNavigation
+                    : undefined
+                }
                 onPrevious={() => selectOffset(-1)}
                 onNext={() => selectOffset(1)}
                 onViewHistory={viewMyReviewHistory}
@@ -1986,6 +2004,7 @@ function QuestionValidationWorkspace({
   submittedReviewLoading,
   submittedReviewError,
   isAdmin,
+  sidebarNavigation,
   onPrevious,
   onNext,
   onViewHistory,
@@ -2009,6 +2028,7 @@ function QuestionValidationWorkspace({
   submittedReviewLoading: boolean;
   submittedReviewError: string;
   isAdmin: boolean;
+  sidebarNavigation?: ReactNode;
   onPrevious: () => void;
   onNext: () => void;
   onViewHistory: () => void;
@@ -2291,7 +2311,9 @@ function QuestionValidationWorkspace({
             </div>
           </section>
 
-          {isAdmin && <AdminQuestionContentEditor question={question} />}
+          {isAdmin && question.type !== "multiple_choice" && (
+            <AdminQuestionContentEditor question={question} />
+          )}
 
           {question.options && (
             <section className="mt-6">
@@ -2307,7 +2329,9 @@ function QuestionValidationWorkspace({
                       key={option.id}
                       className={cn(
                         "flex items-start gap-3 rounded-md border px-4 py-3 text-[13px] leading-6",
-                        option.isCorrect ? "border-correct-border bg-correct-bg/55" : "border-border bg-white",
+                        option.isCorrect
+                          ? "border-correct-border bg-correct-bg"
+                          : "border-border bg-white",
                       )}
                     >
                       <span className="font-semibold text-navy-deep">{option.label}.</span>
@@ -2324,7 +2348,8 @@ function QuestionValidationWorkspace({
                         )}
                       </span>
                       {option.isCorrect && (
-                        <span className="ml-auto shrink-0 text-xs font-semibold text-correct">
+                        <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded border border-correct-border bg-white/70 px-2 py-0.5 text-[10px] font-bold text-correct">
+                          <Check size={11} strokeWidth={3} aria-hidden="true" />
                           {language === "id" ? "Jawaban acuan" : "Reference answer"}
                         </span>
                       )}
@@ -2333,6 +2358,10 @@ function QuestionValidationWorkspace({
                 })}
               </ul>
             </section>
+          )}
+
+          {isAdmin && question.type === "multiple_choice" && (
+            <AdminQuestionContentEditor question={question} />
           )}
 
           <section className="mt-6 border-t border-border pt-5">
@@ -2527,7 +2556,21 @@ function QuestionValidationWorkspace({
           </section>
         </article>
 
-        <aside className="rounded-lg border border-border bg-white p-5 md:p-6 lg:sticky lg:top-24">
+        <aside
+          className={cn(
+            "lg:sticky lg:top-24",
+            sidebarNavigation
+              ? "space-y-4"
+              : "rounded-lg border border-border bg-white p-5 md:p-6",
+          )}
+        >
+          {sidebarNavigation}
+          <div
+            className={cn(
+              Boolean(sidebarNavigation) &&
+                "rounded-lg border border-border bg-white p-5 md:p-6",
+            )}
+          >
           {reviewedByMe ? (
             <SubmittedQuestionReview
               review={submittedReview}
@@ -2792,6 +2835,7 @@ function QuestionValidationWorkspace({
           )}
             </>
           )}
+          </div>
         </aside>
       </div>
     </div>

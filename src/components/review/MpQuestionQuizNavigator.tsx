@@ -36,7 +36,7 @@ function QuestionGrid({
 
   return (
     <div
-      className="grid grid-cols-5 gap-2 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12"
+      className="grid grid-cols-[repeat(auto-fit,minmax(3rem,1fr))] gap-1.5"
       aria-label={
         language === "id" ? "Nomor soal minggu aktif" : "Active week questions"
       }
@@ -98,7 +98,7 @@ function QuestionGrid({
             title={label}
             onClick={() => onSelect(item.question.id)}
             className={cn(
-              "relative flex min-h-14 cursor-pointer flex-col items-center justify-center rounded-md border px-1 py-1.5 text-center tabular-nums transition-[border-color,background-color,box-shadow,opacity,transform] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+              "relative flex min-h-12 cursor-pointer flex-col items-center justify-center rounded border px-1 py-1 text-center tabular-nums transition-[border-color,background-color,box-shadow,opacity,transform] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
               !countsAvailable
                 ? "border-border bg-neutral text-navy-deep"
                 : item.reviewStatus === "reviewed"
@@ -108,7 +108,7 @@ function QuestionGrid({
                     : "border-border bg-neutral text-navy-deep",
               item.reviewedByMe && "border-brand bg-brand-soft text-brand-deep",
               item.active &&
-                "border-brand bg-white text-brand-deep ring-2 ring-brand ring-offset-2",
+                "border-brand bg-white text-brand-deep ring-2 ring-brand ring-offset-1",
               !item.matchesFilters &&
                 "cursor-not-allowed border-dashed bg-neutral text-muted opacity-40",
             )}
@@ -121,10 +121,15 @@ function QuestionGrid({
                 className="absolute right-1 top-1"
               />
             )}
-            <span className="text-base font-extrabold leading-5">
+            <span className="text-sm font-extrabold leading-4">
               {item.displayNumber}
             </span>
-            <span className="text-[10px] font-bold leading-4">{countText}</span>
+            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold leading-3.5">
+              {countsAvailable && item.reviewStatus === "reviewed" && (
+                <Check size={9} strokeWidth={3} aria-hidden="true" />
+              )}
+              {countText}
+            </span>
           </button>
         );
       })}
@@ -160,6 +165,7 @@ export function MpQuestionQuizNavigator({
   onSelectQuestion: (questionId: string) => void;
 }) {
   const { language } = useLanguage();
+  const filtersReduceResults = matchingCount < items.length;
   const grid = (
     <QuestionGrid
       items={items}
@@ -176,26 +182,14 @@ export function MpQuestionQuizNavigator({
           ? "Navigator soal MP per minggu"
           : "Weekly MP question navigator"
       }
-      className="mb-4 rounded-lg border border-border bg-white p-4 sm:p-5"
+      className="rounded-lg border border-border bg-white p-4"
     >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-bold text-navy-deep">
-            {language === "id" ? "Pilih minggu" : "Choose a week"}
-          </p>
-          <p className="mt-0.5 text-xs leading-5 text-muted">
-            {language === "id"
-              ? "Nomor soal tetap sama saat filter digunakan."
-              : "Question numbers stay fixed while filters are active."}
-          </p>
-        </div>
-        <span className="shrink-0 text-xs font-semibold tabular-nums text-muted">
-          {matchingCount}/{items.length}
-        </span>
-      </div>
+      <p className="text-sm font-bold text-navy-deep">
+        {language === "id" ? "Pilih minggu" : "Choose a week"}
+      </p>
 
       <div
-        className="hide-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1"
+        className="mt-2.5 grid grid-cols-[repeat(auto-fit,minmax(5.25rem,1fr))] gap-1.5"
         role="tablist"
         aria-label={language === "id" ? "Daftar minggu" : "Week list"}
       >
@@ -207,26 +201,27 @@ export function MpQuestionQuizNavigator({
             aria-selected={activeWeek === week.key}
             onClick={() => onSelectWeek(week.key)}
             className={cn(
-              "min-h-9 shrink-0 cursor-pointer rounded-md border px-3 py-2 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+              "min-h-8 cursor-pointer rounded border px-2 py-1.5 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
               activeWeek === week.key
                 ? "border-brand bg-brand text-white"
                 : "border-border bg-white text-muted hover:border-brand/35 hover:bg-brand-soft hover:text-brand-deep",
             )}
           >
             {weekLabel(week.key, language)}
-            <span className="ml-1.5 tabular-nums opacity-75">
-              {week.questions.length}
-            </span>
           </button>
         ))}
       </div>
 
-      <div className="mt-4 border-t border-border pt-4">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <p className="text-sm font-semibold tabular-nums text-navy-deep" aria-live="polite">
+      <div className="mt-3 border-t border-border pt-3">
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold tabular-nums text-navy-deep" aria-live="polite">
             {language === "id"
-              ? `${matchingCount} dari ${items.length} soal cocok dengan filter`
-              : `${matchingCount} of ${items.length} questions match the filters`}
+              ? filtersReduceResults
+                ? `${matchingCount} soal cocok`
+                : `${items.length} soal`
+              : filtersReduceResults
+                ? `${matchingCount} questions match`
+                : `${items.length} questions`}
           </p>
           {countsLoading ? (
             <span className="text-xs text-muted" role="status">
@@ -267,7 +262,7 @@ export function MpQuestionQuizNavigator({
           </p>
         )}
 
-        <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 border-t border-border pt-3 text-[11px] font-medium text-muted" aria-label={language === "id" ? "Legenda status soal" : "Question status legend"}>
+        <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-border pt-3 text-[10px] font-medium leading-4 text-muted" aria-label={language === "id" ? "Legenda status soal" : "Question status legend"}>
           <span className="inline-flex items-center gap-1.5">
             <span className="h-3 w-3 rounded-sm border-2 border-brand bg-white" aria-hidden="true" />
             {language === "id" ? "Aktif" : "Active"}
@@ -276,16 +271,20 @@ export function MpQuestionQuizNavigator({
             <Check size={13} strokeWidth={3} className="text-brand" aria-hidden="true" />
             {language === "id" ? "Sudah Anda review" : "Reviewed by you"}
           </span>
-          <span>0/3–2/3 · {language === "id" ? "Berjalan" : "In progress"}</span>
-          <span>3/3 · {language === "id" ? "Selesai" : "Complete"}</span>
+          <span>0/3 · {language === "id" ? "Belum" : "Not started"}</span>
+          <span>1/3–2/3 · {language === "id" ? "Berjalan" : "In progress"}</span>
+          <span className="inline-flex items-center gap-1">
+            <Check size={11} strokeWidth={3} className="text-correct" aria-hidden="true" />
+            3/3 · {language === "id" ? "Selesai" : "Complete"}
+          </span>
           <span className="opacity-50">□ · {language === "id" ? "Tidak cocok filter" : "Filtered out"}</span>
         </div>
       </div>
 
       {(weekComplete || weekGloballyComplete) && activeWeek && (
-        <div className="mt-4 flex flex-col gap-3 rounded-md border border-correct-border bg-correct-bg px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mt-3 flex flex-col gap-2 rounded-md border border-correct-border bg-correct-bg px-3 py-2.5">
           <div>
-            <p className="text-sm font-semibold text-correct" role="status">
+            <p className="text-xs font-semibold leading-5 text-correct" role="status">
               {weekComplete
                 ? language === "id"
                   ? `Semua soal MP pada ${weekLabel(activeWeek, language)} sudah Anda review.`

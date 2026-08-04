@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   buildMpQuestionNavigatorItems,
   getNextMpWeekKey,
@@ -194,6 +195,46 @@ assert.equal(
   ),
   false,
   "successful submission resets the dirty form state",
+);
+
+const navigatorSource = readFileSync(
+  new URL("../src/components/review/MpQuestionQuizNavigator.tsx", import.meta.url),
+  "utf8",
+);
+const pageSource = readFileSync(
+  new URL("../src/pages/LecturerReviewPage.tsx", import.meta.url),
+  "utf8",
+);
+
+assert.doesNotMatch(navigatorSource, /Nomor soal tetap sama|week\.questions\.length/);
+assert.match(
+  navigatorSource,
+  /grid-cols-\[repeat\(auto-fit,minmax\(3rem,1fr\)\)\]/,
+  "the compact grid must adapt to the sidebar width",
+);
+assert.match(
+  pageSource,
+  /sidebarNavigation=\{\s*workspace === "question-mp"/,
+  "only the MP question workspace receives the sidebar navigator",
+);
+assert.match(
+  pageSource,
+  /option\.isCorrect\s*\? "border-correct-border bg-correct-bg"/,
+  "the reference answer treatment must use the existing correctness flag",
+);
+
+const optionsIndex = pageSource.indexOf("{question.options && (");
+const mpEditorIndex = pageSource.indexOf(
+  '{isAdmin && question.type === "multiple_choice"',
+  optionsIndex,
+);
+const misconceptionsIndex = pageSource.indexOf(
+  '"Miskonsepsi tingkat soal"',
+  mpEditorIndex,
+);
+assert.ok(
+  optionsIndex < mpEditorIndex && mpEditorIndex < misconceptionsIndex,
+  "the Admin MP question editor must follow the answer options and precede misconceptions",
 );
 
 console.log("MP question navigator self-check passed.");
