@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
+  MP_QUESTION_NAVIGATOR_PAGE_SIZE,
   buildMpQuestionNavigatorItems,
+  clampMpQuestionNavigatorPageIndex,
   getNextMpWeekKey,
+  getMpQuestionNavigatorPageCount,
+  getMpQuestionNavigatorPageIndex,
+  getMpQuestionNavigatorPageItems,
   groupMpQuestionsByWeek,
   isMpWeekComplete,
   isMpWeekGloballyComplete,
@@ -86,6 +91,63 @@ assert.deepEqual(
   ["unreviewed", "under_review", "under_review", "reviewed"],
   "0/3 through 3/3 must use the existing aggregate status mapping",
 );
+
+assert.equal(MP_QUESTION_NAVIGATOR_PAGE_SIZE, 20);
+assert.equal(getMpQuestionNavigatorPageCount(40), 2);
+assert.equal(getMpQuestionNavigatorPageCount(38), 2);
+assert.equal(getMpQuestionNavigatorPageCount(20), 1);
+assert.equal(getMpQuestionNavigatorPageCount(13), 1);
+
+const fortyQuestions = Array.from({ length: 40 }, (_, index) =>
+  question(`MP-${index + 1}`, "W03"),
+);
+const fortyItems = buildMpQuestionNavigatorItems(
+  fortyQuestions,
+  new Set(fortyQuestions.filter((_, index) => index % 2 === 0).map(({ id }) => id)),
+  new Map([
+    ["MP-2", 1],
+    ["MP-21", 2],
+    ["MP-40", 3],
+  ]),
+  ["MP-2"],
+  "MP-21",
+);
+assert.deepEqual(
+  getMpQuestionNavigatorPageItems(fortyItems, 0).map(
+    ({ displayNumber }) => displayNumber,
+  ),
+  Array.from({ length: 20 }, (_, index) => index + 1),
+);
+assert.deepEqual(
+  getMpQuestionNavigatorPageItems(fortyItems, 1).map(
+    ({ displayNumber }) => displayNumber,
+  ),
+  Array.from({ length: 20 }, (_, index) => index + 21),
+);
+assert.equal(fortyItems.length, 40, "filters must not remove stable positions");
+assert.equal(fortyItems[21].matchesFilters, false);
+assert.equal(
+  fortyItems.find(({ active }) => active)?.question.id,
+  "MP-21",
+  "visual page reads must not change the active question",
+);
+assert.equal(getMpQuestionNavigatorPageIndex(19, 40), 0);
+assert.equal(getMpQuestionNavigatorPageIndex(20, 40), 1);
+assert.equal(
+  getMpQuestionNavigatorPageIndex(
+    fortyItems.findIndex(({ active }) => active),
+    fortyItems.length,
+  ),
+  1,
+  "an active or restored question at stable position 21 must open page 2",
+);
+assert.equal(
+  clampMpQuestionNavigatorPageIndex(1, 13),
+  0,
+  "week changes must clamp an invalid visual page",
+);
+assert.equal(fortyItems[1].reviewedByMe, true);
+assert.equal(fortyItems[39].reviewStatus, "reviewed");
 
 assert.equal(
   selectValidMpQuestionId(weeks[0].questions, matchingIds, "MP-3-B"),
@@ -209,9 +271,19 @@ const pageSource = readFileSync(
 assert.doesNotMatch(navigatorSource, /Nomor soal tetap sama|week\.questions\.length/);
 assert.match(
   navigatorSource,
-  /grid-cols-\[repeat\(auto-fit,minmax\(2\.5rem,1fr\)\)\]/,
-  "the compact grid must adapt to the sidebar width",
+  /grid-cols-4 gap-1 sm:grid-cols-5/,
+  "the 20-item grid must render as four or five responsive columns",
 );
+assert.match(navigatorSource, /aria-current=\{visiblePageIndex === index \? "page"/);
+assert.match(
+  navigatorSource,
+  /useEffect\(\(\) => \{[\s\S]{0,350}getMpQuestionNavigatorPageIndex\(activeItemIndex/,
+  "the visual page must follow the existing active question",
+);
+assert.match(navigatorSource, /border-brand bg-brand text-white ring-1 ring-brand/);
+assert.match(navigatorSource, /border-brand\/45 bg-brand-soft text-brand-deep/);
+assert.match(navigatorSource, /border-correct-border bg-correct-bg text-correct/);
+assert.match(navigatorSource, /border-dashed border-border bg-neutral text-muted opacity-40/);
 assert.match(
   pageSource,
   /sidebarNavigation=\{\s*workspace === "question-mp"/,

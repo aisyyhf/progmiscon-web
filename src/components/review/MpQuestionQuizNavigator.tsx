@@ -1,8 +1,16 @@
-import { Check, ChevronRight, ListChecks } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, ChevronLeft, ChevronRight, ListChecks } from "lucide-react";
 import { useLanguage } from "../../hooks/useLanguage";
 import type {
   MpQuestionNavigatorItem,
   MpQuestionWeek,
+} from "../../utils/mpQuestionNavigator";
+import {
+  MP_QUESTION_NAVIGATOR_PAGE_SIZE,
+  clampMpQuestionNavigatorPageIndex,
+  getMpQuestionNavigatorPageCount,
+  getMpQuestionNavigatorPageIndex,
+  getMpQuestionNavigatorPageItems,
 } from "../../utils/mpQuestionNavigator";
 import { REVIEW_WEEK_UNASSIGNED } from "../../utils/reviewQuestionFilters";
 import { cn } from "../../utils/cn";
@@ -36,7 +44,7 @@ function QuestionGrid({
 
   return (
     <div
-      className="grid grid-cols-[repeat(auto-fit,minmax(2.5rem,1fr))] gap-1"
+      className="grid grid-cols-4 gap-1 sm:grid-cols-5"
       aria-label={
         language === "id" ? "Nomor soal minggu aktif" : "Active week questions"
       }
@@ -66,6 +74,19 @@ function QuestionGrid({
             : language === "id"
               ? "jumlah reviewer tidak tersedia"
               : "reviewer count is unavailable";
+        const statusClass = item.active
+          ? "border-brand bg-brand text-white ring-1 ring-brand"
+          : !item.matchesFilters
+            ? "cursor-not-allowed border-dashed border-border bg-neutral text-muted opacity-40"
+            : item.reviewedByMe
+              ? "border-brand/45 bg-brand-soft text-brand-deep"
+              : !countsAvailable
+                ? "border-border bg-white text-navy-deep"
+                : item.reviewStatus === "reviewed"
+                  ? "border-correct-border bg-correct-bg text-correct"
+                  : item.reviewStatus === "under_review"
+                    ? "border-brand/30 bg-brand-soft/70 text-brand-deep"
+                    : "border-border bg-white text-navy-deep";
         const label = [
           `${language === "id" ? "Soal" : "Question"} ${item.displayNumber}`,
           item.active ? (language === "id" ? "aktif" : "active") : "",
@@ -98,19 +119,8 @@ function QuestionGrid({
             title={label}
             onClick={() => onSelect(item.question.id)}
             className={cn(
-              "relative flex min-h-10 cursor-pointer flex-col items-center justify-center rounded border px-0.5 py-0.5 text-center tabular-nums transition-[border-color,background-color,box-shadow,opacity,transform] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-              !countsAvailable
-                ? "border-border bg-neutral text-navy-deep"
-                : item.reviewStatus === "reviewed"
-                  ? "border-correct-border bg-correct-bg text-correct"
-                  : item.reviewStatus === "under_review"
-                    ? "border-warning-border bg-warning-bg text-warning"
-                    : "border-border bg-neutral text-navy-deep",
-              item.reviewedByMe && "border-brand bg-brand-soft text-brand-deep",
-              item.active &&
-                "border-brand bg-white text-brand-deep ring-2 ring-brand",
-              !item.matchesFilters &&
-                "cursor-not-allowed border-dashed bg-neutral text-muted opacity-40",
+              "relative flex min-h-[30px] cursor-pointer flex-col items-center justify-center rounded border px-0.5 py-0 text-center tabular-nums transition-[border-color,background-color,box-shadow,opacity,transform] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+              statusClass,
             )}
           >
             {item.reviewedByMe && (
@@ -121,7 +131,7 @@ function QuestionGrid({
                 className="absolute right-0.5 top-0.5"
               />
             )}
-            <span className="text-xs font-extrabold leading-3">
+            <span className="text-[11px] font-extrabold leading-3">
               {item.displayNumber}
             </span>
             <span className="inline-flex items-center gap-px text-[8px] font-bold leading-3">
@@ -165,10 +175,39 @@ export function MpQuestionQuizNavigator({
   onSelectQuestion: (questionId: string) => void;
 }) {
   const { language } = useLanguage();
-  const filtersReduceResults = matchingCount < items.length;
+  const activeItemIndex = items.findIndex((item) => item.active);
+  const [pageIndex, setPageIndex] = useState(() =>
+    getMpQuestionNavigatorPageIndex(activeItemIndex, items.length),
+  );
+  const pageCount = getMpQuestionNavigatorPageCount(items.length);
+  const visiblePageIndex = clampMpQuestionNavigatorPageIndex(
+    pageIndex,
+    items.length,
+  );
+  const visibleItems = getMpQuestionNavigatorPageItems(
+    items,
+    visiblePageIndex,
+  );
+  const rangeStart =
+    items.length === 0
+      ? 0
+      : visiblePageIndex * MP_QUESTION_NAVIGATOR_PAGE_SIZE + 1;
+  const rangeEnd = Math.min(
+    rangeStart + MP_QUESTION_NAVIGATOR_PAGE_SIZE - 1,
+    items.length,
+  );
+
+  useEffect(() => {
+    setPageIndex((current) =>
+      activeItemIndex >= 0
+        ? getMpQuestionNavigatorPageIndex(activeItemIndex, items.length)
+        : clampMpQuestionNavigatorPageIndex(current, items.length),
+    );
+  }, [activeItemIndex, activeWeek, items.length]);
+
   const grid = (
     <QuestionGrid
-      items={items}
+      items={visibleItems}
       countsAvailable={countsAvailable}
       countsLoading={countsLoading}
       onSelect={onSelectQuestion}
@@ -182,17 +221,16 @@ export function MpQuestionQuizNavigator({
           ? "Navigator soal MP per minggu"
           : "Weekly MP question navigator"
       }
-      className="rounded-lg border border-border bg-white p-3"
+      className="rounded-lg border border-border bg-white p-2"
     >
-      <p className="text-xs font-bold text-navy-deep">
-        {language === "id" ? "Pilih minggu" : "Choose a week"}
-      </p>
-
       <div
-        className="mt-1.5 grid grid-cols-[repeat(auto-fit,minmax(4.75rem,1fr))] gap-1"
+        className="flex flex-wrap items-center gap-1"
         role="tablist"
         aria-label={language === "id" ? "Daftar minggu" : "Week list"}
       >
+        <p className="mr-0.5 text-[10px] font-bold text-navy-deep">
+          {language === "id" ? "Pilih minggu:" : "Choose a week:"}
+        </p>
         {weeks.map((week) => (
           <button
             key={week.key}
@@ -201,10 +239,10 @@ export function MpQuestionQuizNavigator({
             aria-selected={activeWeek === week.key}
             onClick={() => onSelectWeek(week.key)}
             className={cn(
-              "min-h-7 cursor-pointer rounded border px-1.5 py-1 text-[11px] font-semibold leading-4 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+              "min-h-6 cursor-pointer rounded-full border px-1.5 py-0.5 text-[9px] font-semibold leading-3 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
               activeWeek === week.key
                 ? "border-brand bg-brand text-white"
-                : "border-border bg-white text-muted hover:border-brand/35 hover:bg-brand-soft hover:text-brand-deep",
+                : "border-border bg-neutral/70 text-navy-deep hover:border-brand/35 hover:bg-brand-soft hover:text-brand-deep",
             )}
           >
             {weekLabel(week.key, language)}
@@ -212,30 +250,78 @@ export function MpQuestionQuizNavigator({
         ))}
       </div>
 
-      <div className="mt-2 border-t border-border pt-2">
-        <div className="mb-1.5 flex flex-wrap items-center justify-between gap-1.5">
-          <p className="text-[11px] font-semibold tabular-nums text-navy-deep" aria-live="polite">
-            {language === "id"
-              ? filtersReduceResults
-                ? `${matchingCount} soal cocok`
-                : `${items.length} soal`
-              : filtersReduceResults
-                ? `${matchingCount} questions match`
-                : `${items.length} questions`}
-          </p>
-          {countsLoading ? (
-            <span className="text-[10px] text-muted" role="status">
-              {language === "id"
-                ? "Memuat jumlah reviewer…"
-                : "Loading reviewer counts…"}
-            </span>
-          ) : countsError ? (
-            <span className="text-[10px] text-warning" role="status">
-              {language === "id"
-                ? "Jumlah reviewer tidak tersedia"
-                : "Reviewer counts unavailable"}
-            </span>
-          ) : null}
+      <div className="mt-1 border-t border-border pt-1">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-1">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <p className="shrink-0 text-[9px] font-semibold tabular-nums text-navy-deep" aria-live="polite">
+              {rangeStart}–{rangeEnd} {language === "id" ? "dari" : "of"}{" "}
+              {items.length}
+            </p>
+            {countsLoading ? (
+              <span className="truncate text-[9px] text-muted" role="status">
+                {language === "id" ? "Memuat reviewer…" : "Loading reviewers…"}
+              </span>
+            ) : countsError ? (
+              <span className="truncate text-[9px] text-warning" role="status">
+                {language === "id" ? "Reviewer tidak tersedia" : "Reviewers unavailable"}
+              </span>
+            ) : null}
+          </div>
+
+          {pageCount > 1 && (
+            <div
+              className="flex items-center gap-0.5"
+              aria-label={
+                language === "id"
+                  ? "Halaman navigator soal"
+                  : "Question navigator pages"
+              }
+            >
+              <button
+                type="button"
+                disabled={visiblePageIndex === 0}
+                onClick={() => setPageIndex((current) => current - 1)}
+                aria-label={
+                  language === "id"
+                    ? "Halaman navigator sebelumnya"
+                    : "Previous navigator page"
+                }
+                className="flex h-5 min-w-5 cursor-pointer items-center justify-center rounded text-muted transition-colors hover:bg-neutral hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <ChevronLeft size={11} aria-hidden="true" />
+              </button>
+              {Array.from({ length: pageCount }, (_, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  aria-current={visiblePageIndex === index ? "page" : undefined}
+                  aria-label={`${language === "id" ? "Halaman navigator" : "Navigator page"} ${index + 1}`}
+                  onClick={() => setPageIndex(index)}
+                  className={cn(
+                    "flex h-5 min-w-5 cursor-pointer items-center justify-center rounded px-1 text-[9px] font-bold tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand",
+                    visiblePageIndex === index
+                      ? "bg-brand text-white"
+                      : "bg-neutral text-muted hover:bg-brand-soft hover:text-brand-deep",
+                  )}
+                >
+                  {index + 1}
+                </button>
+              ))}
+              <button
+                type="button"
+                disabled={visiblePageIndex >= pageCount - 1}
+                onClick={() => setPageIndex((current) => current + 1)}
+                aria-label={
+                  language === "id"
+                    ? "Halaman navigator berikutnya"
+                    : "Next navigator page"
+                }
+                className="flex h-5 min-w-5 cursor-pointer items-center justify-center rounded text-muted transition-colors hover:bg-neutral hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-30"
+              >
+                <ChevronRight size={11} aria-hidden="true" />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="hidden md:block">{grid}</div>
@@ -262,22 +348,29 @@ export function MpQuestionQuizNavigator({
           </p>
         )}
 
-        <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 border-t border-border pt-2 text-[9px] font-medium leading-3 text-muted" aria-label={language === "id" ? "Legenda status soal" : "Question status legend"}>
+        <div className="mt-1 flex flex-wrap gap-x-1.5 gap-y-0.5 border-t border-border pt-1 text-[8px] font-medium leading-3 text-muted" aria-label={language === "id" ? "Legenda status soal" : "Question status legend"}>
           <span className="inline-flex items-center gap-1">
-            <span className="h-2.5 w-2.5 rounded-sm border-2 border-brand bg-white" aria-hidden="true" />
+            <span className="h-2 w-2 rounded-sm bg-brand" aria-hidden="true" />
             {language === "id" ? "Aktif" : "Active"}
           </span>
           <span className="inline-flex items-center gap-1">
-            <Check size={11} strokeWidth={3} className="text-brand" aria-hidden="true" />
+            <span className="inline-flex h-2.5 w-2.5 items-center justify-center rounded-sm border border-brand/45 bg-brand-soft text-brand">
+              <Check size={7} strokeWidth={3} aria-hidden="true" />
+            </span>
             {language === "id" ? "Sudah Anda review" : "Reviewed by you"}
           </span>
-          <span>0/3 · {language === "id" ? "Belum" : "Not started"}</span>
-          <span>1/3–2/3 · {language === "id" ? "Berjalan" : "In progress"}</span>
-          <span className="inline-flex items-center gap-0.5">
-            <Check size={9} strokeWidth={3} className="text-correct" aria-hidden="true" />
-            3/3 · {language === "id" ? "Selesai" : "Complete"}
+          <span className="inline-flex items-center gap-1">
+            <span className="h-2 w-2 rounded-sm border border-brand/30 bg-brand-soft" aria-hidden="true" />
+            {language === "id" ? "Berjalan" : "In progress"}
           </span>
-          <span className="opacity-50">□ · {language === "id" ? "Tidak cocok filter" : "Filtered out"}</span>
+          <span className="inline-flex items-center gap-1">
+            <Check size={8} strokeWidth={3} className="text-correct" aria-hidden="true" />
+            {language === "id" ? "Selesai" : "Complete"}
+          </span>
+          <span className="inline-flex items-center gap-1 opacity-50">
+            <span className="h-2 w-2 rounded-sm border border-dashed border-muted" aria-hidden="true" />
+            {language === "id" ? "Tidak cocok filter" : "Filtered out"}
+          </span>
         </div>
       </div>
 

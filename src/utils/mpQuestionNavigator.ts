@@ -22,6 +22,42 @@ export type MpQuestionNavigatorItem = {
   reviewStatus: QuestionReviewStatus;
 };
 
+export const MP_QUESTION_NAVIGATOR_PAGE_SIZE = 20;
+
+export function getMpQuestionNavigatorPageCount(totalItems: number): number {
+  return Math.ceil(Math.max(0, totalItems) / MP_QUESTION_NAVIGATOR_PAGE_SIZE);
+}
+
+export function clampMpQuestionNavigatorPageIndex(
+  pageIndex: number,
+  totalItems: number,
+): number {
+  return Math.max(
+    0,
+    Math.min(pageIndex, getMpQuestionNavigatorPageCount(totalItems) - 1),
+  );
+}
+
+export function getMpQuestionNavigatorPageIndex(
+  itemIndex: number,
+  totalItems: number,
+): number {
+  return clampMpQuestionNavigatorPageIndex(
+    Math.floor(Math.max(0, itemIndex) / MP_QUESTION_NAVIGATOR_PAGE_SIZE),
+    totalItems,
+  );
+}
+
+export function getMpQuestionNavigatorPageItems<T>(
+  items: readonly T[],
+  pageIndex: number,
+): T[] {
+  const start =
+    clampMpQuestionNavigatorPageIndex(pageIndex, items.length) *
+    MP_QUESTION_NAVIGATOR_PAGE_SIZE;
+  return items.slice(start, start + MP_QUESTION_NAVIGATOR_PAGE_SIZE);
+}
+
 export function getMpQuestionWeekKey(
   question: Pick<Question, "week">,
 ): string {
