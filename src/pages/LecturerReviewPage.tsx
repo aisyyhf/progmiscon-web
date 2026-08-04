@@ -1889,18 +1889,18 @@ function QuestionValidationWorkspace({
               <div className="min-w-0">
                 <h2
                   id="review-question-title"
-                  aria-label={`${questionCode} - ${questionTitle}`}
+                  aria-label={`${questionCode} / ${questionTitle}`}
                   className="text-lg font-extrabold leading-[1.2] tracking-[-0.015em] text-navy-deep md:text-xl"
                 >
-                  <span className="font-mono text-[11px] font-bold leading-none tracking-[0.02em] tabular-nums text-brand">
+                  <span className="font-mono font-extrabold leading-none tracking-[0.02em] tabular-nums text-brand">
                     {questionCode}
                   </span>
                   <span className="mx-1.5 font-medium text-muted/70" aria-hidden="true">
-                    -
+                    /
                   </span>
                   <span>{questionTitle}</span>
                 </h2>
-                <dl className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs leading-5 text-muted">
+                <dl className="mt-1 flex flex-wrap items-baseline gap-x-1 gap-y-1 text-xs font-bold leading-5 text-muted">
                   <div className="flex min-w-0 items-baseline gap-1">
                     <dt className="sr-only">Week</dt>
                     <dd>
@@ -1908,11 +1908,11 @@ function QuestionValidationWorkspace({
                       {normalizedWeekNumber}
                     </dd>
                   </div>
-                  <div className="flex min-w-0 items-baseline gap-1.5">
-                    <span className="text-muted/65" aria-hidden="true">
+                  <div className="flex min-w-0 items-baseline gap-1">
+                    <span className="mx-1 text-muted/65" aria-hidden="true">
                       ·
                     </span>
-                    <dt className="shrink-0 font-semibold text-navy-deep">KC:</dt>
+                    <dt className="shrink-0 font-bold text-navy-deep">KC:</dt>
                     <dd className="min-w-0">
                       {question.expectedConcepts.length > 0
                         ? question.expectedConcepts
