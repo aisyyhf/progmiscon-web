@@ -1856,7 +1856,7 @@ function QuestionValidationWorkspace({
         <article className="review-folder-primary min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
           <section aria-labelledby="review-question-title">
             <nav
-              className="flex items-center justify-between gap-2 border-b border-border pb-5 sm:gap-4"
+              className="flex items-center justify-between gap-2 pb-4 sm:gap-4"
               aria-label={
                 language === "id"
                   ? "Navigasi soal review"
@@ -1868,9 +1868,9 @@ function QuestionValidationWorkspace({
                 variant="secondary"
                 onClick={onPrevious}
                 disabled={index <= 0}
-                className="min-w-0 justify-self-start px-2.5 sm:px-3.5"
+                className="min-h-8 min-w-0 justify-self-start !gap-1.5 !px-2.5 !py-1.5 !text-xs"
               >
-                <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
+                <ChevronLeft size={14} strokeWidth={2} aria-hidden="true" />
                 {language === "id" ? "Sebelumnya" : "Previous"}
               </Button>
               <Button
@@ -1878,10 +1878,10 @@ function QuestionValidationWorkspace({
                 variant="secondary"
                 onClick={onNext}
                 disabled={index >= itemTotal - 1}
-                className="min-w-0 justify-self-end px-2.5 sm:px-3.5"
+                className="min-h-8 min-w-0 justify-self-end !gap-1.5 !px-2.5 !py-1.5 !text-xs"
               >
                 {language === "id" ? "Berikutnya" : "Next"}
-                <ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
+                <ChevronRight size={14} strokeWidth={2} aria-hidden="true" />
               </Button>
             </nav>
 
@@ -1890,7 +1890,7 @@ function QuestionValidationWorkspace({
                 <h2
                   id="review-question-title"
                   aria-label={`${questionCode} / ${questionTitle}`}
-                  className="text-lg font-extrabold leading-[1.2] tracking-[-0.015em] text-navy-deep md:text-xl"
+                  className="text-2xl font-extrabold leading-[1.1] tracking-[-0.02em] text-navy-deep md:text-3xl"
                 >
                   <span className="font-mono font-extrabold leading-none tracking-[0.02em] tabular-nums text-brand">
                     {questionCode}
@@ -1900,7 +1900,7 @@ function QuestionValidationWorkspace({
                   </span>
                   <span>{questionTitle}</span>
                 </h2>
-                <dl className="mt-1 flex flex-wrap items-baseline gap-x-1 gap-y-1 text-xs font-bold leading-5 text-muted">
+                <dl className="mt-1 flex flex-wrap items-baseline gap-x-1 gap-y-1 text-sm font-bold leading-5 text-muted">
                   <div className="flex min-w-0 items-baseline gap-1">
                     <dt className="sr-only">Week</dt>
                     <dd>
@@ -1931,7 +1931,7 @@ function QuestionValidationWorkspace({
                   <span
                     aria-label={reviewerCountLabel}
                     className={cn(
-                      "inline-flex min-w-[96px] items-center gap-2 rounded-md border px-2.5 py-2",
+                      "inline-flex min-w-[122px] items-center justify-center gap-1.5 rounded-md border px-3 py-1.5",
                       reviewerCount === QUESTION_REVIEWED_THRESHOLD
                         ? "border-correct-border bg-correct-bg text-correct"
                         : reviewerCount > 0
@@ -1939,21 +1939,19 @@ function QuestionValidationWorkspace({
                           : "border-border bg-neutral text-muted",
                     )}
                   >
-                    <Users size={16} strokeWidth={2} aria-hidden="true" />
-                    <span className="grid leading-none">
-                      <span className="text-sm font-bold tabular-nums">
-                        {reviewerCount}/{QUESTION_REVIEWED_THRESHOLD}
-                      </span>
-                      <span className="mt-1 text-[10px] font-semibold">
-                        {reviewerLabel}
-                      </span>
+                    <Users size={14} strokeWidth={2} aria-hidden="true" />
+                    <span className="text-xs font-bold tabular-nums">
+                      {reviewerCount}/{QUESTION_REVIEWED_THRESHOLD}
+                    </span>
+                    <span className="text-[9px] font-semibold">
+                      {reviewerLabel}
                     </span>
                   </span>
                 )}
               </div>
             </header>
 
-            <div className="mt-6 border-t border-border pt-6">
+            <div className="mt-7">
               {localizedQuestionText && (
                 <p className="max-w-3xl whitespace-pre-wrap text-[14px] font-normal leading-7 text-navy-deep">
                   {localizedQuestionText}
