@@ -10,6 +10,7 @@ import {
   isAnswerReviewEligible,
   resolveAnswerSelection,
   selectWorkspaceItemId,
+  stripSelectedOptionPrefix,
 } from "../src/utils/reviewWorkspace.ts";
 
 const questions = [
@@ -72,6 +73,13 @@ const missing = resolveAnswerSelection(questions[1], answers[2]);
 assert.equal(missing.option, undefined);
 assert.equal(missing.fallbackText, "Fallback");
 assert.equal(missing.missingSelectedOption, true);
+assert.equal(stripSelectedOptionPrefix("A. input(10)", "A"), "input(10)");
+assert.equal(stripSelectedOptionPrefix("B) input(-3)", "B"), "input(-3)");
+assert.equal(
+  stripSelectedOptionPrefix("A variable", "A"),
+  "A variable",
+  "only a matching leading option prefix may be removed",
+);
 
 assert.deepEqual(getReviewProgress(items["question-ps"], ["Q-PS-1"]), {
   reviewed: 1,
