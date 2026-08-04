@@ -163,3 +163,16 @@ export function resolveAnswerSelection(
       question.type === "multiple_choice" && option === undefined,
   };
 }
+
+export function stripSelectedOptionPrefix(
+  value: string,
+  optionLabel?: string,
+): string {
+  if (!optionLabel) return value;
+
+  const escapedLabel = optionLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return value.replace(
+    new RegExp(`^\\s*${escapedLabel}\\s*[.):]\\s*`, "i"),
+    "",
+  );
+}

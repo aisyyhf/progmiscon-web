@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -25,7 +26,6 @@ import {
   AdminQuestionContentEditor,
 } from "../components/review/AdminContentEditor";
 import { ReviewQuestionFilters } from "../components/review/ReviewQuestionFilters";
-import { MpQuestionQuizNavigator } from "../components/review/MpQuestionQuizNavigator";
 import { useCategories } from "../hooks/useCategories";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLecturerAuth } from "../hooks/useLecturerAuth";
@@ -48,7 +48,7 @@ import { cn } from "../utils/cn";
 import { getQuestionReference } from "../utils/questionReference";
 import { getQuestionOptionMisconceptionIds } from "../utils/questionMetadata";
 import { prioritizeMisconceptions, sortReviewTasks } from "../utils/reviewPriority";
-import { t } from "../utils/translation";
+import { t, uiText } from "../utils/translation";
 import { misconceptionLabel } from "../utils/misconceptionLabel";
 import {
   getQuestionReviewCounts,
@@ -60,6 +60,7 @@ import {
 } from "../services/reviewPersistenceRepository";
 import { PseudocodeBlock } from "../components/review/PseudocodeBlock";
 import { PsAnswerEvidenceWorkspace } from "../components/review/PsAnswerEvidenceWorkspace";
+import { MisconceptionChip } from "../components/misconception/MisconceptionChip";
 import {
   classifyReviewItems,
   filterEligibleAnswerReviewCounts,
@@ -68,6 +69,7 @@ import {
   getReviewProgress,
   isAnswerReviewEligible,
   resolveAnswerSelection,
+  stripSelectedOptionPrefix,
   type ReviewWorkspace,
 } from "../utils/reviewWorkspace";
 import {
@@ -95,16 +97,7 @@ import {
   getActiveReviewQuestionFilterCount,
   type ReviewQuestionFilters as ReviewQuestionFilterValues,
 } from "../utils/reviewQuestionFilters";
-import {
-  buildMpQuestionNavigatorItems,
-  getNextMpWeekKey,
-  groupMpQuestionsByWeek,
-  isMpWeekComplete,
-  isMpWeekGloballyComplete,
-  resolveMpActiveWeek,
-  selectValidMpQuestionId,
-  shouldWarnForMpQuestionNavigation,
-} from "../utils/mpQuestionNavigator";
+import { shouldWarnForMpQuestionNavigation } from "../utils/mpQuestionNavigator";
 import {
   REVIEW_QUESTION_FILTER_SESSION_KEY,
   createDefaultReviewQuestionFilterSession,
@@ -332,7 +325,6 @@ export function LecturerReviewPage({
   const [questionFilters, setQuestionFilters] =
     useState<ReviewQuestionFilterSessionState>(readStoredQuestionFilters);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
-  const [mpWeekResolved, setMpWeekResolved] = useState(false);
   const [mpQuestionReviewDirty, setMpQuestionReviewDirty] = useState(false);
   const [progressLoading, setProgressLoading] = useState(true);
   const [progressError, setProgressError] = useState("");
@@ -567,36 +559,6 @@ export function LecturerReviewPage({
     }),
     [answerTasks, classifiedItems],
   );
-  const mpQuestionWeeks = useMemo(
-    () => groupMpQuestionsByWeek(allWorkspaceItems["question-mp"]),
-    [allWorkspaceItems],
-  );
-  const restoredMpQuestionId = reviewSession.activeItemIds["question-mp"];
-  const activeMpWeekKey = resolveMpActiveWeek(
-    mpQuestionWeeks,
-    questionFilters.mp.week,
-    mpWeekResolved ? undefined : restoredMpQuestionId,
-  );
-  const activeMpWeekQuestions = useMemo(
-    () =>
-      mpQuestionWeeks.find((week) => week.key === activeMpWeekKey)?.questions ??
-      [],
-    [activeMpWeekKey, mpQuestionWeeks],
-  );
-
-  useEffect(() => {
-    if (questionsLoading || mpWeekResolved) return;
-
-    setQuestionFilters((current) => ({
-      ...current,
-      mp: {
-        ...current.mp,
-        week: activeMpWeekKey ?? REVIEW_FILTER_ALL,
-      },
-    }));
-    setMpWeekResolved(true);
-  }, [activeMpWeekKey, mpWeekResolved, questionsLoading]);
-
   const effectiveQuestionFilters = useMemo<ReviewQuestionFilterSessionState>(
     () => ({
       ps: questionCountsLoaded
@@ -608,18 +570,15 @@ export function LecturerReviewPage({
     }),
     [questionCountsLoaded, questionFilters],
   );
-  const matchingMpWeekQuestions = useMemo(
+  const matchingMpQuestions = useMemo(
     () =>
       filterReviewQuestions(
-        activeMpWeekQuestions,
+        allWorkspaceItems["question-mp"],
         questionReviewCounts,
-        {
-          ...effectiveQuestionFilters.mp,
-          week: REVIEW_FILTER_ALL,
-        },
+        effectiveQuestionFilters.mp,
       ),
     [
-      activeMpWeekQuestions,
+      allWorkspaceItems,
       effectiveQuestionFilters.mp,
       questionReviewCounts,
     ],
@@ -632,13 +591,13 @@ export function LecturerReviewPage({
         effectiveQuestionFilters.ps,
       ),
       "answer-ps": allWorkspaceItems["answer-ps"],
-      "question-mp": matchingMpWeekQuestions,
+      "question-mp": matchingMpQuestions,
       "answer-mp": allWorkspaceItems["answer-mp"],
     }),
     [
       allWorkspaceItems,
       effectiveQuestionFilters.ps,
-      matchingMpWeekQuestions,
+      matchingMpQuestions,
       questionReviewCounts,
     ],
   );
@@ -750,42 +709,6 @@ export function LecturerReviewPage({
     : false;
   const activeQuestionLocked =
     activeQuestionReviewedByMe || activeQuestionGloballyComplete;
-  const matchingMpQuestionIds = useMemo(
-    () => new Set(matchingMpWeekQuestions.map((question) => question.id)),
-    [matchingMpWeekQuestions],
-  );
-  const mpNavigatorItems = useMemo(
-    () =>
-      buildMpQuestionNavigatorItems(
-        activeMpWeekQuestions,
-        matchingMpQuestionIds,
-        questionReviewCounts,
-        reviewedQuestionIds,
-        workspace === "question-mp" ? activeQuestion?.id : undefined,
-      ),
-    [
-      activeMpWeekQuestions,
-      activeQuestion?.id,
-      matchingMpQuestionIds,
-      questionReviewCounts,
-      reviewedQuestionIds,
-      workspace,
-    ],
-  );
-  const mpWeekComplete =
-    progressLoaded &&
-    isMpWeekComplete(activeMpWeekQuestions, reviewedQuestionIds);
-  const mpWeekGloballyComplete =
-    questionCountsLoaded &&
-    isMpWeekGloballyComplete(
-      activeMpWeekQuestions,
-      questionReviewCounts,
-      QUESTION_REVIEWED_THRESHOLD,
-    );
-  const nextMpWeekKey = getNextMpWeekKey(
-    mpQuestionWeeks,
-    activeMpWeekKey,
-  );
   const activeAnswerReviewedByMe = activeAnswer
     ? reviewedAnswerIds.includes(activeAnswer.id)
     : false;
@@ -1112,25 +1035,18 @@ export function LecturerReviewPage({
     filters: ReviewQuestionFilterValues,
   ) => {
     if (activeParentKind === "mp") {
-      const nextFilters = {
-        ...filters,
-        week: activeMpWeekKey ?? filters.week,
-      };
       const nextMatchingQuestions = filterReviewQuestions(
-        activeMpWeekQuestions,
+        allWorkspaceItems["question-mp"],
         questionReviewCounts,
-        {
-          ...(questionCountsLoaded
-            ? nextFilters
-            : { ...nextFilters, status: REVIEW_FILTER_ALL }),
-          week: REVIEW_FILTER_ALL,
-        },
+        questionCountsLoaded
+          ? filters
+          : { ...filters, status: REVIEW_FILTER_ALL },
       );
-      const nextQuestionId = selectValidMpQuestionId(
-        activeMpWeekQuestions,
-        new Set(nextMatchingQuestions.map((question) => question.id)),
-        activeQuestion?.id,
-      );
+      const nextQuestionId = nextMatchingQuestions.some(
+        (question) => question.id === activeQuestion?.id,
+      )
+        ? activeQuestion?.id
+        : nextMatchingQuestions[0]?.id;
 
       if (
         workspace === "question-mp" &&
@@ -1141,7 +1057,7 @@ export function LecturerReviewPage({
 
       setQuestionFilters((current) => ({
         ...current,
-        mp: nextFilters,
+        mp: filters,
       }));
       if (
         workspace === "question-mp" &&
@@ -1157,35 +1073,6 @@ export function LecturerReviewPage({
       ...current,
       [activeParentKind]: filters,
     }));
-  };
-  const selectMpWeek = (weekKey: string) => {
-    if (weekKey === activeMpWeekKey) return;
-
-    const weekQuestions =
-      mpQuestionWeeks.find((week) => week.key === weekKey)?.questions ?? [];
-    const nextFilters = { ...questionFilters.mp, week: weekKey };
-    const nextMatchingQuestions = filterReviewQuestions(
-      weekQuestions,
-      questionReviewCounts,
-      {
-        ...(questionCountsLoaded
-          ? nextFilters
-          : { ...nextFilters, status: REVIEW_FILTER_ALL }),
-        week: REVIEW_FILTER_ALL,
-      },
-    );
-    const nextQuestionId = selectValidMpQuestionId(
-      weekQuestions,
-      new Set(nextMatchingQuestions.map((question) => question.id)),
-    );
-
-    if (!confirmMpQuestionNavigation("question-mp", nextQuestionId)) return;
-    setMpQuestionReviewDirty(false);
-    setQuestionFilters((current) => ({
-      ...current,
-      mp: { ...current.mp, week: weekKey },
-    }));
-    openWorkspaceItem("question-mp", nextQuestionId);
   };
   const viewMyReviewHistory = () => navigate("/review/riwayat");
 
@@ -1358,7 +1245,7 @@ export function LecturerReviewPage({
           <ReviewQuestionFilters
             questions={
               workspace === "question-mp"
-                ? activeMpWeekQuestions
+                ? allWorkspaceItems["question-mp"]
                 : (allActiveQuestionItems as Question[])
             }
             categories={categories}
@@ -1368,27 +1255,7 @@ export function LecturerReviewPage({
             statusAvailable={questionCountsLoaded}
             statusLoading={questionCountsLoading}
             statusError={questionCountsError}
-            showWeek={workspace !== "question-mp"}
             onChange={setActiveQuestionFilters}
-          />
-        )}
-
-        {workspace === "question-mp" && !loading && mpQuestionWeeks.length > 0 && (
-          <MpQuestionQuizNavigator
-            weeks={mpQuestionWeeks}
-            activeWeek={activeMpWeekKey}
-            items={mpNavigatorItems}
-            matchingCount={matchingMpWeekQuestions.length}
-            countsAvailable={questionCountsLoaded}
-            countsLoading={questionCountsLoading}
-            countsError={questionCountsError}
-            weekComplete={mpWeekComplete}
-            weekGloballyComplete={mpWeekGloballyComplete}
-            nextWeek={nextMpWeekKey}
-            onSelectWeek={selectMpWeek}
-            onSelectQuestion={(questionId) =>
-              requestOpenWorkspaceItem("question-mp", questionId)
-            }
           />
         )}
 
@@ -1402,23 +1269,25 @@ export function LecturerReviewPage({
             }
           />
         ) : noFilteredQuestions ? (
-          <div className="academic-panel-quiet flex flex-col items-center justify-center gap-4 px-6 py-10 text-center">
-            <p className="max-w-sm text-sm leading-6 text-muted">
-              {language === "id"
-                ? "Tidak ada soal yang cocok dengan filter aktif."
-                : "No questions match the active filters."}
-            </p>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() =>
-                setActiveQuestionFilters({
-                  ...DEFAULT_REVIEW_QUESTION_FILTERS,
-                })
-              }
-            >
-              {language === "id" ? "Reset filter" : "Reset filters"}
-            </Button>
+          <div>
+            <div className="academic-panel-quiet flex flex-col items-center justify-center gap-4 px-6 py-10 text-center">
+              <p className="max-w-sm text-sm leading-6 text-muted">
+                {language === "id"
+                  ? "Tidak ada soal yang cocok dengan filter aktif."
+                  : "No questions match the active filters."}
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() =>
+                  setActiveQuestionFilters({
+                    ...DEFAULT_REVIEW_QUESTION_FILTERS,
+                  })
+                }
+              >
+                {language === "id" ? "Reset filter" : "Reset filters"}
+              </Button>
+            </div>
           </div>
         ) : workspace === "answer-ps" && activeParentQuestion ? (
           <PsAnswerEvidenceWorkspace
@@ -1494,6 +1363,9 @@ export function LecturerReviewPage({
                     answerId,
                     activeQuestion.id,
                   )
+                }
+                onSelectMisconception={(misconceptionId) =>
+                  navigate(`/miskonsepsi/${misconceptionId}`)
                 }
                 onSubmit={async (values) => {
                   if (!progressLoaded || activeQuestionLocked) return;
@@ -1991,6 +1863,7 @@ function QuestionValidationWorkspace({
   onViewHistory,
   onDirtyChange,
   onReviewAnswer,
+  onSelectMisconception,
   onSubmit,
 }: {
   question: Question;
@@ -2014,6 +1887,7 @@ function QuestionValidationWorkspace({
   onViewHistory: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onReviewAnswer: (answerId: string) => void;
+  onSelectMisconception: (misconceptionId: string) => void;
   onSubmit: (values: QuestionReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
@@ -2053,21 +1927,15 @@ function QuestionValidationWorkspace({
     misconceptions,
     questionRemovalProposalIds,
   );
-  const directQuestionMisconceptionIds =
-    question.directQuestionMisconceptionIds;
-  const answerDerivedMisconceptionIds =
-    question.answerDerivedMisconceptionIds;
   const directQuestionMisconceptionIdSet = new Set(
-    directQuestionMisconceptionIds,
+    question.directQuestionMisconceptionIds,
   );
   const answerDerivedMisconceptionIdSet = new Set(
-    answerDerivedMisconceptionIds,
+    question.answerDerivedMisconceptionIds,
   );
   const misconceptionSourceLabel = (misconceptionId: string): string => {
-    const directlyLinked =
-      directQuestionMisconceptionIdSet.has(misconceptionId);
-    const answerDerived =
-      answerDerivedMisconceptionIdSet.has(misconceptionId);
+    const directlyLinked = directQuestionMisconceptionIdSet.has(misconceptionId);
+    const answerDerived = answerDerivedMisconceptionIdSet.has(misconceptionId);
     if (directlyLinked && answerDerived) {
       return language === "id"
         ? "Terkait ke soal dan jawaban"
@@ -2291,7 +2159,9 @@ function QuestionValidationWorkspace({
             </div>
           </section>
 
-          {isAdmin && <AdminQuestionContentEditor question={question} />}
+          {isAdmin && question.type !== "multiple_choice" && (
+            <AdminQuestionContentEditor question={question} />
+          )}
 
           {question.options && (
             <section className="mt-6">
@@ -2307,7 +2177,9 @@ function QuestionValidationWorkspace({
                       key={option.id}
                       className={cn(
                         "flex items-start gap-3 rounded-md border px-4 py-3 text-[13px] leading-6",
-                        option.isCorrect ? "border-correct-border bg-correct-bg/55" : "border-border bg-white",
+                        option.isCorrect
+                          ? "border-correct-border bg-correct-bg"
+                          : "border-border bg-white",
                       )}
                     >
                       <span className="font-semibold text-navy-deep">{option.label}.</span>
@@ -2324,7 +2196,8 @@ function QuestionValidationWorkspace({
                         )}
                       </span>
                       {option.isCorrect && (
-                        <span className="ml-auto shrink-0 text-xs font-semibold text-correct">
+                        <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded border border-correct-border bg-white/70 px-2 py-0.5 text-[10px] font-bold text-correct">
+                          <Check size={11} strokeWidth={3} aria-hidden="true" />
                           {language === "id" ? "Jawaban acuan" : "Reference answer"}
                         </span>
                       )}
@@ -2335,46 +2208,31 @@ function QuestionValidationWorkspace({
             </section>
           )}
 
+          {isAdmin && question.type === "multiple_choice" && (
+            <AdminQuestionContentEditor question={question} />
+          )}
+
           <section className="mt-6 border-t border-border pt-5">
-            <p className="academic-label mb-2">
+            <h3 className="text-base font-bold text-navy-deep">
               {language === "id"
-                ? "Miskonsepsi tingkat soal"
-                : "Question-level misconceptions"}
-            </p>
+                ? "Miskonsepsi yang Mungkin Muncul"
+                : "Possible Misconceptions"}
+            </h3>
             {recommended.length > 0 ? (
-              <ul className="space-y-2">
-                {recommended.map((item) => {
-                  return (
-                    <li
-                      key={item.id}
-                      className="rounded-md bg-brand-soft/65 px-3 py-2 text-navy-deep"
-                    >
-                      <span className="block text-sm font-semibold leading-5">
-                        {misconceptionLabel(item, language)}
-                      </span>
-                      <span className="mt-0.5 block text-xs font-medium text-muted">
-                        {misconceptionSourceLabel(item.id)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="mt-3 grid gap-2">
+                {recommended.map((item) => (
+                  <MisconceptionChip
+                    key={item.id}
+                    label={misconceptionLabel(item, language)}
+                    tone="question"
+                    className="w-full justify-between px-3.5 py-3 text-left"
+                    onClick={() => onSelectMisconception(item.id)}
+                  />
+                ))}
+              </div>
             ) : (
-              <p className="text-sm text-muted">
-                {language === "id"
-                  ? "Belum ada miskonsepsi yang terhubung."
-                  : "No misconceptions are linked yet."}
-              </p>
-            )}
-            {answerDerivedMisconceptionIds.length > 0 && (
-              <p className="mt-3 text-xs leading-5 text-muted">
-                {answerReviewEligible
-                  ? language === "id"
-                    ? "Relasi yang diturunkan dari jawaban tetap efektif sampai relasi jawaban terkait direview terlebih dahulu."
-                    : "Answer-derived relations remain effective until the related answer relation is reviewed first."
-                  : language === "id"
-                    ? "Relasi yang diturunkan dari jawaban tetap ditampilkan sebagai evidence dan bukan pekerjaan review jawaban."
-                    : "Answer-derived relations remain visible as evidence and are not answer-review work."}
+              <p className="mt-3 text-sm text-muted">
+                {t(uiText.emptyMisconceptions, language)}
               </p>
             )}
           </section>
@@ -2398,11 +2256,26 @@ function QuestionValidationWorkspace({
 
             {relatedAnswers.length > 0 ? (
               <ul className="mt-3 grid min-w-0 gap-3 md:grid-cols-2">
-                {relatedAnswers.map((answer, index) => {
+                {relatedAnswers.map((answer) => {
                   const { option, fallbackText } = resolveAnswerSelection(
                     question,
                     answer,
                   );
+                  const optionLabel = option?.label;
+                  const answerText = option
+                    ? t(option.text, language)
+                    : stripSelectedOptionPrefix(fallbackText, optionLabel);
+                  const answerReviewed =
+                    answerReviewEligible && reviewedAnswers.has(answer.id);
+                  const answerReviewStatus = answerReviewEligible
+                    ? answerReviewed
+                      ? language === "id"
+                        ? "Sudah direview"
+                        : "Reviewed"
+                      : language === "id"
+                        ? "Belum direview"
+                        : "Not reviewed"
+                    : "Evidence";
                   const task = answerTaskById.get(answer.id);
                   const linkedMisconceptions = prioritizeMisconceptions(
                     misconceptions,
@@ -2424,48 +2297,36 @@ function QuestionValidationWorkspace({
                   return (
                     <li
                       key={answer.id}
-                      className="min-w-0 rounded-md border border-border bg-bg p-4"
+                      className="flex min-w-0 flex-col rounded-md border border-border bg-white p-3.5"
                     >
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                        <p className="text-sm font-bold text-navy-deep">
-                          {language === "id" ? "Jawaban" : "Answer"} {index + 1}
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+                          {optionLabel
+                            ? `${language === "id" ? "Opsi" : "Option"} ${optionLabel}`
+                            : language === "id"
+                              ? "Jawaban"
+                              : "Answer"}
                         </p>
-                        <div className="flex flex-wrap gap-1.5 text-[11px] font-semibold">
+                        <span
+                          className={cn(
+                            "inline-flex shrink-0 items-center gap-1 text-[9px] font-bold uppercase tracking-[0.08em]",
+                            answerReviewed ? "text-brand" : "text-muted",
+                          )}
+                        >
                           <span
+                            aria-hidden="true"
                             className={cn(
-                              "rounded px-2 py-1",
-                              answer.status === "correct"
-                                ? "bg-correct-bg text-correct"
-                                : "bg-incorrect-bg text-incorrect",
+                              "h-1.5 w-1.5 rounded-full",
+                              answerReviewed ? "bg-brand" : "bg-muted/55",
                             )}
-                          >
-                            {answer.status === "correct"
-                              ? language === "id"
-                                ? "Benar"
-                                : "Correct"
-                              : language === "id"
-                                ? "Salah"
-                                : "Incorrect"}
-                          </span>
-                          <span className="rounded bg-neutral px-2 py-1 text-navy-deep">
-                            {answerReviewEligible
-                              ? reviewedAnswers.has(answer.id)
-                                ? language === "id"
-                                  ? "Sudah direview"
-                                  : "Reviewed"
-                                : language === "id"
-                                  ? "Belum direview"
-                                  : "Not reviewed"
-                              : "Evidence"}
-                          </span>
-                        </div>
+                          />
+                          {answerReviewStatus}
+                        </span>
                       </div>
 
                       {question.type === "multiple_choice" ? (
-                        <p className="mt-3 break-words rounded-md bg-white px-3 py-2 text-sm leading-6 text-navy-deep">
-                          {option
-                            ? `${option.label}. ${t(option.text, language)}`
-                            : fallbackText ||
+                        <p className="mt-3 break-words rounded bg-neutral/70 px-3 py-2.5 text-sm leading-6 text-navy-deep">
+                          {answerText ||
                               (language === "id"
                                 ? "Teks jawaban tidak tersedia."
                                 : "Answer text is unavailable.")}
@@ -2480,8 +2341,8 @@ function QuestionValidationWorkspace({
                       )}
 
                       {linkedMisconceptions.length > 0 && (
-                        <div className="mt-3">
-                          <p className="text-xs font-semibold text-muted">
+                        <div className="mt-3 border-t border-border pt-2.5">
+                          <p className="text-[10px] font-semibold text-muted">
                             {language === "id"
                               ? "Miskonsepsi terkait"
                               : "Linked misconceptions"}
@@ -2499,20 +2360,20 @@ function QuestionValidationWorkspace({
                         </div>
                       )}
 
-                      <Button
+                      <button
                         type="button"
-                        variant="secondary"
                         onClick={() => onReviewAnswer(answer.id)}
-                        className="mt-4 w-full justify-center sm:w-auto"
+                        className="mt-3 inline-flex w-fit items-center gap-1 text-xs font-bold text-brand transition-colors hover:text-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:text-muted"
                       >
                         {language === "id"
                           ? answerReviewEligible
-                            ? "Review jawaban ini"
+                            ? "Review Jawaban"
                             : "Lihat evidence"
                           : answerReviewEligible
-                            ? "Review this answer"
+                            ? "Review Answer"
                             : "View evidence"}
-                      </Button>
+                        <span aria-hidden="true">→</span>
+                      </button>
                     </li>
                   );
                 })}
