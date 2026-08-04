@@ -1,48 +1,49 @@
+import { useId, useState, type ReactNode } from "react";
+import { ChevronDown, GitFork } from "lucide-react";
 import { useLanguage } from "../../hooks/useLanguage";
+import { t, uiText } from "../../utils/translation";
 
-export function AnswerVisualization() {
+export function AnswerVisualization({ children }: { children?: ReactNode }) {
   const { language } = useLanguage();
-  const visualizationLabel =
-    language === "id"
-      ? "Alur jawaban dari mulai, membaca data, lalu bercabang ke pemeriksaan dan keluaran"
-      : "Answer flow from start and reading data to checking and output";
+  const [isOpen, setIsOpen] = useState(false);
+  const contentId = useId();
+  const hasAst = Boolean(children);
 
   return (
-    <section className="rounded-lg border border-border bg-white p-5">
-      <h3 className="text-sm font-bold text-navy-deep">
-        {language === "id" ? "Visualisasi Jawaban" : "Answer Visualization"}
-      </h3>
-
-      <figure
-        aria-label={visualizationLabel}
-        className="mt-4 flex w-full flex-col items-center overflow-hidden rounded-lg border border-border bg-bg px-5 py-7 font-mono text-[11px] font-semibold text-navy-deep sm:px-8"
+    <section className="overflow-hidden rounded-lg border border-border bg-neutral">
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-controls={contentId}
+        onClick={() => setIsOpen((open) => !open)}
+        className="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/60 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand sm:px-5"
       >
-        <div className="min-w-24 rounded-full bg-brand px-5 py-2 text-center text-white shadow-sm">
-          START
-        </div>
+        <GitFork size={18} strokeWidth={2} className="shrink-0 text-brand" aria-hidden="true" />
+        <span className="min-w-0 text-sm font-bold text-navy-deep">
+          {t(uiText.astStructure, language)}
+        </span>
+        <span className="ml-auto text-right text-xs font-medium text-muted sm:text-sm">
+          {t(hasAst ? uiText.astAvailable : uiText.astUnavailable, language)}
+        </span>
+        <ChevronDown
+          size={18}
+          strokeWidth={2}
+          className={`shrink-0 text-brand transition-transform motion-reduce:transition-none ${isOpen ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
+      </button>
 
-        <div aria-hidden="true" className="h-4 w-px bg-navy/25" />
-
-        <div className="min-w-28 rounded-full border border-navy/20 bg-white px-5 py-2 text-center shadow-sm">
-          READ / TRACE
-        </div>
-
-        <div aria-hidden="true" className="relative h-7 w-full max-w-sm">
-          <span className="absolute left-1/2 top-0 h-3.5 w-px -translate-x-1/2 bg-navy/25" />
-          <span className="absolute left-1/4 right-1/4 top-3.5 h-px bg-navy/25" />
-          <span className="absolute bottom-0 left-1/4 top-3.5 w-px -translate-x-1/2 bg-navy/25" />
-          <span className="absolute bottom-0 left-3/4 top-3.5 w-px -translate-x-1/2 bg-navy/25" />
-        </div>
-
-        <div className="grid w-full max-w-sm grid-cols-2 gap-6 sm:gap-12">
-          <div className="justify-self-center rounded-full border border-navy/20 bg-white px-5 py-2 text-center shadow-sm">
-            CHECK
-          </div>
-          <div className="justify-self-center rounded-full border border-navy/20 bg-white px-5 py-2 text-center shadow-sm">
-            OUTPUT
-          </div>
-        </div>
-      </figure>
+      <div
+        id={contentId}
+        hidden={!isOpen}
+        className="border-t border-border bg-white px-4 py-5 sm:px-5"
+      >
+        {hasAst ? (
+          children
+        ) : (
+          <p className="text-sm text-muted">{t(uiText.astUnavailableMessage, language)}</p>
+        )}
+      </div>
     </section>
   );
 }
