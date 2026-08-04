@@ -48,7 +48,7 @@ import { cn } from "../utils/cn";
 import { getQuestionReference } from "../utils/questionReference";
 import { getQuestionOptionMisconceptionIds } from "../utils/questionMetadata";
 import { prioritizeMisconceptions, sortReviewTasks } from "../utils/reviewPriority";
-import { t } from "../utils/translation";
+import { t, uiText } from "../utils/translation";
 import { misconceptionLabel } from "../utils/misconceptionLabel";
 import {
   getQuestionReviewCounts,
@@ -60,6 +60,7 @@ import {
 } from "../services/reviewPersistenceRepository";
 import { PseudocodeBlock } from "../components/review/PseudocodeBlock";
 import { PsAnswerEvidenceWorkspace } from "../components/review/PsAnswerEvidenceWorkspace";
+import { MisconceptionChip } from "../components/misconception/MisconceptionChip";
 import {
   classifyReviewItems,
   filterEligibleAnswerReviewCounts,
@@ -1363,6 +1364,9 @@ export function LecturerReviewPage({
                     activeQuestion.id,
                   )
                 }
+                onSelectMisconception={(misconceptionId) =>
+                  navigate(`/miskonsepsi/${misconceptionId}`)
+                }
                 onSubmit={async (values) => {
                   if (!progressLoaded || activeQuestionLocked) return;
                   if (!user) throw new Error("Sesi dosen tidak ditemukan.");
@@ -1859,6 +1863,7 @@ function QuestionValidationWorkspace({
   onViewHistory,
   onDirtyChange,
   onReviewAnswer,
+  onSelectMisconception,
   onSubmit,
 }: {
   question: Question;
@@ -1882,6 +1887,7 @@ function QuestionValidationWorkspace({
   onViewHistory: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onReviewAnswer: (answerId: string) => void;
+  onSelectMisconception: (misconceptionId: string) => void;
   onSubmit: (values: QuestionReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
@@ -1921,21 +1927,15 @@ function QuestionValidationWorkspace({
     misconceptions,
     questionRemovalProposalIds,
   );
-  const directQuestionMisconceptionIds =
-    question.directQuestionMisconceptionIds;
-  const answerDerivedMisconceptionIds =
-    question.answerDerivedMisconceptionIds;
   const directQuestionMisconceptionIdSet = new Set(
-    directQuestionMisconceptionIds,
+    question.directQuestionMisconceptionIds,
   );
   const answerDerivedMisconceptionIdSet = new Set(
-    answerDerivedMisconceptionIds,
+    question.answerDerivedMisconceptionIds,
   );
   const misconceptionSourceLabel = (misconceptionId: string): string => {
-    const directlyLinked =
-      directQuestionMisconceptionIdSet.has(misconceptionId);
-    const answerDerived =
-      answerDerivedMisconceptionIdSet.has(misconceptionId);
+    const directlyLinked = directQuestionMisconceptionIdSet.has(misconceptionId);
+    const answerDerived = answerDerivedMisconceptionIdSet.has(misconceptionId);
     if (directlyLinked && answerDerived) {
       return language === "id"
         ? "Terkait ke soal dan jawaban"
@@ -2213,45 +2213,26 @@ function QuestionValidationWorkspace({
           )}
 
           <section className="mt-6 border-t border-border pt-5">
-            <p className="academic-label mb-2">
+            <h3 className="text-base font-bold text-navy-deep">
               {language === "id"
-                ? "Miskonsepsi tingkat soal"
-                : "Question-level misconceptions"}
-            </p>
+                ? "Miskonsepsi yang Mungkin Muncul"
+                : "Possible Misconceptions"}
+            </h3>
             {recommended.length > 0 ? (
-              <ul className="space-y-2">
-                {recommended.map((item) => {
-                  return (
-                    <li
-                      key={item.id}
-                      className="rounded-md bg-brand-soft/65 px-3 py-2 text-navy-deep"
-                    >
-                      <span className="block text-sm font-semibold leading-5">
-                        {misconceptionLabel(item, language)}
-                      </span>
-                      <span className="mt-0.5 block text-xs font-medium text-muted">
-                        {misconceptionSourceLabel(item.id)}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div className="mt-3 grid gap-2">
+                {recommended.map((item) => (
+                  <MisconceptionChip
+                    key={item.id}
+                    label={misconceptionLabel(item, language)}
+                    tone="question"
+                    className="w-full justify-between px-3.5 py-3 text-left"
+                    onClick={() => onSelectMisconception(item.id)}
+                  />
+                ))}
+              </div>
             ) : (
-              <p className="text-sm text-muted">
-                {language === "id"
-                  ? "Belum ada miskonsepsi yang terhubung."
-                  : "No misconceptions are linked yet."}
-              </p>
-            )}
-            {answerDerivedMisconceptionIds.length > 0 && (
-              <p className="mt-3 text-xs leading-5 text-muted">
-                {answerReviewEligible
-                  ? language === "id"
-                    ? "Relasi yang diturunkan dari jawaban tetap efektif sampai relasi jawaban terkait direview terlebih dahulu."
-                    : "Answer-derived relations remain effective until the related answer relation is reviewed first."
-                  : language === "id"
-                    ? "Relasi yang diturunkan dari jawaban tetap ditampilkan sebagai evidence dan bukan pekerjaan review jawaban."
-                    : "Answer-derived relations remain visible as evidence and are not answer-review work."}
+              <p className="mt-3 text-sm text-muted">
+                {t(uiText.emptyMisconceptions, language)}
               </p>
             )}
           </section>
