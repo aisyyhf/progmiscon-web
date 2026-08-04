@@ -210,16 +210,36 @@ a:active {
   outline-offset: 2px;
 }
 
+.review-workspace-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
 .review-workspace-tabs {
   display: flex;
+  flex: 1 1 34rem;
   align-items: end;
   gap: 1.5rem;
+  min-width: 0;
   padding: 0;
   overflow-x: auto;
   overflow-y: visible;
   border: 0;
   border-radius: 0;
   background: transparent;
+}
+
+.review-workspace-toolbar-meta {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  min-height: 3rem;
+  margin-left: auto;
 }
 
 .review-workspace-tab-group {
@@ -454,6 +474,22 @@ a:active {
 
   .workspace-section {
     padding: 1.25rem;
+  }
+
+  .review-workspace-tabs {
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .review-workspace-toolbar-meta {
+    flex: 1 0 100%;
+    justify-content: space-between;
+    min-height: 2.5rem;
+    margin-left: 0;
+  }
+
+  .review-workspace-toolbar-meta p {
+    min-width: 0;
   }
 }
 

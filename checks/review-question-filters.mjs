@@ -7,6 +7,7 @@ import {
   REVIEW_MISCONCEPTION_NONE,
   REVIEW_WEEK_UNASSIGNED,
   filterReviewQuestions,
+  getActiveReviewQuestionFilterCount,
   getQuestionReviewStatus,
 } from "../src/utils/reviewQuestionFilters.ts";
 import {
@@ -64,6 +65,29 @@ const ids = (filters) =>
   filterReviewQuestions(questions, counts, { ...allFilters, ...filters }).map(
     ({ id }) => id,
   );
+
+assert.equal(getActiveReviewQuestionFilterCount(allFilters), 0);
+assert.equal(
+  getActiveReviewQuestionFilterCount({ ...allFilters, query: " Q-PS " }),
+  1,
+);
+assert.equal(
+  getActiveReviewQuestionFilterCount({
+    ...allFilters,
+    status: "under_review",
+    week: "W01",
+    misconceptionId: "M-1",
+  }),
+  3,
+);
+assert.equal(
+  getActiveReviewQuestionFilterCount(
+    { ...allFilters, week: "W01" },
+    false,
+  ),
+  0,
+  "MP week navigation must not count as a panel filter",
+);
 
 assert.equal(QUESTION_REVIEWED_THRESHOLD, 3);
 assert.equal(getQuestionReviewStatus(0), "unreviewed");
@@ -297,8 +321,23 @@ assert.doesNotMatch(aggregateFunction, /catch|fallback/i);
 
 assert.match(
   page,
-  /questionWorkspace && !loading && \(\s*<ReviewQuestionFilters/,
+  /filterPanelExpanded && \(\s*<ReviewQuestionFilters/,
 );
+assert.match(page, /aria-expanded=\{filterPanelExpanded\}/);
+assert.match(page, /aria-controls=\{filterPanelId\}/);
+assert.match(
+  page,
+  /onClick=\{\(\) => setFilterPanelOpen\(\(open\) => !open\)\}/,
+);
+assert.match(
+  page,
+  /getActiveReviewQuestionFilterCount\(\s*questionFilters\[activeParentKind\],\s*workspace === "question-ps"/,
+);
+assert.match(page, /Menampilkan \$\{activeItems\.length\} dari/);
+assert.match(page, /Showing \$\{activeItems\.length\} of/);
+assert.match(page, /Evidence \$\{currentPosition\}/);
+assert.match(page, /Jawaban \$\{currentPosition\} dari/);
+assert.match(page, /Answer \$\{currentPosition\} of/);
 assert.doesNotMatch(
   page,
   /Promise\.all\([\s\S]{0,300}getSavedReviewProgress\(\)[\s\S]{0,300}getQuestionReviewCounts\(\)/,

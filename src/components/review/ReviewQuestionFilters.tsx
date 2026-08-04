@@ -17,24 +17,22 @@ export function ReviewQuestionFilters({
   categories,
   misconceptions,
   filters,
-  resultCount,
+  panelId,
   statusAvailable,
   statusLoading,
   statusError,
   showWeek = true,
-  describeMatches = false,
   onChange,
 }: {
   questions: readonly Question[];
   categories: readonly Category[];
   misconceptions: readonly Misconception[];
   filters: ReviewQuestionFilterValues;
-  resultCount: number;
+  panelId: string;
   statusAvailable: boolean;
   statusLoading: boolean;
   statusError: string;
   showWeek?: boolean;
-  describeMatches?: boolean;
   onChange: (filters: ReviewQuestionFilterValues) => void;
 }) {
   const { language } = useLanguage();
@@ -55,6 +53,19 @@ export function ReviewQuestionFilters({
         : "";
   const controlClass =
     "academic-input min-h-10 px-3 py-2 text-sm text-navy-deep disabled:cursor-not-allowed disabled:bg-neutral disabled:text-muted";
+  const missingWeek =
+    filters.week !== REVIEW_FILTER_ALL &&
+    filters.week !== REVIEW_WEEK_UNASSIGNED &&
+    !weekOptions.includes(filters.week);
+  const missingCategory =
+    filters.categoryId !== REVIEW_FILTER_ALL &&
+    !categories.some((category) => category.id === filters.categoryId);
+  const missingMisconception =
+    filters.misconceptionId !== REVIEW_FILTER_ALL &&
+    filters.misconceptionId !== REVIEW_MISCONCEPTION_NONE &&
+    !misconceptions.some(
+      (misconception) => misconception.id === filters.misconceptionId,
+    );
   const setFilter = <Key extends keyof ReviewQuestionFilterValues>(
     key: Key,
     value: ReviewQuestionFilterValues[Key],
@@ -62,11 +73,12 @@ export function ReviewQuestionFilters({
 
   return (
     <section
+      id={panelId}
       aria-label={language === "id" ? "Filter soal" : "Question filters"}
-      className="mb-4 rounded-lg border border-border bg-white p-4 sm:p-5"
+      className="review-filter-panel mb-4 rounded-lg border border-border bg-white p-3 sm:p-4"
     >
       <div
-        className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${showWeek ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}
+        className={`grid grid-cols-1 gap-3 sm:grid-cols-2 ${showWeek ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}
       >
         <label className="sm:col-span-2 lg:col-span-2">
           <span className="mb-1.5 block text-xs font-semibold text-navy-deep">
@@ -141,6 +153,11 @@ export function ReviewQuestionFilters({
             <option value={REVIEW_WEEK_UNASSIGNED}>
               {language === "id" ? "Belum ditentukan" : "Unassigned"}
             </option>
+            {missingWeek && (
+              <option value={filters.week} disabled>
+                {language === "id" ? "Tidak tersedia" : "Unavailable"}: {filters.week}
+              </option>
+            )}
             {weekOptions.map((week) => (
               <option key={week} value={week}>
                 {week}
@@ -161,6 +178,11 @@ export function ReviewQuestionFilters({
             <option value={REVIEW_FILTER_ALL}>
               {language === "id" ? "Semua KC" : "All categories"}
             </option>
+            {missingCategory && (
+              <option value={filters.categoryId} disabled>
+                {language === "id" ? "Tidak tersedia" : "Unavailable"}: {filters.categoryId}
+              </option>
+            )}
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.id} - {t(category.name, language)}
@@ -190,6 +212,11 @@ export function ReviewQuestionFilters({
                 ? "Tanpa miskonsepsi"
                 : "No misconception"}
             </option>
+            {missingMisconception && (
+              <option value={filters.misconceptionId} disabled>
+                {language === "id" ? "Tidak tersedia" : "Unavailable"}: {filters.misconceptionId}
+              </option>
+            )}
             {misconceptions.map((misconception) => (
               <option key={misconception.id} value={misconception.id}>
                 {misconceptionLabel(misconception, language)}
@@ -199,12 +226,7 @@ export function ReviewQuestionFilters({
         </label>
       </div>
 
-      <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-medium tabular-nums text-muted" aria-live="polite">
-          {language === "id"
-            ? `${resultCount} dari ${questions.length} soal${describeMatches ? " cocok dengan filter" : ""}`
-            : `${resultCount} of ${questions.length} questions${describeMatches ? " match the filters" : ""}`}
-        </p>
+      <div className="mt-3 flex justify-end border-t border-border pt-3">
         <Button
           type="button"
           variant="secondary"
