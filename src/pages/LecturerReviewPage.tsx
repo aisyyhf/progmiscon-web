@@ -1823,8 +1823,8 @@ function SubmittedQuestionReview({
             </h3>
             <p className="mt-1 text-xs leading-5 text-muted">
               {language === "id"
-                ? "Ringkasan tersimpan ini bersifat baca-saja."
-                : "This saved summary is read-only."}
+                ? "Berikut adalah hasil review yang telah Anda kirim."
+                : "Here is the review you submitted."}
             </p>
           </div>
           <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-brand/20 bg-brand-soft px-2.5 py-1.5 text-[11px] font-bold text-brand">
