@@ -1720,20 +1720,13 @@ function QuestionValidationWorkspace({
   const questionTitle =
     t(question.title, language).trim() ||
     `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
-  const questionIdentity = [
-    question.sourceCode,
-    question.id,
-    question.number,
-  ]
-    .map((value) => value?.trim())
-    .filter(
-      (value, itemIndex, values) =>
-        value && values.indexOf(value) === itemIndex,
-    )
-    .join(" / ");
-  const questionIdentityParts = questionIdentity
-    ? questionIdentity.split(" / ")
-    : [];
+  const questionCode = question.sourceCode?.trim() || question.id;
+  const weekMatch = /^W(\d+)(?:-(\d+))?$/i.exec(question.week ?? "");
+  const normalizedWeekNumber = weekMatch
+    ? weekMatch[2]
+      ? `${Number(weekMatch[1])}–${Number(weekMatch[2])}`
+      : String(Number(weekMatch[1]))
+    : question.week || (language === "id" ? "Belum tersedia" : "Unavailable");
   const localizedPrompt = t(question.prompt, language);
   const localizedQuestionText =
     (language === "id" ? question.questionInd : question.questionEn)?.trim() ||
@@ -1894,42 +1887,32 @@ function QuestionValidationWorkspace({
 
             <header className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
               <div className="min-w-0">
-                <p
-                  className="font-mono text-[11px] font-bold leading-4 tracking-[0.02em] tabular-nums text-brand"
-                  aria-label={questionIdentity || undefined}
-                >
-                  {questionIdentityParts[0]}
-                  {questionIdentityParts.length > 1 && (
-                    <>
-                      <span className="mx-1 text-muted/60" aria-hidden="true">
-                        /
-                      </span>
-                      <span className="text-brand/75">
-                        {questionIdentityParts.slice(1).join(" / ")}
-                      </span>
-                    </>
-                  )}
-                </p>
                 <h2
                   id="review-question-title"
-                  className="mt-1 text-xl font-extrabold leading-[1.15] tracking-[-0.02em] text-navy-deep md:text-2xl"
+                  aria-label={`${questionCode} - ${questionTitle}`}
+                  className="text-lg font-extrabold leading-[1.2] tracking-[-0.015em] text-navy-deep md:text-xl"
                 >
-                  {questionTitle}
+                  <span className="font-mono text-[11px] font-bold leading-none tracking-[0.02em] tabular-nums text-brand">
+                    {questionCode}
+                  </span>
+                  <span className="mx-1.5 font-medium text-muted/70" aria-hidden="true">
+                    -
+                  </span>
+                  <span>{questionTitle}</span>
                 </h2>
-                <dl className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1.5 text-xs leading-5 text-muted">
-                  <div className="flex min-w-0 items-baseline gap-1.5">
-                    <dt className="font-semibold text-navy-deep">
-                      {language === "id" ? "Minggu" : "Week"}:
-                    </dt>
+                <dl className="mt-1 flex flex-wrap items-baseline gap-x-4 gap-y-1 text-xs leading-5 text-muted">
+                  <div className="flex min-w-0 items-baseline gap-1">
+                    <dt className="sr-only">Week</dt>
                     <dd>
-                      {question.week ||
-                        (language === "id" ? "Belum tersedia" : "Unavailable")}
+                      <span aria-hidden="true">Week </span>
+                      {normalizedWeekNumber}
                     </dd>
                   </div>
                   <div className="flex min-w-0 items-baseline gap-1.5">
-                    <dt className="shrink-0 font-semibold text-navy-deep">
-                      KC:
-                    </dt>
+                    <span className="text-muted/65" aria-hidden="true">
+                      ·
+                    </span>
+                    <dt className="shrink-0 font-semibold text-navy-deep">KC:</dt>
                     <dd className="min-w-0">
                       {question.expectedConcepts.length > 0
                         ? question.expectedConcepts
