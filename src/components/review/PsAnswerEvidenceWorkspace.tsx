@@ -57,18 +57,17 @@ export function PsAnswerEvidenceWorkspace({
   const sourceKey = activeAnswer?.sourceKey ?? question.sourceKey;
 
   return (
-    <div className="scroll-reveal">
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={onBackToQuestion}
-        className="mb-4"
-      >
-        {language === "id" ? "Kembali ke soal ini" : "Back to this question"}
-      </Button>
-
-      <section className="overflow-hidden rounded-lg border border-border bg-white">
+    <div className="scroll-reveal review-folder-content">
+      <section className="review-folder-primary overflow-hidden rounded-lg border border-border bg-white">
         <header className="border-b border-border px-5 py-5 md:px-7">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onBackToQuestion}
+            className="mb-4"
+          >
+            {language === "id" ? "Kembali ke soal ini" : "Back to this question"}
+          </Button>
           <h2 className="text-lg font-bold text-navy-deep">
             {language === "id" ? "Evidence Jawaban PS" : "PS Answer Evidence"}
           </h2>

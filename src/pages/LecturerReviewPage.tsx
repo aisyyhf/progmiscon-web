@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useState,
+} from "react";
 import {
   ChevronLeft,
   ChevronRight,
@@ -1293,12 +1300,11 @@ export function LecturerReviewPage({
             </Button>
           )}
         </div>
-      </div>
-
       <section
         id="review-workspace-panel"
         role="tabpanel"
         aria-label={activeTab.label}
+        className="review-workspace-panel"
       >
         {filterPanelExpanded && (
           <ReviewQuestionFilters
@@ -1393,22 +1399,6 @@ export function LecturerReviewPage({
           />
         ) : hasActiveItem ? (
           <>
-            {workspace.startsWith("answer") && (
-              <WorkspaceToolbar
-                workspace={workspace}
-                label={activeTab.label}
-                itemLabel={itemLabel}
-                reviewed={progress.reviewed}
-                index={activeIndex}
-                total={progress.total}
-                itemTotal={activeItems.length}
-                language={language}
-                parentQuestion={answerQuestion}
-                onPrevious={() => selectOffset(-1)}
-                onNext={() => selectOffset(1)}
-              />
-            )}
-
             {activeQuestion ? (
               <QuestionValidationWorkspace
                 key={activeQuestion.id}
@@ -1504,6 +1494,21 @@ export function LecturerReviewPage({
             ) : activeAnswer && answerQuestion ? (
               <AnswerValidationWorkspace
                 key={activeAnswer.id}
+                toolbar={
+                  <WorkspaceToolbar
+                    workspace={workspace}
+                    label={activeTab.label}
+                    itemLabel={itemLabel}
+                    reviewed={progress.reviewed}
+                    index={activeIndex}
+                    total={progress.total}
+                    itemTotal={activeItems.length}
+                    language={language}
+                    parentQuestion={answerQuestion}
+                    onPrevious={() => selectOffset(-1)}
+                    onNext={() => selectOffset(1)}
+                  />
+                }
                 task={answerTask}
                 question={answerQuestion}
                 answer={activeAnswer}
@@ -1577,6 +1582,7 @@ export function LecturerReviewPage({
           <EmptyState message={emptyMessages[workspace]} />
         )}
       </section>
+      </div>
     </div>
   );
 }
@@ -1849,9 +1855,9 @@ function QuestionValidationWorkspace({
   };
 
   return (
-    <div className="scroll-reveal">
+    <div className="scroll-reveal review-folder-content">
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
-        <article className="min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
+        <article className="review-folder-primary min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
           <section aria-labelledby="review-question-title">
             <nav
               className="flex items-center justify-between gap-2 border-b border-border pb-5 sm:gap-4"
@@ -2488,6 +2494,7 @@ function QuestionValidationWorkspace({
 }
 
 function AnswerValidationWorkspace({
+  toolbar,
   task,
   question,
   answer,
@@ -2501,6 +2508,7 @@ function AnswerValidationWorkspace({
   onBackToQuestion,
   onSubmit,
 }: {
+  toolbar: ReactNode;
   task?: ReviewTask;
   question: Question;
   answer: StudentAnswer;
@@ -2589,20 +2597,20 @@ function AnswerValidationWorkspace({
   };
 
   return (
-    <div className="scroll-reveal">
-      <Button
-        type="button"
-        variant="secondary"
-        onClick={onBackToQuestion}
-        className="mb-4"
-      >
-        {language === "id"
-          ? "Kembali ke soal ini"
-          : "Back to this question"}
-      </Button>
-
+    <div className="scroll-reveal review-folder-content">
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
-        <article className="min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
+        <article className="review-folder-primary min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
+          {toolbar}
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onBackToQuestion}
+            className="mb-5"
+          >
+            {language === "id"
+              ? "Kembali ke soal ini"
+              : "Back to this question"}
+          </Button>
           <section className="rounded-lg bg-neutral p-5">
             <p className="academic-label">{language === "id" ? "Soal sebagai konteks" : "Question context"}</p>
             <p className="mt-2 max-w-3xl whitespace-pre-wrap text-[14px] font-normal leading-7 text-navy-deep">

@@ -214,8 +214,10 @@ a:active {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem 1rem;
-  margin-bottom: 1rem;
+  gap: 0 1rem;
+  position: relative;
+  z-index: 2;
+  margin-bottom: 0;
 }
 
 .review-workspace-tabs {
@@ -240,6 +242,7 @@ a:active {
   gap: 0.75rem;
   min-height: 0;
   margin-left: auto;
+  order: 1;
 }
 
 .review-workspace-toolbar-meta p {
@@ -270,9 +273,30 @@ a:active {
 }
 
 .review-workspace-tabs .segmented-tab[aria-selected="true"] {
+  z-index: 3;
+  margin-bottom: -1px;
   border-color: var(--color-brand);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
   background: var(--color-brand);
   color: white;
+}
+
+.review-workspace-panel {
+  flex: 0 0 100%;
+  order: 2;
+  position: relative;
+  z-index: 1;
+  margin-top: -1px;
+}
+
+.scroll-reveal.review-folder-content {
+  animation: none;
+}
+
+.review-folder-primary {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .review-workspace-tabs .segmented-tab:active {
@@ -491,6 +515,8 @@ a:active {
     justify-content: space-between;
     min-height: 2.5rem;
     margin-left: 0;
+    margin-top: 0.75rem;
+    order: 3;
   }
 
   .review-workspace-toolbar-meta p {
