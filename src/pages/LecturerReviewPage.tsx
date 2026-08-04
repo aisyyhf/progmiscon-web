@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import {
+  CalendarDays,
   ChevronLeft,
   ChevronRight,
   Copy,
@@ -38,6 +39,7 @@ import type {
   Language,
   Misconception,
   Question,
+  QuestionReviewHistoryItem,
   QuestionReviewValues,
   ReviewTask,
   StudentAnswer,
@@ -51,6 +53,7 @@ import { misconceptionLabel } from "../utils/misconceptionLabel";
 import {
   getQuestionReviewCounts,
   getAnswerReviewCounts,
+  getReviewerHistory,
   getReviewProgress as getSavedReviewProgress,
   saveAnswerReview,
   saveQuestionReview,
@@ -340,6 +343,13 @@ export function LecturerReviewPage({
   const [answerCountsLoading, setAnswerCountsLoading] = useState(true);
   const [answerCountsError, setAnswerCountsError] = useState("");
   const [answerCountsLoaded, setAnswerCountsLoaded] = useState(false);
+  const [questionReviewHistory, setQuestionReviewHistory] = useState<
+    QuestionReviewHistoryItem[]
+  >([]);
+  const [questionReviewHistoryLoading, setQuestionReviewHistoryLoading] =
+    useState(false);
+  const [questionReviewHistoryError, setQuestionReviewHistoryError] =
+    useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -481,6 +491,44 @@ export function LecturerReviewPage({
       active = false;
     };
   }, [user]);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!user || reviewedQuestionIds.length === 0) {
+      setQuestionReviewHistory([]);
+      setQuestionReviewHistoryLoading(false);
+      setQuestionReviewHistoryError("");
+      return () => {
+        active = false;
+      };
+    }
+
+    setQuestionReviewHistory([]);
+    setQuestionReviewHistoryLoading(true);
+    setQuestionReviewHistoryError("");
+
+    void getReviewerHistory(user.id)
+      .then((history) => {
+        if (active) setQuestionReviewHistory(history.questionReviews);
+      })
+      .catch((error) => {
+        if (!active) return;
+        console.error("[Progmiscon] Detail hasil review gagal dimuat", error);
+        setQuestionReviewHistoryError(
+          error instanceof Error
+            ? error.message
+            : "Detail hasil review belum dapat dimuat.",
+        );
+      })
+      .finally(() => {
+        if (active) setQuestionReviewHistoryLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [reviewedQuestionIds.length, user]);
 
   const { items: classifiedItems, questionById } = useMemo(
     () => classifyReviewItems(questions, answers),
@@ -1424,6 +1472,11 @@ export function LecturerReviewPage({
                 progressUnavailable={!progressLoaded}
                 reviewedByMe={activeQuestionReviewedByMe}
                 globallyComplete={activeQuestionGloballyComplete}
+                submittedReview={questionReviewHistory.find(
+                  (review) => review.questionId === activeQuestion.id,
+                )}
+                submittedReviewLoading={questionReviewHistoryLoading}
+                submittedReviewError={questionReviewHistoryError}
                 isAdmin={isAdmin}
                 onPrevious={() => selectOffset(-1)}
                 onNext={() => selectOffset(1)}
@@ -1674,6 +1727,248 @@ function ReviewLockNotice({
   );
 }
 
+function SubmittedQuestionReview({
+  review,
+  misconceptions,
+  loading,
+  loadError,
+  onViewHistory,
+}: {
+  review?: QuestionReviewHistoryItem;
+  misconceptions: Misconception[];
+  loading: boolean;
+  loadError: string;
+  onViewHistory: () => void;
+}) {
+  const { language } = useLanguage();
+  const misconceptionTitles = new Map(
+    misconceptions.map((misconception) => [
+      misconception.id,
+      misconceptionLabel(misconception, language),
+    ]),
+  );
+  const submittedAt = review ? new Date(review.updatedAt) : null;
+  const submittedAtLabel =
+    submittedAt && !Number.isNaN(submittedAt.getTime())
+      ? new Intl.DateTimeFormat(language === "id" ? "id-ID" : "en-US", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(submittedAt)
+      : review?.updatedAt;
+  const emptyReason =
+    language === "id"
+      ? "Tidak ada alasan yang disimpan."
+      : "No reason was saved.";
+
+  const renderMisconceptions = (ids: string[], emptyText: string) =>
+    ids.length > 0 ? (
+      <ul className="space-y-2">
+        {ids.map((id) => (
+          <li
+            key={id}
+            className="rounded-md border border-border bg-white px-3 py-2 text-xs font-semibold leading-5 text-navy-deep"
+          >
+            {misconceptionTitles.get(id) ?? id}
+          </li>
+        ))}
+      </ul>
+    ) : (
+      <p className="text-xs leading-5 text-muted">{emptyText}</p>
+    );
+
+  return (
+    <>
+      <div
+        role="status"
+        className="flex flex-col gap-4 rounded-lg bg-brand px-4 py-4 text-white sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-white/15">
+            <LockKeyhole size={16} strokeWidth={2} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-sm font-bold leading-5">
+              {language === "id"
+                ? "Anda sudah mereview soal ini."
+                : "You have already reviewed this question."}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-white/85">
+              {language === "id"
+                ? "Review tidak dapat dikirim ulang."
+                : "The review cannot be resubmitted."}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onViewHistory}
+          className="inline-flex min-h-9 shrink-0 cursor-pointer items-center justify-center whitespace-nowrap rounded-md border border-white bg-white px-3.5 py-2 text-xs font-bold text-brand transition-colors hover:bg-brand-soft focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        >
+          {language === "id" ? "Lihat Riwayat" : "View history"}
+        </button>
+      </div>
+
+      <section
+        aria-labelledby="submitted-question-review-title"
+        aria-busy={loading}
+        className="mt-4 overflow-hidden rounded-lg border border-border bg-bg/70"
+      >
+        <header className="flex items-start justify-between gap-3 border-b border-border bg-white px-4 py-4">
+          <div>
+            <h3
+              id="submitted-question-review-title"
+              className="text-base font-bold text-navy-deep"
+            >
+              {language === "id" ? "Hasil Review Anda" : "Your Review Result"}
+            </h3>
+            <p className="mt-1 text-xs leading-5 text-muted">
+              {language === "id"
+                ? "Berikut adalah hasil review yang telah Anda kirim."
+                : "Here is the review you submitted."}
+            </p>
+          </div>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-brand/20 bg-brand-soft px-2.5 py-1.5 text-[11px] font-bold text-brand">
+            <LockKeyhole size={12} strokeWidth={2} aria-hidden="true" />
+            {language === "id" ? "Terkunci" : "Locked"}
+          </span>
+        </header>
+
+        <div className="p-4">
+          {loading ? (
+            <div className="space-y-3" aria-label={language === "id" ? "Memuat hasil review" : "Loading review result"}>
+              <div className="h-16 rounded-md bg-neutral" />
+              <div className="h-16 rounded-md bg-neutral" />
+              <div className="h-12 rounded-md bg-neutral" />
+            </div>
+          ) : !review ? (
+            <div className="rounded-md border border-border bg-white px-4 py-4">
+              <p className="text-sm font-semibold text-navy-deep">
+                {language === "id"
+                  ? "Detail review belum dapat ditampilkan."
+                  : "The review details cannot be displayed yet."}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted">
+                {loadError
+                  ? language === "id"
+                    ? "Data tersimpan tetap dapat dilihat melalui riwayat review."
+                    : "The saved data remains available in review history."
+                  : language === "id"
+                    ? "Tidak ada rincian tersimpan untuk ditampilkan pada soal ini."
+                    : "There are no saved details to show for this question."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {submittedAtLabel && (
+                <p className="flex items-center gap-2 text-xs font-medium text-muted">
+                  <CalendarDays size={14} strokeWidth={2} aria-hidden="true" />
+                  {language === "id" ? "Dikirim" : "Submitted"} {submittedAtLabel}
+                </p>
+              )}
+
+              <div className="grid gap-3">
+                <section className="rounded-md border border-border bg-white p-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand-soft text-xs font-bold text-brand" aria-hidden="true">
+                        1
+                      </span>
+                      <p className="text-xs font-semibold leading-5 text-navy-deep">
+                        {language === "id"
+                          ? "Ada miskonsepsi yang tidak seharusnya dicantumkan?"
+                          : "Were any listed misconceptions incorrect?"}
+                      </p>
+                    </div>
+                    <span className={cn(
+                      "shrink-0 rounded-md border px-2 py-1 text-[11px] font-bold",
+                      review.hasIncorrectMisconceptions
+                        ? "border-brand/20 bg-brand-soft text-brand"
+                        : "border-border bg-neutral text-navy-deep",
+                    )}>
+                      {review.hasIncorrectMisconceptions
+                        ? language === "id" ? "Ada" : "Yes"
+                        : language === "id" ? "Tidak ada" : "None"}
+                    </span>
+                  </div>
+                  <div className="mt-3 border-t border-border pt-3">
+                    {renderMisconceptions(
+                      review.removedMisconceptionIds,
+                      language === "id"
+                        ? "Tidak ada miskonsepsi yang dilepas."
+                        : "No misconceptions were removed.",
+                    )}
+                    {review.hasIncorrectMisconceptions && (
+                      <p className="mt-3 text-xs leading-5 text-muted">
+                        <span className="font-semibold text-navy-deep">
+                          {language === "id" ? "Alasan: " : "Reason: "}
+                        </span>
+                        {review.removalReason || emptyReason}
+                      </p>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-md border border-border bg-white p-3.5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-2.5">
+                      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand-soft text-xs font-bold text-brand" aria-hidden="true">
+                        2
+                      </span>
+                      <p className="text-xs font-semibold leading-5 text-navy-deep">
+                        {language === "id"
+                          ? "Ada miskonsepsi lain yang perlu ditambahkan?"
+                          : "Were other misconceptions needed?"}
+                      </p>
+                    </div>
+                    <span className={cn(
+                      "shrink-0 rounded-md border px-2 py-1 text-[11px] font-bold",
+                      review.hasAdditionalMisconceptions
+                        ? "border-brand/20 bg-brand-soft text-brand"
+                        : "border-border bg-neutral text-navy-deep",
+                    )}>
+                      {review.hasAdditionalMisconceptions
+                        ? language === "id" ? "Ada" : "Yes"
+                        : language === "id" ? "Tidak ada" : "None"}
+                    </span>
+                  </div>
+                  <div className="mt-3 border-t border-border pt-3">
+                    {renderMisconceptions(
+                      review.additionalMisconceptionIds,
+                      language === "id"
+                        ? "Tidak ada miskonsepsi yang ditambahkan."
+                        : "No misconceptions were added.",
+                    )}
+                    {review.hasAdditionalMisconceptions && (
+                      <p className="mt-3 text-xs leading-5 text-muted">
+                        <span className="font-semibold text-navy-deep">
+                          {language === "id" ? "Alasan: " : "Reason: "}
+                        </span>
+                        {review.additionReason || emptyReason}
+                      </p>
+                    )}
+                  </div>
+                </section>
+              </div>
+
+              <section className="rounded-md border border-border bg-white p-3.5">
+                <p className="text-xs font-semibold text-navy-deep">
+                  {language === "id" ? "Komentar tambahan" : "Additional comment"}
+                </p>
+                <p className="mt-2 whitespace-pre-wrap text-xs leading-5 text-muted">
+                  {review.note ||
+                    (language === "id"
+                      ? "Tidak ada komentar tambahan."
+                      : "No additional comment.")}
+                </p>
+              </section>
+            </div>
+          )}
+        </div>
+      </section>
+    </>
+  );
+}
+
 function QuestionValidationWorkspace({
   question,
   index,
@@ -1687,6 +1982,9 @@ function QuestionValidationWorkspace({
   progressUnavailable,
   reviewedByMe,
   globallyComplete,
+  submittedReview,
+  submittedReviewLoading,
+  submittedReviewError,
   isAdmin,
   onPrevious,
   onNext,
@@ -1707,6 +2005,9 @@ function QuestionValidationWorkspace({
   progressUnavailable: boolean;
   reviewedByMe: boolean;
   globallyComplete: boolean;
+  submittedReview?: QuestionReviewHistoryItem;
+  submittedReviewLoading: boolean;
+  submittedReviewError: string;
   isAdmin: boolean;
   onPrevious: () => void;
   onNext: () => void;
@@ -2227,6 +2528,16 @@ function QuestionValidationWorkspace({
         </article>
 
         <aside className="rounded-lg border border-border bg-white p-5 md:p-6 lg:sticky lg:top-24">
+          {reviewedByMe ? (
+            <SubmittedQuestionReview
+              review={submittedReview}
+              misconceptions={misconceptions}
+              loading={submittedReviewLoading}
+              loadError={submittedReviewError}
+              onViewHistory={onViewHistory}
+            />
+          ) : (
+            <>
           <p className="text-sm font-bold uppercase tracking-[0.04em] text-navy-deep">
             {language === "id" ? "Form validasi soal" : "Question validation form"}
           </p>
@@ -2478,6 +2789,8 @@ function QuestionValidationWorkspace({
                   ? "Simpan & lanjut"
                   : "Save & continue"}
             </Button>
+          )}
+            </>
           )}
         </aside>
       </div>
