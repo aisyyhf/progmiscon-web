@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
-import { LockKeyhole } from "lucide-react";
+import { ListFilter, LockKeyhole } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
@@ -75,6 +75,7 @@ import {
   QUESTION_REVIEWED_THRESHOLD,
   REVIEW_FILTER_ALL,
   filterReviewQuestions,
+  getActiveReviewQuestionFilterCount,
   getQuestionReviewStatus,
   type ReviewQuestionFilters as ReviewQuestionFilterValues,
 } from "../utils/reviewQuestionFilters";
@@ -348,6 +349,7 @@ export function LecturerReviewPage({
   >(new Map());
   const [questionFilters, setQuestionFilters] =
     useState<ReviewQuestionFilterSessionState>(readStoredQuestionFilters);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [mpWeekResolved, setMpWeekResolved] = useState(false);
   const [mpQuestionReviewDirty, setMpQuestionReviewDirty] = useState(false);
   const [progressLoading, setProgressLoading] = useState(true);
@@ -1053,6 +1055,36 @@ export function LecturerReviewPage({
     progressLoading ||
     (workspace === "answer-mp" && answerCountsLoading) ||
     (workspace === "answer-ps" && studentsLoading);
+  const filterPanelId = "review-question-filter-panel";
+  const activeFilterCount = questionWorkspace
+    ? getActiveReviewQuestionFilterCount(
+        questionFilters[activeParentKind],
+        workspace === "question-ps",
+      )
+    : 0;
+  const filterPanelExpanded =
+    questionWorkspace && !loading && filterPanelOpen;
+  const currentPosition = activeIndex >= 0 ? activeIndex + 1 : 0;
+  const workspaceSummary =
+    workspace === "question-ps"
+      ? language === "id"
+        ? `Menampilkan ${activeItems.length} dari ${allActiveQuestionItems.length} soal`
+        : `Showing ${activeItems.length} of ${allActiveQuestionItems.length} questions`
+      : workspace === "question-mp"
+        ? language === "id"
+          ? `Menampilkan ${activeItems.length} dari ${activeMpWeekQuestions.length} soal`
+          : `Showing ${activeItems.length} of ${activeMpWeekQuestions.length} questions`
+        : workspace === "answer-ps"
+          ? `Evidence ${currentPosition} ${language === "id" ? "dari" : "of"} ${activeItems.length}`
+          : language === "id"
+            ? `Jawaban ${currentPosition} dari ${activeItems.length}`
+            : `Answer ${currentPosition} of ${activeItems.length}`;
+  const filterButtonLabel =
+    activeFilterCount > 0
+      ? language === "id"
+        ? `Filter, ${activeFilterCount} filter aktif`
+        : `Filter, ${activeFilterCount} active filters`
+      : "Filter";
   const setActiveQuestionFilters = (
     filters: ReviewQuestionFilterValues,
   ) => {
@@ -1174,81 +1206,125 @@ export function LecturerReviewPage({
         </p>
       )}
 
-      <div
-        className="review-workspace-tabs segmented-control w-full"
-        role="tablist"
-        aria-label={language === "id" ? "Workspace review" : "Review workspace"}
-      >
-        {(["ps", "mp"] as const).map((kind) => (
-          <div
-            key={kind}
-            role="presentation"
-            className="review-workspace-tab-group"
-          >
-            {tabs
-              .filter((tab) => tab.id.endsWith(kind))
-              .map((tab) => {
-                const tabProgress = workspaceProgress[tab.id];
-                const disabled = !workspaceAvailability[tab.id];
-                const answerTab = tab.id.startsWith("answer");
-                const noRelatedAnswers =
-                  tab.id === activeAnswerWorkspace && !hasLinkedAnswers;
-                const disabledReason = noRelatedAnswers
-                  ? language === "id"
-                    ? "Belum ada jawaban"
-                    : "No answers"
-                  : language === "id"
-                    ? `Pilih Soal ${kind.toUpperCase()} dahulu`
-                    : `Select a ${kind.toUpperCase()} question first`;
+      <div className="review-workspace-toolbar">
+        <div
+          className="review-workspace-tabs segmented-control"
+          role="tablist"
+          aria-label={language === "id" ? "Workspace review" : "Review workspace"}
+        >
+          {(["ps", "mp"] as const).map((kind) => (
+            <div
+              key={kind}
+              role="presentation"
+              className="review-workspace-tab-group"
+            >
+              {tabs
+                .filter((tab) => tab.id.endsWith(kind))
+                .map((tab) => {
+                  const tabProgress = workspaceProgress[tab.id];
+                  const disabled = !workspaceAvailability[tab.id];
+                  const answerTab = tab.id.startsWith("answer");
+                  const noRelatedAnswers =
+                    tab.id === activeAnswerWorkspace && !hasLinkedAnswers;
+                  const disabledReason = noRelatedAnswers
+                    ? language === "id"
+                      ? "Belum ada jawaban"
+                      : "No answers"
+                    : language === "id"
+                      ? `Pilih Soal ${kind.toUpperCase()} dahulu`
+                      : `Select a ${kind.toUpperCase()} question first`;
 
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={workspace === tab.id}
-                    aria-controls="review-workspace-panel"
-                    aria-disabled={disabled}
-                    aria-label={
-                      disabled ? `${tab.label}: ${disabledReason}` : undefined
-                    }
-                    disabled={disabled}
-                    title={disabled ? disabledReason : undefined}
-                    onClick={() => selectWorkspace(tab.id)}
-                    className={cn(
-                      "segmented-tab min-w-0 text-center",
-                      answerTab
-                        ? "review-answer-tab"
-                        : "review-question-tab",
-                    )}
-                  >
-                    <span className="block">{tab.label}</span>
-                    {!answerTab && (
-                      <span
-                        className={cn(
-                          "block text-[11px] tabular-nums",
-                          workspace === tab.id
-                            ? "text-white/80"
-                            : "text-muted/75",
-                        )}
-                      >
-                        {tabProgress.reviewed}/{tabProgress.total}
-                      </span>
-                    )}
-                    {disabled && (
-                      <span
-                        aria-hidden="true"
-                        className="review-tab-disabled-status"
-                      >
-                        <LockKeyhole size={11} strokeWidth={2} />
-                        {disabledReason}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-          </div>
-        ))}
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={workspace === tab.id}
+                      aria-controls="review-workspace-panel"
+                      aria-disabled={disabled}
+                      aria-label={
+                        disabled ? `${tab.label}: ${disabledReason}` : undefined
+                      }
+                      disabled={disabled}
+                      title={disabled ? disabledReason : undefined}
+                      onClick={() => selectWorkspace(tab.id)}
+                      className={cn(
+                        "segmented-tab min-w-0 text-center",
+                        answerTab
+                          ? "review-answer-tab"
+                          : "review-question-tab",
+                      )}
+                    >
+                      <span className="block">{tab.label}</span>
+                      {!answerTab && (
+                        <span
+                          className={cn(
+                            "block text-[11px] tabular-nums",
+                            workspace === tab.id
+                              ? "text-white/80"
+                              : "text-muted/75",
+                          )}
+                        >
+                          {tabProgress.reviewed}/{tabProgress.total}
+                        </span>
+                      )}
+                      {disabled && (
+                        <span
+                          aria-hidden="true"
+                          className="review-tab-disabled-status"
+                        >
+                          <LockKeyhole size={11} strokeWidth={2} />
+                          {disabledReason}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+            </div>
+          ))}
+        </div>
+
+        <div className="review-workspace-toolbar-meta">
+          <p
+            className="text-sm font-semibold tabular-nums text-muted"
+            aria-live="polite"
+            aria-busy={loading}
+          >
+            {loading
+              ? language === "id"
+                ? "Memuat ringkasan..."
+                : "Loading summary..."
+              : workspaceSummary}
+          </p>
+          {questionWorkspace && (
+            <Button
+              id="review-filter-toggle"
+              type="button"
+              variant="secondary"
+              disabled={loading}
+              aria-expanded={filterPanelExpanded}
+              aria-controls={filterPanelId}
+              aria-label={filterButtonLabel}
+              onClick={() => setFilterPanelOpen((open) => !open)}
+              className={cn(
+                "min-h-10 shrink-0 justify-center",
+                activeFilterCount > 0 &&
+                  "border-brand/45 bg-brand-soft text-brand hover:border-brand/60 hover:bg-brand-soft",
+              )}
+            >
+              <ListFilter size={16} strokeWidth={2} aria-hidden="true" />
+              <span>Filter</span>
+              {activeFilterCount > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="inline-flex min-w-5 items-center justify-center rounded bg-brand px-1.5 py-0.5 text-[11px] leading-none text-white"
+                >
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
 
       <section
@@ -1256,6 +1332,25 @@ export function LecturerReviewPage({
         role="tabpanel"
         aria-label={activeTab.label}
       >
+        {filterPanelExpanded && (
+          <ReviewQuestionFilters
+            questions={
+              workspace === "question-mp"
+                ? activeMpWeekQuestions
+                : (allActiveQuestionItems as Question[])
+            }
+            categories={categories}
+            misconceptions={misconceptions}
+            filters={questionFilters[activeParentKind]}
+            panelId={filterPanelId}
+            statusAvailable={questionCountsLoaded}
+            statusLoading={questionCountsLoading}
+            statusError={questionCountsError}
+            showWeek={workspace !== "question-mp"}
+            onChange={setActiveQuestionFilters}
+          />
+        )}
+
         {workspace === "question-mp" && !loading && mpQuestionWeeks.length > 0 && (
           <MpQuestionQuizNavigator
             weeks={mpQuestionWeeks}
@@ -1272,26 +1367,6 @@ export function LecturerReviewPage({
             onSelectQuestion={(questionId) =>
               requestOpenWorkspaceItem("question-mp", questionId)
             }
-          />
-        )}
-
-        {questionWorkspace && !loading && (
-          <ReviewQuestionFilters
-            questions={
-              workspace === "question-mp"
-                ? activeMpWeekQuestions
-                : (allActiveQuestionItems as Question[])
-            }
-            categories={categories}
-            misconceptions={misconceptions}
-            filters={questionFilters[activeParentKind]}
-            resultCount={activeItems.length}
-            statusAvailable={questionCountsLoaded}
-            statusLoading={questionCountsLoading}
-            statusError={questionCountsError}
-            showWeek={workspace !== "question-mp"}
-            describeMatches={workspace === "question-mp"}
-            onChange={setActiveQuestionFilters}
           />
         )}
 

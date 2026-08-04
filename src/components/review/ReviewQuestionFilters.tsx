@@ -17,24 +17,22 @@ export function ReviewQuestionFilters({
   categories,
   misconceptions,
   filters,
-  resultCount,
+  panelId,
   statusAvailable,
   statusLoading,
   statusError,
   showWeek = true,
-  describeMatches = false,
   onChange,
 }: {
   questions: readonly Question[];
   categories: readonly Category[];
   misconceptions: readonly Misconception[];
   filters: ReviewQuestionFilterValues;
-  resultCount: number;
+  panelId: string;
   statusAvailable: boolean;
   statusLoading: boolean;
   statusError: string;
   showWeek?: boolean;
-  describeMatches?: boolean;
   onChange: (filters: ReviewQuestionFilterValues) => void;
 }) {
   const { language } = useLanguage();
@@ -54,7 +52,22 @@ export function ReviewQuestionFilters({
           : "Aggregate review status is unavailable."
         : "";
   const controlClass =
-    "academic-input min-h-10 px-3 py-2 text-sm text-navy-deep disabled:cursor-not-allowed disabled:bg-neutral disabled:text-muted";
+    "academic-input h-9 px-2.5 py-1.5 text-[13px] leading-5 text-navy-deep disabled:cursor-not-allowed disabled:bg-neutral disabled:text-muted";
+  const labelClass =
+    "mb-1 block text-[11px] font-semibold leading-4 text-navy-deep";
+  const missingWeek =
+    filters.week !== REVIEW_FILTER_ALL &&
+    filters.week !== REVIEW_WEEK_UNASSIGNED &&
+    !weekOptions.includes(filters.week);
+  const missingCategory =
+    filters.categoryId !== REVIEW_FILTER_ALL &&
+    !categories.some((category) => category.id === filters.categoryId);
+  const missingMisconception =
+    filters.misconceptionId !== REVIEW_FILTER_ALL &&
+    filters.misconceptionId !== REVIEW_MISCONCEPTION_NONE &&
+    !misconceptions.some(
+      (misconception) => misconception.id === filters.misconceptionId,
+    );
   const setFilter = <Key extends keyof ReviewQuestionFilterValues>(
     key: Key,
     value: ReviewQuestionFilterValues[Key],
@@ -62,14 +75,13 @@ export function ReviewQuestionFilters({
 
   return (
     <section
+      id={panelId}
       aria-label={language === "id" ? "Filter soal" : "Question filters"}
-      className="mb-4 rounded-lg border border-border bg-white p-4 sm:p-5"
+      className="review-filter-panel mb-4 rounded-lg border border-border bg-white p-3"
     >
-      <div
-        className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${showWeek ? "lg:grid-cols-6" : "lg:grid-cols-5"}`}
-      >
-        <label className="sm:col-span-2 lg:col-span-2">
-          <span className="mb-1.5 block text-xs font-semibold text-navy-deep">
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-2.5">
+        <label className="w-full sm:w-auto sm:min-w-[12rem] sm:flex-[2_1_14rem]">
+          <span className={labelClass}>
             {language === "id" ? "Cari Question ID" : "Search Question ID"}
           </span>
           <input
@@ -83,8 +95,8 @@ export function ReviewQuestionFilters({
           />
         </label>
 
-        <label>
-          <span className="mb-1.5 block text-xs font-semibold text-navy-deep">
+        <label className="w-full sm:w-auto sm:min-w-32 sm:flex-[1_1_9rem]">
+          <span className={labelClass}>
             {language === "id" ? "Status" : "Status"}
           </span>
           <select
@@ -118,7 +130,7 @@ export function ReviewQuestionFilters({
           {statusHelper && (
             <span
               id="review-question-status-help"
-              className="mt-1.5 block text-xs leading-5 text-muted"
+              className="mt-1 block text-[11px] leading-4 text-muted"
               aria-live="polite"
             >
               {statusHelper}
@@ -126,8 +138,8 @@ export function ReviewQuestionFilters({
           )}
         </label>
 
-        {showWeek && <label>
-          <span className="mb-1.5 block text-xs font-semibold text-navy-deep">
+        {showWeek && <label className="w-full sm:w-auto sm:min-w-28 sm:flex-[1_1_8rem]">
+          <span className={labelClass}>
             Week
           </span>
           <select
@@ -141,6 +153,11 @@ export function ReviewQuestionFilters({
             <option value={REVIEW_WEEK_UNASSIGNED}>
               {language === "id" ? "Belum ditentukan" : "Unassigned"}
             </option>
+            {missingWeek && (
+              <option value={filters.week} disabled>
+                {language === "id" ? "Tidak tersedia" : "Unavailable"}: {filters.week}
+              </option>
+            )}
             {weekOptions.map((week) => (
               <option key={week} value={week}>
                 {week}
@@ -149,8 +166,8 @@ export function ReviewQuestionFilters({
           </select>
         </label>}
 
-        <label>
-          <span className="mb-1.5 block text-xs font-semibold text-navy-deep">
+        <label className="w-full sm:w-auto sm:min-w-[8.5rem] sm:flex-[1_1_9rem]">
+          <span className={labelClass}>
             KC / {language === "id" ? "Materi" : "Material"}
           </span>
           <select
@@ -161,6 +178,11 @@ export function ReviewQuestionFilters({
             <option value={REVIEW_FILTER_ALL}>
               {language === "id" ? "Semua KC" : "All categories"}
             </option>
+            {missingCategory && (
+              <option value={filters.categoryId} disabled>
+                {language === "id" ? "Tidak tersedia" : "Unavailable"}: {filters.categoryId}
+              </option>
+            )}
             {categories.map((category) => (
               <option key={category.id} value={category.id}>
                 {category.id} - {t(category.name, language)}
@@ -169,8 +191,8 @@ export function ReviewQuestionFilters({
           </select>
         </label>
 
-        <label>
-          <span className="mb-1.5 block text-xs font-semibold text-navy-deep">
+        <label className="w-full sm:w-auto sm:min-w-40 sm:flex-[1.25_1_11rem]">
+          <span className={labelClass}>
             {language === "id" ? "Miskonsepsi" : "Misconception"}
           </span>
           <select
@@ -190,6 +212,11 @@ export function ReviewQuestionFilters({
                 ? "Tanpa miskonsepsi"
                 : "No misconception"}
             </option>
+            {missingMisconception && (
+              <option value={filters.misconceptionId} disabled>
+                {language === "id" ? "Tidak tersedia" : "Unavailable"}: {filters.misconceptionId}
+              </option>
+            )}
             {misconceptions.map((misconception) => (
               <option key={misconception.id} value={misconception.id}>
                 {misconceptionLabel(misconception, language)}
@@ -197,14 +224,6 @@ export function ReviewQuestionFilters({
             ))}
           </select>
         </label>
-      </div>
-
-      <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm font-medium tabular-nums text-muted" aria-live="polite">
-          {language === "id"
-            ? `${resultCount} dari ${questions.length} soal${describeMatches ? " cocok dengan filter" : ""}`
-            : `${resultCount} of ${questions.length} questions${describeMatches ? " match the filters" : ""}`}
-        </p>
         <Button
           type="button"
           variant="secondary"
@@ -216,7 +235,7 @@ export function ReviewQuestionFilters({
                 : filters.week,
             })
           }
-          className="w-full justify-center sm:w-auto"
+          className="h-9 w-full justify-center px-3 py-1.5 text-[13px] leading-5 sm:w-auto"
         >
           {language === "id" ? "Reset filter" : "Reset filters"}
         </Button>

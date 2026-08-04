@@ -26,6 +26,20 @@ export const DEFAULT_REVIEW_QUESTION_FILTERS: ReviewQuestionFilters = {
   misconceptionId: REVIEW_FILTER_ALL,
 };
 
+export function getActiveReviewQuestionFilterCount(
+  filters: ReviewQuestionFilters,
+  includeWeek = true,
+): number {
+  return [
+    filters.query.trim() !== DEFAULT_REVIEW_QUESTION_FILTERS.query,
+    filters.status !== DEFAULT_REVIEW_QUESTION_FILTERS.status,
+    includeWeek && filters.week !== DEFAULT_REVIEW_QUESTION_FILTERS.week,
+    filters.categoryId !== DEFAULT_REVIEW_QUESTION_FILTERS.categoryId,
+    filters.misconceptionId !==
+      DEFAULT_REVIEW_QUESTION_FILTERS.misconceptionId,
+  ].filter(Boolean).length;
+}
+
 export function getQuestionReviewStatus(
   reviewCount: number,
 ): QuestionReviewStatus {
