@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
-import { ListFilter, LockKeyhole } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  ListFilter,
+  LockKeyhole,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
@@ -161,7 +167,6 @@ function WorkspaceToolbar({
   itemTotal,
   language,
   parentQuestion,
-  questionReviewCount,
   onPrevious,
   onNext,
 }: {
@@ -174,29 +179,10 @@ function WorkspaceToolbar({
   itemTotal: number;
   language: Language;
   parentQuestion?: Question;
-  questionReviewCount?: number;
   onPrevious: () => void;
   onNext: () => void;
 }) {
   const answerWorkspace = workspace.startsWith("answer");
-  const questionReviewStatus =
-    questionReviewCount === undefined
-      ? undefined
-      : getQuestionReviewStatus(questionReviewCount);
-  const questionReviewStatusLabel =
-    questionReviewStatus === "reviewed"
-      ? language === "id"
-        ? `Selesai direview: ${QUESTION_REVIEWED_THRESHOLD} reviewer atau lebih`
-        : `Reviewed: ${QUESTION_REVIEWED_THRESHOLD} or more reviewers`
-      : questionReviewStatus === "under_review"
-        ? language === "id"
-          ? `Sedang direview: ${questionReviewCount}/${QUESTION_REVIEWED_THRESHOLD} reviewer`
-          : `Under review: ${questionReviewCount}/${QUESTION_REVIEWED_THRESHOLD} reviewers`
-        : questionReviewStatus === "unreviewed"
-          ? language === "id"
-            ? `Belum direview: 0/${QUESTION_REVIEWED_THRESHOLD} reviewer`
-            : `Not reviewed: 0/${QUESTION_REVIEWED_THRESHOLD} reviewers`
-          : undefined;
   const parentReference = parentQuestion
     ? /^q/i.test(parentQuestion.number)
       ? parentQuestion.number
@@ -213,20 +199,6 @@ function WorkspaceToolbar({
               ? `${reviewed} dari ${total} telah direview`
               : `${reviewed} of ${total} reviewed`}
           </p>
-          {questionReviewStatusLabel && (
-            <span
-              className={cn(
-                "mt-2 inline-flex rounded-md border px-2.5 py-1 text-xs font-semibold",
-                questionReviewStatus === "reviewed"
-                  ? "border-correct-border bg-correct-bg text-correct"
-                  : questionReviewStatus === "under_review"
-                    ? "border-warning-border bg-warning-bg text-warning"
-                    : "border-border bg-neutral text-muted",
-              )}
-            >
-              {questionReviewStatusLabel}
-            </span>
-          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -1425,29 +1397,35 @@ export function LecturerReviewPage({
           />
         ) : hasActiveItem ? (
           <>
-            <WorkspaceToolbar
-              workspace={workspace}
-              label={activeTab.label}
-              itemLabel={itemLabel}
-              reviewed={progress.reviewed}
-              index={activeIndex}
-              total={progress.total}
-              itemTotal={activeItems.length}
-              language={language}
-              parentQuestion={answerQuestion}
-              questionReviewCount={
-                activeQuestion && questionCountsLoaded
-                  ? (questionReviewCounts.get(activeQuestion.id) ?? 0)
-                  : undefined
-              }
-              onPrevious={() => selectOffset(-1)}
-              onNext={() => selectOffset(1)}
-            />
+            {workspace.startsWith("answer") && (
+              <WorkspaceToolbar
+                workspace={workspace}
+                label={activeTab.label}
+                itemLabel={itemLabel}
+                reviewed={progress.reviewed}
+                index={activeIndex}
+                total={progress.total}
+                itemTotal={activeItems.length}
+                language={language}
+                parentQuestion={answerQuestion}
+                onPrevious={() => selectOffset(-1)}
+                onNext={() => selectOffset(1)}
+              />
+            )}
 
             {activeQuestion ? (
               <QuestionValidationWorkspace
                 key={activeQuestion.id}
                 question={activeQuestion}
+                reviewed={progress.reviewed}
+                total={progress.total}
+                index={activeIndex}
+                itemTotal={activeItems.length}
+                questionReviewCount={
+                  questionCountsLoaded
+                    ? (questionReviewCounts.get(activeQuestion.id) ?? 0)
+                    : undefined
+                }
                 answers={
                   allWorkspaceItems[
                     activeQuestion.type === "multiple_choice"
@@ -1463,6 +1441,8 @@ export function LecturerReviewPage({
                 reviewedByMe={activeQuestionReviewedByMe}
                 globallyComplete={activeQuestionGloballyComplete}
                 isAdmin={isAdmin}
+                onPrevious={() => selectOffset(-1)}
+                onNext={() => selectOffset(1)}
                 onViewHistory={viewMyReviewHistory}
                 onDirtyChange={
                   workspace === "question-mp"
@@ -1696,6 +1676,11 @@ function ReviewLockNotice({
 
 function QuestionValidationWorkspace({
   question,
+  reviewed,
+  total,
+  index,
+  itemTotal,
+  questionReviewCount,
   answers,
   reviewedAnswerIds,
   answerTaskById,
@@ -1705,12 +1690,19 @@ function QuestionValidationWorkspace({
   reviewedByMe,
   globallyComplete,
   isAdmin,
+  onPrevious,
+  onNext,
   onViewHistory,
   onDirtyChange,
   onReviewAnswer,
   onSubmit,
 }: {
   question: Question;
+  reviewed: number;
+  total: number;
+  index: number;
+  itemTotal: number;
+  questionReviewCount?: number;
   answers: StudentAnswer[];
   reviewedAnswerIds: string[];
   answerTaskById: Map<string, ReviewTask>;
@@ -1720,6 +1712,8 @@ function QuestionValidationWorkspace({
   reviewedByMe: boolean;
   globallyComplete: boolean;
   isAdmin: boolean;
+  onPrevious: () => void;
+  onNext: () => void;
   onViewHistory: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onReviewAnswer: (answerId: string) => void;
@@ -1727,6 +1721,45 @@ function QuestionValidationWorkspace({
 }) {
   const { language } = useLanguage();
   const reference = getQuestionReference(question);
+  const questionTitle =
+    t(question.title, language).trim() ||
+    `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
+  const questionIdentity = [
+    question.sourceCode,
+    question.id,
+    question.number,
+  ]
+    .map((value) => value?.trim())
+    .filter(
+      (value, itemIndex, values) =>
+        value && values.indexOf(value) === itemIndex,
+    )
+    .join(" / ");
+  const localizedPrompt = t(question.prompt, language);
+  const localizedQuestionText =
+    (language === "id" ? question.questionInd : question.questionEn)?.trim() ||
+    (question.questionCode && localizedPrompt.endsWith(question.questionCode)
+      ? localizedPrompt.slice(0, -question.questionCode.length).trimEnd()
+      : localizedPrompt);
+  const pseudocode = question.questionCode?.trim() || reference.pseudocode;
+  const questionReviewStatus =
+    questionReviewCount === undefined
+      ? undefined
+      : getQuestionReviewStatus(questionReviewCount);
+  const questionReviewStatusLabel =
+    questionReviewStatus === "reviewed"
+      ? language === "id"
+        ? "Selesai direview"
+        : "Reviewed"
+      : questionReviewStatus === "under_review"
+        ? language === "id"
+          ? "Sedang direview"
+          : "Under review"
+        : questionReviewStatus === "unreviewed"
+          ? language === "id"
+            ? "Belum direview"
+            : "Not reviewed"
+          : undefined;
   const questionRemovalProposalIds = getQuestionRemovalProposalIds(
     question.questionMisconceptionIds,
   );
@@ -1836,14 +1869,144 @@ function QuestionValidationWorkspace({
     <div className="scroll-reveal">
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
         <article className="min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
-          <section className="rounded-lg bg-neutral p-5">
-            <p className="academic-label">{language === "id" ? "Soal" : "Question"}</p>
-            <p className="mt-1 text-xs font-semibold tabular-nums text-muted">
-              Question ID {question.id} · {question.number}
-            </p>
-            <p className="mt-2 max-w-3xl whitespace-pre-wrap text-[14px] font-normal leading-7 text-navy-deep">
-              {t(question.prompt, language)}
-            </p>
+          <section aria-labelledby="review-question-title">
+            <nav
+              className="grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-b border-border pb-5 sm:gap-4"
+              aria-label={
+                language === "id"
+                  ? "Navigasi soal review"
+                  : "Review question navigation"
+              }
+            >
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onPrevious}
+                disabled={index <= 0}
+                className="min-w-0 justify-self-start px-2.5 sm:px-3.5"
+              >
+                <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
+                {language === "id" ? "Sebelumnya" : "Previous"}
+              </Button>
+              <span className="text-center text-xs font-semibold tabular-nums text-muted">
+                <span className="hidden sm:inline">
+                  {language === "id" ? "Soal " : "Question "}
+                </span>
+                {index + 1}/{itemTotal}
+              </span>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onNext}
+                disabled={index >= itemTotal - 1}
+                className="min-w-0 justify-self-end px-2.5 sm:px-3.5"
+              >
+                {language === "id" ? "Berikutnya" : "Next"}
+                <ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
+              </Button>
+            </nav>
+
+            <header className="mt-6 grid gap-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+              <div className="min-w-0">
+                <p className="font-mono text-xs font-bold tabular-nums text-brand">
+                  {questionIdentity}
+                </p>
+                <h2
+                  id="review-question-title"
+                  className="mt-2 text-xl font-extrabold leading-tight tracking-[-0.02em] text-navy-deep md:text-2xl"
+                >
+                  {questionTitle}
+                </h2>
+                <dl className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs leading-5 text-muted">
+                  <div className="flex gap-1.5">
+                    <dt className="font-semibold text-navy-deep">
+                      {language === "id" ? "Minggu" : "Week"}:
+                    </dt>
+                    <dd>
+                      {question.week ||
+                        (language === "id" ? "Belum tersedia" : "Unavailable")}
+                    </dd>
+                  </div>
+                  <div className="flex min-w-0 gap-1.5">
+                    <dt className="shrink-0 font-semibold text-navy-deep">
+                      KC:
+                    </dt>
+                    <dd className="min-w-0">
+                      {question.expectedConcepts.length > 0
+                        ? question.expectedConcepts
+                            .map((concept) => t(concept, language))
+                            .join(", ")
+                        : language === "id"
+                          ? "Belum tersedia"
+                          : "Unavailable"}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+
+              <div className="flex flex-wrap gap-2 md:max-w-52 md:justify-end">
+                {questionReviewStatusLabel && (
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-md border px-2.5 py-1.5 text-xs font-semibold",
+                      questionReviewStatus === "reviewed"
+                        ? "border-correct-border bg-correct-bg text-correct"
+                        : questionReviewStatus === "under_review"
+                          ? "border-warning-border bg-warning-bg text-warning"
+                          : "border-border bg-neutral text-muted",
+                    )}
+                  >
+                    {questionReviewStatusLabel}
+                  </span>
+                )}
+                {questionReviewCount !== undefined && (
+                  <span className="inline-flex items-center rounded-md border border-border bg-white px-2.5 py-1.5 text-xs font-semibold tabular-nums text-navy-deep">
+                    {questionReviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer
+                  </span>
+                )}
+                <span className="inline-flex items-center rounded-md bg-neutral px-2.5 py-1.5 text-xs font-semibold tabular-nums text-muted">
+                  {reviewed}/{total} {language === "id" ? "direview" : "reviewed"}
+                </span>
+              </div>
+            </header>
+
+            <div className="mt-6 border-t border-border pt-6">
+              {localizedQuestionText && (
+                <p className="max-w-3xl whitespace-pre-wrap text-[14px] font-normal leading-7 text-navy-deep">
+                  {localizedQuestionText}
+                </p>
+              )}
+
+              {pseudocode && (
+                <div className="mt-5 overflow-hidden rounded-lg border border-navy-deep/15 bg-navy-deep shadow-[0_8px_22px_rgba(33,29,27,0.12)]">
+                  <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
+                    <p className="font-mono text-[11px] font-semibold text-white/70">
+                      {language === "id"
+                        ? "Pseudocode baca-saja"
+                        : "Read-only pseudocode"}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard
+                          .writeText(pseudocode)
+                          .catch(() => undefined);
+                      }}
+                      className="inline-flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-xs font-semibold text-white/75 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                      aria-label={
+                        language === "id"
+                          ? "Salin pseudocode"
+                          : "Copy pseudocode"
+                      }
+                    >
+                      <Copy size={14} strokeWidth={2} aria-hidden="true" />
+                      {language === "id" ? "Salin" : "Copy"}
+                    </button>
+                  </div>
+                  <PseudocodeBlock code={pseudocode} />
+                </div>
+              )}
+            </div>
           </section>
 
           {isAdmin && <AdminQuestionContentEditor question={question} />}
@@ -1890,15 +2053,6 @@ function QuestionValidationWorkspace({
             </section>
           )}
 
-          {reference.pseudocode && (
-            <section className="mt-6 border-t border-border pt-5">
-              <p className="academic-label mb-2">{language === "id" ? "Pseudocode acuan" : "Reference pseudocode"}</p>
-              <div className="overflow-hidden rounded-md border border-border">
-                <PseudocodeBlock code={reference.pseudocode} />
-              </div>
-            </section>
-            )}
-
           <section className="mt-6 border-t border-border pt-5">
             <p className="academic-label mb-2">
               {language === "id"
@@ -1941,17 +2095,6 @@ function QuestionValidationWorkspace({
                     : "Answer-derived relations remain visible as evidence and are not answer-review work."}
               </p>
             )}
-          </section>
-
-          <section className="mt-6 border-t border-border pt-5">
-            <p className="academic-label mb-2">{language === "id" ? "Konsep yang diuji" : "Assessed concepts"}</p>
-            <div className="flex flex-wrap gap-2">
-              {question.expectedConcepts.map((concept) => (
-                <span key={t(concept, language)} className="rounded-md bg-neutral px-2.5 py-1.5 text-xs font-medium text-navy-deep">
-                  {t(concept, language)}
-                </span>
-              ))}
-            </div>
           </section>
 
           <section
