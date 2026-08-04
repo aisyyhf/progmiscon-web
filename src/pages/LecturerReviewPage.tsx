@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Copy,
   ListFilter,
+  LockKeyhole,
   Users,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -1240,6 +1241,15 @@ export function LecturerReviewPage({
                           )}
                         >
                           {tabProgress.reviewed}/{tabProgress.total}
+                        </span>
+                      )}
+                      {disabled && (
+                        <span
+                          aria-hidden="true"
+                          className="review-tab-disabled-status"
+                        >
+                          <LockKeyhole size={11} strokeWidth={2} />
+                          {disabledReason}
                         </span>
                       )}
                     </button>

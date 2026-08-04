@@ -228,7 +228,9 @@ a:active {
   min-width: 0;
   padding: 0;
   overflow-x: auto;
-  overflow-y: visible;
+  overflow-y: hidden;
+  padding-bottom: 1px;
+  margin-bottom: -1px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -304,7 +306,12 @@ a:active {
 }
 
 .review-workspace-tabs .segmented-tab:focus-visible {
-  z-index: 2;
+  z-index: 4;
+  outline-offset: -3px;
+}
+
+.review-workspace-tabs .segmented-tab[aria-selected="true"]:focus-visible {
+  outline-color: white;
 }
 
 .review-workspace-tabs .review-question-tab {
@@ -338,6 +345,21 @@ a:active {
   color: var(--color-muted);
   cursor: not-allowed;
   opacity: 0.78;
+}
+
+.review-tab-disabled-status {
+  position: absolute;
+  top: 50%;
+  right: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  margin: 0;
+  font-size: 0;
+  font-weight: 600;
+  line-height: 1;
+  transform: translateY(-50%);
 }
 
 .surface-card {
