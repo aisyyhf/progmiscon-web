@@ -800,7 +800,7 @@ export function LecturerReviewPage({
     },
     {
       id: "answer-ps",
-      label: language === "id" ? "Evidence PS" : "PS Evidence",
+      label: language === "id" ? "Jawaban PS" : "PS Answers",
     },
     {
       id: "question-mp",
