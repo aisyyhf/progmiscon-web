@@ -12,15 +12,20 @@ import { cn } from "../../utils/cn";
 export function ParentQuestionBackAction({
   language,
   onClick,
+  className,
 }: {
   language: Language;
   onClick: () => void;
+  className?: string;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group mb-3 inline-flex cursor-pointer items-center gap-1.5 rounded px-1 py-1 text-xs font-semibold text-muted transition-colors hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      className={cn(
+        "group inline-flex h-8 cursor-pointer items-center gap-1.5 rounded px-2 text-xs font-semibold text-muted transition-colors hover:bg-brand-soft/50 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+        className,
+      )}
     >
       <ArrowLeft
         size={14}

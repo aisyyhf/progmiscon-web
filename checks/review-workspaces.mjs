@@ -200,6 +200,10 @@ const navigation = await readFile(
 const answerWorkspace = page.slice(
   page.indexOf("function AnswerValidationWorkspace"),
 );
+const questionWorkspace = page.slice(
+  page.indexOf("function QuestionValidationWorkspace"),
+  page.indexOf("function AnswerValidationWorkspace"),
+);
 const contextStart = answerWorkspace.indexOf("<QuestionContextAccordion");
 const contextEnd = answerWorkspace.indexOf(
   "</QuestionContextAccordion>",
@@ -213,6 +217,11 @@ assert.match(
   "MP toolbar progress must use the global eligible-answer progress source",
 );
 assert.match(page, /siblingAnswerIds=\{\(activeItems as StudentAnswer\[\]\)\.map/);
+assert.match(
+  page,
+  /answerReviewCount=\{[\s\S]{0,180}eligibleAnswerReviewCounts\.get\(activeAnswer\.id\)/,
+  "MP answer badge must use the eligible global answer-review count",
+);
 assert.match(page, /onDirtyChange=\{setMpAnswerReviewDirty\}/);
 assert.match(page, /requestOpenWorkspaceItem\(\s*"answer-mp"/);
 assert.match(
@@ -228,6 +237,43 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(answerWorkspace, /AdminAnswerContentEditor|Edit jawaban/);
 assert.match(answerWorkspace, /AdminQuestionContentEditor question=\{question\} answer=\{answer\}/);
+assert.doesNotMatch(
+  answerWorkspace,
+  /generalReasons=\{/,
+  "MP answers must not render a general-answer note",
+);
+assert.match(answerWorkspace, /mappedReasons=\{mappedReasons\}/);
+assert.doesNotMatch(
+  answerWorkspace,
+  /Nilai label berdasarkan pola yang terlihat|Evaluate labels based on the pattern visible/,
+);
+assert.match(
+  answerWorkspace,
+  /Apakah ada miskonsepsi terkait yang tidak sesuai dengan jawaban ini\?/,
+);
+assert.match(
+  answerWorkspace,
+  /Are any linked misconceptions inconsistent with this answer\?/,
+);
+assert.doesNotMatch(answerWorkspace, /Belum Anda review|Not yet reviewed/);
+assert.match(answerWorkspace, /Math\.min\(answerReviewCount, QUESTION_REVIEWED_THRESHOLD\)/);
+assert.match(answerWorkspace, /aria-label=\{reviewerCountLabel\}/);
+assert.match(answerWorkspace, /<Users size=\{14\}/);
+assert.ok(
+  answerWorkspace.indexOf("<ParentQuestionBackAction") <
+    answerWorkspace.indexOf("<SiblingNavigator") &&
+    answerWorkspace.indexOf("<SiblingNavigator") <
+      answerWorkspace.indexOf("<header"),
+  "MP back and sibling navigation must share the utility row above the answer header",
+);
+assert.match(questionWorkspace, /REVIEW MISKONSEPSI SOAL/);
+assert.match(questionWorkspace, /QUESTION MISCONCEPTION REVIEW/);
+assert.match(answerWorkspace, /REVIEW MISKONSEPSI JAWABAN/);
+assert.match(answerWorkspace, /ANSWER MISCONCEPTION REVIEW/);
+assert.doesNotMatch(
+  page,
+  /Jawab kedua pertanyaan dan lengkapi pilihan serta alasan jika memilih Ada\.|Answer both questions and complete the selection and reason when choosing Yes\./,
+);
 assert.match(editor, />\s*Edit soal\s*</);
 assert.match(editor, /saveAnswerContentOverride\(answer\.id, answerText\)/);
 assert.doesNotMatch(editor, />\s*Edit jawaban\s*</);

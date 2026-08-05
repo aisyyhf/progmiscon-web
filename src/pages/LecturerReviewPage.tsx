@@ -1351,6 +1351,11 @@ export function LecturerReviewPage({
                 misconceptions={misconceptions}
                 locked={activeAnswerLocked}
                 progressUnavailable={!progressLoaded || !answerCountsLoaded}
+                answerReviewCount={
+                  answerCountsLoaded
+                    ? (eligibleAnswerReviewCounts.get(activeAnswer.id) ?? 0)
+                    : undefined
+                }
                 reviewedByMe={activeAnswerReviewedByMe}
                 globallyComplete={activeAnswerGloballyComplete}
                 isAdmin={isAdmin}
@@ -2320,7 +2325,9 @@ function QuestionValidationWorkspace({
           ) : (
             <>
           <p className="text-sm font-bold uppercase tracking-[0.04em] text-navy-deep">
-            {language === "id" ? "Form validasi soal" : "Question validation form"}
+            {language === "id"
+              ? "REVIEW MISKONSEPSI SOAL"
+              : "QUESTION MISCONCEPTION REVIEW"}
           </p>
 
           {progressUnavailable ? (
@@ -2544,22 +2551,11 @@ function QuestionValidationWorkspace({
             </p>
           )}
 
-          {!formUnavailable && !canSubmit && (
-            <p id="question-validation-help" className="mt-5 text-xs leading-5 text-muted">
-              {language === "id"
-                ? "Jawab kedua pertanyaan dan lengkapi pilihan serta alasan jika memilih Ada."
-                : "Answer both questions and complete the selection and reason when choosing Yes."}
-            </p>
-          )}
-
           {!formUnavailable && (
             <Button
               variant="primary"
               onClick={handleSubmit}
               disabled={!canSubmit || submitting}
-              aria-describedby={
-                !canSubmit ? "question-validation-help" : undefined
-              }
               className="mt-4 w-full justify-center"
             >
               {submitting
@@ -2588,6 +2584,7 @@ function AnswerValidationWorkspace({
   misconceptions,
   locked,
   progressUnavailable,
+  answerReviewCount,
   reviewedByMe,
   globallyComplete,
   isAdmin,
@@ -2605,6 +2602,7 @@ function AnswerValidationWorkspace({
   misconceptions: Misconception[];
   locked: boolean;
   progressUnavailable: boolean;
+  answerReviewCount?: number;
   reviewedByMe: boolean;
   globallyComplete: boolean;
   isAdmin: boolean;
@@ -2661,6 +2659,17 @@ function AnswerValidationWorkspace({
   const parentReference = /^q/i.test(question.number)
     ? question.number
     : `Q${question.number || question.id}`;
+  const reviewerCount =
+    answerReviewCount === undefined
+      ? undefined
+      : Math.min(answerReviewCount, QUESTION_REVIEWED_THRESHOLD);
+  const reviewerLabel = language === "id" ? "Reviewer" : "Reviewers";
+  const reviewerCountLabel =
+    reviewerCount === undefined
+      ? ""
+      : language === "id"
+        ? `${reviewerCount} dari ${QUESTION_REVIEWED_THRESHOLD} reviewer telah mereview jawaban ini`
+        : `${reviewerCount} of ${QUESTION_REVIEWED_THRESHOLD} reviewers have reviewed this answer`;
   const mappedReasons = [
     ...(task?.suggestedMisconceptionId &&
     linkedMisconceptions.some(
@@ -2682,13 +2691,6 @@ function AnswerValidationWorkspace({
       reasons,
     })),
   ];
-  const rawGeneralReasons =
-    answer.explanation && t(answer.explanation, language).trim()
-      ? [answer.explanation]
-      : linkedMisconceptions.length === 0
-        ? answer.incorrectElements
-        : [];
-
   useEffect(() => {
     onDirtyChange(formDirty);
     return () => onDirtyChange(false);
@@ -2726,10 +2728,26 @@ function AnswerValidationWorkspace({
     <div className="scroll-reveal review-folder-content">
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
         <article className="review-folder-primary min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
-          <ParentQuestionBackAction
-            language={language}
-            onClick={onBackToQuestion}
-          />
+          <div className="mb-4 flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <ParentQuestionBackAction
+              language={language}
+              onClick={onBackToQuestion}
+            />
+            <SiblingNavigator
+              kind="answer"
+              index={activeIndex}
+              total={siblingAnswerIds.length}
+              language={language}
+              onPrevious={() =>
+                activeIndex > 0 &&
+                onSelectAnswer(siblingAnswerIds[activeIndex - 1])
+              }
+              onNext={() =>
+                activeIndex < siblingAnswerIds.length - 1 &&
+                onSelectAnswer(siblingAnswerIds[activeIndex + 1])
+              }
+            />
+          </div>
 
           <header className="flex flex-col gap-4 pb-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
@@ -2750,35 +2768,27 @@ function AnswerValidationWorkspace({
                 )}
               </h2>
             </div>
-            <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-              <p className="text-xs font-semibold text-muted">
-                {globallyComplete
-                  ? language === "id"
-                    ? "Review lengkap"
-                    : "Review complete"
-                  : reviewedByMe
-                    ? language === "id"
-                      ? "Sudah Anda review"
-                      : "Reviewed by you"
-                    : language === "id"
-                      ? "Belum Anda review"
-                      : "Not yet reviewed"}
-              </p>
-              <SiblingNavigator
-                kind="answer"
-                index={activeIndex}
-                total={siblingAnswerIds.length}
-                language={language}
-                onPrevious={() =>
-                  activeIndex > 0 &&
-                  onSelectAnswer(siblingAnswerIds[activeIndex - 1])
-                }
-                onNext={() =>
-                  activeIndex < siblingAnswerIds.length - 1 &&
-                  onSelectAnswer(siblingAnswerIds[activeIndex + 1])
-                }
-              />
-            </div>
+            {reviewerCount !== undefined && (
+              <span
+                aria-label={reviewerCountLabel}
+                className={cn(
+                  "inline-flex min-w-[122px] shrink-0 items-center justify-center gap-1.5 self-start rounded-md border px-3 py-1.5",
+                  reviewerCount === QUESTION_REVIEWED_THRESHOLD
+                    ? "border-correct-border bg-correct-bg text-correct"
+                    : reviewerCount > 0
+                      ? "border-brand/25 bg-brand-soft text-brand"
+                      : "border-border bg-neutral text-muted",
+                )}
+              >
+                <Users size={14} strokeWidth={2} aria-hidden="true" />
+                <span className="text-xs font-bold tabular-nums">
+                  {reviewerCount}/{QUESTION_REVIEWED_THRESHOLD}
+                </span>
+                <span className="text-[9px] font-semibold">
+                  {reviewerLabel}
+                </span>
+              </span>
+            )}
           </header>
 
           <div className="overflow-hidden rounded-md border border-border">
@@ -2842,19 +2852,15 @@ function AnswerValidationWorkspace({
             <MisconceptionReasonCards
               misconceptions={linkedMisconceptions}
               mappedReasons={mappedReasons}
-              generalReasons={rawGeneralReasons}
             />
           </div>
         </article>
 
         <aside className="rounded-lg border border-border bg-white p-5 md:p-6 lg:sticky lg:top-24">
-          <p className="text-base font-bold text-navy-deep">
-            {language === "id" ? "Form validasi jawaban" : "Answer validation form"}
-          </p>
-          <p className="mt-1 text-sm leading-6 text-muted">
+          <p className="text-sm font-bold uppercase tracking-[0.04em] text-navy-deep">
             {language === "id"
-              ? "Nilai label berdasarkan pola yang terlihat pada variasi jawaban ini."
-              : "Evaluate labels based on the pattern visible in this answer variation."}
+              ? "REVIEW MISKONSEPSI JAWABAN"
+              : "ANSWER MISCONCEPTION REVIEW"}
           </p>
 
           {progressUnavailable ? (
@@ -2889,8 +2895,8 @@ function AnswerValidationWorkspace({
                 <div className="min-w-0 flex-1">
                   <p id="remove-answer-misconception-question" className="text-sm font-semibold leading-5 text-navy-deep">
                     {language === "id"
-                      ? "Apakah ada miskonsepsi yang saat ini dikaitkan dengan jawaban ini, tetapi tidak sesuai dengan pola jawabannya?"
-                      : "Are any misconceptions currently linked to this answer inconsistent with its pattern?"}
+                      ? "Apakah ada miskonsepsi terkait yang tidak sesuai dengan jawaban ini?"
+                      : "Are any linked misconceptions inconsistent with this answer?"}
                   </p>
                   <PresenceToggle
                     value={hasMismatchedMisconceptions}
@@ -2904,8 +2910,8 @@ function AnswerValidationWorkspace({
                     language={language}
                     label={
                       language === "id"
-                        ? "Apakah ada miskonsepsi yang saat ini dikaitkan dengan jawaban ini, tetapi tidak sesuai dengan pola jawabannya?"
-                        : "Are any misconceptions currently linked to this answer inconsistent with its pattern?"
+                        ? "Apakah ada miskonsepsi terkait yang tidak sesuai dengan jawaban ini?"
+                        : "Are any linked misconceptions inconsistent with this answer?"
                     }
                     yesDisabled={linkedMisconceptions.length === 0}
                   />
@@ -3079,22 +3085,11 @@ function AnswerValidationWorkspace({
             </p>
           )}
 
-          {!formUnavailable && !canSubmit && (
-            <p id="answer-validation-help" className="mt-5 text-xs leading-5 text-muted">
-              {language === "id"
-                ? "Jawab kedua pertanyaan dan lengkapi pilihan serta alasan jika memilih Ada."
-                : "Answer both questions and complete the selection and reason when choosing Yes."}
-            </p>
-          )}
-
           {!formUnavailable && (
             <Button
               variant="primary"
               onClick={handleSubmit}
               disabled={!canSubmit || submitting}
-              aria-describedby={
-                !canSubmit ? "answer-validation-help" : undefined
-              }
               className="mt-4 w-full justify-center"
             >
               {submitting

@@ -84,6 +84,7 @@ export function PsAnswerEvidenceWorkspace({
           <ParentQuestionBackAction
             language={language}
             onClick={onBackToQuestion}
+            className="mb-3"
           />
 
           <header className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-start sm:justify-between">
