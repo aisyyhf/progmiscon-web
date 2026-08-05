@@ -1,5 +1,4 @@
 import {
-  type ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -21,10 +20,7 @@ import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
 import { MisconceptionPicker } from "../components/review/MisconceptionPicker";
-import {
-  AdminAnswerContentEditor,
-  AdminQuestionContentEditor,
-} from "../components/review/AdminContentEditor";
+import { AdminQuestionContentEditor } from "../components/review/AdminContentEditor";
 import { ReviewQuestionFilters } from "../components/review/ReviewQuestionFilters";
 import { useCategories } from "../hooks/useCategories";
 import { useLanguage } from "../hooks/useLanguage";
@@ -60,6 +56,12 @@ import {
 } from "../services/reviewPersistenceRepository";
 import { PseudocodeBlock } from "../components/review/PseudocodeBlock";
 import { PsAnswerEvidenceWorkspace } from "../components/review/PsAnswerEvidenceWorkspace";
+import {
+  ParentQuestionBackAction,
+  QuestionContextAccordion,
+  SiblingNavigator,
+} from "../components/review/AnswerWorkspaceNavigation";
+import { MisconceptionReasonCards } from "../components/review/MisconceptionReasonCards";
 import { MisconceptionChip } from "../components/misconception/MisconceptionChip";
 import {
   classifyReviewItems,
@@ -97,7 +99,10 @@ import {
   getActiveReviewQuestionFilterCount,
   type ReviewQuestionFilters as ReviewQuestionFilterValues,
 } from "../utils/reviewQuestionFilters";
-import { shouldWarnForMpQuestionNavigation } from "../utils/mpQuestionNavigator";
+import {
+  shouldWarnForMpAnswerNavigation,
+  shouldWarnForMpQuestionNavigation,
+} from "../utils/mpQuestionNavigator";
 import {
   REVIEW_QUESTION_FILTER_SESSION_KEY,
   createDefaultReviewQuestionFilterSession,
@@ -157,98 +162,6 @@ function PresenceToggle({
         </button>
       ))}
     </div>
-  );
-}
-
-function WorkspaceToolbar({
-  workspace,
-  label,
-  itemLabel,
-  reviewed,
-  index,
-  total,
-  itemTotal,
-  language,
-  parentQuestion,
-  onPrevious,
-  onNext,
-}: {
-  workspace: ReviewWorkspace;
-  label: string;
-  itemLabel: string;
-  reviewed: number;
-  index: number;
-  total: number;
-  itemTotal: number;
-  language: Language;
-  parentQuestion?: Question;
-  onPrevious: () => void;
-  onNext: () => void;
-}) {
-  const answerWorkspace = workspace.startsWith("answer");
-  const parentReference = parentQuestion
-    ? /^q/i.test(parentQuestion.number)
-      ? parentQuestion.number
-      : `Q${parentQuestion.number || parentQuestion.id}`
-    : "";
-
-  return (
-    <section className="mb-4 rounded-lg border border-border bg-white px-4 py-4 sm:px-5">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-lg font-bold text-navy-deep">{label}</h2>
-          <p className="mt-1 text-sm text-muted">
-            {language === "id"
-              ? `${reviewed} dari ${total} telah direview`
-              : `${reviewed} of ${total} reviewed`}
-          </p>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          {!answerWorkspace && (
-            <span className="mr-auto text-xs font-semibold tabular-nums text-muted sm:mr-2">
-              {itemLabel} {index + 1} {language === "id" ? "dari" : "of"}{" "}
-              {itemTotal}
-            </span>
-          )}
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onPrevious}
-            disabled={index <= 0}
-          >
-            {language === "id" ? "Sebelumnya" : "Previous"}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={onNext}
-            disabled={index >= itemTotal - 1}
-          >
-            {language === "id" ? "Berikutnya" : "Next"}
-          </Button>
-        </div>
-      </div>
-
-      {answerWorkspace && parentQuestion && (
-        <div className="mt-3 flex min-w-0 flex-col gap-1 rounded-md bg-neutral px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <div className="min-w-0">
-            <p className="break-words text-xs font-bold text-navy-deep">
-              {language === "id"
-                ? `Jawaban terkait untuk ${parentReference}`
-                : `Related answers for ${parentReference}`}
-            </p>
-            <p className="mt-0.5 line-clamp-2 break-words text-xs leading-5 text-muted">
-              {t(parentQuestion.prompt, language)}
-            </p>
-          </div>
-          <p className="shrink-0 text-xs font-semibold tabular-nums text-muted">
-            {itemLabel} {index + 1} {language === "id" ? "dari" : "of"}{" "}
-            {itemTotal}
-          </p>
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -326,6 +239,7 @@ export function LecturerReviewPage({
     useState<ReviewQuestionFilterSessionState>(readStoredQuestionFilters);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const [mpQuestionReviewDirty, setMpQuestionReviewDirty] = useState(false);
+  const [mpAnswerReviewDirty, setMpAnswerReviewDirty] = useState(false);
   const [progressLoading, setProgressLoading] = useState(true);
   const [progressError, setProgressError] = useState("");
   const [progressLoaded, setProgressLoaded] = useState(false);
@@ -357,7 +271,10 @@ export function LecturerReviewPage({
   }, [questionFilters]);
 
   useEffect(() => {
-    if (!mpQuestionReviewDirty || typeof window === "undefined") return;
+    if (
+      (!mpQuestionReviewDirty && !mpAnswerReviewDirty) ||
+      typeof window === "undefined"
+    ) return;
 
     const preventUnsavedExit = (event: BeforeUnloadEvent) => {
       event.preventDefault();
@@ -365,7 +282,7 @@ export function LecturerReviewPage({
     };
     window.addEventListener("beforeunload", preventUnsavedExit);
     return () => window.removeEventListener("beforeunload", preventUnsavedExit);
-  }, [mpQuestionReviewDirty]);
+  }, [mpAnswerReviewDirty, mpQuestionReviewDirty]);
 
   useEffect(() => {
     let active = true;
@@ -764,14 +681,6 @@ export function LecturerReviewPage({
     },
   ];
   const activeTab = tabs.find((tab) => tab.id === workspace)!;
-  const itemLabel =
-    workspace.startsWith("question")
-      ? language === "id"
-        ? "Soal"
-        : "Question"
-      : language === "id"
-        ? "Jawaban"
-        : "Answer";
   const emptyMessages: Record<ReviewWorkspace, string> = {
     "question-ps":
       language === "id" ? "Belum ada soal PS" : "There are no PS questions yet",
@@ -834,27 +743,38 @@ export function LecturerReviewPage({
       reviewedAnswerIds,
     ],
   );
-  const confirmMpQuestionNavigation = useCallback(
-    (nextWorkspace: ReviewWorkspace, nextQuestionId: string | undefined) => {
-      if (
-        !shouldWarnForMpQuestionNavigation(
-          mpQuestionReviewDirty,
-          workspace,
-          activeQuestion?.id,
-          nextWorkspace,
-          nextQuestionId,
-        )
-      ) {
-        return true;
-      }
+  const confirmReviewNavigation = useCallback(
+    (nextWorkspace: ReviewWorkspace, nextItemId: string | undefined) => {
+      const warnForAnswer = shouldWarnForMpAnswerNavigation(
+        mpAnswerReviewDirty,
+        workspace,
+        activeAnswer?.id,
+        nextWorkspace,
+        nextItemId,
+      );
+      const warnForQuestion = shouldWarnForMpQuestionNavigation(
+        mpQuestionReviewDirty,
+        workspace,
+        activeQuestion?.id,
+        nextWorkspace,
+        nextItemId,
+      );
+      if (!warnForAnswer && !warnForQuestion) return true;
 
       return window.confirm(
         language === "id"
-          ? "Review pada soal ini belum disimpan. Tetap pindah soal?"
-          : "This question review has not been saved. Continue to another question?",
+          ? `Review pada ${warnForAnswer ? "jawaban" : "soal"} ini belum disimpan. Tetap pindah?`
+          : `This ${warnForAnswer ? "answer" : "question"} review has not been saved. Continue?`,
       );
     },
-    [activeQuestion?.id, language, mpQuestionReviewDirty, workspace],
+    [
+      activeAnswer?.id,
+      activeQuestion?.id,
+      language,
+      mpAnswerReviewDirty,
+      mpQuestionReviewDirty,
+      workspace,
+    ],
   );
   const requestOpenWorkspaceItem = useCallback(
     (
@@ -862,12 +782,13 @@ export function LecturerReviewPage({
       itemId: string | undefined,
       parentQuestionId?: string,
     ) => {
-      if (!confirmMpQuestionNavigation(nextWorkspace, itemId)) return false;
+      if (!confirmReviewNavigation(nextWorkspace, itemId)) return false;
       setMpQuestionReviewDirty(false);
+      setMpAnswerReviewDirty(false);
       openWorkspaceItem(nextWorkspace, itemId, parentQuestionId);
       return true;
     },
-    [confirmMpQuestionNavigation, openWorkspaceItem],
+    [confirmReviewNavigation, openWorkspaceItem],
   );
   const selectWorkspace = (nextWorkspace: ReviewWorkspace) => {
     if (
@@ -1023,8 +944,8 @@ export function LecturerReviewPage({
       : workspace === "answer-ps"
         ? `Evidence ${currentPosition} ${language === "id" ? "dari" : "of"} ${activeItems.length}`
         : language === "id"
-          ? `Jawaban ${currentPosition} dari ${activeItems.length}`
-          : `Answer ${currentPosition} of ${activeItems.length}`;
+          ? `${progress.reviewed} dari ${progress.total} jawaban sudah Anda review`
+          : `You have reviewed ${progress.reviewed} of ${progress.total} answers`;
   const filterButtonLabel =
     activeFilterCount > 0
       ? language === "id"
@@ -1050,7 +971,7 @@ export function LecturerReviewPage({
 
       if (
         workspace === "question-mp" &&
-        !confirmMpQuestionNavigation("question-mp", nextQuestionId)
+        !confirmReviewNavigation("question-mp", nextQuestionId)
       ) {
         return;
       }
@@ -1419,24 +1340,13 @@ export function LecturerReviewPage({
             ) : activeAnswer && answerQuestion ? (
               <AnswerValidationWorkspace
                 key={activeAnswer.id}
-                toolbar={
-                  <WorkspaceToolbar
-                    workspace={workspace}
-                    label={activeTab.label}
-                    itemLabel={itemLabel}
-                    reviewed={progress.reviewed}
-                    index={activeIndex}
-                    total={progress.total}
-                    itemTotal={activeItems.length}
-                    language={language}
-                    parentQuestion={answerQuestion}
-                    onPrevious={() => selectOffset(-1)}
-                    onNext={() => selectOffset(1)}
-                  />
-                }
                 task={answerTask}
                 question={answerQuestion}
                 answer={activeAnswer}
+                siblingAnswerIds={(activeItems as StudentAnswer[]).map(
+                  (item) => item.id,
+                )}
+                activeIndex={activeIndex}
                 misconceptions={misconceptions}
                 locked={activeAnswerLocked}
                 progressUnavailable={!progressLoaded || !answerCountsLoaded}
@@ -1444,8 +1354,16 @@ export function LecturerReviewPage({
                 globallyComplete={activeAnswerGloballyComplete}
                 isAdmin={isAdmin}
                 onViewHistory={viewMyReviewHistory}
+                onDirtyChange={setMpAnswerReviewDirty}
+                onSelectAnswer={(answerId) =>
+                  requestOpenWorkspaceItem(
+                    "answer-mp",
+                    answerId,
+                    answerQuestion.id,
+                  )
+                }
                 onBackToQuestion={() =>
-                  openWorkspaceItem(
+                  requestOpenWorkspaceItem(
                     answerQuestion.type === "multiple_choice"
                       ? "question-mp"
                       : "question-ps",
@@ -1494,6 +1412,7 @@ export function LecturerReviewPage({
                     reviewedQuestionIds,
                     reviewedAnswerIds,
                   );
+                  setMpAnswerReviewDirty(false);
                   openWorkspaceItem(
                     target.workspace,
                     target.itemId,
@@ -2660,10 +2579,11 @@ function QuestionValidationWorkspace({
 }
 
 function AnswerValidationWorkspace({
-  toolbar,
   task,
   question,
   answer,
+  siblingAnswerIds,
+  activeIndex,
   misconceptions,
   locked,
   progressUnavailable,
@@ -2671,13 +2591,16 @@ function AnswerValidationWorkspace({
   globallyComplete,
   isAdmin,
   onViewHistory,
+  onDirtyChange,
+  onSelectAnswer,
   onBackToQuestion,
   onSubmit,
 }: {
-  toolbar: ReactNode;
   task?: ReviewTask;
   question: Question;
   answer: StudentAnswer;
+  siblingAnswerIds: string[];
+  activeIndex: number;
   misconceptions: Misconception[];
   locked: boolean;
   progressUnavailable: boolean;
@@ -2685,6 +2608,8 @@ function AnswerValidationWorkspace({
   globallyComplete: boolean;
   isAdmin: boolean;
   onViewHistory: () => void;
+  onDirtyChange: (dirty: boolean) => void;
+  onSelectAnswer: (answerId: string) => void;
   onBackToQuestion: () => void;
   onSubmit: (values: AnswerReviewValues) => Promise<void>;
 }) {
@@ -2694,9 +2619,6 @@ function AnswerValidationWorkspace({
     fallbackText,
     missingSelectedOption,
   } = resolveAnswerSelection(question, answer);
-  const misconceptionById = new Map(
-    misconceptions.map((item) => [item.id, item]),
-  );
   const linkedMisconceptions = prioritizeMisconceptions(misconceptions, [
     ...(selectedOption
       ? getQuestionOptionMisconceptionIds(selectedOption)
@@ -2733,6 +2655,42 @@ function AnswerValidationWorkspace({
   const canSubmit =
     !formUnavailable &&
     canSubmitMisconceptionReview(form);
+  const formDirty = isMisconceptionReviewFormDirty(form);
+  const questionReference = getQuestionReference(question);
+  const parentReference = /^q/i.test(question.number)
+    ? question.number
+    : `Q${question.number || question.id}`;
+  const mappedReasons =
+    task?.suggestedMisconceptionId &&
+    linkedMisconceptions.some(
+      (misconception) => misconception.id === task.suggestedMisconceptionId,
+    ) &&
+    t(task.explanation, language).trim()
+      ? [
+          {
+            misconceptionId: task.suggestedMisconceptionId,
+            reasons: [task.explanation],
+          },
+        ]
+      : [];
+  const rawGeneralReasons =
+    answer.explanation && t(answer.explanation, language).trim()
+      ? [answer.explanation]
+      : answer.incorrectElements;
+  const generalReasons = rawGeneralReasons.filter(
+    (reason) =>
+      !mappedReasons.some(({ reasons }) =>
+        reasons.some(
+          (mappedReason) =>
+            mappedReason.id === reason.id && mappedReason.en === reason.en,
+        ),
+      ),
+  );
+
+  useEffect(() => {
+    onDirtyChange(formDirty);
+    return () => onDirtyChange(false);
+  }, [formDirty, onDirtyChange]);
 
   const handleSubmit = async () => {
     if (
@@ -2766,164 +2724,125 @@ function AnswerValidationWorkspace({
     <div className="scroll-reveal review-folder-content">
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
         <article className="review-folder-primary min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
-          {toolbar}
-          <Button
-            type="button"
-            variant="secondary"
+          <ParentQuestionBackAction
+            language={language}
             onClick={onBackToQuestion}
-            className="mb-5"
-          >
-            {language === "id"
-              ? "Kembali ke soal ini"
-              : "Back to this question"}
-          </Button>
-          <section className="rounded-lg bg-neutral p-5">
-            <p className="academic-label">{language === "id" ? "Soal sebagai konteks" : "Question context"}</p>
-            <p className="mt-2 max-w-3xl whitespace-pre-wrap text-[14px] font-normal leading-7 text-navy-deep">
-              {t(question.prompt, language)}
-            </p>
-          </section>
+          />
 
-          {isAdmin && <AdminAnswerContentEditor answer={answer} />}
-
-          {question.type === "multiple_choice" && question.options && (
-            <section className="mt-6">
-              <p className="academic-label mb-2">
-                {language === "id"
-                  ? "Pilihan jawaban sebagai konteks"
-                  : "Answer options as context"}
+          <header className="flex flex-col gap-4 pb-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <p className="academic-label">
+                {language === "id" ? "Jawaban yang dipilih" : "Selected answer"}
               </p>
-              <ul className="space-y-2">
-                {question.options.map((option) => {
-                  const selected = option.id === selectedOption?.id;
-                  const optionMisconceptions =
-                    getQuestionOptionMisconceptionIds(option)
-                      .map((id) => misconceptionById.get(id))
-                      .filter((item) => item !== undefined);
+              <h2 className="mt-1.5 whitespace-pre-wrap text-base font-bold leading-6 text-navy-deep">
+                {selectedOption ? (
+                  <>
+                    <span>{selectedOption.label}.</span>{" "}
+                    {t(selectedOption.text, language)}
+                  </>
+                ) : (
+                  fallbackText ||
+                  (language === "id"
+                    ? "Teks jawaban tidak tersedia."
+                    : "Answer text is unavailable.")
+                )}
+              </h2>
+            </div>
+            <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+              <p className="text-xs font-semibold text-muted">
+                {globallyComplete
+                  ? language === "id"
+                    ? "Review lengkap"
+                    : "Review complete"
+                  : reviewedByMe
+                    ? language === "id"
+                      ? "Sudah Anda review"
+                      : "Reviewed by you"
+                    : language === "id"
+                      ? "Belum Anda review"
+                      : "Not yet reviewed"}
+              </p>
+              <SiblingNavigator
+                kind="answer"
+                index={activeIndex}
+                total={siblingAnswerIds.length}
+                language={language}
+                onPrevious={() =>
+                  activeIndex > 0 &&
+                  onSelectAnswer(siblingAnswerIds[activeIndex - 1])
+                }
+                onNext={() =>
+                  activeIndex < siblingAnswerIds.length - 1 &&
+                  onSelectAnswer(siblingAnswerIds[activeIndex + 1])
+                }
+              />
+            </div>
+          </header>
 
-                  return (
+          <div className="overflow-hidden rounded-md border border-border">
+            <AnswerStatusBar status={answer.status} />
+          </div>
+
+          {missingSelectedOption && (
+            <p
+              role="status"
+              className="mt-4 rounded-md border border-warning-border bg-warning-bg px-3 py-2 text-xs leading-5 text-warning"
+            >
+              {language === "id"
+                ? "Opsi yang dipilih tidak ditemukan. Teks jawaban ditampilkan sebagai fallback."
+                : "The selected option could not be found. The answer text is shown as a fallback."}
+            </p>
+          )}
+
+          <div className="mt-5">
+            <QuestionContextAccordion
+              id={`mp-question-context-${question.id}`}
+              label={
+                language === "id"
+                  ? "Lihat soal dan pilihan jawaban"
+                  : "View question and answer options"
+              }
+            >
+              <p className="text-xs font-bold text-muted">
+                {parentReference} / {t(question.title, language)}
+              </p>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-navy-deep">
+                {t(question.prompt, language)}
+              </p>
+              {questionReference.pseudocode && (
+                <div className="mt-4 overflow-hidden rounded-md">
+                  <PseudocodeBlock code={questionReference.pseudocode} />
+                </div>
+              )}
+              {question.options && (
+                <ul className="mt-4 space-y-2">
+                  {question.options.map((option) => (
                     <li
                       key={option.id}
-                      className={cn(
-                        "flex items-start gap-3 rounded-md border px-4 py-3 text-[13px] leading-6",
-                        selected
-                          ? "border-brand bg-brand-soft/55"
-                          : option.isCorrect
-                            ? "border-correct-border bg-correct-bg/55"
-                            : "border-border bg-white",
-                      )}
+                      className="flex items-start gap-2 rounded-md border border-border bg-bg px-3 py-2.5 text-sm leading-6 text-navy-deep"
                     >
-                      <span className="font-semibold text-navy-deep">
+                      <span className="shrink-0 font-semibold">
                         {option.label}.
                       </span>
-                      <span className="min-w-0 flex-1 text-navy-deep">
-                        <span className="block">{t(option.text, language)}</span>
-                        {optionMisconceptions.length > 0 && (
-                          <span className="mt-1 block space-y-1 text-xs text-muted">
-                            {optionMisconceptions.map((misconception) => (
-                              <span key={misconception.id} className="block">
-                                {misconceptionLabel(misconception, language)}
-                              </span>
-                            ))}
-                          </span>
-                        )}
-                      </span>
-                      <span className="ml-auto flex shrink-0 flex-col items-end gap-1 text-[11px] font-semibold">
-                        {selected && (
-                          <span className="text-brand">
-                            {language === "id" ? "Dipilih" : "Selected"}
-                          </span>
-                        )}
-                        {selected && !option.isCorrect && (
-                          <span className="text-incorrect">
-                            {language === "id" ? "Salah" : "Incorrect"}
-                          </span>
-                        )}
-                        {option.isCorrect && (
-                          <span className="text-correct">
-                            {language === "id" ? "Benar" : "Correct"}
-                          </span>
-                        )}
-                      </span>
+                      <span>{t(option.text, language)}</span>
                     </li>
-                  );
-                })}
-              </ul>
-            </section>
+                  ))}
+                </ul>
+              )}
+            </QuestionContextAccordion>
+          </div>
+
+          {isAdmin && (
+            <AdminQuestionContentEditor question={question} answer={answer} />
           )}
 
-          <section className="mt-6">
-            <p className="mb-2 text-sm font-bold text-navy-deep">
-              {language === "id" ? "Variasi jawaban" : "Answer variation"}
-            </p>
-            {missingSelectedOption && (
-              <p
-                role="status"
-                className="mb-3 rounded-md border border-warning-border bg-warning-bg px-3 py-2 text-xs leading-5 text-warning"
-              >
-                {language === "id"
-                  ? "Opsi yang dipilih tidak ditemukan. Teks jawaban ditampilkan sebagai fallback."
-                  : "The selected option could not be found. The answer text is shown as a fallback."}
-              </p>
-            )}
-            <div className="overflow-hidden rounded-md border border-border">
-              <div
-                className={
-                  selectedOption || question.type === "multiple_choice"
-                    ? "bg-bg p-5"
-                    : "bg-navy-deep"
-                }
-              >
-                {selectedOption ? (
-                  <p className="text-sm text-navy-deep">
-                    <span className="font-medium">{selectedOption.label}.</span> {t(selectedOption.text, language)}
-                  </p>
-                ) : question.type === "multiple_choice" ? (
-                  <p className="whitespace-pre-wrap text-sm text-navy-deep">
-                    {fallbackText ||
-                      (language === "id"
-                        ? "Teks jawaban tidak tersedia."
-                        : "Answer text is unavailable.")}
-                  </p>
-                ) : (
-                  <PseudocodeBlock code={fallbackText} />
-                )}
-              </div>
-              <AnswerStatusBar status={answer.status} />
-            </div>
-          </section>
-
-          {task?.explanation && (
-            <section className="mt-6 border-t border-border pt-5">
-              <p className="academic-label mb-2">
-                {language === "id" ? "Penjelasan" : "Explanation"}
-              </p>
-              <p className="whitespace-pre-wrap text-sm leading-6 text-navy-deep">
-                {t(task.explanation, language)}
-              </p>
-            </section>
-          )}
-
-          <section className="mt-6 border-t border-border pt-5">
-            <p className="academic-label">
-              {language === "id" ? "Miskonsepsi yang dikaitkan saat ini" : "Currently linked misconceptions"}
-            </p>
-            {linkedMisconceptions.length > 0 ? (
-              <ul className="mt-3 space-y-2">
-                {linkedMisconceptions.map((item) => (
-                  <li key={item.id} className="rounded-md bg-brand-soft/65 px-4 py-3 text-sm font-semibold leading-5 text-navy-deep">
-                    {misconceptionLabel(item, language)}
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-2 text-sm text-muted">
-                {language === "id"
-                  ? "Belum ada miskonsepsi yang terhubung."
-                  : "No misconceptions are linked yet."}
-              </p>
-            )}
-          </section>
+          <div className="mt-6 border-t border-border pt-5">
+            <MisconceptionReasonCards
+              misconceptions={linkedMisconceptions}
+              mappedReasons={mappedReasons}
+              generalReasons={generalReasons}
+            />
+          </div>
         </article>
 
         <aside className="rounded-lg border border-border bg-white p-5 md:p-6 lg:sticky lg:top-24">

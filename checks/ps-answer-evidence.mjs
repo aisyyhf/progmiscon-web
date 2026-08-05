@@ -82,14 +82,26 @@ const persistence = await readFile(
 assert.match(app, /path="\/review\/answer\/:answerId"/);
 assert.match(page, /getAnswerWorkspaceForQuestion\(question\)/);
 assert.match(page, /<PsAnswerEvidenceWorkspace/);
+assert.match(
+  page,
+  /onBackToQuestion=\{\(\) =>\s*openWorkspaceItem\("question-ps", activeParentQuestion\.id\)/,
+);
 assert.match(page, /<QuestionValidationWorkspace/);
 assert.match(page, /<AnswerValidationWorkspace/);
 assert.match(page, /await saveAnswerReview\(/);
 assert.match(evidence, /Evidence Jawaban PS/);
 assert.match(evidence, /Nama mahasiswa belum tersedia/);
-assert.match(evidence, /Penjelasan belum tersedia/);
-assert.match(evidence, /Belum ada miskonsepsi teridentifikasi/);
 assert.match(evidence, /Belum ada evidence jawaban untuk soal ini/);
+assert.match(evidence, /<ParentQuestionBackAction/);
+assert.match(evidence, /<SiblingNavigator/);
+assert.match(evidence, /kind="evidence"/);
+assert.match(evidence, /answers\[activeIndex - 1\]\.id/);
+assert.match(evidence, /answers\[activeIndex \+ 1\]\.id/);
+assert.match(evidence, /<QuestionContextAccordion/);
+assert.match(evidence, /t\(question\.prompt, language\)/);
+assert.match(evidence, /getQuestionReference\(question\)/);
+assert.match(evidence, /<MisconceptionReasonCards/);
+assert.doesNotMatch(evidence, /<select|Metadata evidence|Source key|Kunci sumber/);
 assert.doesNotMatch(evidence, /Form validasi jawaban|Save Review|Submit Review/);
 
 const guardIndex = persistence.indexOf(

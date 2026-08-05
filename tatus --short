@@ -1,0 +1,7 @@
+warning: in the working copy of 'checks/ps-answer-evidence.mjs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'checks/review-question-filters.mjs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'checks/review-workspaces.mjs', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/review/AdminContentEditor.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/components/review/PsAnswerEvidenceWorkspace.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/pages/LecturerReviewPage.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/utils/mpQuestionNavigator.ts', LF will be replaced by CRLF the next time Git touches it
