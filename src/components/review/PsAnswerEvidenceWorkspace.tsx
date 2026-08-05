@@ -7,6 +7,7 @@ import type {
 } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
 import { getQuestionReference } from "../../utils/questionReference";
+import { groupMisconceptionReasons } from "../../utils/misconceptionReasons";
 import { t } from "../../utils/translation";
 import { EmptyState } from "../common/EmptyState";
 import {
@@ -59,10 +60,21 @@ export function PsAnswerEvidenceWorkspace({
         .map((id) => misconceptions.find((item) => item.id === id))
         .filter((item): item is Misconception => Boolean(item))
     : [];
+  const mappedReasons = activeAnswer
+    ? groupMisconceptionReasons(
+        activeAnswer.studentMisconceptionIds.length,
+        activeAnswer.incorrectElements,
+      ).map((reasons, index) => ({
+        misconceptionId: activeAnswer.studentMisconceptionIds[index],
+        reasons,
+      }))
+    : [];
   const generalReasons = activeAnswer?.explanation &&
     t(activeAnswer.explanation, language).trim()
     ? [activeAnswer.explanation]
-    : (activeAnswer?.incorrectElements ?? []);
+    : linkedMisconceptions.length === 0
+      ? (activeAnswer?.incorrectElements ?? [])
+      : [];
   const questionReference = getQuestionReference(question);
 
   return (
@@ -181,6 +193,7 @@ export function PsAnswerEvidenceWorkspace({
             <div className="border-t border-border pt-5">
               <MisconceptionReasonCards
                 misconceptions={linkedMisconceptions}
+                mappedReasons={mappedReasons}
                 generalReasons={generalReasons}
               />
             </div>

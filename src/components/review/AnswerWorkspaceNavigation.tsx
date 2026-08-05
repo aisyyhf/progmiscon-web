@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
+  CircleHelp,
 } from "lucide-react";
 import type { Language } from "../../types";
 import { cn } from "../../utils/cn";
@@ -122,24 +123,35 @@ export function QuestionContextAccordion({
   const [open, setOpen] = useState(false);
 
   return (
-    <section className="border-y border-border">
+    <section>
       <button
         type="button"
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((current) => !current)}
-        className="flex min-h-11 w-full cursor-pointer items-center justify-between gap-4 px-1 py-2.5 text-left text-sm font-semibold text-navy-deep transition-colors hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        className="group flex min-h-11 w-full cursor-pointer items-center justify-between gap-4 rounded-md border border-border bg-bg px-3 py-2 text-left text-sm font-semibold text-navy-deep transition-[background-color,border-color,color] hover:border-brand/30 hover:bg-brand-soft/50 hover:text-brand active:bg-brand-soft sm:w-auto sm:min-w-72 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
       >
-        <span>{label}</span>
+        <span className="flex min-w-0 items-center gap-2">
+          <CircleHelp
+            size={16}
+            strokeWidth={1.9}
+            aria-hidden="true"
+            className="shrink-0 text-muted transition-colors group-hover:text-brand"
+          />
+          <span>{label}</span>
+        </span>
         <ChevronDown
-          size={17}
+          size={16}
           strokeWidth={2}
           aria-hidden="true"
-          className={cn("shrink-0 transition-transform", open && "rotate-180")}
+          className={cn(
+            "shrink-0 text-muted transition-[color,transform] group-hover:text-brand",
+            open && "rotate-180",
+          )}
         />
       </button>
       {open && (
-        <div id={id} className="border-t border-border px-1 py-4">
+        <div id={id} className="mt-3 rounded-md border border-border bg-bg/50 p-4">
           {children}
         </div>
       )}

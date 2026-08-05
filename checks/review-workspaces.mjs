@@ -232,7 +232,11 @@ assert.match(editor, />\s*Edit soal\s*</);
 assert.match(editor, /saveAnswerContentOverride\(answer\.id, answerText\)/);
 assert.doesNotMatch(editor, />\s*Edit jawaban\s*</);
 assert.match(reasonCards, /mappedReasons = \[\]/);
-assert.match(reasonCards, /sharedMisconceptions/);
+assert.match(reasonCards, /presentation\.cards\.map/);
+assert.match(reasonCards, /Alasan belum tersedia/);
+assert.match(reasonCards, /Reason not yet available/);
+assert.match(reasonCards, /Catatan umum jawaban/);
+assert.match(reasonCards, /General answer note/);
 assert.doesNotMatch(
   reasonCards,
   /menunjukkan pola yang cocok|shows a pattern that matches/,
@@ -240,6 +244,10 @@ assert.doesNotMatch(
 );
 assert.match(navigation, /aria-expanded=\{open\}/);
 assert.match(navigation, /aria-controls=\{id\}/);
+assert.match(navigation, /useState\(false\)/);
+assert.match(navigation, /type="button"/);
+assert.match(navigation, /<CircleHelp/);
+assert.match(navigation, /open && "rotate-180"/);
 assert.match(navigation, /disabled=\{index <= 0\}/);
 assert.match(navigation, /disabled=\{index < 0 \|\| index >= total - 1\}/);
 

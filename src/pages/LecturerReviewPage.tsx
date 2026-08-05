@@ -46,6 +46,7 @@ import { getQuestionOptionMisconceptionIds } from "../utils/questionMetadata";
 import { prioritizeMisconceptions, sortReviewTasks } from "../utils/reviewPriority";
 import { t, uiText } from "../utils/translation";
 import { misconceptionLabel } from "../utils/misconceptionLabel";
+import { groupMisconceptionReasons } from "../utils/misconceptionReasons";
 import {
   getQuestionReviewCounts,
   getAnswerReviewCounts,
@@ -2660,8 +2661,8 @@ function AnswerValidationWorkspace({
   const parentReference = /^q/i.test(question.number)
     ? question.number
     : `Q${question.number || question.id}`;
-  const mappedReasons =
-    task?.suggestedMisconceptionId &&
+  const mappedReasons = [
+    ...(task?.suggestedMisconceptionId &&
     linkedMisconceptions.some(
       (misconception) => misconception.id === task.suggestedMisconceptionId,
     ) &&
@@ -2672,20 +2673,21 @@ function AnswerValidationWorkspace({
             reasons: [task.explanation],
           },
         ]
-      : [];
+      : []),
+    ...groupMisconceptionReasons(
+      answer.studentMisconceptionIds.length,
+      answer.incorrectElements,
+    ).map((reasons, index) => ({
+      misconceptionId: answer.studentMisconceptionIds[index],
+      reasons,
+    })),
+  ];
   const rawGeneralReasons =
     answer.explanation && t(answer.explanation, language).trim()
       ? [answer.explanation]
-      : answer.incorrectElements;
-  const generalReasons = rawGeneralReasons.filter(
-    (reason) =>
-      !mappedReasons.some(({ reasons }) =>
-        reasons.some(
-          (mappedReason) =>
-            mappedReason.id === reason.id && mappedReason.en === reason.en,
-        ),
-      ),
-  );
+      : linkedMisconceptions.length === 0
+        ? answer.incorrectElements
+        : [];
 
   useEffect(() => {
     onDirtyChange(formDirty);
@@ -2840,7 +2842,7 @@ function AnswerValidationWorkspace({
             <MisconceptionReasonCards
               misconceptions={linkedMisconceptions}
               mappedReasons={mappedReasons}
-              generalReasons={generalReasons}
+              generalReasons={rawGeneralReasons}
             />
           </div>
         </article>
