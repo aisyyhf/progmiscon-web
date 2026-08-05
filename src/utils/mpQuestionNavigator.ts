@@ -13,3 +13,17 @@ export function shouldWarnForMpQuestionNavigation(
     (nextWorkspace !== currentWorkspace || nextQuestionId !== currentQuestionId)
   );
 }
+
+export function shouldWarnForMpAnswerNavigation(
+  dirty: boolean,
+  currentWorkspace: ReviewWorkspace,
+  currentAnswerId: string | undefined,
+  nextWorkspace: ReviewWorkspace,
+  nextAnswerId: string | undefined,
+): boolean {
+  return (
+    dirty &&
+    currentWorkspace === "answer-mp" &&
+    (nextWorkspace !== currentWorkspace || nextAnswerId !== currentAnswerId)
+  );
+}

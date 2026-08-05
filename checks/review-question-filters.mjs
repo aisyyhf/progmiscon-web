@@ -333,11 +333,15 @@ assert.match(
   page,
   /getActiveReviewQuestionFilterCount\(\s*questionFilters\[activeParentKind\],\s*workspace === "question-ps"/,
 );
-assert.match(page, /Menampilkan \$\{activeItems\.length\} dari/);
-assert.match(page, /Showing \$\{activeItems\.length\} of/);
 assert.match(page, /Evidence \$\{currentPosition\}/);
-assert.match(page, /Jawaban \$\{currentPosition\} dari/);
-assert.match(page, /Answer \$\{currentPosition\} of/);
+assert.match(
+  page,
+  /\$\{progress\.reviewed\} dari \$\{progress\.total\} jawaban sudah Anda review/,
+);
+assert.match(
+  page,
+  /You have reviewed \$\{progress\.reviewed\} of \$\{progress\.total\} answers/,
+);
 assert.doesNotMatch(
   page,
   /Promise\.all\([\s\S]{0,300}getSavedReviewProgress\(\)[\s\S]{0,300}getQuestionReviewCounts\(\)/,
@@ -393,7 +397,7 @@ assert.match(
 );
 assert.match(
   page,
-  /activeQuestion && questionCountsLoaded\s*\?\s*\(questionReviewCounts\.get\(activeQuestion\.id\) \?\? 0\)/,
+  /questionReviewCount=\{\s*questionCountsLoaded\s*\? \(questionReviewCounts\.get\(activeQuestion\.id\) \?\? 0\)/,
 );
 assert.match(page, /alreadyReviewed/);
 assert.match(
@@ -406,11 +410,11 @@ assert.match(page, /statusError=\{questionCountsError\}/);
 assert.match(page, /Status agregat review belum dapat dimuat\./);
 assert.match(
   page,
-  /Selesai direview: \$\{QUESTION_REVIEWED_THRESHOLD\} reviewer atau lebih/,
+  /telah selesai oleh \$\{QUESTION_REVIEWED_THRESHOLD\} reviewer/,
 );
 assert.match(
   page,
-  /Reviewed: \$\{QUESTION_REVIEWED_THRESHOLD\} or more reviewers/,
+  /has been completed by \$\{QUESTION_REVIEWED_THRESHOLD\} reviewers/,
 );
 assert.match(page, /selectAfterQuestionReview/);
 assert.match(page, /selectAfterAnswerReview/);

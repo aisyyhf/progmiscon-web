@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import {
   DEFAULT_REVIEW_WORKSPACE,
   assertAnswerReviewEligible,
@@ -12,6 +13,10 @@ import {
   selectWorkspaceItemId,
   stripSelectedOptionPrefix,
 } from "../src/utils/reviewWorkspace.ts";
+import {
+  shouldWarnForMpAnswerNavigation,
+  shouldWarnForMpQuestionNavigation,
+} from "../src/utils/mpQuestionNavigator.ts";
 
 const questions = [
   { id: "Q-PS-1", type: "short_answer" },
@@ -138,3 +143,158 @@ assert.equal(
   selectWorkspaceItemId(items["answer-mp"], ["A-MP-1", "A-MP-MISSING"]),
   "A-MP-1",
 );
+
+assert.equal(
+  shouldWarnForMpQuestionNavigation(
+    true,
+    "question-mp",
+    "Q-MP-1",
+    "answer-mp",
+    "A-MP-1",
+  ),
+  true,
+);
+assert.equal(
+  shouldWarnForMpAnswerNavigation(
+    true,
+    "answer-mp",
+    "A-MP-1",
+    "answer-mp",
+    "A-MP-MISSING",
+  ),
+  true,
+);
+assert.equal(
+  shouldWarnForMpAnswerNavigation(
+    true,
+    "answer-mp",
+    "A-MP-1",
+    "answer-mp",
+    "A-MP-1",
+  ),
+  false,
+);
+
+const page = await readFile(
+  new URL("../src/pages/LecturerReviewPage.tsx", import.meta.url),
+  "utf8",
+);
+const editor = await readFile(
+  new URL("../src/components/review/AdminContentEditor.tsx", import.meta.url),
+  "utf8",
+);
+const reasonCards = await readFile(
+  new URL(
+    "../src/components/review/MisconceptionReasonCards.tsx",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const navigation = await readFile(
+  new URL(
+    "../src/components/review/AnswerWorkspaceNavigation.tsx",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const answerWorkspace = page.slice(
+  page.indexOf("function AnswerValidationWorkspace"),
+);
+const questionWorkspace = page.slice(
+  page.indexOf("function QuestionValidationWorkspace"),
+  page.indexOf("function AnswerValidationWorkspace"),
+);
+const contextStart = answerWorkspace.indexOf("<QuestionContextAccordion");
+const contextEnd = answerWorkspace.indexOf(
+  "</QuestionContextAccordion>",
+  contextStart,
+);
+const contextAccordion = answerWorkspace.slice(contextStart, contextEnd);
+
+assert.match(
+  page,
+  /`\$\{progress\.reviewed\} dari \$\{progress\.total\} jawaban sudah Anda review`/,
+  "MP toolbar progress must use the global eligible-answer progress source",
+);
+assert.match(page, /siblingAnswerIds=\{\(activeItems as StudentAnswer\[\]\)\.map/);
+assert.match(
+  page,
+  /answerReviewCount=\{[\s\S]{0,180}eligibleAnswerReviewCounts\.get\(activeAnswer\.id\)/,
+  "MP answer badge must use the eligible global answer-review count",
+);
+assert.match(page, /onDirtyChange=\{setMpAnswerReviewDirty\}/);
+assert.match(page, /requestOpenWorkspaceItem\(\s*"answer-mp"/);
+assert.match(
+  page,
+  /onBackToQuestion=\{\(\) =>\s*requestOpenWorkspaceItem\([\s\S]{0,180}answerQuestion\.id/,
+);
+assert.match(contextAccordion, /question\.options\.map/);
+assert.match(contextAccordion, /t\(question\.prompt, language\)/);
+assert.doesNotMatch(
+  contextAccordion,
+  /option\.isCorrect|Benar|Salah|Correct|Incorrect|Jawaban acuan/,
+  "MP context options must not reveal correctness",
+);
+assert.doesNotMatch(answerWorkspace, /AdminAnswerContentEditor|Edit jawaban/);
+assert.match(answerWorkspace, /AdminQuestionContentEditor question=\{question\} answer=\{answer\}/);
+assert.doesNotMatch(
+  answerWorkspace,
+  /generalReasons=\{/,
+  "MP answers must not render a general-answer note",
+);
+assert.match(answerWorkspace, /mappedReasons=\{mappedReasons\}/);
+assert.doesNotMatch(
+  answerWorkspace,
+  /Nilai label berdasarkan pola yang terlihat|Evaluate labels based on the pattern visible/,
+);
+assert.match(
+  answerWorkspace,
+  /Apakah ada miskonsepsi terkait yang tidak sesuai dengan jawaban ini\?/,
+);
+assert.match(
+  answerWorkspace,
+  /Are any linked misconceptions inconsistent with this answer\?/,
+);
+assert.doesNotMatch(answerWorkspace, /Belum Anda review|Not yet reviewed/);
+assert.match(answerWorkspace, /Math\.min\(answerReviewCount, QUESTION_REVIEWED_THRESHOLD\)/);
+assert.match(answerWorkspace, /aria-label=\{reviewerCountLabel\}/);
+assert.match(answerWorkspace, /<Users size=\{14\}/);
+assert.ok(
+  answerWorkspace.indexOf("<ParentQuestionBackAction") <
+    answerWorkspace.indexOf("<SiblingNavigator") &&
+    answerWorkspace.indexOf("<SiblingNavigator") <
+      answerWorkspace.indexOf("<header"),
+  "MP back and sibling navigation must share the utility row above the answer header",
+);
+assert.match(questionWorkspace, /REVIEW MISKONSEPSI SOAL/);
+assert.match(questionWorkspace, /QUESTION MISCONCEPTION REVIEW/);
+assert.match(answerWorkspace, /REVIEW MISKONSEPSI JAWABAN/);
+assert.match(answerWorkspace, /ANSWER MISCONCEPTION REVIEW/);
+assert.doesNotMatch(
+  page,
+  /Jawab kedua pertanyaan dan lengkapi pilihan serta alasan jika memilih Ada\.|Answer both questions and complete the selection and reason when choosing Yes\./,
+);
+assert.match(editor, />\s*Edit soal\s*</);
+assert.match(editor, /saveAnswerContentOverride\(answer\.id, answerText\)/);
+assert.doesNotMatch(editor, />\s*Edit jawaban\s*</);
+assert.match(reasonCards, /mappedReasons = \[\]/);
+assert.match(reasonCards, /presentation\.cards\.map/);
+assert.match(reasonCards, /Alasan belum tersedia/);
+assert.match(reasonCards, /Reason not yet available/);
+assert.match(reasonCards, /Catatan umum jawaban/);
+assert.match(reasonCards, /General answer note/);
+assert.doesNotMatch(
+  reasonCards,
+  /menunjukkan pola yang cocok|shows a pattern that matches/,
+  "Misconception cards must not fabricate reasons",
+);
+assert.match(navigation, /aria-expanded=\{open\}/);
+assert.match(navigation, /aria-controls=\{id\}/);
+assert.match(navigation, /useState\(false\)/);
+assert.match(navigation, /type="button"/);
+assert.match(navigation, /<CircleHelp/);
+assert.match(navigation, /open && "rotate-180"/);
+assert.match(navigation, /disabled=\{index <= 0\}/);
+assert.match(navigation, /disabled=\{index < 0 \|\| index >= total - 1\}/);
+
+console.log("Review workspace self-check passed.");
