@@ -81,9 +81,9 @@ export function KonsepPage() {
   if (!conceptId) {
     return (
       <div className="mx-auto max-w-6xl">
-        <div className="mb-7 flex items-start gap-4">
-          <span className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-            <Braces size={22} strokeWidth={2} aria-hidden="true" />
+        <div className="mb-5 flex items-start gap-3.5">
+          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+            <Braces size={20} strokeWidth={2} aria-hidden="true" />
           </span>
           <div>
             <h1 className="page-title">{t(uiText.konsepTitle, language)}</h1>
@@ -93,33 +93,42 @@ export function KonsepPage() {
           </div>
         </div>
 
-        <ul className="scroll-reveal grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {sortedConcepts.map((concept) => {
+        <ul className="scroll-reveal grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {sortedConcepts.map((concept, index) => {
             const count = concept.relatedMisconceptionIds.length;
+            const code = categories.find((category) => category.id === concept.id)?.order ?? index + 1;
             return (
               <li key={concept.id} className="min-w-0">
                 <Link
                   to={`/konsep/${concept.id}`}
-                  className="surface-card-hover group flex h-full flex-col p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="group relative isolate flex min-h-42 h-full flex-col overflow-hidden rounded-xl border border-border bg-white p-4 shadow-[0_8px_28px_rgba(71,45,43,0.045)] transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_12px_32px_rgba(71,45,43,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
-                  <span className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand">
-                      <ConceptIcon name={concept.name} />
-                    </span>
-                    <span className="text-lg font-bold text-navy-deep transition-colors group-hover:text-brand">
-                      {t(concept.name, language)}
-                    </span>
+                  <span
+                    className={`pointer-events-none absolute text-brand/[0.065] ${
+                      index % 2 === 0
+                        ? "-bottom-5 -left-4 -rotate-6"
+                        : "-bottom-7 left-4 rotate-6"
+                    }`}
+                    aria-hidden="true"
+                  >
+                    <ConceptIcon name={concept.name} size={92} />
                   </span>
-                  <span className="mt-2 line-clamp-2 text-sm leading-6 text-muted">
+
+                  <span className="relative text-[10px] font-bold tracking-[0.16em] text-brand">
+                    KC-{String(code).padStart(2, "0")}
+                  </span>
+                  <h2 className="relative mt-1.5 text-lg font-bold leading-snug tracking-[-0.02em] text-navy-deep transition-colors group-hover:text-brand">
+                    {t(concept.name, language)}
+                  </h2>
+                  <span className="relative mt-1.5 line-clamp-2 text-[13px] leading-5 text-muted">
                     {t(concept.description, language)}
                   </span>
-                  <span className="mt-auto flex items-center justify-between pt-5">
-                    <span className="flex items-center gap-2 text-sm font-semibold text-brand">
-                      {language === "id" ? "Pelajari konsep" : "Explore concept"}
-                      <ArrowRight size={15} strokeWidth={2} className="transition-transform group-hover:translate-x-1" aria-hidden="true" />
-                    </span>
-                    <span className="text-xs text-muted">
+                  <span className="relative mt-auto flex items-end justify-end gap-3 pt-3">
+                    <span className="text-[11px] leading-8 text-muted tabular-nums">
                       {count} {language === "id" ? "miskonsepsi" : "misconceptions"}
+                    </span>
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-brand text-white shadow-[0_4px_12px_rgba(182,37,42,0.18)] transition-transform group-hover:translate-x-0.5" aria-hidden="true">
+                      <ArrowRight size={15} strokeWidth={2} />
                     </span>
                   </span>
                 </Link>
