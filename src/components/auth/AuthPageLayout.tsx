@@ -74,7 +74,7 @@ export function AuthPageLayout({
               }
               width={1448}
               height={1086}
-              className="h-[clamp(15rem,36dvh,20rem)] w-full object-cover object-center"
+              className="h-auto w-full"
             />
           </figure>
         </aside>
