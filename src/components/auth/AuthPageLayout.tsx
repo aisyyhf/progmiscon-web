@@ -46,7 +46,7 @@ export function AuthPageLayout({
   return (
     <div className="auth-canvas relative isolate min-h-[100dvh] overflow-hidden">
       <section className="grid min-h-[100dvh] w-full overflow-hidden bg-white lg:grid-cols-[0.88fr_1.12fr]">
-        <aside className="hidden overflow-hidden border-r border-border bg-neutral p-8 lg:flex lg:flex-col">
+        <aside className="hidden min-h-0 overflow-hidden border-r border-border bg-bg p-8 lg:flex lg:flex-col">
           <div>
             <BrandLink />
           </div>
@@ -64,7 +64,7 @@ export function AuthPageLayout({
             </p>
           </div>
 
-          <figure className="-mx-8 -mb-8 mt-auto pt-3 xl:pt-5">
+          <figure className="-mx-8 -mb-8 mt-4 min-h-0 flex-1 bg-bg">
             <img
               src="/home-misconception-map.webp"
               alt={
@@ -74,7 +74,7 @@ export function AuthPageLayout({
               }
               width={1448}
               height={1086}
-              className="h-auto w-full"
+              className="h-full w-full object-cover object-[42%_center]"
             />
           </figure>
         </aside>
