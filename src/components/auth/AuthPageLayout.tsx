@@ -44,8 +44,8 @@ export function AuthPageLayout({
   const { language } = useLanguage();
 
   return (
-    <div className="auth-canvas relative isolate min-h-[100dvh] overflow-hidden px-4 py-4 sm:px-6 lg:grid lg:place-items-center lg:p-4 xl:p-5">
-      <section className="relative mx-auto grid w-full max-w-[70rem] overflow-hidden rounded-2xl border border-border bg-white shadow-[0_24px_70px_rgba(43,38,36,0.1)] lg:min-h-[590px] lg:grid-cols-[0.88fr_1.12fr]">
+    <div className="auth-canvas relative isolate min-h-[100dvh] overflow-hidden">
+      <section className="grid min-h-[100dvh] w-full overflow-hidden bg-white lg:grid-cols-[0.88fr_1.12fr]">
         <aside className="hidden overflow-hidden border-r border-border bg-neutral p-8 lg:flex lg:flex-col">
           <div>
             <BrandLink />
