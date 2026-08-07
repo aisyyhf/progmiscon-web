@@ -44,14 +44,14 @@ export function AuthPageLayout({
   const { language } = useLanguage();
 
   return (
-    <div className="auth-canvas relative isolate min-h-[100dvh] overflow-hidden px-4 py-4 sm:px-6 lg:grid lg:place-items-center lg:p-5">
+    <div className="auth-canvas relative isolate min-h-[100dvh] overflow-hidden px-4 py-4 sm:px-6 lg:grid lg:place-items-center lg:p-4 xl:p-5">
       <section className="relative mx-auto grid w-full max-w-[70rem] overflow-hidden rounded-2xl border border-border bg-white shadow-[0_24px_70px_rgba(43,38,36,0.1)] lg:min-h-[590px] lg:grid-cols-[0.88fr_1.12fr]">
         <aside className="hidden overflow-hidden border-r border-border bg-neutral p-8 lg:flex lg:flex-col">
           <div>
             <BrandLink />
           </div>
 
-          <div className="mt-8">
+          <div className="mt-6 xl:mt-8">
             <h2 className="auth-title max-w-sm text-[1.9rem] font-bold leading-[1.12] tracking-[-0.025em] text-navy-deep">
               {language === "id"
                 ? "Review miskonsepsi lebih terarah"
@@ -64,7 +64,7 @@ export function AuthPageLayout({
             </p>
           </div>
 
-          <figure className="-mx-8 -mb-8 mt-auto pt-5">
+          <figure className="-mx-8 -mb-8 mt-auto pt-3 xl:pt-5">
             <img
               src="/home-misconception-map.webp"
               alt={
@@ -74,18 +74,18 @@ export function AuthPageLayout({
               }
               width={1448}
               height={1086}
-              className="h-auto w-full"
+              className="h-[clamp(15rem,36dvh,20rem)] w-full object-cover object-center"
             />
           </figure>
         </aside>
 
-        <div className="flex items-center justify-center bg-white px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-8">
+        <div className="flex items-center justify-center bg-white px-5 py-6 sm:px-8 sm:py-8 lg:px-10 lg:py-6 xl:py-8">
           <div className="w-full max-w-[27rem]">
             <div className="lg:hidden">
               <BrandLink />
             </div>
 
-            <header className="mt-5 text-left lg:mt-0">
+            <header className="mt-4 text-left lg:mt-0">
               <h1 className="auth-title text-balance text-[2rem] font-bold leading-tight tracking-[-0.025em] text-navy-deep sm:text-[2.2rem]">
                 {title}
               </h1>
@@ -94,11 +94,11 @@ export function AuthPageLayout({
               </p>
             </header>
 
-            <div className="mt-5 border-t border-border pt-5">
+            <div className="mt-4 border-t border-border pt-4">
               {children}
             </div>
 
-            <p className="mt-4 text-sm leading-5 text-muted">
+            <p className="mt-3 text-sm leading-5 text-muted">
               {accountPrompt}{" "}
               <Link
                 to={accountLinkTo}

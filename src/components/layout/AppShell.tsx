@@ -31,7 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div
           key={location.pathname}
-          className={isAuthRoute ? "route-frame min-h-full" : "route-frame"}
+          className={isAuthRoute ? "min-h-full" : "route-frame"}
         >
           {children}
         </div>
