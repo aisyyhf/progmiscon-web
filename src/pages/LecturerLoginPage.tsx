@@ -50,8 +50,8 @@ export function LecturerLoginPage() {
       title={language === "id" ? "Masuk ke Progmiscon" : "Sign in to Progmiscon"}
       subtitle={
         language === "id"
-          ? "Lanjutkan review soal, jawaban, dan miskonsepsi."
-          : "Continue reviewing questions, answers, and misconceptions."
+          ? "Lanjutkan meninjau soal, jawaban, dan miskonsepsi"
+          : "Continue reviewing questions, answers, and misconceptions"
       }
       accountPrompt={
         language === "id" ? "Belum punya akun?" : "Don't have an account?"
@@ -76,8 +76,8 @@ export function LecturerLoginPage() {
           />
           <span>
             {language === "id"
-              ? "Email berhasil diverifikasi. Silakan masuk."
-              : "Email verified successfully. Please sign in."}
+              ? "Email berhasil diverifikasi. Silakan masuk"
+              : "Email verified successfully. Please sign in"}
           </span>
         </p>
       )}

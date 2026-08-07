@@ -58,8 +58,8 @@ export function LecturerSignupPage() {
         form.reset();
         setSuccess(
           language === "id"
-            ? "Pendaftaran berhasil. Buka email verifikasi, lalu masuk."
-            : "Registration succeeded. Open the verification email, then sign in.",
+            ? "Pendaftaran berhasil. Buka email verifikasi, lalu masuk"
+            : "Registration succeeded. Open the verification email, then sign in",
         );
       } else {
         navigate("/review", { replace: true });
@@ -82,8 +82,8 @@ export function LecturerSignupPage() {
       }
       subtitle={
         language === "id"
-          ? "Gunakan email Telkom University untuk mengakses ruang review."
-          : "Use your Telkom University email to access the review workspace."
+          ? "Gunakan email Telkom University untuk mengakses ruang review"
+          : "Use your Telkom University email to access the review workspace"
       }
       accountPrompt={
         language === "id" ? "Sudah punya akun?" : "Already have an account?"
@@ -123,14 +123,14 @@ export function LecturerSignupPage() {
       )}
 
       <form
-        className="space-y-3.5"
+        className="space-y-3"
         onSubmit={handleSignup}
         aria-busy={submitting}
       >
         <div>
           <label
             htmlFor="lecturer-name"
-            className="mb-1.5 block text-[0.7rem] font-bold uppercase tracking-[0.08em] text-navy-deep"
+            className="mb-1 block text-[0.7rem] font-bold uppercase tracking-[0.08em] text-navy-deep"
           >
             {language === "id" ? "Nama lengkap" : "Full name"}
           </label>
@@ -160,7 +160,7 @@ export function LecturerSignupPage() {
         <div>
           <label
             htmlFor="signup-email"
-            className="mb-1.5 block text-[0.7rem] font-bold uppercase tracking-[0.08em] text-navy-deep"
+            className="mb-1 block text-[0.7rem] font-bold uppercase tracking-[0.08em] text-navy-deep"
           >
             {language === "id" ? "Email dosen" : "Lecturer email"}
           </label>
@@ -187,17 +187,17 @@ export function LecturerSignupPage() {
               className="academic-input h-10 bg-[#fffbfa] pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
-          <p id="signup-email-hint" className="mt-1.5 text-xs leading-5 text-muted">
+          <p id="signup-email-hint" className="mt-1 text-xs leading-5 text-muted">
             {language === "id"
-              ? "Gunakan email dengan domain @telkomuniversity.ac.id."
-              : "Use an email ending in @telkomuniversity.ac.id."}
+              ? "Gunakan email dengan domain @telkomuniversity.ac.id"
+              : "Use an email ending in @telkomuniversity.ac.id"}
           </p>
         </div>
 
         <div>
           <label
             htmlFor="signup-password"
-            className="mb-1.5 block text-[0.7rem] font-bold uppercase tracking-[0.08em] text-navy-deep"
+            className="mb-1 block text-[0.7rem] font-bold uppercase tracking-[0.08em] text-navy-deep"
           >
             {language === "id" ? "Kata sandi" : "Password"}
           </label>
@@ -227,7 +227,7 @@ export function LecturerSignupPage() {
         <div>
           <label
             htmlFor="signup-password-confirmation"
-            className="mb-1.5 block text-[0.7rem] font-bold uppercase tracking-[0.08em] text-navy-deep"
+            className="mb-1 block text-[0.7rem] font-bold uppercase tracking-[0.08em] text-navy-deep"
           >
             {language === "id" ? "Ulangi kata sandi" : "Confirm password"}
           </label>
