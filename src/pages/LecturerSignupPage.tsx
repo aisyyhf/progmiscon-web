@@ -152,7 +152,7 @@ export function LecturerSignupPage() {
               placeholder={
                 language === "id" ? "Masukkan nama lengkap" : "Enter your full name"
               }
-              className="academic-input h-10 bg-[#fffbfa] pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
+              className="academic-input h-10 bg-white pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
         </div>
@@ -184,7 +184,7 @@ export function LecturerSignupPage() {
                   : "name@telkomuniversity.ac.id"
               }
               aria-describedby="signup-email-hint"
-              className="academic-input h-10 bg-[#fffbfa] pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
+              className="academic-input h-10 bg-white pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
           <p id="signup-email-hint" className="mt-1 text-xs leading-5 text-muted">
@@ -219,7 +219,7 @@ export function LecturerSignupPage() {
               placeholder={
                 language === "id" ? "Minimal 6 karakter" : "At least 6 characters"
               }
-              className="academic-input h-10 bg-[#fffbfa] pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
+              className="academic-input h-10 bg-white pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
         </div>
@@ -253,7 +253,7 @@ export function LecturerSignupPage() {
                   ? "Masukkan kembali kata sandi"
                   : "Re-enter your password"
               }
-              className="academic-input h-10 bg-[#fffbfa] pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-incorrect aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-incorrect/15"
+              className="academic-input h-10 bg-white pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-incorrect aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-incorrect/15"
             />
           </div>
         </div>

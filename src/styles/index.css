@@ -90,10 +90,7 @@ a:active {
 }
 
 .auth-canvas {
-  background:
-    radial-gradient(circle at 12% 10%, rgb(182 37 42 / 0.045), transparent 26rem),
-    radial-gradient(circle at 88% 86%, rgb(182 37 42 / 0.035), transparent 30rem),
-    #fff9f7;
+  background: var(--color-bg);
 }
 
 .auth-title {

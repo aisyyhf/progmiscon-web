@@ -129,7 +129,7 @@ export function LecturerLoginPage() {
               placeholder={
                 language === "id" ? "nama@kampus.ac.id" : "name@university.edu"
               }
-              className="academic-input h-11 bg-[#fffbfa] pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-incorrect aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-incorrect/15"
+              className="academic-input h-11 bg-white pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-incorrect aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-incorrect/15"
             />
           </div>
         </div>
@@ -160,7 +160,7 @@ export function LecturerLoginPage() {
                   ? "Masukkan kata sandi"
                   : "Enter your password"
               }
-              className="academic-input h-11 bg-[#fffbfa] pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
+              className="academic-input h-11 bg-white pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
         </div>

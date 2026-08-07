@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useLanguage } from "../../hooks/useLanguage";
 
@@ -16,13 +15,17 @@ function BrandLink() {
   return (
     <Link
       to="/home"
-      className="group inline-flex items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
+      className="group inline-flex items-center gap-2.5 text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
       aria-label="Progmiscon"
     >
-      <span className="flex size-10 items-center justify-center rounded-lg border border-brand/10 bg-brand-soft text-brand shadow-[0_6px_16px_rgba(143,28,32,0.07)]">
-        <GraduationCap size={22} strokeWidth={2} aria-hidden="true" />
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">
+        <img
+          src="/progmiscon-logo.png"
+          alt=""
+          className="h-full w-full scale-[1.4] object-cover contrast-200"
+        />
       </span>
-      <span className="text-base font-extrabold tracking-[-0.025em]">
+      <span className="text-lg font-bold tracking-tight">
         <span className="text-brand">Prog</span>
         <span className="text-navy-deep">miscon</span>
       </span>
@@ -42,41 +45,36 @@ export function AuthPageLayout({
 
   return (
     <div className="auth-canvas relative isolate min-h-[100dvh] overflow-hidden px-4 py-4 sm:px-6 lg:grid lg:place-items-center lg:p-5">
-      <section className="relative mx-auto grid w-full max-w-[70rem] overflow-hidden rounded-2xl border border-[#eadbd8] bg-white shadow-[0_24px_70px_rgba(104,43,45,0.11)] lg:min-h-[590px] lg:grid-cols-[0.88fr_1.12fr]">
-        <aside className="relative hidden overflow-hidden border-r border-brand/10 bg-[#f7eeec] p-8 lg:flex lg:flex-col">
-          <div
-            aria-hidden="true"
-            className="absolute -left-28 -top-28 size-72 rounded-full bg-white/45 blur-2xl"
-          />
-
-          <div className="relative">
+      <section className="relative mx-auto grid w-full max-w-[70rem] overflow-hidden rounded-2xl border border-border bg-white shadow-[0_24px_70px_rgba(43,38,36,0.1)] lg:min-h-[590px] lg:grid-cols-[0.88fr_1.12fr]">
+        <aside className="hidden overflow-hidden border-r border-border bg-neutral p-8 lg:flex lg:flex-col">
+          <div>
             <BrandLink />
           </div>
 
-          <div className="relative mt-8">
+          <div className="mt-8">
             <h2 className="auth-title max-w-sm text-[1.9rem] font-bold leading-[1.12] tracking-[-0.025em] text-navy-deep">
               {language === "id"
-                ? "Review yang lebih terarah"
-                : "A clearer review workflow"}
+                ? "Review miskonsepsi lebih terarah"
+                : "A clearer misconception review"}
             </h2>
             <p className="mt-3 max-w-sm text-sm leading-6 text-muted">
               {language === "id"
-                ? "Hubungkan jawaban mahasiswa dengan pola miskonsepsi yang perlu diperbaiki"
-                : "Connect student answers to the misconception patterns that need attention"}
+                ? "Tinjau hubungan antara soal, jawaban, dan miskonsepsi dalam satu ruang review"
+                : "Review relationships between questions, answers, and misconceptions in one workspace"}
             </p>
           </div>
 
-          <figure className="relative -mx-8 -mb-8 mt-auto pt-5">
+          <figure className="-mx-8 -mb-8 mt-auto pt-5">
             <img
-              src="/home-academic-collaboration.webp"
+              src="/home-misconception-map.webp"
               alt={
                 language === "id"
-                  ? "Dosen dan mahasiswa meninjau peta miskonsepsi"
-                  : "A lecturer and students reviewing misconception maps"
+                  ? "Mahasiswa membandingkan alur jawaban yang salah dan yang sudah diperbaiki"
+                  : "A student compares an incorrect answer path with a corrected one"
               }
-              width={1536}
-              height={1024}
-              className="h-[285px] w-full object-cover object-center mix-blend-multiply"
+              width={1448}
+              height={1086}
+              className="h-auto w-full"
             />
           </figure>
         </aside>
@@ -96,7 +94,7 @@ export function AuthPageLayout({
               </p>
             </header>
 
-            <div className="mt-5 border-t-[3px] border-brand pt-5">
+            <div className="mt-5 border-t border-border pt-5">
               {children}
             </div>
 
