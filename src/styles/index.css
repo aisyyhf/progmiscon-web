@@ -89,6 +89,17 @@ a:active {
   animation: route-enter 220ms ease-out both;
 }
 
+.auth-canvas {
+  background:
+    radial-gradient(circle at 12% 10%, rgb(182 37 42 / 0.045), transparent 26rem),
+    radial-gradient(circle at 88% 86%, rgb(182 37 42 / 0.035), transparent 30rem),
+    #fff9f7;
+}
+
+.auth-title {
+  font-family: Georgia, "Times New Roman", ui-serif, serif;
+}
+
 .page-header {
   display: flex;
   align-items: flex-end;

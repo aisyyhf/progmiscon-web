@@ -8,6 +8,9 @@ import { LanguageToggle } from "../navigation/LanguageToggle";
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { language } = useLanguage();
+  const isAuthRoute = ["/dosen/login", "/dosen/daftar"].includes(
+    location.pathname,
+  );
 
   return (
     <div className="app-frame flex min-h-dvh flex-col">
@@ -17,13 +20,23 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         {language === "id" ? "Lewati navigasi" : "Skip navigation"}
       </a>
-      <TopNav />
-      <main id="main-content" className="mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 md:py-9 lg:px-8">
-        <div key={location.pathname} className="route-frame">
+      {!isAuthRoute && <TopNav />}
+      <main
+        id="main-content"
+        className={
+          isAuthRoute
+            ? "w-full flex-1"
+            : "mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 md:py-9 lg:px-8"
+        }
+      >
+        <div
+          key={location.pathname}
+          className={isAuthRoute ? "route-frame min-h-full" : "route-frame"}
+        >
           {children}
         </div>
       </main>
-      <Footer />
+      {!isAuthRoute && <Footer />}
       <LanguageToggle />
     </div>
   );
