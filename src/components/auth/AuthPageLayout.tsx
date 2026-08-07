@@ -46,7 +46,7 @@ export function AuthPageLayout({
   return (
     <div className="auth-canvas relative isolate min-h-[100dvh] overflow-hidden">
       <section className="grid min-h-[100dvh] w-full overflow-hidden bg-white lg:grid-cols-[0.88fr_1.12fr]">
-        <aside className="hidden min-h-0 overflow-hidden border-r border-border bg-bg p-8 lg:flex lg:flex-col">
+        <aside className="hidden min-h-0 overflow-hidden border-r border-border bg-[#FCF8F5] p-8 lg:flex lg:flex-col">
           <div>
             <BrandLink />
           </div>
