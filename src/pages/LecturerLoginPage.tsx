@@ -1,13 +1,7 @@
-import {
-  useEffect,
-  useState,
-  type FormEvent,
-} from "react";
-import {
-  Link,
-  useNavigate,
-  useSearchParams,
-} from "react-router-dom";
+import { useEffect, useState, type FormEvent } from "react";
+import { ArrowRight, CircleAlert, CircleCheck, LockKeyhole, Mail } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { AuthPageLayout } from "../components/auth/AuthPageLayout";
 import { Button } from "../components/common/Button";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLecturerAuth } from "../hooks/useLecturerAuth";
@@ -26,9 +20,7 @@ export function LecturerLoginPage() {
     }
   }, [isLecturer, loading, navigate]);
 
-  const handleLogin = async (
-    event: FormEvent<HTMLFormElement>,
-  ) => {
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const email = String(formData.get("email") ?? "");
@@ -54,143 +46,143 @@ export function LecturerLoginPage() {
   const emailConfirmed = searchParams.get("confirmed") === "1";
 
   return (
-    <div className="mx-auto w-full max-w-4xl py-4 md:py-10">
-      <section className="grid overflow-hidden rounded-xl border border-border bg-white md:grid-cols-[0.8fr_1.2fr]">
-        <aside className="flex min-h-56 flex-col justify-center border-b border-border bg-brand-soft p-6 md:min-h-full md:border-b-0 md:border-r md:p-8">
-          <div>
-            <p className="text-sm font-semibold text-brand">
-              {language === "id" ? "Portal dosen" : "Lecturer portal"}
-            </p>
-            <h2 className="mt-3 text-2xl font-bold leading-tight text-navy-deep">
-              {language === "id"
-                ? "Ruang review akademik"
-                : "Academic review workspace"}
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-muted">
-              {language === "id"
-                ? "Tinjau jawaban mahasiswa dan validasi pemetaan miskonsepsi secara terarah."
-                : "Review student answers and validate misconception mappings in one focused workspace."}
-            </p>
-          </div>
-        </aside>
-
-        <div className="p-6 md:p-8">
-          <header>
-            <h1 className="text-2xl font-bold text-navy-deep">
-              {language === "id"
-                ? "Masuk sebagai dosen"
-                : "Sign in as a lecturer"}
-            </h1>
-            <p className="mt-2 text-sm leading-6 text-muted">
-              {language === "id"
-                ? "Gunakan akun yang telah terdaftar sebagai reviewer."
-                : "Use an account registered as a reviewer."}
-            </p>
-          </header>
-
-          {emailConfirmed && (
-            <p
-              role="status"
-              className="mt-5 rounded-md border border-correct-border bg-correct-bg px-4 py-3 text-sm text-correct"
-            >
-              {language === "id"
-                ? "Email berhasil diverifikasi. Silakan masuk."
-                : "Email verified successfully. Please sign in."}
-            </p>
-          )}
-
-          {error && (
-            <p
-              id="login-error"
-              role="alert"
-              className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect"
-            >
-              {error}
-            </p>
-          )}
-
-          <form
-            className="mt-7 space-y-5"
-            onSubmit={handleLogin}
-            aria-busy={submitting}
-          >
-            <div>
-              <label
-                htmlFor="lecturer-email"
-                className="mb-2 block text-sm font-semibold text-navy-deep"
-              >
-                Email
-              </label>
-              <input
-                id="lecturer-email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                disabled={submitting}
-                aria-invalid={Boolean(error)}
-                aria-describedby={error ? "login-error" : undefined}
-                placeholder={
-                  language === "id"
-                    ? "nama@kampus.ac.id"
-                    : "name@university.edu"
-                }
-                className="academic-input px-3.5 py-3 text-sm placeholder:text-muted/55"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="lecturer-password"
-                className="mb-2 block text-sm font-semibold text-navy-deep"
-              >
-                {language === "id" ? "Kata sandi" : "Password"}
-              </label>
-              <input
-                id="lecturer-password"
-                name="password"
-                type="password"
-                autoComplete="current-password"
-                required
-                disabled={submitting}
-                placeholder={
-                  language === "id"
-                    ? "Masukkan kata sandi"
-                    : "Enter your password"
-                }
-                className="academic-input px-3.5 py-3 text-sm placeholder:text-muted/55"
-              />
-            </div>
-
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={submitting}
-              className="w-full justify-center py-3"
-            >
-              {submitting
-                ? language === "id"
-                  ? "Memproses..."
-                  : "Processing..."
-                : language === "id"
-                  ? "Masuk"
-                  : "Sign in"}
-            </Button>
-          </form>
-
-          <p className="mt-6 border-t border-border pt-5 text-sm text-muted">
+    <AuthPageLayout
+      title={language === "id" ? "Masuk ke Progmiscon" : "Sign in to Progmiscon"}
+      subtitle={
+        language === "id"
+          ? "Masuk untuk meninjau soal, jawaban, dan miskonsepsi"
+          : "Sign in to review questions, answers, and misconceptions"
+      }
+      accountPrompt={
+        language === "id" ? "Belum punya akun?" : "Don't have an account?"
+      }
+      accountLinkLabel={
+        language === "id"
+          ? "Daftar akun dosen"
+          : "Create a lecturer account"
+      }
+      accountLinkTo="/dosen/daftar"
+    >
+      {emailConfirmed && (
+        <p
+          role="status"
+          className="mb-5 flex items-start gap-2.5 rounded-lg border border-correct-border bg-correct-bg px-3.5 py-3 text-sm leading-5 text-correct"
+        >
+          <CircleCheck
+            size={17}
+            strokeWidth={2}
+            aria-hidden="true"
+            className="mt-0.5 shrink-0"
+          />
+          <span>
             {language === "id"
-              ? "Belum memiliki akun?"
-              : "Don't have an account?"}{" "}
-            <Link
-              to="/dosen/daftar"
-              className="font-semibold text-brand underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-            >
-              {language === "id" ? "Daftar" : "Create account"}
-            </Link>
-          </p>
+              ? "Email berhasil diverifikasi. Silakan masuk"
+              : "Email verified successfully. Please sign in"}
+          </span>
+        </p>
+      )}
+
+      {error && (
+        <p
+          id="login-error"
+          role="alert"
+          className="mb-5 flex items-start gap-2.5 rounded-lg border border-incorrect-border bg-incorrect-bg px-3.5 py-3 text-sm leading-5 text-incorrect"
+        >
+          <CircleAlert
+            size={17}
+            strokeWidth={2}
+            aria-hidden="true"
+            className="mt-0.5 shrink-0"
+          />
+          <span>{error}</span>
+        </p>
+      )}
+
+      <form
+        className="space-y-4"
+        onSubmit={handleLogin}
+        aria-busy={submitting}
+      >
+        <div>
+          <label
+            htmlFor="lecturer-email"
+            className="mb-1.5 block text-[0.7rem] font-bold uppercase tracking-[0.08em] text-navy-deep"
+          >
+            {language === "id" ? "Email dosen" : "Lecturer email"}
+          </label>
+          <div className="relative">
+            <Mail
+              size={16}
+              strokeWidth={1.8}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/75"
+            />
+            <input
+              id="lecturer-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              disabled={submitting}
+              aria-invalid={Boolean(error)}
+              aria-describedby={error ? "login-error" : undefined}
+              placeholder={
+                language === "id" ? "nama@kampus.ac.id" : "name@university.edu"
+              }
+              className="academic-input h-11 bg-white pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-incorrect aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-incorrect/15"
+            />
+          </div>
         </div>
-      </section>
-    </div>
+
+        <div>
+          <label
+            htmlFor="lecturer-password"
+            className="mb-1.5 block text-[0.7rem] font-bold uppercase tracking-[0.08em] text-navy-deep"
+          >
+            {language === "id" ? "Kata sandi" : "Password"}
+          </label>
+          <div className="relative">
+            <LockKeyhole
+              size={16}
+              strokeWidth={1.8}
+              aria-hidden="true"
+              className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted/75"
+            />
+            <input
+              id="lecturer-password"
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+              disabled={submitting}
+              placeholder={
+                language === "id"
+                  ? "Masukkan kata sandi"
+                  : "Enter your password"
+              }
+              className="academic-input h-11 bg-white pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
+            />
+          </div>
+        </div>
+
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={submitting}
+          className="h-11 w-full justify-center rounded-lg shadow-[0_8px_18px_rgba(143,28,32,0.18)] active:shadow-none"
+        >
+          {submitting
+            ? language === "id"
+              ? "Memproses..."
+              : "Processing..."
+            : language === "id"
+              ? "Masuk"
+              : "Sign in"}
+          {!submitting && (
+            <ArrowRight size={16} strokeWidth={2} aria-hidden="true" />
+          )}
+        </Button>
+      </form>
+    </AuthPageLayout>
   );
 }

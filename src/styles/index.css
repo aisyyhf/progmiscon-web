@@ -89,6 +89,14 @@ a:active {
   animation: route-enter 220ms ease-out both;
 }
 
+.auth-canvas {
+  background: var(--color-bg);
+}
+
+.auth-title {
+  font-family: Georgia, "Times New Roman", ui-serif, serif;
+}
+
 .page-header {
   display: flex;
   align-items: flex-end;
