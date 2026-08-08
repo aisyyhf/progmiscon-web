@@ -27,7 +27,7 @@ export function MateriPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-[1240px]">
       <MaterialBrowser
         categories={categories}
         selectedCategoryId={selectedCategoryId}

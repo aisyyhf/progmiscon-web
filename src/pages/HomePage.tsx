@@ -104,7 +104,7 @@ export function HomePage() {
                 className="text-brand transition-transform duration-300 group-hover:-translate-y-1 group-hover:-rotate-3"
               />
               <h3 className="mt-7 text-2xl font-extrabold tracking-[-0.02em] text-navy-deep sm:text-3xl">
-                {isIndonesian ? "Materi" : "Materials"}
+                {isIndonesian ? "Soal" : "Questions"}
               </h3>
               <span aria-hidden="true" className="mt-2 block h-0.5 w-12 bg-brand" />
               <p className="mt-4 max-w-[29ch] text-sm leading-6 text-muted">
@@ -302,7 +302,7 @@ export function HomePage() {
             to="/materi"
             className="mt-6 inline-flex min-h-11 w-fit items-center rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
-            {isIndonesian ? "Buka materi" : "Open materials"}
+            {isIndonesian ? "Buka soal" : "Open questions"}
           </Link>
         </div>
       </section>

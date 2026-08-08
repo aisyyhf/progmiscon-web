@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   DEFAULT_MATERIAL_QUESTION_FILTERS,
   filterMaterialQuestions,
+  getMaterialPaginationItems,
   getMaterialQuestionType,
   getMaterialWeekOptions,
 } from "../src/utils/materialQuestionFilters.ts";
@@ -108,5 +109,11 @@ assert.deepEqual(
   filterMaterialQuestions(questionsWithoutWeeks, { week: "all" }),
   questionsWithoutWeeks,
 );
+
+assert.deepEqual(getMaterialPaginationItems(1, 1), [1]);
+assert.deepEqual(getMaterialPaginationItems(4, 7), [1, 2, 3, 4, 5, 6, 7]);
+assert.deepEqual(getMaterialPaginationItems(1, 41), [1, 2, "ellipsis", 41]);
+assert.deepEqual(getMaterialPaginationItems(20, 41), [1, "ellipsis", 19, 20, 21, "ellipsis", 41]);
+assert.deepEqual(getMaterialPaginationItems(41, 41), [1, "ellipsis", 40, 41]);
 
 console.log("Material question filter self-check passed.");
