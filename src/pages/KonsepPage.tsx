@@ -14,6 +14,42 @@ import { MisconceptionDrawer } from "../components/misconception/MisconceptionDr
 import { buildConcepts } from "../utils/concepts";
 import { t, uiText } from "../utils/translation";
 import { misconceptionLabel } from "../utils/misconceptionLabel";
+import type { LocalizedText } from "../types";
+
+const conceptCardDescriptions: Record<string, LocalizedText> = {
+  "Alur Eksekusi": {
+    id: "Urutan langkah yang dijalankan program dari awal hingga selesai",
+    en: "The order in which a program runs its instructions from start to finish",
+  },
+  Ekspresi: {
+    id: "Gabungan nilai, variabel, dan operator yang menghasilkan suatu nilai",
+    en: "A combination of values, variables, and operators that produces a value",
+  },
+  "Input/Output": {
+    id: "Cara program menerima data dan menampilkan hasil",
+    en: "How a program receives data and displays results",
+  },
+  Konstanta: {
+    id: "Nilai tetap yang tidak berubah selama program berjalan",
+    en: "A fixed value that does not change while a program runs",
+  },
+  Operator: {
+    id: "Simbol untuk melakukan operasi pada nilai atau variabel",
+    en: "Symbols used to perform operations on values or variables",
+  },
+  Percabangan: {
+    id: "Pemilihan alur program berdasarkan kondisi tertentu",
+    en: "Choosing a program path based on a condition",
+  },
+  Perulangan: {
+    id: "Menjalankan instruksi berulang kali selama syarat terpenuhi",
+    en: "Running instructions repeatedly while a condition is met",
+  },
+  Variabel: {
+    id: "Tempat menyimpan nilai yang dapat digunakan dan diubah program",
+    en: "A named place for storing values a program can use and change",
+  },
+};
 
 function isDefined<T>(value: T | undefined): value is T {
   return value !== undefined;
@@ -97,6 +133,7 @@ export function KonsepPage() {
           {sortedConcepts.map((concept, index) => {
             const count = concept.relatedMisconceptionIds.length;
             const code = categories.find((category) => category.id === concept.id)?.order ?? index + 1;
+            const description = conceptCardDescriptions[concept.name.id] ?? concept.description;
             return (
               <li key={concept.id} className="min-w-0">
                 <Link
@@ -120,8 +157,8 @@ export function KonsepPage() {
                   <h2 className="relative mt-1.5 text-lg font-bold leading-snug tracking-[-0.02em] text-navy-deep transition-colors group-hover:text-brand">
                     {t(concept.name, language)}
                   </h2>
-                  <span className="relative mt-1.5 line-clamp-2 text-[13px] leading-5 text-muted">
-                    {t(concept.description, language)}
+                  <span className="relative mt-1.5 text-[13px] leading-5 text-muted">
+                    {t(description, language)}
                   </span>
                   <span className="relative mt-auto flex items-end justify-end gap-3 pt-3">
                     <span className="text-[11px] leading-8 text-muted tabular-nums">

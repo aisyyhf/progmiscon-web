@@ -47,8 +47,8 @@ export const uiText = {
   },
   konsepTitle: { id: "Konsep", en: "Concepts" },
   konsepDescription: {
-    id: "Temukan miskonsepsi berdasarkan konsep.",
-    en: "Find misconceptions by concept.",
+    id: "Pelajari konsep dasar pemrograman yang muncul dalam berbagai materi",
+    en: "Explore the programming concepts used across different topics",
   },
   conceptMisconceptions: { id: "Miskonsepsi tentang", en: "Misconceptions about" },
   miskonsepsiTitle: { id: "Miskonsepsi", en: "Misconceptions" },
