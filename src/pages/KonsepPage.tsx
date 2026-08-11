@@ -1,20 +1,50 @@
-import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowRight, Network } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import {
+  ArrowRight,
+  BookOpen,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  Search,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import { useCategories } from "../hooks/useCategories";
 import { useMisconceptions } from "../hooks/useMisconceptions";
 import { useQuestions } from "../hooks/useQuestions";
 import { useLanguage } from "../hooks/useLanguage";
 import { Breadcrumb } from "../components/layout/Breadcrumb";
 import { EmptyState } from "../components/common/EmptyState";
-import { QuestionRow } from "../components/browser/QuestionRow";
-import { ConceptChip } from "../components/concept/ConceptChip";
 import { ConceptIcon } from "../components/concept/ConceptIcon";
-import { MisconceptionDrawer } from "../components/misconception/MisconceptionDrawer";
 import { buildConcepts } from "../utils/concepts";
+import { cn } from "../utils/cn";
+import {
+  filterMaterialQuestions,
+  getMaterialPaginationItems,
+  getMaterialQuestionIdentifier,
+  getMaterialQuestionType,
+  getMaterialWeekLabel,
+} from "../utils/materialQuestionFilters";
 import { t, uiText } from "../utils/translation";
-import { misconceptionLabel } from "../utils/misconceptionLabel";
-import type { LocalizedText } from "../types";
+import type { Language, LocalizedText, Misconception, Question } from "../types";
+
+const QUESTIONS_PER_PAGE = 5;
+const INITIAL_MISCONCEPTION_COUNT = 6;
+
+type ConceptView = "material" | "questions" | "misconceptions";
+
+const CORE_MATERIAL_PLACEHOLDER: Record<Language, string[]> = {
+  id: [
+    "Bagian ini menyiapkan ringkasan materi pokok untuk konsep yang sedang dipelajari. Materi terstruktur akan ditambahkan pada tahap berikutnya.",
+    "Gunakan deskripsi konsep sebagai pengantar, lalu hubungkan pemahaman Anda dengan soal evaluasi dan daftar miskonsepsi pada tab lain.",
+  ],
+  en: [
+    "This section provides a temporary core-material overview for the concept being studied. Structured material will be added in a later stage.",
+    "Use the concept description as an introduction, then connect your understanding with the evaluation questions and misconceptions in the other tabs.",
+  ],
+};
 
 const conceptCardDescriptions: Record<string, LocalizedText> = {
   "Alur Eksekusi": {
@@ -55,15 +85,113 @@ function isDefined<T>(value: T | undefined): value is T {
   return value !== undefined;
 }
 
+function questionTypeLabel(question: Question, language: Language): string {
+  if (getMaterialQuestionType(question.type) === "mp") {
+    return language === "id" ? "Pilihan Ganda" : "Multiple Choice";
+  }
+  return language === "id" ? "Esai" : "Essay";
+}
+
+function misconceptionTitle(misconception: Misconception, language: Language): string {
+  const title = t(misconception.title, language).trim();
+  if (!title.toLocaleLowerCase().startsWith(misconception.id.toLocaleLowerCase())) return title;
+  return title.slice(misconception.id.length).replace(/^[\s:–—-]+/, "") || title;
+}
+
+function ConceptTabs({
+  activeView,
+  language,
+  questionCount,
+  misconceptionCount,
+  onChange,
+}: {
+  activeView: ConceptView;
+  language: Language;
+  questionCount: number;
+  misconceptionCount: number;
+  onChange: (view: ConceptView) => void;
+}) {
+  const tabs: { id: ConceptView; label: string; icon: LucideIcon; count?: number }[] = [
+    {
+      id: "material",
+      label: language === "id" ? "Materi Pokok" : "Core Material",
+      icon: BookOpen,
+    },
+    {
+      id: "questions",
+      label: language === "id" ? "Soal Evaluasi" : "Evaluation Questions",
+      icon: ClipboardList,
+      count: questionCount,
+    },
+    {
+      id: "misconceptions",
+      label: language === "id" ? "Miskonsepsi" : "Misconceptions",
+      icon: TriangleAlert,
+      count: misconceptionCount,
+    },
+  ];
+
+  return (
+    <nav
+      aria-label={language === "id" ? "Isi konsep" : "Concept content"}
+      className="hide-scrollbar -mx-4 overflow-x-auto border-b border-border px-4 sm:mx-0 sm:px-0"
+    >
+      <div className="mx-auto flex w-max min-w-full justify-center gap-1 sm:min-w-0 sm:gap-3" role="tablist">
+        {tabs.map(({ id, label, icon: Icon, count }) => {
+          const active = activeView === id;
+          return (
+            <button
+              key={id}
+              id={`concept-tab-${id}`}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              aria-controls={`concept-panel-${id}`}
+              onClick={() => onChange(id)}
+              className={cn(
+                "relative inline-flex min-h-12 cursor-pointer items-center gap-2 whitespace-nowrap px-3 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand sm:px-4 sm:text-sm",
+                active ? "text-brand" : "text-muted hover:text-navy-deep",
+              )}
+            >
+              <Icon size={15} strokeWidth={2} aria-hidden="true" />
+              {label}
+              {typeof count === "number" && (
+                <span
+                  className={cn(
+                    "rounded px-1.5 py-0.5 text-[10px] tabular-nums",
+                    active ? "bg-brand-soft text-brand-deep" : "bg-neutral text-muted",
+                  )}
+                >
+                  {count}
+                </span>
+              )}
+              <span
+                aria-hidden="true"
+                className={cn(
+                  "absolute inset-x-3 bottom-0 h-0.5 rounded-t bg-brand transition-opacity",
+                  active ? "opacity-100" : "opacity-0",
+                )}
+              />
+            </button>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
+
 export function KonsepPage() {
   const { conceptId } = useParams();
-  const navigate = useNavigate();
   const { language } = useLanguage();
-  const { categories } = useCategories();
-  const { misconceptions } = useMisconceptions();
-  const { questions: allQuestions } = useQuestions();
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedMisconceptionId, setSelectedMisconceptionId] = useState<string | undefined>();
+  const { categories, loading: categoriesLoading } = useCategories();
+  const { misconceptions, loading: misconceptionsLoading } = useMisconceptions();
+  const { questions: allQuestions, loading: questionsLoading } = useQuestions();
+  const [activeView, setActiveView] = useState<ConceptView>("material");
+  const [questionSearch, setQuestionSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [visibleMisconceptionCount, setVisibleMisconceptionCount] = useState(
+    INITIAL_MISCONCEPTION_COUNT,
+  );
 
   const concepts = useMemo(
     () => buildConcepts(categories, allQuestions, misconceptions),
@@ -97,22 +225,38 @@ export function KonsepPage() {
     const questionIds = new Set(currentConcept.relatedQuestionIds);
     return allQuestions.filter((question) => questionIds.has(question.id));
   }, [allQuestions, currentConcept]);
-  const relatedConcepts = useMemo(() => {
-    if (!currentConcept) return [];
-    const directRelations = currentConcept.relatedConceptIds
-      .map((conceptId) => sortedConcepts.find((concept) => concept.id === conceptId))
-      .filter(isDefined);
-    if (directRelations.length > 0) return directRelations;
+  const filteredQuestions = useMemo(
+    () => filterMaterialQuestions(conceptQuestions, { searchQuery: questionSearch }),
+    [conceptQuestions, questionSearch],
+  );
+  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / QUESTIONS_PER_PAGE));
+  const page = Math.min(currentPage, totalPages);
+  const rangeStart = filteredQuestions.length === 0 ? 0 : (page - 1) * QUESTIONS_PER_PAGE + 1;
+  const rangeEnd = Math.min(page * QUESTIONS_PER_PAGE, filteredQuestions.length);
+  const visibleQuestions = filteredQuestions.slice(rangeStart - 1, rangeEnd);
+  const paginationItems = getMaterialPaginationItems(page, totalPages);
+  const firstPaginationPage = paginationItems[0] ?? 1;
+  const lastPaginationPage = paginationItems.at(-1) ?? totalPages;
 
-    return sortedConcepts
-      .filter((concept) => concept.id !== currentConcept.id && concept.categoryId === currentConcept.categoryId)
-      .slice(0, 3);
-  }, [currentConcept, sortedConcepts]);
+  useEffect(() => {
+    setActiveView("material");
+    setQuestionSearch("");
+    setCurrentPage(1);
+    setVisibleMisconceptionCount(INITIAL_MISCONCEPTION_COUNT);
+  }, [conceptId]);
 
-  const openDrawer = (misconceptionId: string) => {
-    setSelectedMisconceptionId(misconceptionId);
-    setDrawerOpen(true);
-  };
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [questionSearch]);
+
+  if (categoriesLoading || misconceptionsLoading || questionsLoading) {
+    return (
+      <EmptyState
+        loading
+        message={language === "id" ? "Memuat konsep..." : "Loading concept..."}
+      />
+    );
+  }
 
   if (!conceptId) {
     return (
@@ -133,7 +277,7 @@ export function KonsepPage() {
               <li key={concept.id} className="min-w-0">
                 <Link
                   to={`/konsep/${concept.id}`}
-                  className="group relative isolate flex min-h-42 h-full flex-col overflow-hidden rounded-xl border border-border bg-white p-4 shadow-[0_8px_28px_rgba(71,45,43,0.045)] transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_12px_32px_rgba(71,45,43,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                  className="group relative isolate flex h-full min-h-42 flex-col overflow-hidden rounded-xl border border-border bg-white p-4 shadow-[0_8px_28px_rgba(71,45,43,0.045)] transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-brand/30 hover:shadow-[0_12px_32px_rgba(71,45,43,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                 >
                   <span
                     className={`pointer-events-none absolute text-brand/[0.065] ${
@@ -176,6 +320,11 @@ export function KonsepPage() {
     return <EmptyState message={language === "id" ? "Konsep tidak ditemukan." : "Concept not found."} />;
   }
 
+  const conceptOrder =
+    categories.find((category) => category.id === currentConcept.id)?.order ??
+    sortedConcepts.findIndex((concept) => concept.id === currentConcept.id) + 1;
+  const visibleMisconceptions = conceptMisconceptions.slice(0, visibleMisconceptionCount);
+
   return (
     <div className="mx-auto max-w-6xl">
       <Breadcrumb
@@ -186,115 +335,325 @@ export function KonsepPage() {
         ]}
       />
 
-      <header className="mb-7 flex items-start gap-4">
-        <span className="mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-          <Network size={22} strokeWidth={2} aria-hidden="true" />
+      <header className="mx-auto mb-7 flex max-w-3xl flex-col items-center text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-soft text-brand">
+          <ConceptIcon name={currentConcept.name} size={24} />
         </span>
-        <div>
-          <h1 className="page-title">{t(currentConcept.name, language)}</h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
-            {t(currentConcept.description, language)}
-          </p>
-        </div>
+        <span className="mt-3 text-[10px] font-bold tracking-[0.18em] text-brand">
+          KC-{String(conceptOrder).padStart(2, "0")}
+        </span>
+        <h1 className="mt-1 text-3xl font-extrabold tracking-[-0.035em] text-navy-deep sm:text-4xl">
+          {t(currentConcept.name, language)}
+        </h1>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+          {t(currentConcept.description, language)}
+        </p>
       </header>
 
-      <section className="mb-8 rounded-lg bg-neutral p-5">
-        <h2 className="text-base font-bold text-navy-deep">
-          {t(uiText.relatedConcepts, language)}
-        </h2>
-        {relatedConcepts.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {relatedConcepts.map((concept) => (
-              <ConceptChip
-                key={concept.id}
-                label={t(concept.name, language)}
-                onClick={() => navigate(`/konsep/${concept.id}`)}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="mt-2 text-sm text-muted">
-            {language === "id" ? "Belum ada konsep terkait." : "No related concepts yet."}
-          </p>
-        )}
-      </section>
-
-      <section className="mb-8">
-        <h2 className="text-xl font-bold text-navy-deep">
-          {t(uiText.conceptMisconceptions, language)} {t(currentConcept.name, language)}
-        </h2>
-        <p className="mt-1 text-sm text-muted">
-          {conceptMisconceptions.length} {t(uiText.documentedMisconceptions, language)}
-        </p>
-        {conceptMisconceptions.length === 0 ? (
-          <div className="mt-4">
-            <EmptyState message={t(uiText.noConceptMisconceptions, language)} />
-          </div>
-        ) : (
-          <ul className="scroll-reveal mt-4 grid gap-3 md:grid-cols-2">
-            {conceptMisconceptions.map((misconception) => (
-              <li key={misconception.id}>
-                <button
-                  type="button"
-                  onClick={() => openDrawer(misconception.id)}
-                  className="surface-card-hover group flex h-full w-full cursor-pointer items-start gap-4 px-5 py-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                >
-                  <div className="min-w-0">
-                    <h3 className="text-base font-semibold text-navy-deep transition-colors group-hover:text-brand">
-                      {misconceptionLabel(misconception, language)}
-                    </h3>
-                    <p className="mt-1 line-clamp-2 max-w-3xl text-sm leading-6 text-muted">
-                      {t(misconception.wrong, language)}
-                    </p>
-                  </div>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section>
-        <h2 className="text-xl font-bold text-navy-deep">
-          {language === "id" ? "Contoh Soal" : "Example Questions"} {t(currentConcept.name, language)}
-        </h2>
-        {conceptQuestions.length === 0 ? (
-          <div className="mt-4">
-            <EmptyState message={t(uiText.noQuestions, language)} />
-          </div>
-        ) : (
-          <ul className="mt-4 divide-y divide-border rounded-lg border border-border bg-white">
-            {conceptQuestions.map((question) => (
-              <QuestionRow
-                key={question.id}
-                metaItems={[question.id]}
-                promptPreview={t(question.prompt, language)}
-                onClick={() => navigate(`/question/${question.id}`)}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <MisconceptionDrawer
-        open={drawerOpen}
-        misconceptionId={selectedMisconceptionId}
-        onClose={() => setDrawerOpen(false)}
-        onSelectRelatedMisconception={setSelectedMisconceptionId}
-        onSelectRelatedQuestion={(questionId) => {
-          setDrawerOpen(false);
-          navigate(`/question/${questionId}`);
-        }}
-        onViewInConcept={(nextConceptId) => {
-          setDrawerOpen(false);
-          setSelectedMisconceptionId(undefined);
-          navigate(`/konsep/${nextConceptId}`);
-        }}
-        onOpenMisconceptionPage={(misconceptionId) => {
-          setDrawerOpen(false);
-          navigate(`/miskonsepsi/${misconceptionId}`);
-        }}
+      <ConceptTabs
+        activeView={activeView}
+        language={language}
+        questionCount={conceptQuestions.length}
+        misconceptionCount={conceptMisconceptions.length}
+        onChange={setActiveView}
       />
+
+      <div className="pt-6 sm:pt-7">
+        {activeView === "material" && (
+          <section
+            id="concept-panel-material"
+            role="tabpanel"
+            aria-labelledby="concept-tab-material"
+            className="mx-auto max-w-3xl"
+          >
+            <div className="rounded-xl border border-border bg-white px-5 py-6 shadow-[0_8px_24px_rgba(71,45,43,0.035)] sm:px-7 sm:py-7">
+              <div className="flex items-start gap-3">
+                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
+                  <BookOpen size={18} strokeWidth={2} aria-hidden="true" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-brand">
+                    {language === "id" ? "Materi pengantar sementara" : "Temporary introductory material"}
+                  </p>
+                  <h2 className="mt-1 text-xl font-bold tracking-[-0.02em] text-navy-deep">
+                    {language === "id" ? "Materi Pokok" : "Core Material"}
+                  </h2>
+                </div>
+              </div>
+              <div className="mt-5 space-y-4 border-t border-border pt-5 text-sm leading-7 text-muted">
+                <p className="font-medium text-navy-deep">
+                  {t(currentConcept.description, language)}
+                </p>
+                {CORE_MATERIAL_PLACEHOLDER[language].map((paragraph) => (
+                  <p key={paragraph}>{paragraph}</p>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {activeView === "questions" && (
+          <section
+            id="concept-panel-questions"
+            role="tabpanel"
+            aria-labelledby="concept-tab-questions"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-xl font-bold tracking-[-0.02em] text-navy-deep">
+                  {language === "id"
+                    ? `Soal tentang ${t(currentConcept.name, language)}`
+                    : `Questions about ${t(currentConcept.name, language)}`}
+                </h2>
+                <p className="mt-1 text-xs text-muted">
+                  {conceptQuestions.length} {language === "id" ? "soal terkait" : "related questions"}
+                </p>
+              </div>
+              <label className="relative w-full sm:w-72">
+                <span className="sr-only">
+                  {language === "id" ? "Cari soal" : "Search questions"}
+                </span>
+                <Search
+                  size={15}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+                />
+                <input
+                  type="search"
+                  value={questionSearch}
+                  onChange={(event) => setQuestionSearch(event.target.value)}
+                  placeholder={language === "id" ? "Cari ID atau judul soal..." : "Search question ID or title..."}
+                  className="academic-input h-10 pl-9 pr-3 text-xs placeholder:text-muted/65"
+                />
+              </label>
+            </div>
+
+            {filteredQuestions.length === 0 ? (
+              <div className="mt-5">
+                <EmptyState
+                  message={
+                    questionSearch.trim()
+                      ? language === "id"
+                        ? "Tidak ada soal yang cocok dengan pencarian."
+                        : "No questions match your search."
+                      : t(uiText.noQuestions, language)
+                  }
+                />
+              </div>
+            ) : (
+              <>
+                <div className="mt-5 overflow-hidden rounded-xl border border-border bg-white">
+                  <div className="hidden grid-cols-[6.5rem_minmax(0,1.5fr)_7.5rem_5rem_minmax(9rem,1fr)_2rem] items-center gap-3 bg-neutral px-4 py-2.5 text-[9px] font-bold uppercase tracking-[0.08em] text-muted lg:grid">
+                    <span>{language === "id" ? "ID Soal" : "Question ID"}</span>
+                    <span>{language === "id" ? "Judul Soal" : "Question Title"}</span>
+                    <span>{language === "id" ? "Tipe" : "Type"}</span>
+                    <span>{language === "id" ? "Minggu" : "Week"}</span>
+                    <span>{language === "id" ? "Konsep Terkait Lainnya" : "Other Related Concepts"}</span>
+                    <span className="sr-only">{language === "id" ? "Buka" : "Open"}</span>
+                  </div>
+                  <ul className="divide-y divide-border">
+                    {visibleQuestions.map((question) => {
+                      const relatedConcepts = question.expectedConcepts.filter(
+                        (concept) =>
+                          concept.id !== currentConcept.name.id && concept.en !== currentConcept.name.en,
+                      );
+                      return (
+                        <li key={question.id}>
+                          <Link
+                            to={`/question/${question.id}`}
+                            className="group grid min-w-0 gap-3 px-4 py-4 transition-colors hover:bg-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand lg:grid-cols-[6.5rem_minmax(0,1.5fr)_7.5rem_5rem_minmax(9rem,1fr)_2rem] lg:items-center lg:py-3"
+                          >
+                            <span className="w-fit rounded border border-brand/15 bg-brand-soft px-2 py-0.5 text-[10px] font-bold tabular-nums text-brand-deep">
+                              {getMaterialQuestionIdentifier(question)}
+                            </span>
+                            <span className="min-w-0 text-sm font-semibold leading-5 text-navy-deep transition-colors group-hover:text-brand">
+                              {t(question.title, language).trim() || t(question.prompt, language)}
+                            </span>
+                            <span className="text-xs text-muted lg:text-[11px]">
+                              {questionTypeLabel(question, language)}
+                            </span>
+                            <span className="text-xs font-semibold tabular-nums text-muted lg:text-[11px]">
+                              {question.week ? getMaterialWeekLabel(question.week) : "—"}
+                            </span>
+                            <span className="flex min-w-0 flex-wrap gap-1">
+                              {relatedConcepts.length > 0 ? (
+                                relatedConcepts.map((concept, index) => (
+                                  <span
+                                    key={`${concept.id}-${concept.en}-${index}`}
+                                    className="rounded border border-border bg-neutral px-1.5 py-0.5 text-[9px] font-semibold text-muted"
+                                  >
+                                    {t(concept, language)}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-xs text-muted">—</span>
+                              )}
+                            </span>
+                            <ArrowRight
+                              size={15}
+                              strokeWidth={2}
+                              aria-hidden="true"
+                              className="hidden text-muted transition-[color,transform] group-hover:translate-x-0.5 group-hover:text-brand lg:block"
+                            />
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+
+                <div className="mt-4 flex min-h-11 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-xs tabular-nums text-muted" role="status" aria-live="polite">
+                    {language === "id"
+                      ? `Menampilkan ${rangeStart}–${rangeEnd} dari ${filteredQuestions.length} soal`
+                      : `Showing ${rangeStart}–${rangeEnd} of ${filteredQuestions.length} questions`}
+                  </p>
+
+                  {totalPages > 1 && (
+                    <nav
+                      aria-label={language === "id" ? "Paginasi soal" : "Question pagination"}
+                      className="grid w-[13.25rem] max-w-full grid-cols-6 items-center gap-1"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((current) => Math.max(1, current - 1))}
+                        disabled={page === 1}
+                        aria-label={language === "id" ? "Halaman sebelumnya" : "Previous page"}
+                        style={{ transform: "none" }}
+                        className="grid size-8 cursor-pointer place-items-center rounded-md text-muted hover:bg-neutral hover:text-brand disabled:cursor-default disabled:opacity-35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      >
+                        <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
+                      </button>
+
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "grid size-8 place-items-center text-xs text-muted",
+                          firstPaginationPage === 1 && "invisible",
+                        )}
+                      >
+                        ...
+                      </span>
+
+                      {paginationItems.map((item) => (
+                        <button
+                          key={item}
+                          type="button"
+                          onClick={() => setCurrentPage(item)}
+                          aria-current={item === page ? "page" : undefined}
+                          aria-label={`${language === "id" ? "Halaman" : "Page"} ${item}`}
+                          style={{ transform: "none" }}
+                          className={cn(
+                            "grid size-8 cursor-pointer place-items-center rounded-md text-[11px] font-bold tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                            item === page
+                              ? "bg-brand text-white shadow-[0_4px_10px_rgba(143,28,32,0.18)]"
+                              : "text-muted hover:bg-neutral hover:text-navy-deep",
+                          )}
+                        >
+                          {item}
+                        </button>
+                      ))}
+
+                      {paginationItems.length < 2 && <span aria-hidden="true" className="size-8" />}
+
+                      <span
+                        aria-hidden="true"
+                        className={cn(
+                          "grid size-8 place-items-center text-xs text-muted",
+                          lastPaginationPage === totalPages && "invisible",
+                        )}
+                      >
+                        ...
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage((current) => Math.min(totalPages, current + 1))}
+                        disabled={page === totalPages}
+                        aria-label={language === "id" ? "Halaman berikutnya" : "Next page"}
+                        style={{ transform: "none" }}
+                        className="grid size-8 cursor-pointer place-items-center rounded-md text-muted hover:bg-neutral hover:text-brand disabled:cursor-default disabled:opacity-35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      >
+                        <ChevronRight size={16} strokeWidth={2} aria-hidden="true" />
+                      </button>
+                    </nav>
+                  )}
+                </div>
+              </>
+            )}
+          </section>
+        )}
+
+        {activeView === "misconceptions" && (
+          <section
+            id="concept-panel-misconceptions"
+            role="tabpanel"
+            aria-labelledby="concept-tab-misconceptions"
+          >
+            <div>
+              <h2 className="text-xl font-bold tracking-[-0.02em] text-navy-deep">
+                {language === "id"
+                  ? `Miskonsepsi tentang ${t(currentConcept.name, language)}`
+                  : `Misconceptions about ${t(currentConcept.name, language)}`}
+              </h2>
+              <p className="mt-1 text-xs text-muted">
+                {conceptMisconceptions.length}{" "}
+                {language === "id" ? "miskonsepsi terdokumentasi" : "documented misconceptions"}
+              </p>
+            </div>
+
+            {conceptMisconceptions.length === 0 ? (
+              <div className="mt-5">
+                <EmptyState message={t(uiText.noConceptMisconceptions, language)} />
+              </div>
+            ) : (
+              <>
+                <ul className="mt-5 divide-y divide-border border-y border-border">
+                  {visibleMisconceptions.map((misconception) => (
+                    <li key={misconception.id}>
+                      <Link
+                        to={`/miskonsepsi/${misconception.id}`}
+                        className="group grid min-h-14 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-2 py-3 transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand sm:px-3"
+                      >
+                        <span className="rounded border border-brand/15 bg-brand-soft px-2 py-0.5 text-[9px] font-bold tabular-nums text-brand-deep">
+                          {misconception.id}
+                        </span>
+                        <span className="min-w-0 text-[13px] font-semibold leading-5 text-navy-deep transition-colors group-hover:text-brand sm:text-sm">
+                          {misconceptionTitle(misconception, language)}
+                        </span>
+                        <ArrowRight
+                          size={15}
+                          strokeWidth={2}
+                          aria-hidden="true"
+                          className="text-muted transition-[color,transform] group-hover:translate-x-0.5 group-hover:text-brand"
+                        />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+
+                {visibleMisconceptions.length < conceptMisconceptions.length && (
+                  <div className="mt-5 flex justify-center">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setVisibleMisconceptionCount((count) =>
+                          Math.min(count + INITIAL_MISCONCEPTION_COUNT, conceptMisconceptions.length),
+                        )
+                      }
+                      className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-full border border-border bg-white px-4 text-xs font-semibold text-navy-deep transition-[border-color,color] hover:border-brand/35 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                    >
+                      {language === "id" ? "Tampilkan lebih banyak" : "Show more"}
+                      <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </section>
+        )}
+      </div>
     </div>
   );
 }
