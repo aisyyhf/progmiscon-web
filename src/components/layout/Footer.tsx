@@ -3,12 +3,12 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { useNavLinks } from "../navigation/useNavLinks";
 import { t } from "../../utils/translation";
 
-export function Footer() {
+export function Footer({ compact = false }: { compact?: boolean }) {
   const { language } = useLanguage();
   const links = useNavLinks().filter((link) => link.to !== "/home");
 
   return (
-    <footer className="mt-12 border-t border-border bg-white">
+    <footer className={`${compact ? "mt-4" : "mt-12"} border-t border-border bg-white`}>
       <div className="mx-auto max-w-[1240px] px-4 py-5 pb-14 sm:px-6 sm:py-5 lg:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <Link

@@ -1,35 +1,21 @@
-import type { Concept, Question } from "../../types";
+import type { Question } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useMisconceptionsByIds } from "../../hooks/useMisconceptions";
 import { t, uiText } from "../../utils/translation";
-import { misconceptionLabel } from "../../utils/misconceptionLabel";
-import { findConceptByText } from "../../utils/concepts";
 import { cn } from "../../utils/cn";
 import { getQuestionReference } from "../../utils/questionReference";
 import { getQuestionOptionMisconceptionIds } from "../../utils/questionMetadata";
-import { ConceptChip } from "../concept/ConceptChip";
-import { ConceptIcon } from "../concept/ConceptIcon";
-import { MisconceptionChip } from "../misconception/MisconceptionChip";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { PseudocodeBlock } from "./PseudocodeBlock";
+import { ArrowRight, CheckCircle2, TriangleAlert } from "lucide-react";
 
 export function QuestionPanel({
   question,
-  concepts,
-  onSelectConcept,
+  activeMisconceptionId,
   onSelectMisconception,
-  relatedQuestionIndex,
-  relatedQuestionTotal,
-  onPreviousQuestion,
-  onNextQuestion,
 }: {
   question: Question;
-  concepts: Concept[];
-  onSelectConcept: (conceptId: string) => void;
+  activeMisconceptionId?: string;
   onSelectMisconception: (misconceptionId: string) => void;
-  relatedQuestionIndex?: number;
-  relatedQuestionTotal?: number;
-  onPreviousQuestion: () => void;
-  onNextQuestion: () => void;
 }) {
   const { language } = useLanguage();
   const misconceptionIds = [
@@ -40,150 +26,183 @@ export function QuestionPanel({
   ];
   const { misconceptions } = useMisconceptionsByIds(misconceptionIds);
   const reference = getQuestionReference(question);
+  const questionTitle =
+    t(question.title, language).trim() ||
+    `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
+  const questionCode = question.sourceCode?.trim() || question.id;
+  const weekMatch = /^W(\d+)(?:-(\d+))?$/i.exec(question.week ?? "");
+  const normalizedWeekNumber = weekMatch
+    ? weekMatch[2]
+      ? `${Number(weekMatch[1])}–${Number(weekMatch[2])}`
+      : String(Number(weekMatch[1]))
+    : question.week || (language === "id" ? "Belum tersedia" : "Unavailable");
+  const localizedPrompt = t(question.prompt, language);
+  const localizedQuestionText =
+    (language === "id" ? question.questionInd : question.questionEn)?.trim() ||
+    (question.questionCode && localizedPrompt.endsWith(question.questionCode)
+      ? localizedPrompt.slice(0, -question.questionCode.length).trimEnd()
+      : localizedPrompt);
+  const pseudocode = question.questionCode?.trim() || reference.pseudocode;
+  const QuestionHeading = activeMisconceptionId ? "h2" : "h1";
 
   return (
-    <div className="grid min-w-0 gap-4">
-      <section className="relative overflow-hidden rounded-lg border border-border bg-white p-5 md:p-6">
-        <div className="flex items-center justify-between gap-4">
-          <h2 className="text-lg font-bold text-navy-deep">
-          {language === "id" ? "Soal" : "Question"}
-          </h2>
-        {relatedQuestionIndex !== undefined && relatedQuestionTotal !== undefined && relatedQuestionIndex >= 0 && (
-        <div className="flex items-center gap-3">
-          <p className="text-xs font-medium text-muted">
-            {language === "id"
-              ? `Soal terkait ${relatedQuestionIndex + 1} dari ${relatedQuestionTotal}`
-              : `Related question ${relatedQuestionIndex + 1} of ${relatedQuestionTotal}`}
-          </p>
-          <div className="flex shrink-0 items-center gap-1">
-            <button
-              type="button"
-              onClick={onPreviousQuestion}
-              disabled={relatedQuestionIndex === 0}
-              aria-label={language === "id" ? "Soal sebelumnya" : "Previous question"}
-              title={language === "id" ? "Soal sebelumnya" : "Previous question"}
-              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border bg-white text-sm text-muted transition-colors hover:border-brand/30 hover:bg-brand-soft/40 hover:text-brand disabled:cursor-not-allowed disabled:bg-bg disabled:text-muted/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-            >
-              <ChevronLeft size={15} strokeWidth={2} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              onClick={onNextQuestion}
-              disabled={relatedQuestionIndex === relatedQuestionTotal - 1}
-              aria-label={language === "id" ? "Soal berikutnya" : "Next question"}
-              title={language === "id" ? "Soal berikutnya" : "Next question"}
-              className="inline-flex h-8 w-8 cursor-pointer items-center justify-center rounded-md border border-border bg-white text-sm text-muted transition-colors hover:border-brand/30 hover:bg-brand-soft/40 hover:text-brand disabled:cursor-not-allowed disabled:bg-bg disabled:text-muted/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-            >
-              <ChevronRight size={15} strokeWidth={2} aria-hidden="true" />
-            </button>
+    <article className="min-w-0 bg-bg px-5 py-6 sm:px-7 lg:px-8 lg:py-8">
+      <header className="border-b border-border pb-5">
+        <QuestionHeading
+          aria-label={`${questionCode} / ${questionTitle}`}
+          className="text-2xl font-extrabold leading-[1.1] tracking-[-0.02em] text-navy-deep md:text-3xl"
+        >
+          <span className="font-mono font-extrabold leading-none tracking-[0.02em] tabular-nums text-brand">
+            {questionCode}
+          </span>
+          <span className="mx-1.5 font-medium text-muted/70" aria-hidden="true">
+            /
+          </span>
+          <span>{questionTitle}</span>
+        </QuestionHeading>
+        <dl className="mt-2 flex flex-wrap items-baseline gap-x-1 gap-y-1 text-sm font-bold leading-5 text-muted">
+          <div className="flex min-w-0 items-baseline gap-1">
+            <dt className="sr-only">Week</dt>
+            <dd>
+              <span aria-hidden="true">Week </span>
+              {normalizedWeekNumber}
+            </dd>
           </div>
-        </div>
-        )}
-      </div>
+          <div className="flex min-w-0 items-baseline gap-1">
+            <span className="mx-1 text-muted/65" aria-hidden="true">
+              ·
+            </span>
+            <dt className="shrink-0 font-bold text-navy-deep">KC:</dt>
+            <dd className="min-w-0">
+              {question.expectedConcepts.length > 0
+                ? question.expectedConcepts.map((concept) => t(concept, language)).join(", ")
+                : language === "id"
+                  ? "Belum tersedia"
+                  : "Unavailable"}
+            </dd>
+          </div>
+        </dl>
+      </header>
 
-      <p className="mt-4 max-w-4xl whitespace-pre-wrap text-[13px] font-normal leading-6 text-navy-deep">
-        {t(question.prompt, language)}
-      </p>
+      <section className="py-6" aria-label={language === "id" ? "Isi soal" : "Question content"}>
+        <p className="max-w-4xl whitespace-pre-wrap text-[13px] leading-6 text-navy-deep">
+          {localizedQuestionText}
+        </p>
 
-      {question.type === "multiple_choice" && question.options && (
-        <ul className="mt-5 space-y-2">
-          {question.options.map((option) => {
-            const optionMisconceptions = getQuestionOptionMisconceptionIds(option)
-              .map((id) => misconceptions.find((item) => item.id === id))
-              .filter((item) => item !== undefined);
-            return (
-              <li
-                key={option.id}
-                className={cn(
-                  "rounded-md border px-4 py-2.5 text-sm",
-                  option.isCorrect ? "border-correct-border bg-correct-bg/55" : "border-border bg-white",
-                )}
-              >
-                <div className="flex items-start gap-2">
-                  <span className="font-medium text-navy-deep">{option.label}.</span>
-                  <span className="text-navy-deep">{t(option.text, language)}</span>
-                  {option.isCorrect && (
-                    <span className="ml-auto shrink-0 text-xs font-medium text-correct">
-                      {t(uiText.correctOptionLabel, language)}
-                    </span>
-                  )}
-                </div>
-                {optionMisconceptions.length > 0 && (
-                  <ul className="mt-1 space-y-1 pl-5 text-xs text-muted">
-                    {optionMisconceptions.map((misconception) => (
-                      <li key={misconception.id}>
-                        → {t(uiText.mapsToMisconception, language)}:{" "}
-                        <button
-                          type="button"
-                          onClick={() => onSelectMisconception(misconception.id)}
-                          className="cursor-pointer text-left font-medium text-brand hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-                        >
-                          {misconceptionLabel(misconception, language)}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      {reference.pseudocode && (
-        <div className="mt-6 border-t border-border pt-5">
-          <p className="academic-label mb-2">
-            {t(uiText.referencePseudocode, language)}
-          </p>
-          <pre className="whitespace-pre-wrap rounded-md border border-border bg-neutral px-4 py-3 font-mono text-[13px] leading-6 text-navy-deep">
-            {reference.pseudocode}
-          </pre>
-        </div>
-      )}
-      </section>
-
-      {question.expectedConcepts.length > 0 && (
-        <section className="rounded-lg border border-border bg-white p-5 md:p-6">
-          <h2 className="text-base font-bold text-navy-deep">
-            {language === "id" ? "Konsep" : "Concepts"}
-          </h2>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {question.expectedConcepts.map((concept) => {
-              const resolvedConcept = findConceptByText(concepts, concept);
+        {question.type === "multiple_choice" && question.options && (
+          <ul className="mt-5 space-y-2">
+            {question.options.map((option) => {
+              const optionMisconceptions = getQuestionOptionMisconceptionIds(option)
+                .map((id) => misconceptions.find((item) => item.id === id))
+                .filter((item) => item !== undefined);
               return (
-                <ConceptChip
-                  key={resolvedConcept?.id ?? t(concept, language)}
-                  label={t(concept, language)}
-                  icon={<ConceptIcon name={resolvedConcept?.name ?? concept} size={15} />}
-                  showArrow={false}
-                  onClick={() => onSelectConcept(resolvedConcept?.id ?? question.categoryId)}
-                />
+                <li
+                  key={option.id}
+                  className={cn(
+                    "rounded-md border px-4 py-2.5 text-sm",
+                    option.isCorrect ? "border-correct-border bg-correct-bg/55" : "border-border bg-white",
+                  )}
+                >
+                  <div className="flex items-start gap-2">
+                    <span className="font-medium text-navy-deep">{option.label}.</span>
+                    <span className="text-navy-deep">{t(option.text, language)}</span>
+                    {option.isCorrect && (
+                      <span className="ml-auto shrink-0 text-xs font-medium text-correct">
+                        {t(uiText.correctOptionLabel, language)}
+                      </span>
+                    )}
+                  </div>
+                  {optionMisconceptions.length > 0 && (
+                    <ul className="mt-1 space-y-1 pl-5 text-xs text-muted">
+                      {optionMisconceptions.map((misconception) => (
+                        <li key={misconception.id}>
+                          → {t(uiText.mapsToMisconception, language)}:{" "}
+                          <button
+                            type="button"
+                            onClick={() => onSelectMisconception(misconception.id)}
+                            className="cursor-pointer text-left font-medium text-brand hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                          >
+                            {misconception.id} — {t(misconception.title, language)}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
               );
             })}
-          </div>
-        </section>
-      )}
+          </ul>
+        )}
 
-      <section className="rounded-lg border border-border bg-white p-5 md:p-6">
-        <h2 className="text-base font-bold text-navy-deep">
-          {language === "id" ? "Miskonsepsi yang Mungkin Muncul" : "Possible Misconceptions"}
+        {pseudocode && (
+          <div className="mt-5 overflow-hidden rounded-lg border border-navy-deep/15 shadow-sm">
+            <PseudocodeBlock code={pseudocode} />
+          </div>
+        )}
+      </section>
+
+      <section className="border-t border-border pt-5" aria-labelledby="related-misconceptions-title">
+        <h2 id="related-misconceptions-title" className="flex items-center gap-2 text-base font-bold text-navy-deep">
+          <TriangleAlert size={17} strokeWidth={2} className="shrink-0 text-brand" aria-hidden="true" />
+          <span>{language === "id" ? "Miskonsepsi Terkait" : "Related Misconceptions"}</span>
         </h2>
         {misconceptions.length === 0 ? (
           <p className="mt-3 text-sm text-muted">{t(uiText.emptyMisconceptions, language)}</p>
         ) : (
-          <div className="mt-3 grid gap-2">
-            {misconceptions.map((misconception) => (
-              <MisconceptionChip
-                key={misconception.id}
-                label={misconceptionLabel(misconception, language)}
-                tone="question"
-                className="w-full justify-between px-3.5 py-3 text-left"
-                onClick={() => onSelectMisconception(misconception.id)}
-              />
-            ))}
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {misconceptions.map((misconception) => {
+              const active = misconception.id === activeMisconceptionId;
+              return (
+                <button
+                  key={misconception.id}
+                  type="button"
+                  onClick={() => onSelectMisconception(misconception.id)}
+                  aria-current={active ? "true" : undefined}
+                  className={cn(
+                    "group relative min-h-24 cursor-pointer overflow-hidden rounded-lg border px-4 py-3.5 text-left transition-colors",
+                    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                    active
+                      ? "border-brand bg-brand text-white"
+                      : "border-brand/15 bg-brand-soft/55 text-navy-deep hover:border-brand/35 hover:bg-brand-soft/80",
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "absolute -right-7 -top-9 size-20 rounded-full",
+                      active ? "bg-white/10" : "bg-brand/5",
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className="relative block min-w-0 pr-7">
+                    <span className="flex items-center gap-1.5">
+                      {active && <CheckCircle2 size={14} className="shrink-0" aria-hidden="true" />}
+                      <span
+                        className={cn(
+                          "font-mono text-[11px] font-extrabold",
+                          active ? "text-white" : "text-brand",
+                        )}
+                      >
+                        {misconception.id}
+                      </span>
+                    </span>
+                    <span className="mt-1.5 block text-[13px] font-bold leading-5">
+                      {t(misconception.title, language)}
+                    </span>
+                  </span>
+                  <ArrowRight
+                    size={15}
+                    className={cn(
+                      "absolute right-3.5 top-3.5 transition-transform group-hover:translate-x-0.5",
+                      active ? "text-white/90" : "text-brand/70",
+                    )}
+                    aria-hidden="true"
+                  />
+                </button>
+              );
+            })}
           </div>
         )}
       </section>
-    </div>
+    </article>
   );
 }
