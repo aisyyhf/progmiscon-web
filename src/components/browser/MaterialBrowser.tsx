@@ -400,14 +400,14 @@ export function MaterialBrowser({
                         className={cn(
                           "group w-full cursor-pointer rounded-lg border border-border bg-white text-left transition-[border-color,box-shadow] active:translate-y-0 hover:border-brand/35 hover:shadow-[0_9px_22px_rgba(143,28,32,0.06)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                           viewMode === "grid"
-                            ? "flex h-[13.25rem] flex-col px-4 py-3.5"
+                            ? "flex h-[13.25rem] flex-col justify-between gap-1 px-4 py-3.5"
                             : "min-h-[9.5rem] p-3 sm:min-h-[7.5rem] md:min-h-16 md:p-2.5",
                         )}
                       >
                         {viewMode === "grid" ? (
                           <>
                             <div className="flex items-center justify-between gap-3">
-                              <span className="max-w-[65%] truncate rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold tabular-nums text-navy-deep">
+                              <span className="max-w-[65%] truncate rounded border border-brand/20 bg-brand-soft px-2 py-0.5 text-[9px] font-bold tabular-nums text-brand-deep">
                                 {questionIdentifier}
                               </span>
                               <span
@@ -422,14 +422,16 @@ export function MaterialBrowser({
                               </span>
                             </div>
 
-                            <h2 className="mt-2.5 line-clamp-2 shrink-0 text-[15px] font-extrabold leading-[1.25] text-navy-deep transition-colors group-hover:text-brand">
-                              {title}
-                            </h2>
-                            <p className="mt-0.5 line-clamp-2 shrink-0 whitespace-pre-line text-[11px] leading-[1.5] text-muted">
-                              {prompt}
-                            </p>
+                            <div className="min-w-0">
+                              <h2 className="line-clamp-2 text-[15px] font-extrabold leading-[1.25] text-navy-deep transition-colors group-hover:text-brand">
+                                {title}
+                              </h2>
+                              <p className="mt-0.5 line-clamp-2 whitespace-pre-line text-[11px] leading-[1.5] text-muted">
+                                {prompt}
+                              </p>
+                            </div>
 
-                            <div className="mt-2 flex flex-wrap gap-x-1 gap-y-0.5">
+                            <div className="flex flex-wrap gap-x-1 gap-y-0.5">
                               {question.week && (
                                 <span className="rounded border border-border bg-neutral px-1.5 py-0 text-[8.5px] font-bold uppercase tracking-[0.03em] text-navy-deep">
                                   {getMaterialWeekLabel(question.week)}
@@ -445,7 +447,7 @@ export function MaterialBrowser({
                               ))}
                             </div>
 
-                            <div className="mt-2 flex min-w-0 items-center gap-2 border-t border-border pt-2 text-[9px] font-semibold text-brand-deep">
+                            <div className="flex min-w-0 items-center gap-2 border-t border-border pt-2 text-[9px] font-semibold text-brand-deep">
                               {visibleMisconceptionIds.length > 0 ? (
                                 <>
                                   {visibleMisconceptionIds.map((misconceptionId) => (
@@ -470,7 +472,7 @@ export function MaterialBrowser({
                               )}
                             </div>
 
-                            <div className="mt-auto flex items-center justify-between gap-3 pt-2 text-[10px]">
+                            <div className="flex items-center justify-between gap-3 text-[10px]">
                               <span className="inline-flex items-center gap-1.5 font-semibold tabular-nums text-navy-deep">
                                 <MessageSquareText size={12} strokeWidth={2} aria-hidden="true" />
                                 {answersLoading ? "..." : answerCount}{" "}
