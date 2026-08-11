@@ -58,8 +58,8 @@ export function AnswerCasePanel({
   );
 
   return (
-    <section className="relative min-w-0 overflow-hidden rounded-lg border border-border bg-white">
-      <div className="flex min-h-16 items-center justify-between gap-4 border-b border-border px-5 py-3 md:px-7">
+    <section className="relative min-w-0">
+      <div className="flex min-h-16 items-center justify-between gap-4 border-b border-border px-5 py-3 sm:px-7 lg:px-8">
         <h2 className="text-lg font-bold text-navy-deep">
           {answer
             ? answerCaseLabel(getCaseIndex(answer.id), answers.length, language)
@@ -76,16 +76,16 @@ export function AnswerCasePanel({
         )}
       </div>
 
-      <div className="border-b border-border px-5 py-3 md:px-7">
-        <div className="w-full">
-          <label htmlFor="answer-misconception-filter" className="block text-sm font-semibold text-navy-deep">
+      <div className="border-b border-border px-5 py-3 sm:px-7 lg:px-8">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <label htmlFor="answer-misconception-filter" className="shrink-0 text-xs font-bold text-muted">
             {language === "id" ? "Filter miskonsepsi" : "Misconception filter"}
           </label>
           <select
             id="answer-misconception-filter"
             value={filterMisconceptionId ?? ""}
             onChange={(event) => onFilterMisconception(event.target.value || undefined)}
-            className="academic-input mt-2 h-10 cursor-pointer px-3 text-[13px]"
+            className="academic-input h-9 cursor-pointer px-3 text-[12px] sm:ml-auto sm:max-w-[68%]"
           >
             <option value="">{language === "id" ? "Semua jawaban" : "All answers"}</option>
             {filterMisconceptions.map((misconception) => (
@@ -98,13 +98,13 @@ export function AnswerCasePanel({
       </div>
 
       {answers.length === 0 || !answer ? (
-        <div className="px-5 py-8 text-sm text-muted md:px-7">
+        <div className="px-5 py-8 text-sm text-muted sm:px-7 lg:px-8">
           {language === "id"
             ? "Belum ada variasi jawaban yang dipetakan ke miskonsepsi ini pada soal tersebut."
             : "No answer variations have been mapped to this misconception for this question."}
         </div>
       ) : (
-        <div className="p-5 md:p-7">
+        <div className="p-5 sm:p-7 lg:p-8">
           <div className="grid gap-6">
             <div className="space-y-6">
               <div>
@@ -112,7 +112,7 @@ export function AnswerCasePanel({
                   <p className="academic-label mb-2">{t(uiText.selectedOptionLabel, language)}</p>
                 )}
                 <div className="space-y-3">
-                  <div className="overflow-hidden rounded-lg border border-border">
+                  <div className="overflow-hidden rounded-lg border border-navy-deep/15 shadow-sm">
                     {question.type === "multiple_choice" ? (
                       <div className="bg-bg p-5">
                         {selectedOption ? (
@@ -150,7 +150,7 @@ export function AnswerCasePanel({
                 </div>
               </div>
 
-              <section className="rounded-lg border border-border bg-white p-5">
+              <section className="border-t border-border pt-5">
                 <h3 className="text-base font-bold text-navy-deep">
                   {language === "id" ? "Miskonsepsi pada Jawaban" : "Misconceptions in This Answer"}
                 </h3>
@@ -163,7 +163,7 @@ export function AnswerCasePanel({
                     {misconceptions.map((misconception, misconceptionIndex) => {
                       const reasons = misconceptionReasonGroups[misconceptionIndex] ?? [];
                       return (
-                        <article key={misconception.id} className="rounded-lg border border-border bg-bg p-4">
+                        <article key={misconception.id} className="rounded-r-lg border-l-2 border-brand/55 bg-white/70 px-4 py-3.5">
                           <button
                             type="button"
                             onClick={() => onSelectMisconception(misconception.id)}
