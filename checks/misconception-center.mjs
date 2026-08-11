@@ -29,9 +29,10 @@ assert.match(pageSource, /\?misconception=\$\{encodeURIComponent\(misconception\
 assert.doesNotMatch(pageSource, /Related Answer Variations|Variasi Jawaban Terkait/);
 assert.doesNotMatch(pageSource, /max-h-\[64vh\]|overflow-y-auto/);
 
-assert.match(repositorySource, /description,/);
-assert.match(repositorySource, /hasWrongExample: Boolean\(text\(row\.wrong_example\)\)/);
-assert.match(repositorySource, /hasCorrectExample: Boolean\(text\(row\.correct_example\)\)/);
+assert.match(repositorySource, /description: visibleDescription/);
+assert.match(repositorySource, /hasWrongExample: Boolean\(wrongExample\)/);
+assert.match(repositorySource, /hasCorrectExample: Boolean\(correctExample\)/);
+assert.match(repositorySource, /isDummyData\(value\)/);
 
 assert.match(questionReviewSource, /searchParams\.get\("misconception"\)/);
 assert.match(questionReviewSource, /useState<string \| undefined>\(\s*requestedMisconceptionId/);

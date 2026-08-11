@@ -471,7 +471,7 @@ export function KonsepPage() {
                               {getMaterialQuestionIdentifier(question)}
                             </span>
                             <span className="min-w-0 text-sm font-semibold leading-5 text-navy-deep transition-colors group-hover:text-brand">
-                              {t(question.title, language).trim() || t(question.prompt, language)}
+                              {t(question.title, language).trim() || `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`}
                             </span>
                             <span className="text-xs text-muted lg:text-[11px]">
                               {questionTypeLabel(question, language)}

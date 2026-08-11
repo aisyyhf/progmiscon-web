@@ -369,12 +369,11 @@ export function MaterialBrowser({
                 )}
               >
                 {visibleQuestions.map((question) => {
-                  const prompt = t(question.prompt, language).trim();
+                  const shortDescription = question.shortDescription
+                    ? t(question.shortDescription, language).trim()
+                    : "";
                   const storedTitle = t(question.title, language).trim();
-                  const title =
-                    storedTitle && storedTitle !== prompt
-                      ? storedTitle
-                      : `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
+                  const title = storedTitle || `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
                   const questionConcepts = getMaterialQuestionConcepts(question);
                   const questionIdentifier = getMaterialQuestionIdentifier(question);
                   const questionType = getMaterialQuestionType(question.type);
@@ -426,9 +425,11 @@ export function MaterialBrowser({
                               <h2 className="line-clamp-2 text-[15px] font-extrabold leading-[1.25] text-navy-deep transition-colors group-hover:text-brand">
                                 {title}
                               </h2>
-                              <p className="mt-0.5 line-clamp-2 whitespace-pre-line text-[11px] leading-[1.5] text-muted">
-                                {prompt}
-                              </p>
+                              {shortDescription && (
+                                <p className="mt-0.5 line-clamp-2 whitespace-pre-line text-[11px] leading-[1.5] text-muted">
+                                  {shortDescription}
+                                </p>
+                              )}
                             </div>
 
                             <div className="flex flex-wrap gap-x-1 gap-y-0.5">

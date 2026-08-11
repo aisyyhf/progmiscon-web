@@ -117,7 +117,8 @@ export function QuestionList({
               <QuestionRow
                 key={question.id}
                 metaItems={metaItems.filter(Boolean)}
-                promptPreview={t(question.prompt, language)}
+                title={t(question.title, language)}
+                description={question.shortDescription ? t(question.shortDescription, language).trim() : undefined}
                 misconceptionCount={
                   primaryMetaMode === "assessment" ? question.questionMisconceptionIds.length : undefined
                 }

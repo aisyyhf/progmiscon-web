@@ -2,12 +2,14 @@ import { useLanguage } from "../../hooks/useLanguage";
 
 export function QuestionRow({
   metaItems,
-  promptPreview,
+  title,
+  description,
   misconceptionCount,
   onClick,
 }: {
   metaItems: string[];
-  promptPreview: string;
+  title: string;
+  description?: string;
   misconceptionCount?: number;
   onClick: () => void;
 }) {
@@ -22,7 +24,8 @@ export function QuestionRow({
       >
         <div className="min-w-0">
           <p className="text-xs font-semibold text-brand">{metaItems.join(" / ")}</p>
-          <p className="mt-1 line-clamp-2 text-[13px] font-normal leading-6 text-navy-deep">{promptPreview}</p>
+          <p className="mt-1 line-clamp-1 text-[13px] font-bold leading-6 text-navy-deep">{title}</p>
+          {description && <p className="line-clamp-2 text-xs leading-5 text-muted">{description}</p>}
         </div>
         {typeof misconceptionCount === "number" && (
           <span className="shrink-0 whitespace-nowrap rounded-md bg-brand-soft px-2.5 py-1 text-[11px] font-medium text-brand">

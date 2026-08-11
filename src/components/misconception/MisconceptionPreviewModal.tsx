@@ -129,9 +129,14 @@ export function MisconceptionPreviewModal({
                               .filter(Boolean)
                               .join(" · ")}
                           </p>
-                          <p className="mt-1 line-clamp-2 text-sm leading-6 text-navy-deep">
-                            {t(question.prompt, language)}
+                          <p className="mt-1 line-clamp-1 text-sm font-semibold leading-6 text-navy-deep">
+                            {t(question.title, language)}
                           </p>
+                          {question.shortDescription && t(question.shortDescription, language).trim() && (
+                            <p className="line-clamp-2 text-xs leading-5 text-muted">
+                              {t(question.shortDescription, language)}
+                            </p>
+                          )}
                         </button>
                       </li>
                     );

@@ -269,6 +269,8 @@ export function applyPublishedMasterOverrides(
         question_ind: override.question_ind ?? row.question_ind,
         question_en: override.question_en ?? row.question_en,
         question_code: override.question_code ?? row.question_code,
+        content_blocks_ind: "",
+        content_blocks_en: "",
       };
     }),
     answers: baseline.answers.map((row) => {

@@ -229,7 +229,7 @@ assert.match(
   /onBackToQuestion=\{\(\) =>\s*requestOpenWorkspaceItem\([\s\S]{0,180}answerQuestion\.id/,
 );
 assert.match(contextAccordion, /question\.options\.map/);
-assert.match(contextAccordion, /t\(question\.prompt, language\)/);
+assert.match(contextAccordion, /<QuestionContent question=\{question\}/);
 assert.doesNotMatch(
   contextAccordion,
   /option\.isCorrect|Benar|Salah|Correct|Incorrect|Jawaban acuan/,

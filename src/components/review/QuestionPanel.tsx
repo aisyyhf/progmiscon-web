@@ -3,9 +3,8 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { useMisconceptionsByIds } from "../../hooks/useMisconceptions";
 import { t, uiText } from "../../utils/translation";
 import { cn } from "../../utils/cn";
-import { getQuestionReference } from "../../utils/questionReference";
 import { getQuestionOptionMisconceptionIds } from "../../utils/questionMetadata";
-import { PseudocodeBlock } from "./PseudocodeBlock";
+import { QuestionContent } from "./QuestionContent";
 import { ArrowRight, CheckCircle2, TriangleAlert } from "lucide-react";
 
 export function QuestionPanel({
@@ -25,7 +24,6 @@ export function QuestionPanel({
     ]),
   ];
   const { misconceptions } = useMisconceptionsByIds(misconceptionIds);
-  const reference = getQuestionReference(question);
   const questionTitle =
     t(question.title, language).trim() ||
     `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
@@ -36,13 +34,6 @@ export function QuestionPanel({
       ? `${Number(weekMatch[1])}–${Number(weekMatch[2])}`
       : String(Number(weekMatch[1]))
     : question.week || (language === "id" ? "Belum tersedia" : "Unavailable");
-  const localizedPrompt = t(question.prompt, language);
-  const localizedQuestionText =
-    (language === "id" ? question.questionInd : question.questionEn)?.trim() ||
-    (question.questionCode && localizedPrompt.endsWith(question.questionCode)
-      ? localizedPrompt.slice(0, -question.questionCode.length).trimEnd()
-      : localizedPrompt);
-  const pseudocode = question.questionCode?.trim() || reference.pseudocode;
   const QuestionHeading = activeMisconceptionId ? "h2" : "h1";
 
   return (
@@ -85,9 +76,7 @@ export function QuestionPanel({
       </header>
 
       <section className="py-6" aria-label={language === "id" ? "Isi soal" : "Question content"}>
-        <p className="max-w-4xl whitespace-pre-wrap text-[13px] leading-6 text-navy-deep">
-          {localizedQuestionText}
-        </p>
+        <QuestionContent question={question} />
 
         {question.type === "multiple_choice" && question.options && (
           <ul className="mt-5 space-y-2">
@@ -134,11 +123,6 @@ export function QuestionPanel({
           </ul>
         )}
 
-        {pseudocode && (
-          <div className="mt-5 overflow-hidden rounded-lg border border-navy-deep/15 shadow-sm">
-            <PseudocodeBlock code={pseudocode} />
-          </div>
-        )}
       </section>
 
       <section className="border-t border-border pt-5" aria-labelledby="related-misconceptions-title">

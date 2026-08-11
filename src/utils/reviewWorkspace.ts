@@ -114,6 +114,7 @@ export function classifyReviewItems(
   for (const answer of answers) {
     const question = questionById.get(answer.questionId);
     if (!question) continue;
+    if (!isAnswerReviewEligible(question) && answer.isEvidence === false) continue;
     items[getAnswerWorkspaceForQuestion(question)].push(
       answer,
     );
