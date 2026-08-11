@@ -27,6 +27,7 @@ import {
   getMaterialQuestionType,
   getMaterialWeekLabel,
 } from "../utils/materialQuestionFilters";
+import { matchesMisconceptionSearch } from "../utils/misconceptionLabel";
 import { t, uiText } from "../utils/translation";
 import type { Language, LocalizedText, Misconception, Question } from "../types";
 
@@ -188,6 +189,7 @@ export function KonsepPage() {
   const { questions: allQuestions, loading: questionsLoading } = useQuestions();
   const [activeView, setActiveView] = useState<ConceptView>("material");
   const [questionSearch, setQuestionSearch] = useState("");
+  const [misconceptionSearch, setMisconceptionSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [visibleMisconceptionCount, setVisibleMisconceptionCount] = useState(
     INITIAL_MISCONCEPTION_COUNT,
@@ -225,6 +227,13 @@ export function KonsepPage() {
     const questionIds = new Set(currentConcept.relatedQuestionIds);
     return allQuestions.filter((question) => questionIds.has(question.id));
   }, [allQuestions, currentConcept]);
+  const filteredMisconceptions = useMemo(
+    () =>
+      conceptMisconceptions.filter((misconception) =>
+        matchesMisconceptionSearch(misconception, misconceptionSearch),
+      ),
+    [conceptMisconceptions, misconceptionSearch],
+  );
   const filteredQuestions = useMemo(
     () => filterMaterialQuestions(conceptQuestions, { searchQuery: questionSearch }),
     [conceptQuestions, questionSearch],
@@ -241,6 +250,7 @@ export function KonsepPage() {
   useEffect(() => {
     setActiveView("material");
     setQuestionSearch("");
+    setMisconceptionSearch("");
     setCurrentPage(1);
     setVisibleMisconceptionCount(INITIAL_MISCONCEPTION_COUNT);
   }, [conceptId]);
@@ -248,6 +258,10 @@ export function KonsepPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [questionSearch]);
+
+  useEffect(() => {
+    setVisibleMisconceptionCount(INITIAL_MISCONCEPTION_COUNT);
+  }, [misconceptionSearch]);
 
   if (categoriesLoading || misconceptionsLoading || questionsLoading) {
     return (
@@ -323,13 +337,12 @@ export function KonsepPage() {
   const conceptOrder =
     categories.find((category) => category.id === currentConcept.id)?.order ??
     sortedConcepts.findIndex((concept) => concept.id === currentConcept.id) + 1;
-  const visibleMisconceptions = conceptMisconceptions.slice(0, visibleMisconceptionCount);
+  const visibleMisconceptions = filteredMisconceptions.slice(0, visibleMisconceptionCount);
 
   return (
     <div className="mx-auto max-w-6xl">
       <Breadcrumb
         items={[
-          { label: t(uiText.breadcrumbHome, language), to: "/" },
           { label: t(uiText.breadcrumbKonsep, language), to: "/konsep" },
           { label: t(currentConcept.name, language) },
         ]}
@@ -367,19 +380,9 @@ export function KonsepPage() {
             className="mx-auto max-w-3xl"
           >
             <div className="rounded-xl border border-border bg-white px-5 py-6 shadow-[0_8px_24px_rgba(71,45,43,0.035)] sm:px-7 sm:py-7">
-              <div className="flex items-start gap-3">
-                <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-                  <BookOpen size={18} strokeWidth={2} aria-hidden="true" />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-brand">
-                    {language === "id" ? "Materi pengantar sementara" : "Temporary introductory material"}
-                  </p>
-                  <h2 className="mt-1 text-xl font-bold tracking-[-0.02em] text-navy-deep">
-                    {language === "id" ? "Materi Pokok" : "Core Material"}
-                  </h2>
-                </div>
-              </div>
+              <h2 className="text-xl font-bold tracking-[-0.02em] text-navy-deep">
+                {language === "id" ? "Materi Pokok" : "Core Material"}
+              </h2>
               <div className="mt-5 space-y-4 border-t border-border pt-5 text-sm leading-7 text-muted">
                 <p className="font-medium text-navy-deep">
                   {t(currentConcept.description, language)}
@@ -591,22 +594,52 @@ export function KonsepPage() {
             role="tabpanel"
             aria-labelledby="concept-tab-misconceptions"
           >
-            <div>
-              <h2 className="text-xl font-bold tracking-[-0.02em] text-navy-deep">
-                {language === "id"
-                  ? `Miskonsepsi tentang ${t(currentConcept.name, language)}`
-                  : `Misconceptions about ${t(currentConcept.name, language)}`}
-              </h2>
-              <p className="mt-1 text-xs text-muted">
-                {conceptMisconceptions.length}{" "}
-                {language === "id" ? "miskonsepsi terdokumentasi" : "documented misconceptions"}
-              </p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <h2 className="text-xl font-bold tracking-[-0.02em] text-navy-deep">
+                  {language === "id"
+                    ? `Miskonsepsi tentang ${t(currentConcept.name, language)}`
+                    : `Misconceptions about ${t(currentConcept.name, language)}`}
+                </h2>
+                <p className="mt-1 text-xs text-muted">
+                  {conceptMisconceptions.length}{" "}
+                  {language === "id" ? "miskonsepsi terdokumentasi" : "documented misconceptions"}
+                </p>
+              </div>
+              {conceptMisconceptions.length > 0 && (
+                <label className="relative w-full sm:w-72">
+                  <span className="sr-only">
+                    {language === "id" ? "Cari miskonsepsi" : "Search misconceptions"}
+                  </span>
+                  <Search
+                    size={15}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+                  />
+                  <input
+                    type="search"
+                    value={misconceptionSearch}
+                    onChange={(event) => setMisconceptionSearch(event.target.value)}
+                    placeholder={
+                      language === "id"
+                        ? "Cari kode atau judul miskonsepsi"
+                        : "Search by code or title"
+                    }
+                    className="academic-input h-10 pl-9 pr-3 text-xs placeholder:text-muted/65"
+                  />
+                </label>
+              )}
             </div>
 
             {conceptMisconceptions.length === 0 ? (
               <div className="mt-5">
                 <EmptyState message={t(uiText.noConceptMisconceptions, language)} />
               </div>
+            ) : filteredMisconceptions.length === 0 ? (
+              <p className="mt-5 border-y border-border px-3 py-5 text-sm text-muted">
+                {language === "id" ? "Miskonsepsi tidak ditemukan" : "No misconceptions found"}
+              </p>
             ) : (
               <>
                 <ul className="mt-5 divide-y divide-border border-y border-border">
@@ -633,13 +666,13 @@ export function KonsepPage() {
                   ))}
                 </ul>
 
-                {visibleMisconceptions.length < conceptMisconceptions.length && (
+                {visibleMisconceptions.length < filteredMisconceptions.length && (
                   <div className="mt-5 flex justify-center">
                     <button
                       type="button"
                       onClick={() =>
                         setVisibleMisconceptionCount((count) =>
-                          Math.min(count + INITIAL_MISCONCEPTION_COUNT, conceptMisconceptions.length),
+                          Math.min(count + INITIAL_MISCONCEPTION_COUNT, filteredMisconceptions.length),
                         )
                       }
                       className="inline-flex min-h-9 cursor-pointer items-center gap-2 rounded-full border border-border bg-white px-4 text-xs font-semibold text-navy-deep transition-[border-color,color] hover:border-brand/35 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
