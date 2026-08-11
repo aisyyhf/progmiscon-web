@@ -18,6 +18,7 @@ const answers = [
   { id: "PS-1", questionId: "Q-PS", studentId: "student-1" },
   { id: "MP-1", questionId: "Q-MP", studentId: "student-2" },
   { id: "PS-2", questionId: "Q-PS", studentId: "student-3" },
+  { id: "PS-NON-EVIDENCE", questionId: "Q-PS", studentId: "student-5", isEvidence: false },
   { id: "OTHER", questionId: "Q-OTHER", studentId: "student-4" },
 ];
 
@@ -25,12 +26,13 @@ assert.equal(getAnswerWorkspaceForQuestion(psQuestion), "answer-ps");
 assert.equal(getAnswerWorkspaceForQuestion(mpQuestion), "answer-mp");
 assert.deepEqual(
   getAnswersForQuestion("Q-PS", answers).map(({ id }) => id),
-  ["PS-1", "PS-2"],
-  "PS evidence must stay scoped to its selected question",
+  ["PS-1", "PS-2", "PS-NON-EVIDENCE"],
+  "answer lookup must stay scoped to its selected question",
 );
 assert.deepEqual(getAnswersForQuestion("Q-EMPTY", answers), []);
 
 const { items, questionById } = classifyReviewItems(questions, answers);
+assert.deepEqual(items["answer-ps"].map(({ id }) => id), ["PS-1", "PS-2"]);
 const switchedQuestion = normalizeReviewSessionState(
   {
     workspace: "question-ps",
@@ -98,10 +100,10 @@ assert.match(evidence, /kind="evidence"/);
 assert.match(evidence, /answers\[activeIndex - 1\]\.id/);
 assert.match(evidence, /answers\[activeIndex \+ 1\]\.id/);
 assert.match(evidence, /<QuestionContextAccordion/);
-assert.match(evidence, /t\(question\.prompt, language\)/);
-assert.match(evidence, /getQuestionReference\(question\)/);
+assert.match(evidence, /<QuestionContent question=\{question\}/);
+assert.match(evidence, /Evidence provenance/);
 assert.match(evidence, /<MisconceptionReasonCards/);
-assert.doesNotMatch(evidence, /<select|Metadata evidence|Source key|Kunci sumber/);
+assert.doesNotMatch(evidence, /<select|Source key|Kunci sumber/);
 assert.doesNotMatch(evidence, /Form validasi jawaban|Save Review|Submit Review/);
 
 const guardIndex = persistence.indexOf(

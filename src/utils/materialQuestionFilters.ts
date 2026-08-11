@@ -97,8 +97,8 @@ export function filterMaterialQuestions(
         question.number,
         question.title.id,
         question.title.en,
-        question.prompt.id,
-        question.prompt.en,
+        question.shortDescription?.id ?? "",
+        question.shortDescription?.en ?? "",
       ].some((value) => value.toLowerCase().includes(query));
     const matchesType = type === "all" || getMaterialQuestionType(question.type) === type;
     const matchesWeek =

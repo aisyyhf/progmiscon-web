@@ -37,6 +37,12 @@ export type QuestionRow = {
   question_ind: string;
   question_en: string;
   question_code: string;
+  short_description_ind?: string;
+  short_description_en?: string;
+  content_blocks_ind?: string;
+  content_blocks_en?: string;
+  sample_inputs?: string;
+  sample_outputs?: string;
   reference_solution: string;
   expected_output: string;
   week: string;
@@ -64,6 +70,13 @@ export type AnswerRow = {
   question_id: string;
   source_system?: string;
   source_key?: string;
+  student_name?: string;
+  student_user_id?: string;
+  is_evidence?: string;
+  evidence_source?: string;
+  evidence_misconceptions?: string;
+  evidence_reason_ind?: string;
+  evidence_reason_en?: string;
   answer_text: string;
   status: string;
   explanation_ind: string;

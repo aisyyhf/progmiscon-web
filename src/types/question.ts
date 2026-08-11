@@ -17,12 +17,23 @@ export type QuestionMisconceptionProvenance = {
   questionMisconceptionIds: string[];
 };
 
+export type QuestionContentBlock = {
+  type: "text" | "code";
+  content: string;
+};
+
+export type QuestionSampleCase = {
+  input: string;
+  output: string;
+};
+
 export type Question = {
   id: string;
   assessmentId: string;
   categoryId: string;
   number: string;
   title: LocalizedText;
+  shortDescription?: LocalizedText;
   week: string | null;
   sourceSystem: string | null;
   sourceKey: string | null;
@@ -33,6 +44,8 @@ export type Question = {
   questionEn?: string;
   questionCode?: string;
   prompt: LocalizedText;
+  contentBlocks?: { id: QuestionContentBlock[]; en: QuestionContentBlock[] };
+  sampleCases?: QuestionSampleCase[];
   expectedConcepts: LocalizedText[];
   directQuestionMisconceptionIds: string[];
   answerDerivedMisconceptionIds: string[];

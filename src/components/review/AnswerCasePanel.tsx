@@ -2,7 +2,6 @@ import type { Question, StudentAnswer } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useMisconceptionsByIds } from "../../hooks/useMisconceptions";
 import { t, uiText } from "../../utils/translation";
-import { groupMisconceptionReasons } from "../../utils/misconceptionReasons";
 import { misconceptionLabel } from "../../utils/misconceptionLabel";
 import { getQuestionOptionMisconceptionIds } from "../../utils/questionMetadata";
 import { cn } from "../../utils/cn";
@@ -52,9 +51,8 @@ export function AnswerCasePanel({
     .map((id) => filterMisconceptions.find((item) => item.id === id))
     .filter((item) => item !== undefined);
 
-  const misconceptionReasonGroups = groupMisconceptionReasons(
-    misconceptions.length,
-    answer?.incorrectElements ?? [],
+  const reasonsByMisconception = new Map(
+    (answer?.misconceptionReasons ?? []).map((item) => [item.misconceptionId, [item.reason]]),
   );
 
   return (
@@ -181,8 +179,8 @@ export function AnswerCasePanel({
                   </p>
                 ) : (
                   <div className="mt-3 grid gap-3">
-                    {misconceptions.map((misconception, misconceptionIndex) => {
-                      const reasons = misconceptionReasonGroups[misconceptionIndex] ?? [];
+                    {misconceptions.map((misconception) => {
+                      const reasons = reasonsByMisconception.get(misconception.id) ?? [];
                       return (
                         <article key={misconception.id} className="rounded-r-lg border-l-2 border-brand/55 bg-white/70 px-4 py-3.5">
                           <button

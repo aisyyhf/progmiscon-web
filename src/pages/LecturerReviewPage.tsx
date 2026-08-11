@@ -10,7 +10,6 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  Copy,
   ListFilter,
   LockKeyhole,
   Users,
@@ -41,12 +40,10 @@ import type {
   StudentAnswer,
 } from "../types";
 import { cn } from "../utils/cn";
-import { getQuestionReference } from "../utils/questionReference";
 import { getQuestionOptionMisconceptionIds } from "../utils/questionMetadata";
 import { prioritizeMisconceptions, sortReviewTasks } from "../utils/reviewPriority";
 import { t, uiText } from "../utils/translation";
 import { misconceptionLabel } from "../utils/misconceptionLabel";
-import { groupMisconceptionReasons } from "../utils/misconceptionReasons";
 import {
   getQuestionReviewCounts,
   getAnswerReviewCounts,
@@ -55,7 +52,7 @@ import {
   saveAnswerReview,
   saveQuestionReview,
 } from "../services/reviewPersistenceRepository";
-import { PseudocodeBlock } from "../components/review/PseudocodeBlock";
+import { QuestionContent } from "../components/review/QuestionContent";
 import { PsAnswerEvidenceWorkspace } from "../components/review/PsAnswerEvidenceWorkspace";
 import {
   ParentQuestionBackAction,
@@ -1816,7 +1813,6 @@ function QuestionValidationWorkspace({
   onSubmit: (values: QuestionReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
-  const reference = getQuestionReference(question);
   const questionTitle =
     t(question.title, language).trim() ||
     `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
@@ -1827,13 +1823,6 @@ function QuestionValidationWorkspace({
       ? `${Number(weekMatch[1])}–${Number(weekMatch[2])}`
       : String(Number(weekMatch[1]))
     : question.week || (language === "id" ? "Belum tersedia" : "Unavailable");
-  const localizedPrompt = t(question.prompt, language);
-  const localizedQuestionText =
-    (language === "id" ? question.questionInd : question.questionEn)?.trim() ||
-    (question.questionCode && localizedPrompt.endsWith(question.questionCode)
-      ? localizedPrompt.slice(0, -question.questionCode.length).trimEnd()
-      : localizedPrompt);
-  const pseudocode = question.questionCode?.trim() || reference.pseudocode;
   const reviewerCount =
     questionReviewCount === undefined
       ? undefined
@@ -2045,43 +2034,7 @@ function QuestionValidationWorkspace({
               </div>
             </header>
 
-            <div className="mt-7">
-              {localizedQuestionText && (
-                <p className="max-w-3xl whitespace-pre-wrap text-[14px] font-normal leading-7 text-navy-deep">
-                  {localizedQuestionText}
-                </p>
-              )}
-
-              {pseudocode && (
-                <div className="mt-5 overflow-hidden rounded-lg border border-navy-deep/15 bg-navy-deep shadow-[0_8px_22px_rgba(33,29,27,0.12)]">
-                  <div className="flex items-center justify-between border-b border-white/10 px-4 py-2.5">
-                    <p className="font-mono text-[11px] font-semibold text-white/70">
-                      {language === "id"
-                        ? "Pseudocode baca-saja"
-                        : "Read-only pseudocode"}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        void navigator.clipboard
-                          .writeText(pseudocode)
-                          .catch(() => undefined);
-                      }}
-                      className="inline-flex cursor-pointer items-center gap-1.5 rounded px-2 py-1 text-xs font-semibold text-white/75 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-                      aria-label={
-                        language === "id"
-                          ? "Salin pseudocode"
-                          : "Copy pseudocode"
-                      }
-                    >
-                      <Copy size={14} strokeWidth={2} aria-hidden="true" />
-                      {language === "id" ? "Salin" : "Copy"}
-                    </button>
-                  </div>
-                  <PseudocodeBlock code={pseudocode} />
-                </div>
-              )}
-            </div>
+            <div className="mt-7"><QuestionContent question={question} /></div>
           </section>
 
           {isAdmin && question.type !== "multiple_choice" && (
@@ -2655,7 +2608,6 @@ function AnswerValidationWorkspace({
     !formUnavailable &&
     canSubmitMisconceptionReview(form);
   const formDirty = isMisconceptionReviewFormDirty(form);
-  const questionReference = getQuestionReference(question);
   const parentReference = /^q/i.test(question.number)
     ? question.number
     : `Q${question.number || question.id}`;
@@ -2670,27 +2622,10 @@ function AnswerValidationWorkspace({
       : language === "id"
         ? `${reviewerCount} dari ${QUESTION_REVIEWED_THRESHOLD} reviewer telah mereview jawaban ini`
         : `${reviewerCount} of ${QUESTION_REVIEWED_THRESHOLD} reviewers have reviewed this answer`;
-  const mappedReasons = [
-    ...(task?.suggestedMisconceptionId &&
-    linkedMisconceptions.some(
-      (misconception) => misconception.id === task.suggestedMisconceptionId,
-    ) &&
-    t(task.explanation, language).trim()
-      ? [
-          {
-            misconceptionId: task.suggestedMisconceptionId,
-            reasons: [task.explanation],
-          },
-        ]
-      : []),
-    ...groupMisconceptionReasons(
-      answer.studentMisconceptionIds.length,
-      answer.incorrectElements,
-    ).map((reasons, index) => ({
-      misconceptionId: answer.studentMisconceptionIds[index],
-      reasons,
-    })),
-  ];
+  const mappedReasons = (answer.misconceptionReasons ?? []).map((item) => ({
+    misconceptionId: item.misconceptionId,
+    reasons: [item.reason],
+  }));
   useEffect(() => {
     onDirtyChange(formDirty);
     return () => onDirtyChange(false);
@@ -2818,14 +2753,7 @@ function AnswerValidationWorkspace({
               <p className="text-xs font-bold text-muted">
                 {parentReference} / {t(question.title, language)}
               </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-7 text-navy-deep">
-                {t(question.prompt, language)}
-              </p>
-              {questionReference.pseudocode && (
-                <div className="mt-4 overflow-hidden rounded-md">
-                  <PseudocodeBlock code={questionReference.pseudocode} />
-                </div>
-              )}
+              <div className="mt-3"><QuestionContent question={question} /></div>
               {question.options && (
                 <ul className="mt-4 space-y-2">
                   {question.options.map((option) => (

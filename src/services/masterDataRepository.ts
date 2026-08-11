@@ -26,6 +26,13 @@ import {
 } from "../utils/effectiveMasterData";
 import { createInvalidatablePromiseCache } from "../utils/invalidatablePromiseCache";
 import { getPublishedMasterOverrides } from "./publishedOverrideRepository";
+import {
+  buildLocalizedReasonMap,
+  buildQuestionContentBlocks,
+  buildSampleCases,
+  isDummyData,
+  parseDelimitedIds,
+} from "../utils/masterDataContent";
 
 export const EFFECTIVE_MASTER_DATA_INVALIDATED =
   "progmiscon:effective-master-data-invalidated";
@@ -192,7 +199,8 @@ export async function getSheetQuestions(): Promise<Question[]> {
       const expectedConcepts = topicRelations
         .map((relation) => categoryMap.get(text(relation.topic_id))?.name)
         .filter((value): value is LocalizedText => Boolean(value));
-      const type = normalizeQuestionType(row.question_type) ?? "short_answer";
+      const type = normalizeQuestionType(row.question_type);
+      if (!type) throw new Error(`Question type tidak valid untuk ${questionId}`);
       const misconceptionProvenance = questionMisconceptionMap.get(
         questionId,
       ) ?? {
@@ -212,6 +220,10 @@ export async function getSheetQuestions(): Promise<Question[]> {
         categoryId,
         number: text(row.source_no) || questionId,
         title,
+        shortDescription: localized(
+          row.short_description_ind ?? "",
+          row.short_description_en ?? "",
+        ),
         week: normalizeWeek(row.week),
         sourceSystem: text(row.source_system) || null,
         sourceKey: text(row.source_key) || null,
@@ -225,6 +237,11 @@ export async function getSheetQuestions(): Promise<Question[]> {
           promptWithCode(row.question_ind, row.question_code),
           promptWithCode(row.question_en, row.question_code),
         ),
+        contentBlocks: {
+          id: buildQuestionContentBlocks(row.content_blocks_ind, row.question_ind, row.question_code),
+          en: buildQuestionContentBlocks(row.content_blocks_en, row.question_en, row.question_code),
+        },
+        sampleCases: buildSampleCases(row.sample_inputs, row.sample_outputs),
         expectedConcepts: expectedConcepts.length > 0 ? expectedConcepts : [categoryMap.get(categoryId)!.name],
         ...misconceptionProvenance,
         options:
@@ -259,23 +276,27 @@ export async function getSheetMisconceptions(): Promise<Misconception[]> {
     .sort((a, b) => numberValue(a.order_no, Number.MAX_SAFE_INTEGER) - numberValue(b.order_no, Number.MAX_SAFE_INTEGER))
     .map((row) => {
       const misconceptionId = text(row.misconception_id);
-      const description = localized(row.description_ind, row.description_en);
-      const correction = localized(row.correction_ind, row.correction_en);
-      const commonCause = localized(row.common_cause_ind, row.common_cause_en);
+      const usable = (value: string | undefined) => isDummyData(value) ? "" : text(value);
+      const description = localized(usable(row.description_ind), usable(row.description_en));
+      const correction = localized(usable(row.correction_ind), usable(row.correction_en));
+      const commonCause = localized(usable(row.common_cause_ind), usable(row.common_cause_en));
+      const wrongExample = usable(row.wrong_example);
+      const correctExample = usable(row.correct_example);
+      const visibleDescription = description.id || description.en ? description : unavailable();
 
       return {
         id: misconceptionId,
         categoryId: text(row.topic_id),
         title: localized(row.title_ind, row.title_en),
-        description,
-        wrong: text(row.wrong_example) ? codeExample(row.wrong_example) : description,
-        correct: text(row.correct_example) ? codeExample(row.correct_example) : (text(row.correction_ind) || text(row.correction_en) ? correction : unavailable()),
-        hasWrongExample: Boolean(text(row.wrong_example)),
-        hasCorrectExample: Boolean(text(row.correct_example)),
-        fix: text(row.correction_ind) || text(row.correction_en) ? correction : unavailable(),
-        cause: text(row.common_cause_ind) || text(row.common_cause_en) ? commonCause : unavailable(),
+        description: visibleDescription,
+        wrong: wrongExample ? codeExample(wrongExample) : visibleDescription,
+        correct: correctExample ? codeExample(correctExample) : (correction.id || correction.en ? correction : unavailable()),
+        hasWrongExample: Boolean(wrongExample),
+        hasCorrectExample: Boolean(correctExample),
+        fix: correction.id || correction.en ? correction : unavailable(),
+        cause: commonCause.id || commonCause.en ? commonCause : unavailable(),
         pattern: [],
-        value: description,
+        value: visibleDescription,
         relatedMisconceptionIds: [...(relatedMisconceptionMap.get(misconceptionId) ?? [])],
         relatedQuestionIds: relatedQuestionMap.get(misconceptionId) ?? [],
       };
@@ -309,15 +330,16 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
   const questionTypeMap = new Map(
     data.questions
       .filter((row) => isActiveValue(row.active))
-      .map((row) => [
-        text(row.question_id),
-        normalizeQuestionType(row.question_type) ?? "short_answer",
-      ]),
+      .map((row) => {
+        const type = normalizeQuestionType(row.question_type);
+        if (!type) throw new Error(`Question type tidak valid untuk ${text(row.question_id)}`);
+        return [text(row.question_id), type] as const;
+      }),
   );
 
   const relationsByAnswer = new Map<
     string,
-    { misconceptionIds: string[]; reasons: LocalizedText[] }
+    { misconceptionIds: string[]; reasons: LocalizedText[]; mappedReasons: Array<{ misconceptionId: string; reason: LocalizedText }> }
   >();
 
   for (const relation of data.answerMisconceptions) {
@@ -327,12 +349,16 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
     const current = relationsByAnswer.get(answerId) ?? {
       misconceptionIds: [],
       reasons: [],
+      mappedReasons: [],
     };
 
     current.misconceptionIds.push(text(relation.misconception_id));
 
     const reason = localized(relation.reason_ind, relation.reason_en);
-    if (reason.id || reason.en) current.reasons.push(reason);
+    if (reason.id || reason.en) {
+      current.reasons.push(reason);
+      current.mappedReasons.push({ misconceptionId: text(relation.misconception_id), reason });
+    }
 
     relationsByAnswer.set(answerId, current);
   }
@@ -382,6 +408,8 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
         id: answerId,
         questionId,
         studentId: `anonymous-${answerId}`,
+        studentName: text(row.student_name) || null,
+        studentUserId: text(row.student_user_id) || null,
         explanation:
           fallbackExplanation.id || fallbackExplanation.en
             ? fallbackExplanation
@@ -394,7 +422,7 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
         status,
         answerText: text(row.answer_text),
         selectedOptionId: selectedOptionIdForAnswer(
-          questionTypeMap.get(questionId) ?? "short_answer",
+          questionTypeMap.get(questionId)!,
           answerId,
         ),
         checks: [],
@@ -403,6 +431,11 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
         studentMisconceptionIds: [
           ...new Set(relation?.misconceptionIds ?? []),
         ],
+        misconceptionReasons: relation?.mappedReasons ?? [],
+        isEvidence: isActiveValue(row.is_evidence ?? ""),
+        evidenceSource: text(row.evidence_source) || null,
+        evidenceMisconceptionIds: parseDelimitedIds(row.evidence_misconceptions),
+        evidenceReasons: buildLocalizedReasonMap(row.evidence_reason_ind, row.evidence_reason_en),
       };
     });
 }

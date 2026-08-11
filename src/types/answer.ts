@@ -13,6 +13,8 @@ export type StudentAnswer = {
   id: string;
   questionId: string;
   studentId: string;
+  studentName?: string | null;
+  studentUserId?: string | null;
   explanation?: LocalizedText;
   sourceSystem?: string | null;
   sourceKey?: string | null;
@@ -24,4 +26,15 @@ export type StudentAnswer = {
   masteredConcepts: LocalizedText[];
   incorrectElements: LocalizedText[];
   studentMisconceptionIds: string[];
+  misconceptionReasons?: Array<{
+    misconceptionId: string;
+    reason: LocalizedText;
+  }>;
+  isEvidence?: boolean;
+  evidenceSource?: string | null;
+  evidenceMisconceptionIds?: string[];
+  evidenceReasons?: Array<{
+    misconceptionId: string;
+    reason: LocalizedText;
+  }>;
 };

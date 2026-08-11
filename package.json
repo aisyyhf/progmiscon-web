@@ -9,6 +9,8 @@
     "lint": "oxlint",
     "check:effective-overrides": "node --experimental-strip-types scripts/check-effective-overrides.ts",
     "check:question-detail": "node --experimental-strip-types scripts/check-question-detail.ts",
+    "check:updated-master-data": "node --experimental-strip-types scripts/check-updated-master-data.ts",
+    "check:updated-master-data:live": "node --experimental-strip-types scripts/check-updated-master-data-live.ts",
     "preview": "vite preview"
   },
   "dependencies": {

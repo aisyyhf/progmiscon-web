@@ -6,8 +6,6 @@ import type {
   StudentAnswer,
 } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
-import { getQuestionReference } from "../../utils/questionReference";
-import { groupMisconceptionReasons } from "../../utils/misconceptionReasons";
 import { t } from "../../utils/translation";
 import { EmptyState } from "../common/EmptyState";
 import {
@@ -16,7 +14,7 @@ import {
   SiblingNavigator,
 } from "./AnswerWorkspaceNavigation";
 import { MisconceptionReasonCards } from "./MisconceptionReasonCards";
-import { PseudocodeBlock } from "./PseudocodeBlock";
+import { QuestionContent } from "./QuestionContent";
 
 function unavailable(language: Language, indonesian: string, english: string) {
   return language === "id" ? indonesian : english;
@@ -50,32 +48,27 @@ export function PsAnswerEvidenceWorkspace({
   const student = activeAnswer
     ? students.find((item) => item.id === activeAnswer.studentId)
     : undefined;
-  const studentName = student?.displayName.trim();
+  const studentName = activeAnswer?.studentName?.trim() || student?.displayName.trim();
   const studentIdentifier =
-    activeAnswer && !activeAnswer.studentId.startsWith("anonymous-")
+    activeAnswer?.studentUserId?.trim() ||
+    (activeAnswer && !activeAnswer.studentId.startsWith("anonymous-")
       ? activeAnswer.studentId
-      : "";
+      : "");
   const linkedMisconceptions = activeAnswer
     ? activeAnswer.studentMisconceptionIds
         .map((id) => misconceptions.find((item) => item.id === id))
         .filter((item): item is Misconception => Boolean(item))
     : [];
-  const mappedReasons = activeAnswer
-    ? groupMisconceptionReasons(
-        activeAnswer.studentMisconceptionIds.length,
-        activeAnswer.incorrectElements,
-      ).map((reasons, index) => ({
-        misconceptionId: activeAnswer.studentMisconceptionIds[index],
-        reasons,
-      }))
-    : [];
+  const mappedReasons = (activeAnswer?.misconceptionReasons ?? []).map((item) => ({
+    misconceptionId: item.misconceptionId,
+    reasons: [item.reason],
+  }));
   const generalReasons = activeAnswer?.explanation &&
     t(activeAnswer.explanation, language).trim()
     ? [activeAnswer.explanation]
     : linkedMisconceptions.length === 0
       ? (activeAnswer?.incorrectElements ?? [])
       : [];
-  const questionReference = getQuestionReference(question);
 
   return (
     <div className="scroll-reveal review-folder-content">
@@ -147,14 +140,7 @@ export function PsAnswerEvidenceWorkspace({
             id={`ps-question-context-${question.id}`}
             label={language === "id" ? "Konteks soal PS" : "PS question context"}
           >
-            <p className="whitespace-pre-wrap text-sm leading-7 text-navy-deep">
-              {t(question.prompt, language)}
-            </p>
-            {questionReference.pseudocode && (
-              <div className="mt-4 overflow-hidden rounded-md">
-                <PseudocodeBlock code={questionReference.pseudocode} />
-              </div>
-            )}
+            <QuestionContent question={question} />
           </QuestionContextAccordion>
         </div>
 
@@ -190,6 +176,32 @@ export function PsAnswerEvidenceWorkspace({
                   )}
               </pre>
             </section>
+
+            {(activeAnswer.evidenceSource ||
+              (activeAnswer.evidenceMisconceptionIds?.length ?? 0) > 0 ||
+              (activeAnswer.evidenceReasons?.length ?? 0) > 0) && (
+              <section className="rounded-md border border-border bg-neutral px-4 py-3 text-xs text-muted" aria-label={language === "id" ? "Provenans evidence" : "Evidence provenance"}>
+                <p className="font-bold text-navy-deep">{language === "id" ? "Provenans evidence" : "Evidence provenance"}</p>
+                {activeAnswer.evidenceSource && <p className="mt-1">{activeAnswer.evidenceSource}</p>}
+                {(activeAnswer.evidenceMisconceptionIds?.length ?? 0) > 0 && (
+                  <p className="mt-1 font-mono">{activeAnswer.evidenceMisconceptionIds?.join(", ")}</p>
+                )}
+                {(activeAnswer.evidenceReasons?.length ?? 0) > 0 && (
+                  <div className="mt-3 border-t border-border pt-2">
+                    <p className="font-semibold text-navy-deep">
+                      {language === "id" ? "Catatan sumber (bukan pemetaan kanonis)" : "Source notes (not canonical mappings)"}
+                    </p>
+                    <ul className="mt-1 space-y-1">
+                      {activeAnswer.evidenceReasons?.map((item) => (
+                        <li key={item.misconceptionId}>
+                          <span className="font-mono font-semibold">{item.misconceptionId}</span>: {t(item.reason, language)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </section>
+            )}
 
             <div className="border-t border-border pt-5">
               <MisconceptionReasonCards
