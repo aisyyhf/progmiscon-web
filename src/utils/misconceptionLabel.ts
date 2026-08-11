@@ -5,9 +5,11 @@ export function misconceptionLabel(misconception: Misconception, language: Langu
   const suffix = title.slice(misconception.id.length);
   const alreadyPrefixed =
     title.toLocaleLowerCase().startsWith(misconception.id.toLocaleLowerCase()) &&
-    (suffix.length === 0 || /^[\s:–—-]/.test(suffix));
+    (suffix.length === 0 || /^[\s:\u2013\u2014-]/.test(suffix));
 
-  return alreadyPrefixed ? title : `${misconception.id} — ${title}`;
+  return alreadyPrefixed
+    ? title.replace(/[\u2013\u2014]/g, "-")
+    : `${misconception.id} - ${title}`;
 }
 
 export function matchesMisconceptionSearch(misconception: Misconception, query: string): boolean {

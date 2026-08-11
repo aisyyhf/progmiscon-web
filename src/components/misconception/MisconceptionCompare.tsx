@@ -7,10 +7,14 @@ import { normalizeMultilineCode } from "../../utils/multilineCode";
 export function MisconceptionCompare({
   wrong,
   correct,
+  wrongAvailable = true,
+  correctAvailable = true,
   compact = false,
 }: {
   wrong: LocalizedText;
   correct: LocalizedText;
+  wrongAvailable?: boolean;
+  correctAvailable?: boolean;
   compact?: boolean;
 }) {
   const { language } = useLanguage();
@@ -23,6 +27,7 @@ export function MisconceptionCompare({
       tone: "border-incorrect-border bg-incorrect-bg",
       heading: "text-incorrect",
       content: wrongText,
+      available: wrongAvailable,
       icon: XCircle,
     },
     {
@@ -30,6 +35,7 @@ export function MisconceptionCompare({
       tone: "border-correct-border bg-correct-bg",
       heading: "text-correct",
       content: correctText,
+      available: correctAvailable,
       icon: CheckCircle2,
     },
   ];
@@ -44,7 +50,7 @@ export function MisconceptionCompare({
             <Icon size={17} strokeWidth={2} aria-hidden="true" />
             {item.label}
           </p>
-          {item.content && (
+          {item.available && item.content ? (
             <pre
               className={`mt-3 max-w-full whitespace-pre-wrap [overflow-wrap:anywhere] rounded-md border border-current/10 bg-white/65 px-3 py-2 font-mono text-xs leading-5 text-navy-deep ${
                 compact ? "max-h-32 overflow-hidden" : ""
@@ -52,6 +58,10 @@ export function MisconceptionCompare({
             >
               <code>{item.content}</code>
             </pre>
+          ) : (
+            <p className="mt-3 rounded-md border border-current/10 bg-white/65 px-3 py-4 text-xs leading-5 text-muted">
+              {language === "id" ? "Belum tersedia" : "Not available yet"}
+            </p>
           )}
         </section>
         );

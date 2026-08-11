@@ -32,10 +32,13 @@ export function QuestionReview({ questionId }: { questionId: string }) {
   const { questions: allQuestions } = useQuestions();
   const { answers: allAnswers } = useAllStudentAnswers();
   const answerVariations = useMemo(() => getAnswerVariations(allAnswers), [allAnswers]);
+  const requestedMisconceptionId = searchParams.get("misconception") ?? undefined;
 
   const [activeQuestionId, setActiveQuestionId] = useState(questionId);
   const [selectedAnswerId, setSelectedAnswerId] = useState<string | undefined>(undefined);
-  const [activeMisconceptionId, setActiveMisconceptionId] = useState<string | undefined>(undefined);
+  const [activeMisconceptionId, setActiveMisconceptionId] = useState<string | undefined>(
+    requestedMisconceptionId,
+  );
   const [answerFilterMisconceptionId, setAnswerFilterMisconceptionId] = useState<string | undefined>(undefined);
 
   const requestedAnswerId = searchParams.get("case") ?? undefined;
@@ -109,6 +112,9 @@ export function QuestionReview({ questionId }: { questionId: string }) {
     setAnswerFilterMisconceptionId(undefined);
     setActiveQuestionId(questionId);
     setSelectedAnswerId(undefined);
+    if (requestedMisconceptionId) {
+      navigate(`/question/${questionId}`, { replace: true });
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
