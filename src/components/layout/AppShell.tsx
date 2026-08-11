@@ -12,6 +12,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     location.pathname,
   );
   const isQuestionCatalog = location.pathname === "/materi";
+  const isQuestionDetail = location.pathname.startsWith("/question/");
 
   return (
     <div
@@ -35,6 +36,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             ? "w-full min-h-0 flex-1"
             : isQuestionCatalog
               ? "mx-auto min-h-[calc(100dvh-4rem)] w-full max-w-[1240px] flex-1 px-4 py-4 sm:px-6 lg:px-8"
+              : isQuestionDetail
+                ? "mx-auto w-full max-w-[1440px] flex-1 px-4 py-6 sm:px-6 md:py-9"
               : "mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 md:py-9 lg:px-8"
         }
       >

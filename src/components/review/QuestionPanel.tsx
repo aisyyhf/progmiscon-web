@@ -1,27 +1,20 @@
-import type { Concept, Question } from "../../types";
+import type { Question } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useMisconceptionsByIds } from "../../hooks/useMisconceptions";
 import { t, uiText } from "../../utils/translation";
-import { findConceptByText } from "../../utils/concepts";
 import { cn } from "../../utils/cn";
 import { getQuestionReference } from "../../utils/questionReference";
 import { getQuestionOptionMisconceptionIds } from "../../utils/questionMetadata";
-import { ConceptChip } from "../concept/ConceptChip";
-import { ConceptIcon } from "../concept/ConceptIcon";
 import { PseudocodeBlock } from "./PseudocodeBlock";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight, CheckCircle2, TriangleAlert } from "lucide-react";
 
 export function QuestionPanel({
   question,
-  concepts,
   activeMisconceptionId,
-  onSelectConcept,
   onSelectMisconception,
 }: {
   question: Question;
-  concepts: Concept[];
   activeMisconceptionId?: string;
-  onSelectConcept: (conceptId: string) => void;
   onSelectMisconception: (misconceptionId: string) => void;
 }) {
   const { language } = useLanguage();
@@ -53,7 +46,7 @@ export function QuestionPanel({
   const QuestionHeading = activeMisconceptionId ? "h2" : "h1";
 
   return (
-    <article className="min-w-0 bg-white px-5 py-6 sm:px-7 lg:px-8 lg:py-8">
+    <article className="min-w-0 bg-bg px-5 py-6 sm:px-7 lg:px-8 lg:py-8">
       <header className="border-b border-border pb-5">
         <QuestionHeading
           aria-label={`${questionCode} / ${questionTitle}`}
@@ -151,38 +144,20 @@ export function QuestionPanel({
         )}
       </section>
 
-      {question.expectedConcepts.length > 0 && (
-        <section className="border-t border-border py-5" aria-labelledby="question-concepts-title">
-          <h2 id="question-concepts-title" className="text-sm font-bold text-navy-deep">
-            {language === "id" ? "Konsep Terkait" : "Related Concepts"}
-          </h2>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {question.expectedConcepts.map((concept) => {
-              const resolvedConcept = findConceptByText(concepts, concept);
-              return (
-                <ConceptChip
-                  key={resolvedConcept?.id ?? t(concept, language)}
-                  label={t(concept, language)}
-                  icon={<ConceptIcon name={resolvedConcept?.name ?? concept} size={15} />}
-                  showArrow={false}
-                  onClick={() => onSelectConcept(resolvedConcept?.id ?? question.categoryId)}
-                />
-              );
-            })}
-          </div>
-        </section>
-      )}
-
       <section className="border-t border-border pt-5" aria-labelledby="related-misconceptions-title">
-        <h2 id="related-misconceptions-title" className="text-base font-bold text-navy-deep">
-          {language === "id" ? "Miskonsepsi Terkait" : "Related Misconceptions"}
+        <h2 id="related-misconceptions-title" className="flex items-center gap-2 text-base font-bold text-navy-deep">
+          <TriangleAlert size={17} strokeWidth={2} className="shrink-0 text-brand" aria-hidden="true" />
+          <span>{language === "id" ? "Miskonsepsi Terkait" : "Related Misconceptions"}</span>
         </h2>
         {misconceptions.length === 0 ? (
           <p className="mt-3 text-sm text-muted">{t(uiText.emptyMisconceptions, language)}</p>
         ) : (
-          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {misconceptions.map((misconception) => {
               const active = misconception.id === activeMisconceptionId;
+              const description =
+                t(misconception.fix, language).trim() ||
+                t(misconception.cause, language).trim();
               return (
                 <button
                   key={misconception.id}
@@ -190,27 +165,51 @@ export function QuestionPanel({
                   onClick={() => onSelectMisconception(misconception.id)}
                   aria-current={active ? "true" : undefined}
                   className={cn(
-                    "group flex min-h-16 cursor-pointer items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors",
+                    "group relative min-h-28 cursor-pointer overflow-hidden rounded-lg border px-4 py-3.5 text-left transition-colors",
                     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                     active
                       ? "border-brand bg-brand text-white"
-                      : "border-border bg-neutral/60 text-navy-deep hover:border-brand/40 hover:bg-brand-soft/40",
+                      : "border-brand/15 bg-brand-soft/55 text-navy-deep hover:border-brand/35 hover:bg-brand-soft/80",
                   )}
                 >
-                  {active && <CheckCircle2 size={17} className="shrink-0" aria-hidden="true" />}
-                  <span className="min-w-0 flex-1">
-                    <span className={cn("block font-mono text-xs font-bold", active ? "text-white" : "text-brand")}>
-                      {misconception.id}
+                  <span
+                    className={cn(
+                      "absolute -right-7 -top-9 size-20 rounded-full",
+                      active ? "bg-white/10" : "bg-brand/5",
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span className="relative block min-w-0 pr-7">
+                    <span className="flex items-center gap-1.5">
+                      {active && <CheckCircle2 size={14} className="shrink-0" aria-hidden="true" />}
+                      <span
+                        className={cn(
+                          "font-mono text-[11px] font-extrabold",
+                          active ? "text-white" : "text-brand",
+                        )}
+                      >
+                        {misconception.id}
+                      </span>
                     </span>
-                    <span className="mt-0.5 block text-xs font-semibold leading-5">
+                    <span className="mt-1.5 block text-[13px] font-bold leading-5">
                       {t(misconception.title, language)}
                     </span>
+                    {description && (
+                      <span
+                        className={cn(
+                          "mt-1 block line-clamp-2 text-[11px] leading-4",
+                          active ? "text-white/75" : "text-muted",
+                        )}
+                      >
+                        {description}
+                      </span>
+                    )}
                   </span>
                   <ArrowRight
-                    size={16}
+                    size={15}
                     className={cn(
-                      "shrink-0 transition-transform group-hover:translate-x-0.5",
-                      active ? "text-white" : "text-muted",
+                      "absolute right-3.5 top-3.5 transition-transform group-hover:translate-x-0.5",
+                      active ? "text-white/90" : "text-brand/70",
                     )}
                     aria-hidden="true"
                   />

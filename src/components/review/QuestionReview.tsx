@@ -2,10 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useQuestions } from "../../hooks/useQuestions";
-import { useCategories } from "../../hooks/useCategories";
 import { useMisconceptions } from "../../hooks/useMisconceptions";
 import { useAllStudentAnswers } from "../../hooks/useStudentAnswers";
-import { buildConcepts } from "../../utils/concepts";
 import {
   answerHasMisconception,
   getAnswerVariations,
@@ -30,7 +28,6 @@ export function QuestionReview({ questionId }: { questionId: string }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const { categories } = useCategories();
   const { misconceptions } = useMisconceptions();
   const { questions: allQuestions } = useQuestions();
   const { answers: allAnswers } = useAllStudentAnswers();
@@ -47,11 +44,6 @@ export function QuestionReview({ questionId }: { questionId: string }) {
     [activeQuestionId, answerVariations],
   );
   const selectedMisconception = misconceptions.find((item) => item.id === filterMisconceptionId);
-
-  const concepts = useMemo(
-    () => buildConcepts(categories, allQuestions, misconceptions),
-    [categories, allQuestions, misconceptions],
-  );
 
   const availableMisconceptionIds = useMemo(() => {
     const ids = new Set<string>(question?.questionMisconceptionIds ?? []);
@@ -163,9 +155,9 @@ export function QuestionReview({ questionId }: { questionId: string }) {
         </nav>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-border bg-white shadow-sm">
+      <div>
         {selectedMisconception && (
-          <section className="flex flex-col gap-5 bg-brand px-5 py-4 text-white sm:px-7 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+          <section className="grid gap-5 border-y border-brand-deep bg-brand px-5 py-4 text-white sm:px-7 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center lg:px-8">
             <div className="flex min-w-0 items-center gap-4">
               <span className="grid size-11 shrink-0 place-items-center rounded-full border border-white/35 bg-white/10">
                 <SearchCheck size={21} strokeWidth={2} aria-hidden="true" />
@@ -179,8 +171,8 @@ export function QuestionReview({ questionId }: { questionId: string }) {
                 </h1>
               </div>
             </div>
-            <div className="flex flex-wrap items-center gap-3 sm:pl-[3.75rem] lg:pl-0">
-              <span className="inline-flex items-center gap-2 rounded-md border border-white/30 bg-white/10 px-3 py-2 text-sm font-bold tabular-nums text-white">
+            <div className="flex flex-wrap items-center gap-2.5 sm:pl-[3.75rem] lg:justify-end lg:pl-0">
+              <span className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-white/30 bg-white/10 px-3 text-sm font-bold leading-none tabular-nums text-white">
                 <ListChecks size={16} strokeWidth={2} aria-hidden="true" />
                 {language === "id"
                   ? `${relatedQuestions.length} soal terkait`
@@ -189,24 +181,22 @@ export function QuestionReview({ questionId }: { questionId: string }) {
               <button
                 type="button"
                 onClick={resetExploration}
-                className="inline-flex cursor-pointer items-center gap-2 rounded-md px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                className="inline-flex h-9 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-md px-3 text-sm font-bold leading-none text-white transition-colors hover:bg-white/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               >
-                <LogOut size={16} strokeWidth={2} aria-hidden="true" />
-                {language === "id" ? "Kembali ke semua soal" : "Back to all questions"}
+                <LogOut size={15} strokeWidth={2} className="shrink-0" aria-hidden="true" />
+                <span>{language === "id" ? "Kembali ke semua soal" : "Back to all questions"}</span>
               </button>
             </div>
           </section>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div className="grid grid-cols-1 border-b border-border lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <QuestionPanel
             question={question}
-            concepts={concepts}
             activeMisconceptionId={filterMisconceptionId}
-            onSelectConcept={(conceptId) => navigate(`/konsep/${conceptId}`)}
             onSelectMisconception={selectMisconception}
           />
-          <div className="min-w-0 border-t border-border bg-brand-soft/15 lg:border-l lg:border-t-0">
+          <div className="min-w-0 border-t border-border bg-brand-soft/45 lg:border-l-2 lg:border-l-brand/15 lg:border-t-0">
             <AnswerCasePanel
               question={question}
               answers={selectedAnswerId ? filteredAnswers : []}
@@ -230,7 +220,7 @@ export function QuestionReview({ questionId }: { questionId: string }) {
                 ? "Navigasi soal"
                 : "Question navigation"
           }
-          className="grid min-h-20 grid-cols-2 items-center gap-4 border-t border-border bg-white px-4 py-3 sm:grid-cols-[1fr_auto_1fr] sm:px-7"
+          className="grid min-h-20 grid-cols-2 items-center gap-4 border-b border-border bg-bg px-4 py-3 sm:grid-cols-[1fr_auto_1fr] sm:px-7"
         >
           <button
             type="button"
