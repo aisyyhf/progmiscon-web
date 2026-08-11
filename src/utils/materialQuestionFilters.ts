@@ -23,6 +23,10 @@ export function getMaterialWeekLabel(week: string): string {
   return `WEEK ${week.replace(/^W/i, "")}`;
 }
 
+export function getMaterialQuestionConcepts(question: Question): Question["expectedConcepts"] {
+  return question.expectedConcepts;
+}
+
 export function intersectMaterialQuestionGroups(groups: Question[][]): Question[] {
   if (groups.length === 0) return [];
 

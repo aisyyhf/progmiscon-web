@@ -7,6 +7,7 @@ import {
   DEFAULT_MATERIAL_QUESTION_FILTERS,
   filterMaterialQuestions,
   getMaterialPaginationItems,
+  getMaterialQuestionConcepts,
   getMaterialQuestionIdentifier,
   getMaterialQuestionType,
   getMaterialWeekLabel,
@@ -28,7 +29,8 @@ import {
   TriangleAlert,
 } from "lucide-react";
 
-const PAGE_SIZE = 4;
+const GRID_PAGE_SIZE = 4;
+const LIST_PAGE_SIZE = 6;
 
 export function MaterialBrowser({
   categories,
@@ -52,9 +54,6 @@ export function MaterialBrowser({
   onSelectQuestion: (questionId: string) => void;
 }) {
   const { language } = useLanguage();
-  const selectedCategories = categories.filter((category) =>
-    selectedCategoryIds.includes(category.id),
-  );
   const [searchQuery, setSearchQuery] = useState<string>(
     DEFAULT_MATERIAL_QUESTION_FILTERS.searchQuery,
   );
@@ -67,6 +66,7 @@ export function MaterialBrowser({
   const [currentPage, setCurrentPage] = useState(1);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const pageSize = viewMode === "grid" ? GRID_PAGE_SIZE : LIST_PAGE_SIZE;
 
   const weekOptions = useMemo(() => getMaterialWeekOptions(questions), [questions]);
   const hasUnassignedWeek = questions.some((question) => question.week === null);
@@ -79,10 +79,10 @@ export function MaterialBrowser({
       }),
     [questions, searchQuery, typeFilter, weekFilter],
   );
-  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(filteredQuestions.length / pageSize));
   const page = Math.min(currentPage, totalPages);
-  const rangeStart = filteredQuestions.length === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(page * PAGE_SIZE, filteredQuestions.length);
+  const rangeStart = filteredQuestions.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = Math.min(page * pageSize, filteredQuestions.length);
   const visibleQuestions = filteredQuestions.slice(rangeStart - 1, rangeEnd);
   const paginationItems = getMaterialPaginationItems(page, totalPages);
   const hasActiveFilters =
@@ -284,8 +284,11 @@ export function MaterialBrowser({
           </div>
         </aside>
 
-        <section className="min-w-0" aria-labelledby="question-catalog-title">
-          <header className="flex items-center justify-between gap-4 pb-2.5">
+        <section
+          className="flex min-w-0 flex-col lg:min-h-[34rem] lg:pt-1.5"
+          aria-labelledby="question-catalog-title"
+        >
+          <header className="flex items-center justify-between gap-4 pb-3.5">
             <h1
               id="question-catalog-title"
               className="text-[1.75rem] font-extrabold leading-none tracking-[-0.035em] text-navy-deep sm:text-[1.875rem]"
@@ -300,7 +303,10 @@ export function MaterialBrowser({
             >
               <button
                 type="button"
-                onClick={() => setViewMode("grid")}
+                onClick={() => {
+                  setViewMode("grid");
+                  setCurrentPage(1);
+                }}
                 aria-pressed={viewMode === "grid"}
                 aria-label={language === "id" ? "Tampilan kisi" : "Grid view"}
                 style={{ transform: "none" }}
@@ -313,7 +319,10 @@ export function MaterialBrowser({
               </button>
               <button
                 type="button"
-                onClick={() => setViewMode("list")}
+                onClick={() => {
+                  setViewMode("list");
+                  setCurrentPage(1);
+                }}
                 aria-pressed={viewMode === "list"}
                 aria-label={language === "id" ? "Tampilan daftar" : "List view"}
                 style={{ transform: "none" }}
@@ -345,8 +354,8 @@ export function MaterialBrowser({
             <>
               <ul
                 className={cn(
-                  "grid gap-2.5",
-                  viewMode === "grid" && "md:grid-cols-2",
+                  "grid",
+                  viewMode === "grid" ? "gap-3 md:grid-cols-2" : "gap-2",
                 )}
               >
                 {visibleQuestions.map((question) => {
@@ -356,9 +365,7 @@ export function MaterialBrowser({
                     storedTitle && storedTitle !== prompt
                       ? storedTitle
                       : `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
-                  const questionCategory =
-                    categories.find((category) => category.id === question.categoryId) ??
-                    selectedCategories[0];
+                  const questionConcepts = getMaterialQuestionConcepts(question);
                   const questionIdentifier = getMaterialQuestionIdentifier(question);
                   const questionType = getMaterialQuestionType(question.type);
                   const questionTypeLabel =
@@ -383,8 +390,8 @@ export function MaterialBrowser({
                         className={cn(
                           "group w-full cursor-pointer rounded-lg border border-border bg-white text-left transition-[border-color,box-shadow] active:translate-y-0 hover:border-brand/35 hover:shadow-[0_9px_22px_rgba(143,28,32,0.06)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                           viewMode === "grid"
-                            ? "flex h-[12.75rem] flex-col p-3.5"
-                            : "min-h-[9.5rem] p-3 sm:min-h-[7.5rem] md:h-[4.75rem] md:min-h-0",
+                            ? "flex h-[13.25rem] flex-col px-4 py-3.5"
+                            : "min-h-[9.5rem] p-3 sm:min-h-[7.5rem] md:min-h-16 md:p-2.5",
                         )}
                       >
                         {viewMode === "grid" ? (
@@ -412,17 +419,20 @@ export function MaterialBrowser({
                               {prompt}
                             </p>
 
-                            <div className="mt-2.5 flex flex-nowrap gap-1">
+                            <div className="mt-2.5 flex flex-wrap gap-1">
                               {question.week && (
                                 <span className="rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.03em] text-navy-deep">
                                   {getMaterialWeekLabel(question.week)}
                                 </span>
                               )}
-                              {questionCategory && (
-                                <span className="max-w-full truncate rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.03em] text-navy-deep">
-                                  {t(questionCategory.name, language).toUpperCase()}
+                              {questionConcepts.map((concept, conceptIndex) => (
+                                <span
+                                  key={`${t(concept, language)}-${conceptIndex}`}
+                                  className="rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.03em] text-navy-deep"
+                                >
+                                  {t(concept, language).toUpperCase()}
                                 </span>
-                              )}
+                              ))}
                             </div>
 
                             <div className="mt-2.5 flex min-w-0 items-center gap-2 border-t border-border pt-2 text-[9px] font-semibold text-brand-deep">
@@ -484,15 +494,22 @@ export function MaterialBrowser({
                               <h2 className="line-clamp-1 text-[13px] font-extrabold leading-tight text-navy-deep transition-colors group-hover:text-brand">
                                 {title}
                               </h2>
-                              <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[8.5px] font-bold uppercase tracking-[0.025em] text-navy-deep">
-                                {question.week && <span>{getMaterialWeekLabel(question.week)}</span>}
-                                {questionCategory && (
-                                  <span className="max-w-28 truncate">
-                                    {t(questionCategory.name, language).toUpperCase()}
+                              <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1 text-[8px] font-bold uppercase tracking-[0.025em] text-navy-deep">
+                                {question.week && (
+                                  <span className="rounded border border-border bg-neutral px-1.5 py-0.5">
+                                    {getMaterialWeekLabel(question.week)}
                                   </span>
                                 )}
+                                {questionConcepts.map((concept, conceptIndex) => (
+                                  <span
+                                    key={`${t(concept, language)}-${conceptIndex}`}
+                                    className="rounded border border-border bg-neutral px-1.5 py-0.5"
+                                  >
+                                    {t(concept, language).toUpperCase()}
+                                  </span>
+                                ))}
                                 {visibleMisconceptionIds.length > 0 ? (
-                                  <span className="inline-flex min-w-0 items-center gap-2 text-brand-deep">
+                                  <span className="ml-1 inline-flex min-w-0 items-center gap-2 text-brand-deep">
                                     {visibleMisconceptionIds.map((misconceptionId) => (
                                       <span
                                         key={misconceptionId}
@@ -533,7 +550,7 @@ export function MaterialBrowser({
                 })}
               </ul>
 
-              <div className="mt-3 flex min-h-11 flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-auto flex min-h-11 flex-col gap-2 border-t border-border pt-3 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-xs tabular-nums text-muted" role="status" aria-live="polite">
                   {language === "id"
                     ? `Menampilkan ${rangeStart}-${rangeEnd} dari ${filteredQuestions.length} soal`
