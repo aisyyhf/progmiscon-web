@@ -5,8 +5,8 @@ import { useQuestions } from "../../hooks/useQuestions";
 import { useMisconceptions } from "../../hooks/useMisconceptions";
 import { useAllStudentAnswers } from "../../hooks/useStudentAnswers";
 import {
-  answerHasMisconception,
   getAnswerVariations,
+  getMatchingAnswers,
   getRelatedQuestions,
 } from "../../utils/misconceptionExploration";
 import { misconceptionLabel } from "../../utils/misconceptionLabel";
@@ -35,7 +35,8 @@ export function QuestionReview({ questionId }: { questionId: string }) {
 
   const [activeQuestionId, setActiveQuestionId] = useState(questionId);
   const [selectedAnswerId, setSelectedAnswerId] = useState<string | undefined>(undefined);
-  const [filterMisconceptionId, setFilterMisconceptionId] = useState<string | undefined>(undefined);
+  const [activeMisconceptionId, setActiveMisconceptionId] = useState<string | undefined>(undefined);
+  const [answerFilterMisconceptionId, setAnswerFilterMisconceptionId] = useState<string | undefined>(undefined);
 
   const requestedAnswerId = searchParams.get("case") ?? undefined;
   const question = allQuestions.find((item) => item.id === activeQuestionId);
@@ -43,7 +44,7 @@ export function QuestionReview({ questionId }: { questionId: string }) {
     () => answerVariations.filter((answer) => answer.questionId === activeQuestionId),
     [activeQuestionId, answerVariations],
   );
-  const selectedMisconception = misconceptions.find((item) => item.id === filterMisconceptionId);
+  const selectedMisconception = misconceptions.find((item) => item.id === activeMisconceptionId);
 
   const availableMisconceptionIds = useMemo(() => {
     const ids = new Set<string>(question?.questionMisconceptionIds ?? []);
@@ -55,23 +56,26 @@ export function QuestionReview({ questionId }: { questionId: string }) {
   }, [answers, question]);
 
   const relatedQuestions = useMemo(() => {
-    if (!filterMisconceptionId || !selectedMisconception) return [];
+    if (!activeMisconceptionId || !selectedMisconception) return [];
     return getRelatedQuestions(
       allQuestions,
       answerVariations,
-      filterMisconceptionId,
+      activeMisconceptionId,
       selectedMisconception.relatedQuestionIds,
     );
-  }, [allQuestions, answerVariations, filterMisconceptionId, selectedMisconception]);
+  }, [activeMisconceptionId, allQuestions, answerVariations, selectedMisconception]);
 
   const filteredAnswers = useMemo(
     () =>
-      filterMisconceptionId
-        ? answers.filter((answer) =>
-            answerHasMisconception(answer, filterMisconceptionId, question),
+      answerFilterMisconceptionId
+        ? getMatchingAnswers(
+            answers,
+            answerFilterMisconceptionId,
+            activeQuestionId,
+            question ? [question] : [],
           )
         : answers,
-    [answers, filterMisconceptionId, question],
+    [activeQuestionId, answerFilterMisconceptionId, answers, question],
   );
 
   useEffect(() => {
@@ -101,7 +105,8 @@ export function QuestionReview({ questionId }: { questionId: string }) {
       : undefined;
 
   const resetExploration = () => {
-    setFilterMisconceptionId(undefined);
+    setActiveMisconceptionId(undefined);
+    setAnswerFilterMisconceptionId(undefined);
     setActiveQuestionId(questionId);
     setSelectedAnswerId(undefined);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -120,13 +125,15 @@ export function QuestionReview({ questionId }: { questionId: string }) {
     const currentQuestionHasMatch = nextRelatedQuestions.some((item) => item.id === activeQuestionId);
     const firstRelatedQuestion = nextRelatedQuestions[0];
 
-    setFilterMisconceptionId(misconceptionId);
+    setActiveMisconceptionId(misconceptionId);
+    setAnswerFilterMisconceptionId(undefined);
     setSelectedAnswerId(undefined);
     if (!currentQuestionHasMatch && firstRelatedQuestion) setActiveQuestionId(firstRelatedQuestion.id);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const changeQuestion = (nextQuestionId: string) => {
+    setAnswerFilterMisconceptionId(undefined);
     setSelectedAnswerId(undefined);
     if (selectedMisconception) {
       setActiveQuestionId(nextQuestionId);
@@ -193,7 +200,7 @@ export function QuestionReview({ questionId }: { questionId: string }) {
         <div className="grid grid-cols-1 border-b border-border lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
           <QuestionPanel
             question={question}
-            activeMisconceptionId={filterMisconceptionId}
+            activeMisconceptionId={activeMisconceptionId}
             onSelectMisconception={selectMisconception}
           />
           <div className="min-w-0 border-t border-border bg-brand-soft/45 lg:border-l-2 lg:border-l-brand/15 lg:border-t-0">
@@ -202,8 +209,8 @@ export function QuestionReview({ questionId }: { questionId: string }) {
               answers={selectedAnswerId ? filteredAnswers : []}
               selectedAnswerId={selectedAnswerId ?? ""}
               onSelectAnswer={setSelectedAnswerId}
-              filterMisconceptionId={filterMisconceptionId}
-              onFilterMisconception={selectMisconception}
+              filterMisconceptionId={answerFilterMisconceptionId}
+              onFilterMisconception={setAnswerFilterMisconceptionId}
               availableMisconceptionIds={availableMisconceptionIds}
               onSelectMisconception={selectMisconception}
             />
@@ -220,7 +227,7 @@ export function QuestionReview({ questionId }: { questionId: string }) {
                 ? "Navigasi soal"
                 : "Question navigation"
           }
-          className="grid min-h-20 grid-cols-1 items-center gap-3 border-b border-border bg-bg px-4 py-3 sm:grid-cols-[1fr_auto_1fr] sm:gap-4 sm:px-7"
+          className="grid min-h-20 grid-cols-1 items-center gap-3 bg-bg px-4 py-3 sm:grid-cols-[1fr_auto_1fr] sm:gap-4 sm:px-7"
         >
           <button
             type="button"

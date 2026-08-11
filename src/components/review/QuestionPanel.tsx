@@ -152,9 +152,6 @@ export function QuestionPanel({
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             {misconceptions.map((misconception) => {
               const active = misconception.id === activeMisconceptionId;
-              const description =
-                t(misconception.fix, language).trim() ||
-                t(misconception.cause, language).trim();
               return (
                 <button
                   key={misconception.id}
@@ -162,7 +159,7 @@ export function QuestionPanel({
                   onClick={() => onSelectMisconception(misconception.id)}
                   aria-current={active ? "true" : undefined}
                   className={cn(
-                    "group relative min-h-28 cursor-pointer overflow-hidden rounded-lg border px-4 py-3.5 text-left transition-colors",
+                    "group relative min-h-24 cursor-pointer overflow-hidden rounded-lg border px-4 py-3.5 text-left transition-colors",
                     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                     active
                       ? "border-brand bg-brand text-white"
@@ -191,16 +188,6 @@ export function QuestionPanel({
                     <span className="mt-1.5 block text-[13px] font-bold leading-5">
                       {t(misconception.title, language)}
                     </span>
-                    {description && (
-                      <span
-                        className={cn(
-                          "mt-1 block line-clamp-2 text-[11px] leading-4",
-                          active ? "text-white/75" : "text-muted",
-                        )}
-                      >
-                        {description}
-                      </span>
-                    )}
                   </span>
                   <ArrowRight
                     size={15}

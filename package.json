@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "check:effective-overrides": "node --experimental-strip-types scripts/check-effective-overrides.ts",
+    "check:question-detail": "node --experimental-strip-types scripts/check-question-detail.ts",
     "preview": "vite preview"
   },
   "dependencies": {
