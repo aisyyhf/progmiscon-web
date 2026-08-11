@@ -51,10 +51,10 @@ export const uiText = {
     en: "Explore the programming concepts used across different topics",
   },
   conceptMisconceptions: { id: "Miskonsepsi tentang", en: "Misconceptions about" },
-  miskonsepsiTitle: { id: "Miskonsepsi", en: "Misconceptions" },
+  miskonsepsiTitle: { id: "Pusat Miskonsepsi", en: "Misconception Center" },
   miskonsepsiDescription: {
-    id: "Telusuri inventaris miskonsepsi, konsep terkait, soal, dan variasi jawaban anonim.",
-    en: "Explore the misconception inventory, related concepts, questions, and anonymous answer variations.",
+    id: "Identifikasi dan pahami pola kesalahan pemrograman melalui miskonsepsi yang terdokumentasi",
+    en: "Identify and understand programming error patterns through documented misconceptions",
   },
   openMisconceptionPage: { id: "Buka Halaman Miskonsepsi", en: "Open Misconception Page" },
   viewRelatedQuestions: { id: "Lihat Soal Terkait", en: "View Related Questions" },
