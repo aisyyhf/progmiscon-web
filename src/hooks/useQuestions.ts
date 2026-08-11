@@ -25,6 +25,25 @@ export function useQuestionsByCategory(categoryId: string | undefined): {
   return { questions: data, loading };
 }
 
+export function useQuestionsByCategories(categoryIds: string[]): {
+  questions: Question[];
+  loading: boolean;
+} {
+  const key = categoryIds.join(",");
+  const { data, loading } = useAsyncData<Question[]>(
+    async () => {
+      if (categoryIds.length === 0) return [];
+
+      const groups = await Promise.all(categoryIds.map(getQuestionsByCategory));
+      return [...new Map(groups.flat().map((question) => [question.id, question])).values()];
+    },
+    [key],
+    [],
+  );
+
+  return { questions: data, loading };
+}
+
 export function useQuestionsByAssessment(assessmentId: string | undefined): {
   questions: Question[];
   loading: boolean;
