@@ -60,7 +60,7 @@ export function AnswerCasePanel({
   return (
     <section className="relative min-w-0">
       <div className="flex min-h-16 items-center justify-between gap-4 border-b border-brand/10 px-5 py-3 sm:px-7 lg:px-8">
-        <h2 className="academic-label text-navy-deep">
+        <h2 className="text-xl font-extrabold leading-none tracking-[-0.02em] text-navy-deep sm:text-2xl">
           {language === "id" ? "Jawaban" : "Answer"}
         </h2>
         {answers.length > 0 && answer && (
@@ -73,14 +73,14 @@ export function AnswerCasePanel({
       </div>
 
       <div className="border-b border-brand/10 px-5 py-3 sm:px-7 lg:px-8">
-        <div className="flex flex-col gap-2.5">
-          <p className="text-[11px] font-bold text-muted">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <p className="shrink-0 text-[11px] font-bold leading-7 text-muted">
             {language === "id" ? "Filter miskonsepsi" : "Misconception filter"}
           </p>
           <div
             role="group"
             aria-label={language === "id" ? "Filter miskonsepsi jawaban" : "Answer misconception filter"}
-            className="flex flex-wrap gap-1.5"
+            className="flex flex-wrap items-center gap-1.5"
           >
             <button
               type="button"
@@ -131,7 +131,7 @@ export function AnswerCasePanel({
                 {question.type === "multiple_choice" && (
                   <p className="academic-label mb-2">{t(uiText.selectedOptionLabel, language)}</p>
                 )}
-                <div className="space-y-1.5">
+                <div className="space-y-0.5">
                   <div className="overflow-hidden rounded-lg border border-navy-deep/15 shadow-sm">
                     {question.type === "multiple_choice" ? (
                       <div className="bg-bg p-5">

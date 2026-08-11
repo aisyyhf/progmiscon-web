@@ -84,10 +84,7 @@ export function QuestionPanel({
         </dl>
       </header>
 
-      <section className="py-6" aria-labelledby="question-content-title">
-        <h2 id="question-content-title" className="academic-label mb-3">
-          {language === "id" ? "Soal" : "Question"}
-        </h2>
+      <section className="py-6" aria-label={language === "id" ? "Isi soal" : "Question content"}>
         <p className="max-w-4xl whitespace-pre-wrap text-[13px] leading-6 text-navy-deep">
           {localizedQuestionText}
         </p>

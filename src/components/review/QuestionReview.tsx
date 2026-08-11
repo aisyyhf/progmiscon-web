@@ -220,13 +220,13 @@ export function QuestionReview({ questionId }: { questionId: string }) {
                 ? "Navigasi soal"
                 : "Question navigation"
           }
-          className="grid min-h-20 grid-cols-2 items-center gap-4 border-b border-border bg-bg px-4 py-3 sm:grid-cols-[1fr_auto_1fr] sm:px-7"
+          className="grid min-h-20 grid-cols-1 items-center gap-3 border-b border-border bg-bg px-4 py-3 sm:grid-cols-[1fr_auto_1fr] sm:gap-4 sm:px-7"
         >
           <button
             type="button"
             disabled={!previousQuestion}
             onClick={() => previousQuestion && changeQuestion(previousQuestion.id)}
-            className="group flex min-w-0 cursor-pointer items-center gap-3 justify-self-start rounded-lg px-2 py-2 text-left transition-colors hover:bg-neutral disabled:cursor-not-allowed disabled:opacity-35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="group inline-flex min-w-0 cursor-pointer items-center gap-2.5 justify-self-start rounded-full bg-brand px-4 py-2.5 text-left text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:bg-neutral disabled:text-muted disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             aria-label={
               selectedMisconception
                 ? language === "id"
@@ -237,9 +237,9 @@ export function QuestionReview({ questionId }: { questionId: string }) {
                   : `Previous question${previousCode ? `, ${previousCode}` : ""}`
             }
           >
-            <ArrowLeft size={18} className="shrink-0 text-muted transition-transform group-hover:-translate-x-0.5" aria-hidden="true" />
-            <span className="min-w-0">
-              <span className="block text-[11px] font-semibold text-muted">
+            <ArrowLeft size={17} className="shrink-0 transition-transform group-hover:-translate-x-0.5" aria-hidden="true" />
+            <span className="inline-flex min-w-0 items-baseline gap-2 whitespace-nowrap">
+              <span className="text-xs font-semibold">
                 {selectedMisconception
                   ? language === "id"
                     ? "Soal terkait sebelumnya"
@@ -248,7 +248,7 @@ export function QuestionReview({ questionId }: { questionId: string }) {
                     ? "Soal sebelumnya"
                     : "Previous question"}
               </span>
-              <span className="mt-0.5 block font-mono text-sm font-bold text-navy-deep">{previousCode ?? "—"}</span>
+              <span className="font-mono text-xs font-extrabold text-white/80 group-disabled:text-muted">{previousCode ?? "—"}</span>
             </span>
           </button>
 
@@ -265,7 +265,7 @@ export function QuestionReview({ questionId }: { questionId: string }) {
             type="button"
             disabled={!nextQuestion}
             onClick={() => nextQuestion && changeQuestion(nextQuestion.id)}
-            className="group flex min-w-0 cursor-pointer items-center gap-3 justify-self-end rounded-lg bg-brand px-3.5 py-2.5 text-right text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:bg-neutral disabled:text-muted disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:col-start-3"
+            className="group inline-flex min-w-0 cursor-pointer items-center gap-2.5 justify-self-end rounded-full bg-brand px-4 py-2.5 text-right text-white transition-colors hover:bg-brand-deep disabled:cursor-not-allowed disabled:bg-neutral disabled:text-muted disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:col-start-3"
             aria-label={
               selectedMisconception
                 ? language === "id"
@@ -276,8 +276,8 @@ export function QuestionReview({ questionId }: { questionId: string }) {
                   : `Next question${nextCode ? `, ${nextCode}` : ""}`
             }
           >
-            <span className="min-w-0">
-              <span className="block text-[11px] font-semibold text-white/80">
+            <span className="inline-flex min-w-0 items-baseline gap-2 whitespace-nowrap">
+              <span className="text-xs font-semibold">
                 {selectedMisconception
                   ? language === "id"
                     ? "Soal terkait berikutnya"
@@ -286,9 +286,9 @@ export function QuestionReview({ questionId }: { questionId: string }) {
                     ? "Soal berikutnya"
                     : "Next question"}
               </span>
-              <span className="mt-0.5 block font-mono text-sm font-bold text-white">{nextCode ?? "—"}</span>
+              <span className="font-mono text-xs font-extrabold text-white/80 group-disabled:text-muted">{nextCode ?? "—"}</span>
             </span>
-            <ArrowRight size={18} className="shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            <ArrowRight size={17} className="shrink-0 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
           </button>
         </nav>
       </div>
