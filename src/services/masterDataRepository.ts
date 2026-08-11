@@ -213,6 +213,7 @@ export async function getSheetQuestions(): Promise<Question[]> {
         text(row.title_ind) || text(row.title_en)
           ? localized(row.title_ind, row.title_en)
           : codeExample(titleFallback);
+      const sampleCases = buildSampleCases(row.sample_inputs, row.sample_outputs);
 
       return {
         id: questionId,
@@ -238,10 +239,10 @@ export async function getSheetQuestions(): Promise<Question[]> {
           promptWithCode(row.question_en, row.question_code),
         ),
         contentBlocks: {
-          id: buildQuestionContentBlocks(row.content_blocks_ind, row.question_ind, row.question_code),
-          en: buildQuestionContentBlocks(row.content_blocks_en, row.question_en, row.question_code),
+          id: buildQuestionContentBlocks(row.content_blocks_ind, row.question_ind, row.question_code, sampleCases),
+          en: buildQuestionContentBlocks(row.content_blocks_en, row.question_en, row.question_code, sampleCases),
         },
-        sampleCases: buildSampleCases(row.sample_inputs, row.sample_outputs),
+        sampleCases,
         expectedConcepts: expectedConcepts.length > 0 ? expectedConcepts : [categoryMap.get(categoryId)!.name],
         ...misconceptionProvenance,
         options:

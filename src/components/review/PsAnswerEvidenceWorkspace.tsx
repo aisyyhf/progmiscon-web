@@ -15,6 +15,7 @@ import {
 } from "./AnswerWorkspaceNavigation";
 import { MisconceptionReasonCards } from "./MisconceptionReasonCards";
 import { QuestionContent } from "./QuestionContent";
+import { resolveEvidenceIdentity } from "../../utils/evidenceIdentity";
 
 function unavailable(language: Language, indonesian: string, english: string) {
   return language === "id" ? indonesian : english;
@@ -48,12 +49,11 @@ export function PsAnswerEvidenceWorkspace({
   const student = activeAnswer
     ? students.find((item) => item.id === activeAnswer.studentId)
     : undefined;
-  const studentName = activeAnswer?.studentName?.trim() || student?.displayName.trim();
-  const studentIdentifier =
-    activeAnswer?.studentUserId?.trim() ||
-    (activeAnswer && !activeAnswer.studentId.startsWith("anonymous-")
-      ? activeAnswer.studentId
-      : "");
+  const identity = resolveEvidenceIdentity(
+    activeAnswer?.studentName,
+    activeAnswer?.studentUserId,
+    student?.displayName,
+  );
   const linkedMisconceptions = activeAnswer
     ? activeAnswer.studentMisconceptionIds
         .map((id) => misconceptions.find((item) => item.id === id))
@@ -84,24 +84,19 @@ export function PsAnswerEvidenceWorkspace({
             <div className="min-w-0">
               <p className="text-base font-bold text-navy-deep">
                 {activeAnswer
-                  ? studentName ||
+                  ? identity?.primary ||
                     unavailable(
                       language,
-                      "Nama mahasiswa belum tersedia",
-                      "Student name is not available yet",
+                      "Identitas mahasiswa belum tersedia",
+                      "Student identity unavailable",
                     )
                   : language === "id"
                     ? "Evidence Jawaban PS"
                     : "PS Answer Evidence"}
               </p>
-              {activeAnswer && (
+              {identity?.secondary && (
                 <p className="mt-1 text-xs text-muted">
-                  {studentIdentifier ||
-                    unavailable(
-                      language,
-                      "Identitas mahasiswa belum tersedia",
-                      "Student identifier is not available yet",
-                    )}
+                  {identity.secondary}
                 </p>
               )}
             </div>

@@ -63,22 +63,53 @@ assert.equal(ps.length + mp.length, activeQuestions.length, "every active questi
 let structuredQuestionLocales = 0;
 let sampleQuestionCount = 0;
 let duplicateLegacyCodeCount = 0;
+let suppressedSampleLocales = 0;
 for (const question of activeQuestions) {
+  const sampleCases = buildSampleCases(question.sample_inputs, question.sample_outputs);
   for (const [raw, legacyText] of [
     [question.content_blocks_ind, question.question_ind],
     [question.content_blocks_en, question.question_en],
   ] as const) {
     if (parseContentBlocks(raw).blocks.length > 0) structuredQuestionLocales += 1;
+    const originalBlocks = buildQuestionContentBlocks(raw, legacyText, question.question_code);
+    const deduplicatedBlocks = buildQuestionContentBlocks(raw, legacyText, question.question_code, sampleCases);
+    if (JSON.stringify(originalBlocks) !== JSON.stringify(deduplicatedBlocks)) suppressedSampleLocales += 1;
     const code = question.question_code.trim().replace(/\r\n/g, "\n");
     if (code) {
-      const blocks = buildQuestionContentBlocks(raw, legacyText, question.question_code);
+      const blocks = deduplicatedBlocks;
       const occurrences = blocks.filter((block) => block.content.replace(/\r\n/g, "\n").includes(code)).length;
       if (occurrences > 1) duplicateLegacyCodeCount += 1;
     }
   }
-  if (buildSampleCases(question.sample_inputs, question.sample_outputs).length > 0) sampleQuestionCount += 1;
+  if (sampleCases.length > 0) sampleQuestionCount += 1;
 }
 assert.equal(duplicateLegacyCodeCount, 0, "legacy code is not duplicated by the structured fallback");
+assert.ok(suppressedSampleLocales > 0, "live duplicate sample fragments are suppressed");
+
+const q003 = activeQuestions.find((row) => row.question_id.trim() === "Q003")!;
+const q003Cases = buildSampleCases(q003.sample_inputs, q003.sample_outputs);
+for (const [raw, legacyText] of [[q003.content_blocks_ind, q003.question_ind], [q003.content_blocks_en, q003.question_en]] as const) {
+  const content = buildQuestionContentBlocks(raw, legacyText, q003.question_code, q003Cases)
+    .filter((block) => block.type === "text")
+    .map((block) => block.content)
+    .join("\n");
+  for (const sample of q003Cases) {
+    assert.equal(content.includes(sample.output), false, "Q003 sample output is rendered only by sample cards");
+  }
+  assert.match(content, /pi = 3\.14/i, "Q003 instructional prose remains");
+}
+
+const q062 = activeQuestions.find((row) => row.question_id.trim() === "Q062")!;
+const q062Original = buildQuestionContentBlocks(q062.content_blocks_ind, q062.question_ind, q062.question_code);
+const q062Deduplicated = buildQuestionContentBlocks(q062.content_blocks_ind, q062.question_ind, q062.question_code, buildSampleCases(q062.sample_inputs, q062.sample_outputs));
+assert.deepEqual(q062Deduplicated, q062Original, "incomplete structured output does not remove the fuller legacy sample");
+
+const mpWithoutSamples = mp.find((row) => buildSampleCases(row.sample_inputs, row.sample_outputs).length === 0)!;
+assert.deepEqual(
+  buildQuestionContentBlocks(mpWithoutSamples.content_blocks_ind, mpWithoutSamples.question_ind, mpWithoutSamples.question_code, []),
+  buildQuestionContentBlocks(mpWithoutSamples.content_blocks_ind, mpWithoutSamples.question_ind, mpWithoutSamples.question_code),
+  "MP content without dedicated samples is preserved",
+);
 
 const activeAnswers = data.answers.filter((row) => isActiveValue(row.active));
 const evidenceAnswers = activeAnswers.filter((row) => isActiveValue(row.is_evidence ?? ""));
@@ -102,6 +133,7 @@ console.log("live updated master-data checks passed", {
   mpQuestions: mp.length,
   structuredQuestionLocales,
   sampleQuestionCount,
+  suppressedSampleLocales,
   activeAnswers: activeAnswers.length,
   evidenceAnswers: evidenceAnswers.length,
   namedEvidenceAnswers: namedEvidenceAnswers.length,
