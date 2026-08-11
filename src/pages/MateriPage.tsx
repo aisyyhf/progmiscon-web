@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCategories } from "../hooks/useCategories";
-import { useQuestionsByCategory } from "../hooks/useQuestions";
+import { useQuestionsByCategories } from "../hooks/useQuestions";
+import { useAllStudentAnswers } from "../hooks/useStudentAnswers";
 import { MaterialBrowser } from "../components/browser/MaterialBrowser";
 
 export function MateriPage() {
@@ -9,31 +10,46 @@ export function MateriPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { categories } = useCategories();
 
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(
-    searchParams.get("category") ?? undefined,
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>(
+    searchParams.getAll("category"),
   );
 
-  useEffect(() => {
-    if (!selectedCategoryId && categories.length > 0) {
-      setSelectedCategoryId(categories[0].id);
-    }
-  }, [categories, selectedCategoryId]);
+  const { questions, loading } = useQuestionsByCategories(selectedCategoryIds);
+  const { answers, loading: answersLoading } = useAllStudentAnswers();
+  const answerCountByQuestionId = useMemo(() => {
+    const counts = new Map<string, number>();
+    answers.forEach((answer) => {
+      counts.set(answer.questionId, (counts.get(answer.questionId) ?? 0) + 1);
+    });
+    return counts;
+  }, [answers]);
 
-  const { questions, loading } = useQuestionsByCategory(selectedCategoryId);
+  const updateSelectedCategories = (categoryIds: string[]) => {
+    setSelectedCategoryIds(categoryIds);
+    const nextSearchParams = new URLSearchParams();
+    categoryIds.forEach((categoryId) => nextSearchParams.append("category", categoryId));
+    setSearchParams(nextSearchParams);
+  };
 
-  const handleSelectCategory = (categoryId: string) => {
-    setSelectedCategoryId(categoryId);
-    setSearchParams({ category: categoryId });
+  const handleToggleCategory = (categoryId: string) => {
+    updateSelectedCategories(
+      selectedCategoryIds.includes(categoryId)
+        ? selectedCategoryIds.filter((id) => id !== categoryId)
+        : [...selectedCategoryIds, categoryId],
+    );
   };
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="mx-auto max-w-[1240px]">
       <MaterialBrowser
         categories={categories}
-        selectedCategoryId={selectedCategoryId}
-        onSelectCategory={handleSelectCategory}
+        selectedCategoryIds={selectedCategoryIds}
+        onToggleCategory={handleToggleCategory}
+        onResetCategories={() => updateSelectedCategories([])}
         questions={questions}
         loading={loading}
+        answerCountByQuestionId={answerCountByQuestionId}
+        answersLoading={answersLoading}
         onSelectQuestion={(questionId) => navigate(`/question/${questionId}`)}
       />
     </div>

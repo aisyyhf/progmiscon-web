@@ -6,7 +6,7 @@ export function t(text: LocalizedText, language: Language): string {
 
 export const uiText = {
   navHome: { id: "Home", en: "Home" },
-  navMateri: { id: "Materi", en: "Material" },
+  navMateri: { id: "Soal", en: "Questions" },
   navUjian: { id: "Ujian", en: "Assessment" },
   navKonsep: { id: "Konsep", en: "Concepts" },
   navMiskonsepsi: { id: "Miskonsepsi", en: "Misconceptions" },
@@ -21,7 +21,7 @@ export const uiText = {
     id: "Progmiscon membantu pengguna menelusuri soal pseudocode, konsep pemrograman dasar, serta miskonsepsi yang sering muncul pada variasi jawaban mahasiswa.",
     en: "Progmiscon helps users explore pseudocode questions, introductory programming concepts, and misconceptions commonly found in anonymous student answer variations.",
   },
-  homeStartMaterial: { id: "Mulai dari Materi", en: "Start from Material" },
+  homeStartMaterial: { id: "Mulai dari Soal", en: "Start from Questions" },
   lecturerPortal: { id: "Akun Dosen", en: "Lecturer Account" },
   homeExploreConcepts: { id: "Jelajahi Konsep", en: "Explore Concepts" },
   homeBrowseMisconceptions: { id: "Telusuri Miskonsepsi", en: "Browse Misconceptions" },
@@ -35,10 +35,10 @@ export const uiText = {
   homeStepThree: { id: "Telusuri miskonsepsi, konsep, dan soal terkait", en: "Explore related misconceptions, concepts, and questions" },
   homeExamples: { id: "Contoh untuk ditelusuri", en: "Examples to explore" },
 
-  materiTitle: { id: "Materi", en: "Material" },
+  materiTitle: { id: "Soal", en: "Questions" },
   materiDescription: {
-    id: "Telusuri soal berdasarkan materi perkuliahan.",
-    en: "Browse questions by course material.",
+    id: "Jelajahi soal berdasarkan konsep, minggu, dan pola miskonsepsi",
+    en: "Explore questions by concept, week, and misconception pattern",
   },
   ujianTitle: { id: "Ujian", en: "Assessment" },
   ujianDescription: {
@@ -122,7 +122,7 @@ export const uiText = {
   drawerVerification: { id: "Pemeriksaan Verifikasi", en: "Verification Check" },
 
   breadcrumbHome: { id: "Home", en: "Home" },
-  breadcrumbMateri: { id: "Materi", en: "Material" },
+  breadcrumbMateri: { id: "Soal", en: "Questions" },
   breadcrumbKonsep: { id: "Konsep", en: "Concepts" },
   breadcrumbMiskonsepsi: { id: "Miskonsepsi", en: "Misconceptions" },
   back: { id: "Kembali", en: "Back" },

@@ -15,6 +15,31 @@ export function getMaterialQuestionType(
   return type === "multiple_choice" ? "mp" : "ps";
 }
 
+export function getMaterialQuestionIdentifier(question: Question): string {
+  return question.sourceCode?.trim() || question.id;
+}
+
+export function getMaterialWeekLabel(week: string): string {
+  return `WEEK ${week.replace(/^W/i, "")}`;
+}
+
+export function getMaterialQuestionConcepts(question: Question): Question["expectedConcepts"] {
+  return question.expectedConcepts;
+}
+
+export function intersectMaterialQuestionGroups(groups: Question[][]): Question[] {
+  if (groups.length === 0) return [];
+
+  const remainingGroupIds = groups.slice(1).map((group) => new Set(group.map(({ id }) => id)));
+  const seenQuestionIds = new Set<string>();
+
+  return groups[0].filter(({ id }) => {
+    if (seenQuestionIds.has(id) || !remainingGroupIds.every((ids) => ids.has(id))) return false;
+    seenQuestionIds.add(id);
+    return true;
+  });
+}
+
 function weekSortKey(week: string): [number, number, string] {
   const match = /^W(\d+)(?:-(\d+))?$/i.exec(week);
   if (!match) return [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, week];
@@ -34,6 +59,17 @@ export function getMaterialWeekOptions(questions: Question[]): string[] {
         leftKey[2].localeCompare(rightKey[2], undefined, { numeric: true })
       );
     });
+}
+
+export function getMaterialPaginationItems(
+  currentPage: number,
+  totalPages: number,
+): number[] {
+  if (totalPages <= 1) return totalPages === 1 ? [1] : [];
+
+  const pairStart = Math.floor((currentPage - 1) / 2) * 2 + 1;
+  const stableStart = pairStart === totalPages ? totalPages - 1 : pairStart;
+  return [stableStart, stableStart + 1].filter((page) => page <= totalPages);
 }
 
 export function filterMaterialQuestions(

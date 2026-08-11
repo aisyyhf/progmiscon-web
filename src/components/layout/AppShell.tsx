@@ -11,6 +11,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isAuthRoute = ["/dosen/login", "/dosen/daftar"].includes(
     location.pathname,
   );
+  const isQuestionCatalog = location.pathname === "/materi";
 
   return (
     <div
@@ -32,7 +33,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         className={
           isAuthRoute
             ? "w-full min-h-0 flex-1"
-            : "mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 md:py-9 lg:px-8"
+            : isQuestionCatalog
+              ? "mx-auto min-h-[calc(100dvh-4rem)] w-full max-w-[1240px] flex-1 px-4 py-4 sm:px-6 lg:px-8"
+              : "mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 md:py-9 lg:px-8"
         }
       >
         <div

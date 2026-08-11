@@ -2,11 +2,16 @@ import assert from "node:assert/strict";
 import {
   DEFAULT_MATERIAL_QUESTION_FILTERS,
   filterMaterialQuestions,
+  getMaterialPaginationItems,
+  getMaterialQuestionIdentifier,
+  getMaterialQuestionConcepts,
   getMaterialQuestionType,
+  getMaterialWeekLabel,
   getMaterialWeekOptions,
+  intersectMaterialQuestionGroups,
 } from "../src/utils/materialQuestionFilters.ts";
 
-function question(id, type, week, prompt = id) {
+function question(id, type, week, prompt = id, concepts = []) {
   return {
     id,
     assessmentId: "asm-master",
@@ -20,7 +25,7 @@ function question(id, type, week, prompt = id) {
     level: null,
     type,
     prompt: { id: prompt, en: prompt },
-    expectedConcepts: [],
+    expectedConcepts: concepts.map((concept) => ({ id: concept, en: concept })),
     questionMisconceptionIds: [],
   };
 }
@@ -38,6 +43,26 @@ const questions = [
 
 assert.equal(getMaterialQuestionType("short_answer"), "ps");
 assert.equal(getMaterialQuestionType("multiple_choice"), "mp");
+assert.equal(getMaterialQuestionIdentifier(questions[0]), "Q1");
+assert.equal(getMaterialQuestionIdentifier({ ...questions[0], sourceCode: " Q-102 " }), "Q-102");
+assert.equal(getMaterialWeekLabel("W01"), "WEEK 01");
+assert.equal(getMaterialWeekLabel("W05-06"), "WEEK 05-06");
+assert.deepEqual(
+  getMaterialQuestionConcepts(question("Q9", "short_answer", "W01", "Single", ["Variabel"])),
+  [{ id: "Variabel", en: "Variabel" }],
+  "a question with one concept must expose its actual relation metadata",
+);
+assert.deepEqual(
+  getMaterialQuestionConcepts(
+    question("Q10", "short_answer", "W01", "Multiple", ["Variabel", "Ekspresi", "Operator"]),
+  ),
+  [
+    { id: "Variabel", en: "Variabel" },
+    { id: "Ekspresi", en: "Ekspresi" },
+    { id: "Operator", en: "Operator" },
+  ],
+  "a question with multiple concepts must expose every actual relation",
+);
 assert.deepEqual(
   filterMaterialQuestions(questions, { type: "all" }).map(({ type }) => type),
   questions.map(({ type }) => type),
@@ -92,6 +117,23 @@ assert.deepEqual(
   ["Q1", "Q2"],
   "filtered questions must not contain duplicate IDs",
 );
+assert.deepEqual(
+  intersectMaterialQuestionGroups([
+    [questions[0], questions[1], questions[2]],
+    [questions[1], questions[2], questions[3]],
+  ]).map(({ id }) => id),
+  ["Q2", "Q3"],
+  "two selected concept groups must use AND logic",
+);
+assert.deepEqual(
+  intersectMaterialQuestionGroups([
+    [questions[0], questions[1], questions[2], questions[2]],
+    [questions[1], questions[2], questions[3]],
+    [questions[2], questions[3], questions[4]],
+  ]).map(({ id }) => id),
+  ["Q3"],
+  "three selected concept groups must use AND logic without duplicate questions",
+);
 assert.deepEqual(filterMaterialQuestions(questions, { searchQuery: "tidak ada" }), []);
 assert.deepEqual(DEFAULT_MATERIAL_QUESTION_FILTERS, {
   searchQuery: "",
@@ -108,5 +150,14 @@ assert.deepEqual(
   filterMaterialQuestions(questionsWithoutWeeks, { week: "all" }),
   questionsWithoutWeeks,
 );
+
+assert.deepEqual(getMaterialPaginationItems(1, 1), [1]);
+assert.deepEqual(getMaterialPaginationItems(1, 41), [1, 2]);
+assert.deepEqual(getMaterialPaginationItems(2, 41), [1, 2]);
+assert.deepEqual(getMaterialPaginationItems(3, 41), [3, 4]);
+assert.deepEqual(getMaterialPaginationItems(4, 41), [3, 4]);
+assert.deepEqual(getMaterialPaginationItems(8, 41), [7, 8]);
+assert.deepEqual(getMaterialPaginationItems(20, 41), [19, 20]);
+assert.deepEqual(getMaterialPaginationItems(41, 41), [40, 41]);
 
 console.log("Material question filter self-check passed.");

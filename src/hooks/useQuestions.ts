@@ -6,6 +6,7 @@ import {
   getQuestionsByCategory,
   getQuestionsByIds,
 } from "../services/questionRepository";
+import { intersectMaterialQuestionGroups } from "../utils/materialQuestionFilters";
 import { useAsyncData } from "./useAsyncData";
 
 export function useQuestions(): { questions: Question[]; loading: boolean } {
@@ -22,6 +23,25 @@ export function useQuestionsByCategory(categoryId: string | undefined): {
     [categoryId],
     [],
   );
+  return { questions: data, loading };
+}
+
+export function useQuestionsByCategories(categoryIds: string[]): {
+  questions: Question[];
+  loading: boolean;
+} {
+  const key = categoryIds.join(",");
+  const { data, loading } = useAsyncData<Question[]>(
+    async () => {
+      if (categoryIds.length === 0) return getQuestions();
+
+      const groups = await Promise.all(categoryIds.map(getQuestionsByCategory));
+      return intersectMaterialQuestionGroups(groups);
+    },
+    [key],
+    [],
+  );
+
   return { questions: data, loading };
 }
 
