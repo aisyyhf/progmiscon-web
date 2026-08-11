@@ -39,6 +39,7 @@ export function MaterialBrowser({
   onToggleCategory,
   onResetCategories,
   questions,
+  totalQuestionCount,
   loading = false,
   answerCountByQuestionId,
   answersLoading = false,
@@ -49,6 +50,7 @@ export function MaterialBrowser({
   onToggleCategory: (categoryId: string) => void;
   onResetCategories: () => void;
   questions: Question[];
+  totalQuestionCount: number;
   loading?: boolean;
   answerCountByQuestionId: ReadonlyMap<string, number>;
   answersLoading?: boolean;
@@ -284,10 +286,10 @@ export function MaterialBrowser({
               {language === "id" ? "Katalog soal" : "Question catalog"}
             </p>
             <p className="relative mt-0.5 text-[1.35rem] font-extrabold leading-none tabular-nums">
-              {filteredQuestions.length}
+              {totalQuestionCount}
             </p>
             <p className="relative mt-1 text-[9px] text-white/80">
-              {language === "id" ? "Soal sesuai filter" : "Questions matching filters"}
+              {language === "id" ? "Total soal saat ini" : "Current total questions"}
             </p>
           </div>
         </aside>
@@ -420,30 +422,30 @@ export function MaterialBrowser({
                               </span>
                             </div>
 
-                            <h2 className="mt-2.5 line-clamp-2 text-[15px] font-extrabold leading-[1.25] text-navy-deep transition-colors group-hover:text-brand">
+                            <h2 className="mt-2 line-clamp-2 shrink-0 text-[15px] font-extrabold leading-[1.25] text-navy-deep transition-colors group-hover:text-brand">
                               {title}
                             </h2>
-                            <p className="mt-1.5 line-clamp-2 whitespace-pre-line text-[11px] leading-[1.5] text-muted">
+                            <p className="mt-1 line-clamp-2 shrink-0 whitespace-pre-line text-[11px] leading-[1.5] text-muted">
                               {prompt}
                             </p>
 
-                            <div className="mt-2.5 flex flex-wrap gap-1">
+                            <div className="mt-1.5 flex flex-wrap gap-x-1 gap-y-0.5">
                               {question.week && (
-                                <span className="rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.03em] text-navy-deep">
+                                <span className="rounded border border-border bg-neutral px-1.5 py-px text-[8.5px] font-bold uppercase tracking-[0.03em] text-navy-deep">
                                   {getMaterialWeekLabel(question.week)}
                                 </span>
                               )}
                               {questionConcepts.map((concept, conceptIndex) => (
                                 <span
                                   key={`${t(concept, language)}-${conceptIndex}`}
-                                  className="rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.03em] text-navy-deep"
+                                  className="rounded border border-border bg-neutral px-1.5 py-px text-[8.5px] font-bold uppercase tracking-[0.03em] text-navy-deep"
                                 >
                                   {t(concept, language).toUpperCase()}
                                 </span>
                               ))}
                             </div>
 
-                            <div className="mt-2.5 flex min-w-0 items-center gap-2 border-t border-border pt-2 text-[9px] font-semibold text-brand-deep">
+                            <div className="mt-1.5 flex min-w-0 items-center gap-2 border-t border-border pt-1.5 text-[9px] font-semibold text-brand-deep">
                               {visibleMisconceptionIds.length > 0 ? (
                                 <>
                                   {visibleMisconceptionIds.map((misconceptionId) => (
@@ -468,7 +470,7 @@ export function MaterialBrowser({
                               )}
                             </div>
 
-                            <div className="mt-auto flex items-center justify-between gap-3 pt-2 text-[10px]">
+                            <div className="mt-auto flex items-center justify-between gap-3 pt-1.5 text-[10px]">
                               <span className="inline-flex items-center gap-1.5 font-semibold tabular-nums text-navy-deep">
                                 <MessageSquareText size={12} strokeWidth={2} aria-hidden="true" />
                                 {answersLoading ? "..." : answerCount}{" "}

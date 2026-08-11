@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCategories } from "../hooks/useCategories";
-import { useQuestionsByCategories } from "../hooks/useQuestions";
+import { useQuestions, useQuestionsByCategories } from "../hooks/useQuestions";
 import { useAllStudentAnswers } from "../hooks/useStudentAnswers";
 import { MaterialBrowser } from "../components/browser/MaterialBrowser";
 
@@ -15,6 +15,7 @@ export function MateriPage() {
   );
 
   const { questions, loading } = useQuestionsByCategories(selectedCategoryIds);
+  const { questions: allQuestions, loading: allQuestionsLoading } = useQuestions();
   const { answers, loading: answersLoading } = useAllStudentAnswers();
   const answerCountByQuestionId = useMemo(() => {
     const counts = new Map<string, number>();
@@ -47,7 +48,8 @@ export function MateriPage() {
         onToggleCategory={handleToggleCategory}
         onResetCategories={() => updateSelectedCategories([])}
         questions={questions}
-        loading={loading}
+        totalQuestionCount={allQuestions.length}
+        loading={loading || allQuestionsLoading}
         answerCountByQuestionId={answerCountByQuestionId}
         answersLoading={answersLoading}
         onSelectQuestion={(questionId) => navigate(`/question/${questionId}`)}
