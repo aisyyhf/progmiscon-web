@@ -2313,7 +2313,7 @@ function QuestionValidationWorkspace({
           </section>
         </article>
 
-        <aside className="rounded-lg border border-border bg-white p-5 md:p-6 lg:sticky lg:top-24">
+        <aside className="rounded-lg border border-border bg-white p-5 md:p-6">
           {reviewedByMe ? (
             <SubmittedQuestionReview
               review={submittedReview}
@@ -2856,7 +2856,7 @@ function AnswerValidationWorkspace({
           </div>
         </article>
 
-        <aside className="rounded-lg border border-border bg-white p-5 md:p-6 lg:sticky lg:top-24">
+        <aside className="rounded-lg border border-border bg-white p-5 md:p-6">
           <p className="text-sm font-bold uppercase tracking-[0.04em] text-navy-deep">
             {language === "id"
               ? "REVIEW MISKONSEPSI JAWABAN"

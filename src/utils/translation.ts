@@ -5,7 +5,7 @@ export function t(text: LocalizedText, language: Language): string {
 }
 
 export const uiText = {
-  navHome: { id: "Home", en: "Home" },
+  navHome: { id: "Beranda", en: "Home" },
   navMateri: { id: "Soal", en: "Questions" },
   navUjian: { id: "Ujian", en: "Assessment" },
   navKonsep: { id: "Konsep", en: "Concepts" },

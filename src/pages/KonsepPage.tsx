@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowRight, Braces, Network } from "lucide-react";
+import { ArrowRight, Network } from "lucide-react";
 import { useCategories } from "../hooks/useCategories";
 import { useMisconceptions } from "../hooks/useMisconceptions";
 import { useQuestions } from "../hooks/useQuestions";
@@ -117,17 +117,12 @@ export function KonsepPage() {
   if (!conceptId) {
     return (
       <div className="mx-auto max-w-6xl">
-        <div className="mb-5 flex items-start gap-3.5">
-          <span className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand">
-            <Braces size={20} strokeWidth={2} aria-hidden="true" />
-          </span>
-          <div>
-            <h1 className="page-title">{t(uiText.konsepTitle, language)}</h1>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-muted">
+        <header className="mb-7 text-center">
+          <h1 className="page-title">{t(uiText.konsepTitle, language)}</h1>
+          <p className="mx-auto mt-2 max-w-2xl text-sm leading-6 text-muted">
             {t(uiText.konsepDescription, language)}
-            </p>
-          </div>
-        </div>
+          </p>
+        </header>
 
         <ul className="scroll-reveal grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {sortedConcepts.map((concept, index) => {

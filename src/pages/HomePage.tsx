@@ -29,19 +29,19 @@ export function HomePage() {
             {isIndonesian ? (
               <>
                 Yang terasa benar belum tentu{" "}
-                <span className="text-brand">tepat.</span>
+                <span className="text-brand">tepat</span>
               </>
             ) : (
               <>
                 What feels right is not always{" "}
-                <span className="text-brand">correct.</span>
+                <span className="text-brand">correct</span>
               </>
             )}
           </h1>
           <p className="mt-5 max-w-[58ch] text-[15px] leading-7 text-muted sm:text-base">
             {isIndonesian
-              ? "Progmiscon menunjukkan mengapa jawaban pemrograman bisa salah dan konsep yang sering disalahpahami."
-              : "Progmiscon shows why programming answers go wrong and which concepts students often misunderstand."}
+              ? "Progmiscon menunjukkan mengapa jawaban pemrograman bisa salah dan konsep yang sering disalahpahami"
+              : "Progmiscon shows why programming answers go wrong and which concepts students often misunderstand"}
           </p>
           <Link
             to="/miskonsepsi"
@@ -70,7 +70,7 @@ export function HomePage() {
       <section
         id="jelajahi"
         aria-labelledby="explore-title"
-        className="home-reveal relative left-1/2 mt-16 w-screen -translate-x-1/2 scroll-mt-24 bg-neutral/70 py-10 lg:mt-20 lg:py-12"
+        className="home-reveal -mx-4 mt-16 scroll-mt-24 bg-neutral/70 py-10 shadow-[0_0_0_100vmax_#f6f5f4b3] [clip-path:inset(0_-100vmax)] sm:-mx-6 lg:-mx-8 lg:mt-20 lg:py-12"
       >
         <div className="mx-auto max-w-6xl px-5 sm:px-6 lg:px-8">
           <header>
@@ -84,8 +84,8 @@ export function HomePage() {
             </h2>
             <p className="mt-3 max-w-[48ch] text-sm leading-6 text-muted sm:text-base">
               {isIndonesian
-                ? "Pilih bagian yang sesuai dengan kebutuhan belajar atau mengajar."
-                : "Choose the section that fits the learning or teaching need."}
+                ? "Pilih bagian yang sesuai dengan kebutuhan belajar atau mengajar"
+                : "Choose the section that fits the learning or teaching need"}
             </p>
           </header>
 
@@ -109,8 +109,8 @@ export function HomePage() {
               <span aria-hidden="true" className="mt-2 block h-0.5 w-12 bg-brand" />
               <p className="mt-4 max-w-[29ch] text-sm leading-6 text-muted">
                 {isIndonesian
-                  ? "Topik, soal, dan jawaban mahasiswa."
-                  : "Topics, questions, and student answers."}
+                  ? "Topik, soal, dan jawaban mahasiswa"
+                  : "Topics, questions, and student answers"}
               </p>
               <span className="mt-auto flex items-end justify-between gap-5 pt-8">
                 <span className="flex items-center gap-2 text-sm font-bold text-brand-deep">
@@ -145,8 +145,8 @@ export function HomePage() {
               <span aria-hidden="true" className="mt-2 block h-0.5 w-12 bg-brand" />
               <p className="mt-4 max-w-[29ch] text-sm leading-6 text-muted">
                 {isIndonesian
-                  ? "Penjelasan dasar pemrograman."
-                  : "Programming fundamentals explained."}
+                  ? "Penjelasan dasar pemrograman"
+                  : "Programming fundamentals explained"}
               </p>
               <span className="mt-auto flex items-center gap-2 pt-8 text-sm font-bold text-brand-deep">
                 {isIndonesian ? "Buka" : "Open"}
@@ -175,8 +175,8 @@ export function HomePage() {
               <span aria-hidden="true" className="mt-2 block h-0.5 w-12 bg-brand" />
               <p className="mt-4 max-w-[29ch] text-sm leading-6 text-muted">
                 {isIndonesian
-                  ? "Pola kesalahan yang sering muncul."
-                  : "Error patterns that often appear."}
+                  ? "Pola kesalahan yang sering muncul"
+                  : "Error patterns that often appear"}
               </p>
               <span className="mt-auto flex items-end justify-between gap-5 pt-8">
                 <span className="flex items-center gap-2 text-sm font-bold text-brand-deep">
@@ -222,8 +222,8 @@ export function HomePage() {
             className="text-balance text-3xl font-extrabold tracking-[-0.03em] text-navy-deep sm:text-4xl"
           >
             {isIndonesian
-              ? "Untuk mahasiswa dan dosen."
-              : "For students and lecturers."}
+              ? "Untuk mahasiswa dan dosen"
+              : "For students and lecturers"}
           </h2>
 
           <div className="mt-6 grid gap-5 border-t border-border pt-6 sm:grid-cols-2">
@@ -236,8 +236,8 @@ export function HomePage() {
               </h3>
               <p className="mt-1 text-sm leading-6 text-muted">
                 {isIndonesian
-                  ? "Pahami alasan sebuah jawaban bisa salah, bukan hanya mana yang benar."
-                  : "Understand why your answer can be wrong, not only which answer is correct."}
+                  ? "Pahami alasan sebuah jawaban bisa salah, bukan hanya mana yang benar"
+                  : "Understand why your answer can be wrong, not only which answer is correct"}
               </p>
             </div>
 
@@ -250,8 +250,8 @@ export function HomePage() {
               </h3>
               <p className="mt-1 text-sm leading-6 text-muted">
                 {isIndonesian
-                  ? "Periksa label miskonsepsi dan jawaban anonim di Review."
-                  : "Check misconception labels and anonymous answers in Review."}
+                  ? "Periksa label miskonsepsi dan jawaban anonim di Review"
+                  : "Check misconception labels and anonymous answers in Review"}
               </p>
               <Link
                 to={isLecturer ? "/review" : "/dosen/login"}
@@ -290,13 +290,13 @@ export function HomePage() {
           <span aria-hidden="true" className="mb-6 block h-1.5 w-16 bg-brand" />
           <h2 className="max-w-xl text-balance text-3xl font-extrabold tracking-[-0.03em] text-navy-deep sm:text-4xl">
             {isIndonesian
-              ? "Mulai dari materi yang sudah dikenal."
-              : "Start with a topic you know."}
+              ? "Mulai dari materi yang sudah dikenal"
+              : "Start with a topic you know"}
           </h2>
           <p className="mt-3 max-w-[50ch] text-pretty text-sm leading-6 text-muted">
             {isIndonesian
-              ? "Pilih materi, buka satu soal, lalu lihat konsep dan miskonsepsi di balik jawabannya."
-              : "Choose a topic, open a question, then see the concepts and misconceptions behind its answers."}
+              ? "Pilih materi, buka satu soal, lalu lihat konsep dan miskonsepsi di balik jawabannya"
+              : "Choose a topic, open a question, then see the concepts and misconceptions behind its answers"}
           </p>
           <Link
             to="/materi"
