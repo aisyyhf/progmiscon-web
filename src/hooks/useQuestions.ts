@@ -6,6 +6,7 @@ import {
   getQuestionsByCategory,
   getQuestionsByIds,
 } from "../services/questionRepository";
+import { intersectMaterialQuestionGroups } from "../utils/materialQuestionFilters";
 import { useAsyncData } from "./useAsyncData";
 
 export function useQuestions(): { questions: Question[]; loading: boolean } {
@@ -35,7 +36,7 @@ export function useQuestionsByCategories(categoryIds: string[]): {
       if (categoryIds.length === 0) return getQuestions();
 
       const groups = await Promise.all(categoryIds.map(getQuestionsByCategory));
-      return [...new Map(groups.flat().map((question) => [question.id, question])).values()];
+      return intersectMaterialQuestionGroups(groups);
     },
     [key],
     [],

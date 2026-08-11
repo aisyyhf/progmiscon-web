@@ -126,8 +126,8 @@ export function MaterialBrowser({
             filtersOpen ? "block" : "hidden lg:block",
           )}
         >
-          <div className="rounded-xl border border-border bg-neutral/65 p-3.5">
-            <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
+          <div className="rounded-xl border border-border bg-neutral/65 p-3">
+            <div className="flex items-center justify-between gap-3">
               <h2 className="text-base font-extrabold tracking-tight text-navy-deep">
                 {language === "id" ? "Filter" : "Filters"}
               </h2>
@@ -141,7 +141,7 @@ export function MaterialBrowser({
               </button>
             </div>
 
-            <div className="mt-3 space-y-3">
+            <div className="mt-2.5 space-y-2.5">
               <label className="block">
                 <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.08em] text-navy-deep">
                   {language === "id" ? "Cari soal" : "Search questions"}
@@ -161,7 +161,7 @@ export function MaterialBrowser({
                       setCurrentPage(1);
                     }}
                     placeholder={language === "id" ? "ID atau nomor soal" : "Question ID or number"}
-                    className="academic-input h-9 min-w-0 pl-8 pr-2.5 text-[11px] placeholder:text-muted/70"
+                    className="academic-input h-8 min-w-0 pl-8 pr-2.5 text-[11px] placeholder:text-muted/70"
                   />
                 </span>
               </label>
@@ -180,7 +180,7 @@ export function MaterialBrowser({
                         onClick={() => onToggleCategory(category.id)}
                         aria-pressed={active}
                         className={cn(
-                          "group flex min-h-6 cursor-pointer items-center gap-2 rounded px-1 py-0 text-left text-[10.5px] font-medium transition-colors active:translate-y-0",
+                          "group flex min-h-5 cursor-pointer items-center gap-2 rounded px-1 py-0 text-left text-[10.5px] font-medium transition-colors active:translate-y-0",
                           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                           active ? "text-brand" : "text-muted hover:bg-white hover:text-navy-deep",
                         )}
@@ -213,7 +213,7 @@ export function MaterialBrowser({
                     setWeekFilter(event.target.value);
                     setCurrentPage(1);
                   }}
-                  className="academic-input h-9 min-w-0 cursor-pointer px-2.5 text-[11px]"
+                  className="academic-input h-8 min-w-0 cursor-pointer px-2.5 text-[11px]"
                 >
                   <option value="all">{language === "id" ? "Semua minggu" : "All weeks"}</option>
                   {weekOptions.map((week) => (
@@ -244,7 +244,7 @@ export function MaterialBrowser({
                       }}
                       aria-pressed={typeFilter === value}
                       className={cn(
-                        "min-h-8 cursor-pointer rounded-md border px-1.5 py-1 text-[10px] font-semibold transition-colors active:translate-y-0",
+                        "min-h-7 cursor-pointer rounded-md border px-1.5 py-1 text-[10px] font-semibold transition-colors active:translate-y-0",
                         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                         typeFilter === value
                           ? "border-brand bg-brand-soft text-brand-deep"
@@ -285,23 +285,16 @@ export function MaterialBrowser({
         </aside>
 
         <section className="min-w-0" aria-labelledby="question-catalog-title">
-          <header className="flex items-start justify-between gap-4 pb-3">
-            <div>
-              <h1
-                id="question-catalog-title"
-                className="text-[1.75rem] font-extrabold leading-none tracking-[-0.035em] text-navy-deep sm:text-[1.875rem]"
-              >
-                {language === "id" ? "Katalog Soal" : "Question Catalog"}
-              </h1>
-              <p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted">
-                {language === "id"
-                  ? "Jelajahi soal berdasarkan konsep, minggu, dan pola miskonsepsi"
-                  : "Explore questions by concept, week, and misconception pattern"}
-              </p>
-            </div>
+          <header className="flex items-center justify-between gap-4 pb-2.5">
+            <h1
+              id="question-catalog-title"
+              className="text-[1.75rem] font-extrabold leading-none tracking-[-0.035em] text-navy-deep sm:text-[1.875rem]"
+            >
+              {language === "id" ? "Katalog Soal" : "Question Catalog"}
+            </h1>
 
             <div
-              className="mt-1 flex shrink-0 rounded-md border border-border bg-white p-0.5"
+              className="flex shrink-0 rounded-md border border-border bg-white p-0.5"
               role="group"
               aria-label={language === "id" ? "Tampilan katalog" : "Catalog view"}
             >
@@ -388,117 +381,152 @@ export function MaterialBrowser({
                         data-question-id={question.id}
                         onClick={() => onSelectQuestion(question.id)}
                         className={cn(
-                          "group w-full cursor-pointer rounded-lg border border-border bg-white p-3.5 text-left transition-[border-color,box-shadow] active:translate-y-0 hover:border-brand/35 hover:shadow-[0_9px_22px_rgba(143,28,32,0.06)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                          "group w-full cursor-pointer rounded-lg border border-border bg-white text-left transition-[border-color,box-shadow] active:translate-y-0 hover:border-brand/35 hover:shadow-[0_9px_22px_rgba(143,28,32,0.06)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                           viewMode === "grid"
-                            ? "flex h-[12.75rem] flex-col"
-                            : "flex min-h-[10rem] flex-col md:grid md:h-28 md:min-h-0 md:grid-cols-[minmax(0,1fr)_14rem] md:grid-rows-[auto_auto_1fr] md:gap-x-4",
+                            ? "flex h-[12.75rem] flex-col p-3.5"
+                            : "min-h-[9.5rem] p-3 sm:min-h-[7.5rem] md:h-[4.75rem] md:min-h-0",
                         )}
                       >
-                        <div
-                          className={cn(
-                            "flex items-center justify-between gap-3",
-                            viewMode === "list" && "md:col-start-1 md:row-start-1",
-                          )}
-                        >
-                          <span className="max-w-[65%] truncate rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold tabular-nums text-navy-deep">
-                            {questionIdentifier}
-                          </span>
-                          <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-0.5 text-[8.5px] font-bold uppercase tracking-[0.04em] text-brand-deep">
-                            {questionTypeLabel}
-                          </span>
-                        </div>
+                        {viewMode === "grid" ? (
+                          <>
+                            <div className="flex items-center justify-between gap-3">
+                              <span className="max-w-[65%] truncate rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold tabular-nums text-navy-deep">
+                                {questionIdentifier}
+                              </span>
+                              <span
+                                className={cn(
+                                  "shrink-0 rounded-full px-2.5 py-0.5 text-[8.5px] font-bold uppercase tracking-[0.04em]",
+                                  questionType === "ps"
+                                    ? "bg-brand-soft text-brand-deep"
+                                    : "bg-[#f2eee7] text-[#76502f]",
+                                )}
+                              >
+                                {questionTypeLabel}
+                              </span>
+                            </div>
 
-                        <h2
-                          className={cn(
-                            "mt-2.5 text-[15px] font-extrabold leading-[1.25] text-navy-deep transition-colors group-hover:text-brand",
-                            viewMode === "grid"
-                              ? "line-clamp-2"
-                              : "line-clamp-1 md:col-start-1 md:row-start-2",
-                          )}
-                        >
-                          {title}
-                        </h2>
-                        <p
-                          className={cn(
-                            "mt-1.5 whitespace-pre-line text-[11px] leading-[1.5] text-muted",
-                            viewMode === "grid"
-                              ? "line-clamp-2"
-                              : "line-clamp-1 md:col-start-1 md:row-start-3",
-                          )}
-                        >
-                          {prompt}
-                        </p>
+                            <h2 className="mt-2.5 line-clamp-2 text-[15px] font-extrabold leading-[1.25] text-navy-deep transition-colors group-hover:text-brand">
+                              {title}
+                            </h2>
+                            <p className="mt-1.5 line-clamp-2 whitespace-pre-line text-[11px] leading-[1.5] text-muted">
+                              {prompt}
+                            </p>
 
-                        <div
-                          className={cn(
-                            "flex gap-1",
-                            viewMode === "grid"
-                              ? "mt-2.5 flex-nowrap"
-                              : "mt-2 flex-wrap md:col-start-2 md:row-start-1 md:mt-0 md:flex-nowrap md:justify-end md:self-start",
-                          )}
-                        >
-                          {question.week && (
-                            <span className="rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.03em] text-navy-deep">
-                              {getMaterialWeekLabel(question.week)}
-                            </span>
-                          )}
-                          {questionCategory && (
-                            <span className="max-w-full truncate rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.03em] text-navy-deep">
-                              {t(questionCategory.name, language).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
-
-                        <div
-                          className={cn(
-                            "flex min-w-0 items-center gap-2 text-[9px] font-semibold text-brand-deep",
-                            viewMode === "grid"
-                              ? "mt-2.5 border-t border-border pt-2"
-                              : "mt-2 border-t border-border pt-2 md:col-start-2 md:row-start-2 md:mt-1 md:border-l md:border-t-0 md:pl-3 md:pt-0",
-                          )}
-                        >
-                          {visibleMisconceptionIds.length > 0 ? (
-                            <>
-                              {visibleMisconceptionIds.map((misconceptionId) => (
-                                <span
-                                  key={misconceptionId}
-                                  className="inline-flex min-w-0 items-center gap-1"
-                                >
-                                  <TriangleAlert size={10} strokeWidth={2} aria-hidden="true" />
-                                  <span className="max-w-24 truncate uppercase">
-                                    {misconceptionId}
-                                  </span>
+                            <div className="mt-2.5 flex flex-nowrap gap-1">
+                              {question.week && (
+                                <span className="rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.03em] text-navy-deep">
+                                  {getMaterialWeekLabel(question.week)}
                                 </span>
-                              ))}
-                              {hiddenMisconceptionCount > 0 && (
-                                <span className="shrink-0 tabular-nums">+{hiddenMisconceptionCount}</span>
                               )}
-                            </>
-                          ) : (
-                            <span>
-                              {language === "id" ? "0 miskonsepsi" : "0 misconceptions"}
-                            </span>
-                          )}
-                        </div>
+                              {questionCategory && (
+                                <span className="max-w-full truncate rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.03em] text-navy-deep">
+                                  {t(questionCategory.name, language).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
 
-                        <div
-                          className={cn(
-                            "flex items-center justify-between gap-3 text-[10px]",
-                            viewMode === "grid"
-                              ? "mt-auto border-t border-border pt-2.5"
-                              : "mt-auto border-t border-border pt-2.5 md:col-start-2 md:row-start-3 md:mt-0 md:border-l md:border-t-0 md:pl-3 md:pt-0",
-                          )}
-                        >
-                          <span className="inline-flex items-center gap-1.5 font-semibold tabular-nums text-navy-deep">
-                            <MessageSquareText size={12} strokeWidth={2} aria-hidden="true" />
-                            {answersLoading ? "..." : answerCount}{" "}
-                            {language === "id" ? "jawaban" : "answers"}
-                          </span>
-                          <span className="inline-flex shrink-0 items-center gap-1 font-bold text-brand">
-                            {language === "id" ? "Lihat soal" : "View question"}
-                            <ArrowRight size={12} strokeWidth={2} aria-hidden="true" />
-                          </span>
-                        </div>
+                            <div className="mt-2.5 flex min-w-0 items-center gap-2 border-t border-border pt-2 text-[9px] font-semibold text-brand-deep">
+                              {visibleMisconceptionIds.length > 0 ? (
+                                <>
+                                  {visibleMisconceptionIds.map((misconceptionId) => (
+                                    <span
+                                      key={misconceptionId}
+                                      className="inline-flex min-w-0 items-center gap-1"
+                                    >
+                                      <TriangleAlert size={10} strokeWidth={2} aria-hidden="true" />
+                                      <span className="max-w-24 truncate uppercase">
+                                        {misconceptionId}
+                                      </span>
+                                    </span>
+                                  ))}
+                                  {hiddenMisconceptionCount > 0 && (
+                                    <span className="shrink-0 tabular-nums">+{hiddenMisconceptionCount}</span>
+                                  )}
+                                </>
+                              ) : (
+                                <span>
+                                  {language === "id" ? "0 miskonsepsi" : "0 misconceptions"}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="mt-auto flex items-center justify-between gap-3 pt-2 text-[10px]">
+                              <span className="inline-flex items-center gap-1.5 font-semibold tabular-nums text-navy-deep">
+                                <MessageSquareText size={12} strokeWidth={2} aria-hidden="true" />
+                                {answersLoading ? "..." : answerCount}{" "}
+                                {language === "id" ? "jawaban" : "answers"}
+                              </span>
+                              <span className="inline-flex shrink-0 items-center gap-1 font-bold text-brand">
+                                {language === "id" ? "Lihat soal" : "View question"}
+                                <ArrowRight size={12} strokeWidth={2} aria-hidden="true" />
+                              </span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="grid w-full min-w-0 gap-3 sm:grid-cols-[5rem_minmax(0,1fr)] sm:items-center md:grid-cols-[5rem_minmax(0,1fr)_auto] md:gap-4">
+                            <div className="flex min-w-0 items-center gap-2 sm:flex-col sm:items-start sm:gap-1">
+                              <span className="max-w-full truncate rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold tabular-nums text-navy-deep">
+                                {questionIdentifier}
+                              </span>
+                              <span
+                                className={cn(
+                                  "max-w-full truncate rounded px-2 py-0.5 text-[8px] font-bold uppercase tracking-[0.04em]",
+                                  questionType === "ps"
+                                    ? "bg-brand-soft text-brand-deep"
+                                    : "bg-[#f2eee7] text-[#76502f]",
+                                )}
+                              >
+                                {questionTypeLabel}
+                              </span>
+                            </div>
+
+                            <div className="min-w-0">
+                              <h2 className="line-clamp-1 text-[13px] font-extrabold leading-tight text-navy-deep transition-colors group-hover:text-brand">
+                                {title}
+                              </h2>
+                              <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[8.5px] font-bold uppercase tracking-[0.025em] text-navy-deep">
+                                {question.week && <span>{getMaterialWeekLabel(question.week)}</span>}
+                                {questionCategory && (
+                                  <span className="max-w-28 truncate">
+                                    {t(questionCategory.name, language).toUpperCase()}
+                                  </span>
+                                )}
+                                {visibleMisconceptionIds.length > 0 ? (
+                                  <span className="inline-flex min-w-0 items-center gap-2 text-brand-deep">
+                                    {visibleMisconceptionIds.map((misconceptionId) => (
+                                      <span
+                                        key={misconceptionId}
+                                        className="inline-flex min-w-0 items-center gap-1"
+                                      >
+                                        <TriangleAlert size={9} strokeWidth={2} aria-hidden="true" />
+                                        <span className="max-w-20 truncate">{misconceptionId}</span>
+                                      </span>
+                                    ))}
+                                    {hiddenMisconceptionCount > 0 && (
+                                      <span className="shrink-0 tabular-nums">+{hiddenMisconceptionCount}</span>
+                                    )}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted">
+                                    {language === "id" ? "0 miskonsepsi" : "0 misconceptions"}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-4 sm:col-span-2 md:col-span-1 md:min-w-[16.5rem] md:justify-end">
+                              <span className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-semibold tabular-nums text-navy-deep">
+                                <MessageSquareText size={13} strokeWidth={2} aria-hidden="true" />
+                                {answersLoading ? "..." : answerCount}{" "}
+                                {language === "id" ? "jawaban" : "answers"}
+                              </span>
+                              <span className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-bold text-brand">
+                                {language === "id" ? "Lihat" : "View"}
+                                <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
+                              </span>
+                            </div>
+                          </div>
+                        )}
                       </button>
                     </li>
                   );

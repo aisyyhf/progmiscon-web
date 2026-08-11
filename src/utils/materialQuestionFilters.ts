@@ -23,6 +23,19 @@ export function getMaterialWeekLabel(week: string): string {
   return `WEEK ${week.replace(/^W/i, "")}`;
 }
 
+export function intersectMaterialQuestionGroups(groups: Question[][]): Question[] {
+  if (groups.length === 0) return [];
+
+  const remainingGroupIds = groups.slice(1).map((group) => new Set(group.map(({ id }) => id)));
+  const seenQuestionIds = new Set<string>();
+
+  return groups[0].filter(({ id }) => {
+    if (seenQuestionIds.has(id) || !remainingGroupIds.every((ids) => ids.has(id))) return false;
+    seenQuestionIds.add(id);
+    return true;
+  });
+}
+
 function weekSortKey(week: string): [number, number, string] {
   const match = /^W(\d+)(?:-(\d+))?$/i.exec(week);
   if (!match) return [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, week];

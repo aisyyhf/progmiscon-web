@@ -7,6 +7,7 @@ import {
   getMaterialQuestionType,
   getMaterialWeekLabel,
   getMaterialWeekOptions,
+  intersectMaterialQuestionGroups,
 } from "../src/utils/materialQuestionFilters.ts";
 
 function question(id, type, week, prompt = id) {
@@ -98,6 +99,15 @@ assert.deepEqual(
   filteredWithoutDuplicates.map(({ id }) => id),
   ["Q1", "Q2"],
   "filtered questions must not contain duplicate IDs",
+);
+assert.deepEqual(
+  intersectMaterialQuestionGroups([
+    [questions[0], questions[1], questions[2], questions[2]],
+    [questions[1], questions[2], questions[3]],
+    [questions[2], questions[3], questions[4]],
+  ]).map(({ id }) => id),
+  ["Q3"],
+  "multiple concept groups must use AND logic without duplicate questions",
 );
 assert.deepEqual(filterMaterialQuestions(questions, { searchQuery: "tidak ada" }), []);
 assert.deepEqual(DEFAULT_MATERIAL_QUESTION_FILTERS, {
