@@ -64,16 +64,12 @@ export function getMaterialWeekOptions(questions: Question[]): string[] {
 export function getMaterialPaginationItems(
   currentPage: number,
   totalPages: number,
-): Array<number | "ellipsis"> {
-  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, index) => index + 1);
+): number[] {
+  if (totalPages <= 1) return totalPages === 1 ? [1] : [];
 
-  const pages = [...new Set([1, currentPage - 1, currentPage, currentPage + 1, totalPages])]
-    .filter((page) => page >= 1 && page <= totalPages)
-    .sort((left, right) => left - right);
-
-  return pages.flatMap((page, index) =>
-    index > 0 && page - pages[index - 1] > 1 ? ["ellipsis", page] : [page],
-  );
+  const pairStart = Math.floor((currentPage - 1) / 2) * 2 + 1;
+  const stableStart = pairStart === totalPages ? totalPages - 1 : pairStart;
+  return [stableStart, stableStart + 1].filter((page) => page <= totalPages);
 }
 
 export function filterMaterialQuestions(

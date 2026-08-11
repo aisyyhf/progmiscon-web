@@ -19,6 +19,7 @@ import { EmptyState } from "../common/EmptyState";
 import {
   ArrowRight,
   Check,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Grid2X2,
@@ -85,6 +86,8 @@ export function MaterialBrowser({
   const rangeEnd = Math.min(page * pageSize, filteredQuestions.length);
   const visibleQuestions = filteredQuestions.slice(rangeStart - 1, rangeEnd);
   const paginationItems = getMaterialPaginationItems(page, totalPages);
+  const firstPaginationPage = paginationItems[0] ?? 1;
+  const lastPaginationPage = paginationItems.at(-1) ?? totalPages;
   const hasActiveFilters =
     Boolean(searchQuery.trim()) ||
     typeFilter !== "all" ||
@@ -121,10 +124,7 @@ export function MaterialBrowser({
       <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
         <aside
           id="question-catalog-filters"
-          className={cn(
-            "lg:sticky lg:top-20",
-            filtersOpen ? "block" : "hidden lg:block",
-          )}
+          className={filtersOpen ? "block" : "hidden lg:block"}
         >
           <div className="rounded-xl border border-border bg-neutral/65 p-3">
             <div className="flex items-center justify-between gap-3">
@@ -207,26 +207,34 @@ export function MaterialBrowser({
                 <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.08em] text-navy-deep">
                   {language === "id" ? "Minggu" : "Week"}
                 </span>
-                <select
-                  value={weekFilter}
-                  onChange={(event) => {
-                    setWeekFilter(event.target.value);
-                    setCurrentPage(1);
-                  }}
-                  className="academic-input h-8 min-w-0 cursor-pointer px-2.5 text-[11px]"
-                >
-                  <option value="all">{language === "id" ? "Semua minggu" : "All weeks"}</option>
-                  {weekOptions.map((week) => (
-                    <option key={week} value={week}>
-                      {week}
-                    </option>
-                  ))}
-                  {hasUnassignedWeek && (
-                    <option value="unassigned">
-                      {language === "id" ? "Belum ditentukan" : "Unassigned"}
-                    </option>
-                  )}
-                </select>
+                <span className="relative block">
+                  <select
+                    value={weekFilter}
+                    onChange={(event) => {
+                      setWeekFilter(event.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="academic-input h-8 min-w-0 cursor-pointer appearance-none rounded-md pl-2.5 pr-8 text-[11px] leading-none"
+                  >
+                    <option value="all">{language === "id" ? "Semua minggu" : "All weeks"}</option>
+                    {weekOptions.map((week) => (
+                      <option key={week} value={week}>
+                        {week}
+                      </option>
+                    ))}
+                    {hasUnassignedWeek && (
+                      <option value="unassigned">
+                        {language === "id" ? "Belum ditentukan" : "Unassigned"}
+                      </option>
+                    )}
+                  </select>
+                  <ChevronDown
+                    size={13}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                    className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-muted"
+                  />
+                </span>
               </label>
 
               <fieldset>
@@ -265,7 +273,7 @@ export function MaterialBrowser({
             </div>
           </div>
 
-          <div className="relative mt-2.5 overflow-hidden rounded-xl bg-brand-deep px-3 py-2.5 text-white shadow-[0_8px_20px_rgba(143,28,32,0.14)]">
+          <div className="relative mt-2.5 flex min-h-[6.75rem] flex-col justify-center overflow-hidden rounded-xl bg-brand-deep px-3 py-3 text-white shadow-[0_8px_20px_rgba(143,28,32,0.14)]">
             <HelpCircle
               size={54}
               strokeWidth={1.5}
@@ -560,7 +568,7 @@ export function MaterialBrowser({
                 {totalPages > 1 && (
                   <nav
                     aria-label={language === "id" ? "Paginasi soal" : "Question pagination"}
-                    className="flex w-80 max-w-full items-center justify-end gap-1"
+                    className="grid w-[13.25rem] max-w-full grid-cols-6 items-center gap-1"
                   >
                     <button
                       type="button"
@@ -573,30 +581,46 @@ export function MaterialBrowser({
                       <ChevronLeft size={16} strokeWidth={2} aria-hidden="true" />
                     </button>
 
-                    {paginationItems.map((item, index) =>
-                      item === "ellipsis" ? (
-                        <span key={`ellipsis-${index}`} className="grid size-8 place-items-center text-xs text-muted">
-                          ...
-                        </span>
-                      ) : (
-                        <button
-                          key={item}
-                          type="button"
-                          onClick={() => setCurrentPage(item)}
-                          aria-current={item === page ? "page" : undefined}
-                          aria-label={`${language === "id" ? "Halaman" : "Page"} ${item}`}
-                          style={{ transform: "none" }}
-                          className={cn(
-                            "grid size-8 cursor-pointer place-items-center rounded-md text-[11px] font-bold tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-                            item === page
-                              ? "bg-brand text-white shadow-[0_4px_10px_rgba(143,28,32,0.18)]"
-                              : "text-muted hover:bg-neutral hover:text-navy-deep",
-                          )}
-                        >
-                          {item}
-                        </button>
-                      ),
-                    )}
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "grid size-8 place-items-center text-xs text-muted",
+                        firstPaginationPage === 1 && "invisible",
+                      )}
+                    >
+                      ...
+                    </span>
+
+                    {paginationItems.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setCurrentPage(item)}
+                        aria-current={item === page ? "page" : undefined}
+                        aria-label={`${language === "id" ? "Halaman" : "Page"} ${item}`}
+                        style={{ transform: "none" }}
+                        className={cn(
+                          "grid size-8 cursor-pointer place-items-center rounded-md text-[11px] font-bold tabular-nums focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                          item === page
+                            ? "bg-brand text-white shadow-[0_4px_10px_rgba(143,28,32,0.18)]"
+                            : "text-muted hover:bg-neutral hover:text-navy-deep",
+                        )}
+                      >
+                        {item}
+                      </button>
+                    ))}
+
+                    {paginationItems.length < 2 && <span aria-hidden="true" className="size-8" />}
+
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "grid size-8 place-items-center text-xs text-muted",
+                        lastPaginationPage === totalPages && "invisible",
+                      )}
+                    >
+                      ...
+                    </span>
 
                     <button
                       type="button"
