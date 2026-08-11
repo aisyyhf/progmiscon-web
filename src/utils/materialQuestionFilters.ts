@@ -15,6 +15,14 @@ export function getMaterialQuestionType(
   return type === "multiple_choice" ? "mp" : "ps";
 }
 
+export function getMaterialQuestionIdentifier(question: Question): string {
+  return question.sourceCode?.trim() || question.id;
+}
+
+export function getMaterialWeekLabel(week: string): string {
+  return `WEEK ${week.replace(/^W/i, "")}`;
+}
+
 function weekSortKey(week: string): [number, number, string] {
   const match = /^W(\d+)(?:-(\d+))?$/i.exec(week);
   if (!match) return [Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, week];

@@ -7,7 +7,9 @@ import {
   DEFAULT_MATERIAL_QUESTION_FILTERS,
   filterMaterialQuestions,
   getMaterialPaginationItems,
+  getMaterialQuestionIdentifier,
   getMaterialQuestionType,
+  getMaterialWeekLabel,
   getMaterialWeekOptions,
   type MaterialQuestionTypeFilter,
   type MaterialWeekFilter,
@@ -21,7 +23,9 @@ import {
   Grid2X2,
   HelpCircle,
   List,
+  MessageSquareText,
   Search,
+  TriangleAlert,
 } from "lucide-react";
 
 const PAGE_SIZE = 4;
@@ -33,6 +37,8 @@ export function MaterialBrowser({
   onResetCategories,
   questions,
   loading = false,
+  answerCountByQuestionId,
+  answersLoading = false,
   onSelectQuestion,
 }: {
   categories: Category[];
@@ -41,6 +47,8 @@ export function MaterialBrowser({
   onResetCategories: () => void;
   questions: Question[];
   loading?: boolean;
+  answerCountByQuestionId: ReadonlyMap<string, number>;
+  answersLoading?: boolean;
   onSelectQuestion: (questionId: string) => void;
 }) {
   const { language } = useLanguage();
@@ -81,8 +89,7 @@ export function MaterialBrowser({
     Boolean(searchQuery.trim()) ||
     typeFilter !== "all" ||
     weekFilter !== "all" ||
-    selectedCategoryIds.length !== 1 ||
-    selectedCategoryIds[0] !== categories[0]?.id;
+    selectedCategoryIds.length > 0;
 
   const resetFilters = () => {
     setSearchQuery(DEFAULT_MATERIAL_QUESTION_FILTERS.searchQuery);
@@ -111,7 +118,7 @@ export function MaterialBrowser({
         </span>
       </button>
 
-      <div className="grid gap-4 lg:grid-cols-[15rem_minmax(0,1fr)] lg:items-start">
+      <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)] lg:items-start">
         <aside
           id="question-catalog-filters"
           className={cn(
@@ -119,7 +126,7 @@ export function MaterialBrowser({
             filtersOpen ? "block" : "hidden lg:block",
           )}
         >
-          <div className="rounded-xl border border-border bg-neutral/65 p-3">
+          <div className="rounded-xl border border-border bg-neutral/65 p-3.5">
             <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
               <h2 className="text-base font-extrabold tracking-tight text-navy-deep">
                 {language === "id" ? "Filter" : "Filters"}
@@ -134,7 +141,7 @@ export function MaterialBrowser({
               </button>
             </div>
 
-            <div className="mt-2.5 space-y-2.5">
+            <div className="mt-3 space-y-3">
               <label className="block">
                 <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.08em] text-navy-deep">
                   {language === "id" ? "Cari soal" : "Search questions"}
@@ -154,7 +161,7 @@ export function MaterialBrowser({
                       setCurrentPage(1);
                     }}
                     placeholder={language === "id" ? "ID atau nomor soal" : "Question ID or number"}
-                    className="academic-input h-8 min-w-0 pl-8 pr-2.5 text-[11px] placeholder:text-muted/70"
+                    className="academic-input h-9 min-w-0 pl-8 pr-2.5 text-[11px] placeholder:text-muted/70"
                   />
                 </span>
               </label>
@@ -173,7 +180,7 @@ export function MaterialBrowser({
                         onClick={() => onToggleCategory(category.id)}
                         aria-pressed={active}
                         className={cn(
-                          "group flex min-h-[1.35rem] cursor-pointer items-center gap-2 rounded px-1 py-0 text-left text-[10.5px] font-medium transition-colors active:translate-y-0",
+                          "group flex min-h-6 cursor-pointer items-center gap-2 rounded px-1 py-0 text-left text-[10.5px] font-medium transition-colors active:translate-y-0",
                           "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                           active ? "text-brand" : "text-muted hover:bg-white hover:text-navy-deep",
                         )}
@@ -206,7 +213,7 @@ export function MaterialBrowser({
                     setWeekFilter(event.target.value);
                     setCurrentPage(1);
                   }}
-                  className="academic-input h-8 min-w-0 cursor-pointer px-2.5 text-[11px]"
+                  className="academic-input h-9 min-w-0 cursor-pointer px-2.5 text-[11px]"
                 >
                   <option value="all">{language === "id" ? "Semua minggu" : "All weeks"}</option>
                   {weekOptions.map((week) => (
@@ -226,25 +233,31 @@ export function MaterialBrowser({
                 <legend className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-navy-deep">
                   {language === "id" ? "Jenis soal" : "Question type"}
                 </legend>
-                <div className="grid grid-cols-3 gap-1">
-                  {(["all", "ps", "mp"] as const).map((value) => (
+                <div className="grid grid-cols-2 gap-1.5">
+                  {(["ps", "mp"] as const).map((value) => (
                     <button
                       key={value}
                       type="button"
                       onClick={() => {
-                        setTypeFilter(value);
+                        setTypeFilter((current) => (current === value ? "all" : value));
                         setCurrentPage(1);
                       }}
                       aria-pressed={typeFilter === value}
                       className={cn(
-                        "min-h-7 cursor-pointer rounded-md border px-1 py-0.5 text-[10px] font-semibold transition-colors active:translate-y-0",
+                        "min-h-8 cursor-pointer rounded-md border px-1.5 py-1 text-[10px] font-semibold transition-colors active:translate-y-0",
                         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                         typeFilter === value
                           ? "border-brand bg-brand-soft text-brand-deep"
                           : "border-border bg-white text-muted hover:border-brand/30 hover:text-navy-deep",
                       )}
                     >
-                      {value === "all" ? (language === "id" ? "Semua" : "All") : value.toUpperCase()}
+                      {value === "ps"
+                        ? language === "id"
+                          ? "Esai"
+                          : "Essay"
+                        : language === "id"
+                          ? "Pilihan Ganda"
+                          : "Multiple Choice"}
                     </button>
                   ))}
                 </div>
@@ -280,7 +293,7 @@ export function MaterialBrowser({
               >
                 {language === "id" ? "Katalog Soal" : "Question Catalog"}
               </h1>
-              <p className="mt-1 max-w-2xl text-xs leading-5 text-muted">
+              <p className="mt-1.5 max-w-2xl text-xs leading-5 text-muted">
                 {language === "id"
                   ? "Jelajahi soal berdasarkan konsep, minggu, dan pola miskonsepsi"
                   : "Explore questions by concept, week, and misconception pattern"}
@@ -331,8 +344,8 @@ export function MaterialBrowser({
                     ? "Tidak ada soal yang sesuai dengan filter"
                     : "No questions match the selected filters"
                   : language === "id"
-                    ? "Belum ada soal untuk konsep ini. Pilih konsep lain dari daftar."
-                    : "No questions are available for this concept yet. Choose another concept from the list."
+                    ? "Belum ada soal yang tersedia."
+                    : "No questions are available yet."
               }
             />
           ) : (
@@ -353,6 +366,20 @@ export function MaterialBrowser({
                   const questionCategory =
                     categories.find((category) => category.id === question.categoryId) ??
                     selectedCategories[0];
+                  const questionIdentifier = getMaterialQuestionIdentifier(question);
+                  const questionType = getMaterialQuestionType(question.type);
+                  const questionTypeLabel =
+                    questionType === "ps"
+                      ? language === "id"
+                        ? "Esai"
+                        : "Essay"
+                      : language === "id"
+                        ? "Pilihan Ganda"
+                        : "Multiple Choice";
+                  const visibleMisconceptionIds = question.questionMisconceptionIds.slice(0, 2);
+                  const hiddenMisconceptionCount =
+                    question.questionMisconceptionIds.length - visibleMisconceptionIds.length;
+                  const answerCount = answerCountByQuestionId.get(question.id) ?? 0;
 
                   return (
                     <li key={question.id} className="flex min-w-0">
@@ -361,10 +388,10 @@ export function MaterialBrowser({
                         data-question-id={question.id}
                         onClick={() => onSelectQuestion(question.id)}
                         className={cn(
-                          "group w-full cursor-pointer rounded-xl border border-border bg-white p-3 text-left transition-[border-color,box-shadow] active:translate-y-0 hover:border-brand/35 hover:shadow-[0_9px_22px_rgba(143,28,32,0.06)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                          "group w-full cursor-pointer rounded-lg border border-border bg-white p-3.5 text-left transition-[border-color,box-shadow] active:translate-y-0 hover:border-brand/35 hover:shadow-[0_9px_22px_rgba(143,28,32,0.06)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
                           viewMode === "grid"
-                            ? "flex min-h-[10.25rem] flex-col"
-                            : "flex min-h-[9rem] flex-col md:grid md:min-h-28 md:grid-cols-[minmax(0,1fr)_12rem] md:grid-rows-[auto_auto_1fr] md:gap-x-4",
+                            ? "flex h-[12.75rem] flex-col"
+                            : "flex min-h-[10rem] flex-col md:grid md:h-28 md:min-h-0 md:grid-cols-[minmax(0,1fr)_14rem] md:grid-rows-[auto_auto_1fr] md:gap-x-4",
                         )}
                       >
                         <div
@@ -374,16 +401,16 @@ export function MaterialBrowser({
                           )}
                         >
                           <span className="max-w-[65%] truncate rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold tabular-nums text-navy-deep">
-                            {question.number || question.id}
+                            {questionIdentifier}
                           </span>
-                          <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[9px] font-bold text-brand-deep">
-                            {getMaterialQuestionType(question.type).toUpperCase()}
+                          <span className="shrink-0 rounded-full bg-brand-soft px-2.5 py-0.5 text-[8.5px] font-bold uppercase tracking-[0.04em] text-brand-deep">
+                            {questionTypeLabel}
                           </span>
                         </div>
 
                         <h2
                           className={cn(
-                            "mt-2 text-sm font-extrabold leading-[1.25] text-navy-deep transition-colors group-hover:text-brand",
+                            "mt-2.5 text-[15px] font-extrabold leading-[1.25] text-navy-deep transition-colors group-hover:text-brand",
                             viewMode === "grid"
                               ? "line-clamp-2"
                               : "line-clamp-1 md:col-start-1 md:row-start-2",
@@ -393,7 +420,7 @@ export function MaterialBrowser({
                         </h2>
                         <p
                           className={cn(
-                            "mt-1 whitespace-pre-line text-[10.5px] leading-[1.45] text-muted",
+                            "mt-1.5 whitespace-pre-line text-[11px] leading-[1.5] text-muted",
                             viewMode === "grid"
                               ? "line-clamp-2"
                               : "line-clamp-1 md:col-start-1 md:row-start-3",
@@ -404,20 +431,52 @@ export function MaterialBrowser({
 
                         <div
                           className={cn(
-                            "flex flex-wrap gap-1",
+                            "flex gap-1",
                             viewMode === "grid"
-                              ? "mt-2"
-                              : "mt-2 md:col-start-2 md:row-start-1 md:mt-0 md:justify-end md:self-start",
+                              ? "mt-2.5 flex-nowrap"
+                              : "mt-2 flex-wrap md:col-start-2 md:row-start-1 md:mt-0 md:flex-nowrap md:justify-end md:self-start",
                           )}
                         >
                           {question.week && (
-                            <span className="rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-semibold text-navy-deep">
-                              {question.week}
+                            <span className="rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.03em] text-navy-deep">
+                              {getMaterialWeekLabel(question.week)}
                             </span>
                           )}
                           {questionCategory && (
-                            <span className="max-w-full truncate rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-semibold text-navy-deep">
-                              {t(questionCategory.name, language)}
+                            <span className="max-w-full truncate rounded border border-border bg-neutral px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.03em] text-navy-deep">
+                              {t(questionCategory.name, language).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+
+                        <div
+                          className={cn(
+                            "flex min-w-0 items-center gap-2 text-[9px] font-semibold text-brand-deep",
+                            viewMode === "grid"
+                              ? "mt-2.5 border-t border-border pt-2"
+                              : "mt-2 border-t border-border pt-2 md:col-start-2 md:row-start-2 md:mt-1 md:border-l md:border-t-0 md:pl-3 md:pt-0",
+                          )}
+                        >
+                          {visibleMisconceptionIds.length > 0 ? (
+                            <>
+                              {visibleMisconceptionIds.map((misconceptionId) => (
+                                <span
+                                  key={misconceptionId}
+                                  className="inline-flex min-w-0 items-center gap-1"
+                                >
+                                  <TriangleAlert size={10} strokeWidth={2} aria-hidden="true" />
+                                  <span className="max-w-24 truncate uppercase">
+                                    {misconceptionId}
+                                  </span>
+                                </span>
+                              ))}
+                              {hiddenMisconceptionCount > 0 && (
+                                <span className="shrink-0 tabular-nums">+{hiddenMisconceptionCount}</span>
+                              )}
+                            </>
+                          ) : (
+                            <span>
+                              {language === "id" ? "0 miskonsepsi" : "0 misconceptions"}
                             </span>
                           )}
                         </div>
@@ -427,12 +486,13 @@ export function MaterialBrowser({
                             "flex items-center justify-between gap-3 text-[10px]",
                             viewMode === "grid"
                               ? "mt-auto border-t border-border pt-2.5"
-                              : "mt-auto border-t border-border pt-2.5 md:col-start-2 md:row-span-2 md:row-start-2 md:mt-1 md:border-l md:border-t-0 md:pl-3 md:pt-0",
+                              : "mt-auto border-t border-border pt-2.5 md:col-start-2 md:row-start-3 md:mt-0 md:border-l md:border-t-0 md:pl-3 md:pt-0",
                           )}
                         >
-                          <span className="font-semibold tabular-nums text-brand-deep">
-                            {question.questionMisconceptionIds.length}{" "}
-                            {language === "id" ? "miskonsepsi" : "misconceptions"}
+                          <span className="inline-flex items-center gap-1.5 font-semibold tabular-nums text-navy-deep">
+                            <MessageSquareText size={12} strokeWidth={2} aria-hidden="true" />
+                            {answersLoading ? "..." : answerCount}{" "}
+                            {language === "id" ? "jawaban" : "answers"}
                           </span>
                           <span className="inline-flex shrink-0 items-center gap-1 font-bold text-brand">
                             {language === "id" ? "Lihat soal" : "View question"}

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useCategories } from "../hooks/useCategories";
 import { useQuestionsByCategories } from "../hooks/useQuestions";
+import { useAllStudentAnswers } from "../hooks/useStudentAnswers";
 import { MaterialBrowser } from "../components/browser/MaterialBrowser";
 
 export function MateriPage() {
@@ -13,13 +14,15 @@ export function MateriPage() {
     searchParams.getAll("category"),
   );
 
-  useEffect(() => {
-    if (selectedCategoryIds.length === 0 && categories.length > 0) {
-      setSelectedCategoryIds([categories[0].id]);
-    }
-  }, [categories, selectedCategoryIds.length]);
-
   const { questions, loading } = useQuestionsByCategories(selectedCategoryIds);
+  const { answers, loading: answersLoading } = useAllStudentAnswers();
+  const answerCountByQuestionId = useMemo(() => {
+    const counts = new Map<string, number>();
+    answers.forEach((answer) => {
+      counts.set(answer.questionId, (counts.get(answer.questionId) ?? 0) + 1);
+    });
+    return counts;
+  }, [answers]);
 
   const updateSelectedCategories = (categoryIds: string[]) => {
     setSelectedCategoryIds(categoryIds);
@@ -42,9 +45,11 @@ export function MateriPage() {
         categories={categories}
         selectedCategoryIds={selectedCategoryIds}
         onToggleCategory={handleToggleCategory}
-        onResetCategories={() => updateSelectedCategories(categories[0] ? [categories[0].id] : [])}
+        onResetCategories={() => updateSelectedCategories([])}
         questions={questions}
         loading={loading}
+        answerCountByQuestionId={answerCountByQuestionId}
+        answersLoading={answersLoading}
         onSelectQuestion={(questionId) => navigate(`/question/${questionId}`)}
       />
     </div>

@@ -3,7 +3,9 @@ import {
   DEFAULT_MATERIAL_QUESTION_FILTERS,
   filterMaterialQuestions,
   getMaterialPaginationItems,
+  getMaterialQuestionIdentifier,
   getMaterialQuestionType,
+  getMaterialWeekLabel,
   getMaterialWeekOptions,
 } from "../src/utils/materialQuestionFilters.ts";
 
@@ -39,6 +41,10 @@ const questions = [
 
 assert.equal(getMaterialQuestionType("short_answer"), "ps");
 assert.equal(getMaterialQuestionType("multiple_choice"), "mp");
+assert.equal(getMaterialQuestionIdentifier(questions[0]), "Q1");
+assert.equal(getMaterialQuestionIdentifier({ ...questions[0], sourceCode: " Q-102 " }), "Q-102");
+assert.equal(getMaterialWeekLabel("W01"), "WEEK 01");
+assert.equal(getMaterialWeekLabel("W05-06"), "WEEK 05-06");
 assert.deepEqual(
   filterMaterialQuestions(questions, { type: "all" }).map(({ type }) => type),
   questions.map(({ type }) => type),

@@ -32,7 +32,7 @@ export function useQuestionsByCategories(categoryIds: string[]): {
   const key = categoryIds.join(",");
   const { data, loading } = useAsyncData<Question[]>(
     async () => {
-      if (categoryIds.length === 0) return [];
+      if (categoryIds.length === 0) return getQuestions();
 
       const groups = await Promise.all(categoryIds.map(getQuestionsByCategory));
       return [...new Map(groups.flat().map((question) => [question.id, question])).values()];
