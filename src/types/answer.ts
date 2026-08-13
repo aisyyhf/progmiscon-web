@@ -11,6 +11,7 @@ export type AnswerCheck = {
 
 export type StudentAnswer = {
   id: string;
+  sourceVersion?: string;
   questionId: string;
   studentId: string;
   studentName?: string | null;

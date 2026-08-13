@@ -98,6 +98,43 @@ function MisconceptionList({
   );
 }
 
+function ReviewLifecycleBadge({
+  review,
+  language,
+}: {
+  review: Pick<
+    QuestionReviewHistoryItem,
+    "isActive" | "inactiveReason" | "sourceVersion"
+  >;
+  language: Language;
+}) {
+  const label = review.isActive
+    ? language === "id"
+      ? "Aktif"
+      : "Active"
+    : review.inactiveReason === "source_updated"
+      ? language === "id"
+        ? "Sumber diperbarui"
+        : "Source updated"
+      : language === "id"
+        ? "Dihapus"
+        : "Deleted";
+
+  return (
+    <span
+      title={`Source version: ${review.sourceVersion}`}
+      className={cn(
+        "rounded-md border px-2.5 py-1 text-[11px] font-semibold",
+        review.isActive
+          ? "border-correct-border bg-correct-bg text-correct"
+          : "border-border bg-neutral text-muted",
+      )}
+    >
+      {label}
+    </span>
+  );
+}
+
 function QuestionHistoryCard({
   review,
   questionPrompt,
@@ -133,6 +170,8 @@ function QuestionHistoryCard({
                   {typeLabel}
                 </span>
               )}
+
+              <ReviewLifecycleBadge review={review} language={language} />
 
               <span
                 className={cn(
@@ -293,6 +332,8 @@ function AnswerHistoryCard({
                   {typeLabel}
                 </span>
               )}
+
+              <ReviewLifecycleBadge review={review} language={language} />
 
               <span
                 className={cn(
