@@ -73,15 +73,11 @@ type ReviewerProfileRow = {
   email: string;
 };
 
-type QuestionReviewBaselineRow = {
-  question_id: string;
-  source_version: string;
-};
-
-type AnswerReviewBaselineRow = {
-  answer_id: string;
-  question_id: string;
-  source_version: string;
+type ReviewSourceVersionRow = {
+  target_type: unknown;
+  target_id: unknown;
+  parent_question_id: unknown;
+  source_version: unknown;
 };
 
 type StorageErrorLike = {
@@ -279,42 +275,38 @@ export async function getAnswerReviewCounts(): Promise<AnswerReviewCount[]> {
 }
 
 export async function getReviewSourceVersions(): Promise<ReviewSourceVersions> {
-  const [questionResult, answerResult] = await Promise.all([
-    supabase
-      .from("question_misconception_baselines")
-      .select("question_id,source_version"),
-    supabase
-      .from("answer_misconception_baselines")
-      .select("answer_id,question_id,source_version"),
-  ]);
+  const { data, error } = await supabase.rpc("get_review_source_versions");
 
-  if (questionResult.error) {
-    throw storageError("Versi sumber soal dimuat", questionResult.error);
-  }
-  if (answerResult.error) {
-    throw storageError("Versi sumber jawaban dimuat", answerResult.error);
+  if (error) {
+    throw storageError("Versi sumber review dimuat", error);
   }
 
   const questions = new Map<string, string>();
-  for (const row of (questionResult.data ?? []) as QuestionReviewBaselineRow[]) {
-    if (row.question_id?.trim() && row.source_version?.trim()) {
-      questions.set(row.question_id, row.source_version);
-    }
-  }
-
   const answers = new Map<
     string,
     { questionId: string; sourceVersion: string }
   >();
-  for (const row of (answerResult.data ?? []) as AnswerReviewBaselineRow[]) {
-    if (
-      row.answer_id?.trim() &&
-      row.question_id?.trim() &&
-      row.source_version?.trim()
-    ) {
-      answers.set(row.answer_id, {
-        questionId: row.question_id,
-        sourceVersion: row.source_version,
+
+  for (const row of (data ?? []) as ReviewSourceVersionRow[]) {
+    const targetType =
+      typeof row.target_type === "string" ? row.target_type.trim() : "";
+    const targetId =
+      typeof row.target_id === "string" ? row.target_id.trim() : "";
+    const parentQuestionId =
+      typeof row.parent_question_id === "string"
+        ? row.parent_question_id.trim()
+        : "";
+    const sourceVersion =
+      typeof row.source_version === "string" ? row.source_version.trim() : "";
+
+    if (!targetId || !sourceVersion) continue;
+
+    if (targetType === "question") {
+      questions.set(targetId, sourceVersion);
+    } else if (targetType === "answer" && parentQuestionId) {
+      answers.set(targetId, {
+        questionId: parentQuestionId,
+        sourceVersion,
       });
     }
   }

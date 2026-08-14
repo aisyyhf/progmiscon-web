@@ -249,6 +249,9 @@ const personalProgressLoader = page.match(
 const questionCountsLoader = page.match(
   /const loadQuestionCounts = async \(\) => \{[\s\S]*?(?=\r?\n\s*const loadAnswerCounts)/,
 )?.[0];
+const reviewerHistoryLoader = page.match(
+  /void getReviewerHistory\(user\.id\)[\s\S]*?\.finally\(\(\) => \{[\s\S]*?\n\s*\}\);/,
+)?.[0];
 const pageLoadingExpression = page.match(
   /const loading =([\s\S]*?);/,
 )?.[1];
@@ -350,10 +353,19 @@ assert.match(page, /const loadPersonalProgress = async \(\) =>/);
 assert.match(page, /const loadQuestionCounts = async \(\) =>/);
 assert.ok(personalProgressLoader, "personal progress loader was not found");
 assert.ok(questionCountsLoader, "question counts loader was not found");
+assert.ok(reviewerHistoryLoader, "reviewer history loader was not found");
 assert.match(personalProgressLoader, /getSavedReviewProgress\(\)/);
-assert.match(personalProgressLoader, /setReviewedQuestionIds/);
-assert.match(personalProgressLoader, /setReviewedAnswerIds/);
 assert.doesNotMatch(personalProgressLoader, /getQuestionReviewCounts/);
+assert.match(reviewerHistoryLoader, /setReviewedQuestionIds/);
+assert.match(reviewerHistoryLoader, /setReviewedAnswerIds/);
+assert.match(
+  reviewerHistoryLoader,
+  /review\.isActive\s*&&\s*review\.sourceVersion ===\s*reviewSourceVersions\.questions\.get\(review\.questionId\)/,
+);
+assert.match(
+  reviewerHistoryLoader,
+  /review\.sourceVersion === source\?\.sourceVersion\s*&&\s*review\.questionId === source\.questionId/,
+);
 assert.match(questionCountsLoader, /getQuestionReviewCounts\(\)/);
 assert.match(questionCountsLoader, /setQuestionReviewCounts/);
 assert.match(questionCountsLoader, /setQuestionCountsLoaded\(true\)/);
@@ -448,7 +460,7 @@ assert.match(
 );
 assert.match(
   page,
-  /activeQuestionLocked\s*=\s*activeQuestionReviewedByMe \|\| activeQuestionGloballyComplete/,
+  /activeQuestionLocked\s*=\s*activeQuestionGloballyComplete && !activeQuestionReviewedByMe/,
 );
 assert.match(
   page,
@@ -456,18 +468,31 @@ assert.match(
 );
 assert.match(
   page,
-  /if \(!progressLoaded \|\| activeQuestionLocked\) return;[\s\S]{0,250}saveQuestionReview/,
+  /activeAnswerGloballyComplete\s*&&\s*!activeAnswerReviewedByMe/,
 );
 assert.match(
   page,
-  /if \([\s\S]{0,120}!progressLoaded \|\|[\s\S]{0,120}!answerCountsLoaded \|\|[\s\S]{0,120}activeAnswerLocked[\s\S]{0,40}\) return;[\s\S]{0,250}saveAnswerReview/,
+  /if \(!progressLoaded \|\| activeQuestionLocked\) return;/,
 );
-assert.equal(page.match(/progressUnavailable=\{!progressLoaded\}/g)?.length, 1);
-assert.equal(
-  page.match(
-    /progressUnavailable=\{!progressLoaded \|\| !answerCountsLoaded\}/g,
-  )?.length,
-  1,
+assert.match(
+  page,
+  /if \([\s\S]{0,120}!progressLoaded \|\|[\s\S]{0,120}!answerCountsLoaded \|\|[\s\S]{0,120}activeAnswerLocked[\s\S]{0,40}\) return;/,
+);
+assert.match(
+  page,
+  /await saveQuestionReview\(\s*activeQuestion\.id,\s*activeQuestion\.sourceVersion,\s*values/,
+);
+assert.match(
+  page,
+  /await saveAnswerReview\(\s*activeAnswer\.id,\s*answerQuestion\.id,\s*activeAnswer\.sourceVersion,\s*values/,
+);
+assert.match(
+  page,
+  /progressUnavailable=\{\s*!progressLoaded \|\|\s*!sourceVersionsLoaded \|\|[\s\S]{0,120}!activeQuestion\.sourceVersion\s*\}/,
+);
+assert.match(
+  page,
+  /progressUnavailable=\{\s*!progressLoaded \|\|\s*!answerCountsLoaded \|\|\s*!sourceVersionsLoaded \|\|[\s\S]{0,120}!activeAnswer\.sourceVersion\s*\}/,
 );
 assert.equal(
   page.match(/const formUnavailable = locked \|\| progressUnavailable;/g)
@@ -488,8 +513,7 @@ assert.match(
 assert.match(page, /onClick=\{\(\) => window\.location\.reload\(\)\}/);
 assert.match(page, /Muat ulang/);
 assert.match(page, /Anda sudah mereview soal ini\./);
-assert.match(page, /Anda sudah mereview jawaban ini\./);
-assert.match(page, /Review tidak dapat dikirim ulang\./);
+assert.match(page, /Hapus review jawaban ini\?/);
 assert.match(page, /Lihat review saya/);
 assert.match(page, /navigate\("\/review\/riwayat"\)/);
 assert.match(page, /onPrevious=\{\(\) => selectOffset\(-1\)\}/);
@@ -534,10 +558,17 @@ assert.match(
 );
 assert.doesNotMatch(repeatReviewMigration, /\bgrant\b[\s\S]*?\banon\b/i);
 assert.doesNotMatch(repeatReviewMigration, /alter table|unique\s*\(/i);
-assert.match(repository, /REVIEW_ALREADY_SUBMITTED/);
-assert.match(
+for (const rpc of [
+  "save_question_review_v3",
+  "save_answer_review_v3",
+  "delete_question_review_v3",
+  "delete_answer_review_v3",
+]) {
+  assert.match(repository, new RegExp(`supabase\\.rpc\\("${rpc}"`));
+}
+assert.doesNotMatch(
   repository,
-  /Review ini sudah pernah dikirim dan tidak dapat dikirim ulang\./,
+  /\.from\("(?:question_reviews|answer_reviews)"\)[\s\S]{0,200}\.(?:insert|update|upsert|delete)\(/,
 );
 
 console.log("Review question filter self-check passed.");
