@@ -26,8 +26,6 @@ import { ReviewQuestionFilters } from "../components/review/ReviewQuestionFilter
 import { useCategories } from "../hooks/useCategories";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLecturerAuth } from "../hooks/useLecturerAuth";
-import { useQuestions } from "../hooks/useQuestions";
-import { useAllStudentAnswers } from "../hooks/useStudentAnswers";
 import { useStudents } from "../hooks/useStudents";
 import { useReviewTasks } from "../hooks/useReviewTasks";
 import { useMisconceptions } from "../hooks/useMisconceptions";
@@ -39,6 +37,7 @@ import type {
   Question,
   QuestionReviewHistoryItem,
   QuestionReviewValues,
+  ReviewSourceVersions,
   ReviewTask,
   StudentAnswer,
 } from "../types";
@@ -50,7 +49,7 @@ import { misconceptionLabel } from "../utils/misconceptionLabel";
 import {
   getQuestionReviewCounts,
   getAnswerReviewCounts,
-  getReviewSourceVersions,
+  getReviewWorkspaceSnapshot,
   getReviewerHistory,
   getReviewProgress as getSavedReviewProgress,
   deleteAnswerReview,
@@ -232,12 +231,8 @@ export function LecturerReviewPage({
   const { user, isAdmin } = useLecturerAuth();
   const navigate = useNavigate();
   const { categories, loading: categoriesLoading } = useCategories();
-  const { questions, loading: questionsLoading } = useQuestions();
-  const {
-    answers,
-    loading: answersLoading,
-    error: answersError,
-  } = useAllStudentAnswers();
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [answers, setAnswers] = useState<StudentAnswer[]>([]);
   const { students, loading: studentsLoading } = useStudents();
   const { misconceptions, loading: misconceptionsLoading } = useMisconceptions();
   const { tasks: answerTasks, loading: reviewTasksLoading } = useReviewTasks();
@@ -281,13 +276,14 @@ export function LecturerReviewPage({
     useState(false);
   const [questionReviewHistoryError, setQuestionReviewHistoryError] =
     useState("");
-  const [reviewSourceVersions, setReviewSourceVersions] = useState<{
-    questions: Map<string, string>;
-    answers: Map<string, { questionId: string; sourceVersion: string }>;
-  }>({ questions: new Map(), answers: new Map() });
+  const [reviewSourceVersions, setReviewSourceVersions] = useState<
+    ReviewSourceVersions
+  >({ questions: new Map(), answers: new Map() });
   const [sourceVersionsLoading, setSourceVersionsLoading] = useState(true);
   const [sourceVersionsError, setSourceVersionsError] = useState("");
   const [sourceVersionsLoaded, setSourceVersionsLoaded] = useState(false);
+  const questionsLoading = sourceVersionsLoading;
+  const answersLoading = sourceVersionsLoading;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -320,6 +316,8 @@ export function LecturerReviewPage({
     let active = true;
 
     if (!user) {
+      setQuestions([]);
+      setAnswers([]);
       setReviewSourceVersions({ questions: new Map(), answers: new Map() });
       setSourceVersionsLoading(false);
       setSourceVersionsError("");
@@ -332,16 +330,21 @@ export function LecturerReviewPage({
     setSourceVersionsLoading(true);
     setSourceVersionsError("");
     setSourceVersionsLoaded(false);
+    setQuestions([]);
+    setAnswers([]);
+    setReviewSourceVersions({ questions: new Map(), answers: new Map() });
 
-    void getReviewSourceVersions()
-      .then((versions) => {
+    void getReviewWorkspaceSnapshot()
+      .then((snapshot) => {
         if (!active) return;
-        setReviewSourceVersions(versions);
+        setQuestions(snapshot.questions);
+        setAnswers(snapshot.answers);
+        setReviewSourceVersions(snapshot.sourceVersions);
         setSourceVersionsLoaded(true);
       })
       .catch((error) => {
         if (!active) return;
-        console.error("[Progmiscon] Versi sumber review gagal dimuat", error);
+        console.error("[Progmiscon] Workspace review gagal dimuat", error);
         setSourceVersionsError(
           error instanceof Error
             ? error.message
@@ -541,31 +544,9 @@ export function LecturerReviewPage({
     user,
   ]);
 
-  const versionedQuestions = useMemo(
-    () =>
-      questions.map((question) => ({
-        ...question,
-        sourceVersion: reviewSourceVersions.questions.get(question.id),
-      })),
-    [questions, reviewSourceVersions.questions],
-  );
-  const versionedAnswers = useMemo(
-    () =>
-      answers.map((answer) => {
-        const source = reviewSourceVersions.answers.get(answer.id);
-        return {
-          ...answer,
-          sourceVersion:
-            source?.questionId === answer.questionId
-              ? source.sourceVersion
-              : undefined,
-        };
-      }),
-    [answers, reviewSourceVersions.answers],
-  );
   const { items: classifiedItems, questionById } = useMemo(
-    () => classifyReviewItems(versionedQuestions, versionedAnswers),
-    [versionedAnswers, versionedQuestions],
+    () => classifyReviewItems(questions, answers),
+    [answers, questions],
   );
   const reviewedAnswerIds = useMemo(
     () =>
@@ -1211,17 +1192,6 @@ export function LecturerReviewPage({
         </p>
       )}
 
-      {answersError && workspace !== "answer-ps" && (
-        <p
-          role="alert"
-          className="mb-5 rounded-md border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect"
-        >
-          {language === "id"
-            ? "Evidence jawaban belum dapat dimuat."
-            : "Answer evidence could not be loaded."}
-        </p>
-      )}
-
       {questionCountsError && (
         <p
           role="alert"
@@ -1458,7 +1428,7 @@ export function LecturerReviewPage({
             students={students}
             misconceptions={misconceptions}
             error={
-              answersError
+              sourceVersionsError
                 ? language === "id"
                   ? "Evidence jawaban belum dapat dimuat."
                   : "Answer evidence could not be loaded."

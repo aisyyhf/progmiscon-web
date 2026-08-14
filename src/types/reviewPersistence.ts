@@ -38,6 +38,11 @@ export type AnswerReviewCount = {
   latestUpdatedAt: string | null;
 };
 
+export type ReviewSourceVersions = {
+  questions: Map<string, string>;
+  answers: Map<string, { questionId: string; sourceVersion: string }>;
+};
+
 export type QuestionReviewHistoryItem = {
   id: string;
   reviewerId: string;

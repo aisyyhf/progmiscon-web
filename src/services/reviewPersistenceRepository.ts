@@ -11,6 +11,7 @@ import type {
   QuestionReviewValues,
   ReviewerHistory,
   ReviewProgress,
+  ReviewSourceVersions,
 } from "../types";
 import {
   mapReviewStatusRow,
@@ -21,8 +22,11 @@ import {
   mapQuestionReviewCountRows,
 } from "../utils/questionReviewCounts";
 import { supabase } from "./supabaseClient";
-import { getQuestionById } from "./questionRepository";
+import { getAnswers } from "./answerRepository";
+import { reloadBaselineMasterData } from "./masterDataRepository";
+import { getQuestionById, getQuestions } from "./questionRepository";
 import { assertAnswerReviewEligible } from "../utils/reviewWorkspace";
+import { haveSameReviewSourceVersions } from "../utils/reviewSourceVersions";
 
 type QuestionReviewHistoryRow = {
   id: string;
@@ -274,10 +278,7 @@ export async function getAnswerReviewCounts(): Promise<AnswerReviewCount[]> {
   return mapAnswerReviewCountRows(data);
 }
 
-export async function getReviewSourceVersions(): Promise<{
-  questions: Map<string, string>;
-  answers: Map<string, { questionId: string; sourceVersion: string }>;
-}> {
+export async function getReviewSourceVersions(): Promise<ReviewSourceVersions> {
   const [questionResult, answerResult] = await Promise.all([
     supabase
       .from("question_misconception_baselines")
@@ -319,6 +320,45 @@ export async function getReviewSourceVersions(): Promise<{
   }
 
   return { questions, answers };
+}
+
+export async function getReviewWorkspaceSnapshot() {
+  let sourceVersions = await getReviewSourceVersions();
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await reloadBaselineMasterData();
+    const [questions, answers] = await Promise.all([
+      getQuestions(),
+      getAnswers(),
+    ]);
+    const confirmedSourceVersions = await getReviewSourceVersions();
+
+    if (haveSameReviewSourceVersions(sourceVersions, confirmedSourceVersions)) {
+      return {
+        questions: questions.map((question) => ({
+          ...question,
+          sourceVersion: sourceVersions.questions.get(question.id),
+        })),
+        answers: answers.map((answer) => {
+          const source = sourceVersions.answers.get(answer.id);
+          return {
+            ...answer,
+            sourceVersion:
+              source?.questionId === answer.questionId
+                ? source.sourceVersion
+                : undefined,
+          };
+        }),
+        sourceVersions,
+      };
+    }
+
+    sourceVersions = confirmedSourceVersions;
+  }
+
+  throw new Error(
+    "Data sumber berubah saat workspace review dimuat. Silakan muat ulang.",
+  );
 }
 
 export async function getReviewerHistory(
