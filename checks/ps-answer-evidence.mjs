@@ -112,12 +112,15 @@ assert.doesNotMatch(evidence, /Form validasi jawaban|Save Review|Submit Review/)
 const guardIndex = persistence.indexOf(
   "assertAnswerReviewEligible(await getQuestionById(questionId))",
 );
-const writeIndex = persistence.indexOf('.from("answer_reviews")', guardIndex);
+const writeIndex = persistence.indexOf(
+  'supabase.rpc("save_answer_review_v3"',
+  guardIndex,
+);
 assert.ok(guardIndex >= 0 && writeIndex > guardIndex);
 assert.doesNotMatch(
   persistence,
-  /from\("answer_reviews"\)[\s\S]{0,160}\.delete\(/,
-  "Historical answer review rows must not be deleted",
+  /from\("answer_reviews"\)[\s\S]{0,200}\.(?:insert|update|upsert|delete)\(/,
+  "Answer review writes must remain behind Review v3 RPCs",
 );
 
 console.log("PS answer evidence self-check passed.");
