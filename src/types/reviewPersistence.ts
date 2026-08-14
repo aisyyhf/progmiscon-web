@@ -38,10 +38,19 @@ export type AnswerReviewCount = {
   latestUpdatedAt: string | null;
 };
 
+export type ReviewSourceVersions = {
+  questions: Map<string, string>;
+  answers: Map<string, { questionId: string; sourceVersion: string }>;
+};
+
 export type QuestionReviewHistoryItem = {
   id: string;
   reviewerId: string;
   questionId: string;
+  sourceVersion: string;
+  isActive: boolean;
+  inactiveReason: string | null;
+  inactiveAt: string | null;
   hasIncorrectMisconceptions: boolean;
   removedMisconceptionIds: string[];
   removalReason: string | null;
@@ -58,6 +67,10 @@ export type AnswerReviewHistoryItem = {
   reviewerId: string;
   answerId: string;
   questionId: string;
+  sourceVersion: string;
+  isActive: boolean;
+  inactiveReason: string | null;
+  inactiveAt: string | null;
   hasMismatchedMisconceptions: boolean;
   removedMisconceptionIds: string[];
   removalReason: string | null;

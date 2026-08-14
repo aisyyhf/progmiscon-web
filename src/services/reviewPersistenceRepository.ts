@@ -11,6 +11,7 @@ import type {
   QuestionReviewValues,
   ReviewerHistory,
   ReviewProgress,
+  ReviewSourceVersions,
 } from "../types";
 import {
   mapReviewStatusRow,
@@ -21,13 +22,20 @@ import {
   mapQuestionReviewCountRows,
 } from "../utils/questionReviewCounts";
 import { supabase } from "./supabaseClient";
-import { getQuestionById } from "./questionRepository";
+import { getAnswers } from "./answerRepository";
+import { reloadBaselineMasterData } from "./masterDataRepository";
+import { getQuestionById, getQuestions } from "./questionRepository";
 import { assertAnswerReviewEligible } from "../utils/reviewWorkspace";
+import { haveSameReviewSourceVersions } from "../utils/reviewSourceVersions";
 
 type QuestionReviewHistoryRow = {
   id: string;
   reviewer_id: string;
   question_id: string;
+  source_version: string;
+  is_active: boolean;
+  inactive_reason: string | null;
+  inactive_at: string | null;
   has_incorrect_misconceptions: boolean;
   removed_misconception_ids: string[] | null;
   removal_reason: string | null;
@@ -44,6 +52,10 @@ type AnswerReviewHistoryRow = {
   reviewer_id: string;
   answer_id: string;
   question_id: string;
+  source_version: string;
+  is_active: boolean;
+  inactive_reason: string | null;
+  inactive_at: string | null;
   has_mismatched_misconceptions: boolean;
   removed_misconception_ids: string[] | null;
   removal_reason: string | null;
@@ -61,25 +73,94 @@ type ReviewerProfileRow = {
   email: string;
 };
 
-const REVIEW_ALREADY_SUBMITTED = "REVIEW_ALREADY_SUBMITTED";
-const REVIEW_CAP_REACHED = "REVIEW_CAP_REACHED";
+type QuestionReviewBaselineRow = {
+  question_id: string;
+  source_version: string;
+};
 
-function storageError(scope: string, error: { message?: string }): Error {
+type AnswerReviewBaselineRow = {
+  answer_id: string;
+  question_id: string;
+  source_version: string;
+};
+
+type StorageErrorLike = {
+  message?: string;
+  details?: string;
+  hint?: string;
+  code?: string;
+};
+
+const reviewErrorMessages = {
+  AUTH_REQUIRED: "Sesi lecturer tidak ditemukan. Silakan masuk kembali.",
+  LECTURER_INACTIVE: "Akun lecturer ini tidak aktif.",
+  QUESTION_NOT_FOUND: "Soal tidak ditemukan atau sudah tidak tersedia.",
+  ANSWER_NOT_FOUND: "Jawaban tidak ditemukan atau sudah tidak tersedia.",
+  DATA_VERSION_CHANGED:
+    "Data sumber telah diperbarui. Muat ulang data lalu review kembali.",
+  REVIEWER_CAP_REACHED: "Target ini sudah memiliki tiga reviewer aktif.",
+  REVIEW_NOT_FOUND: "Review tidak ditemukan atau sudah tidak tersedia.",
+  INVALID_REVIEW_INPUT: "Data review belum lengkap atau tidak valid.",
+  REMOVAL_DETAILS_REQUIRED:
+    "Pilih miskonsepsi yang dilepas dan tuliskan alasannya.",
+  ADDITION_DETAILS_REQUIRED:
+    "Pilih miskonsepsi yang ditambahkan dan tuliskan alasannya.",
+  REMOVAL_NOT_IN_BASELINE:
+    "Miskonsepsi yang akan dilepas tidak ada pada data sumber saat ini.",
+  ADDITION_ALREADY_IN_BASELINE:
+    "Miskonsepsi yang akan ditambahkan sudah ada pada data sumber.",
+  REVIEW_SELECTION_OVERLAP:
+    "Miskonsepsi yang sama tidak dapat dilepas dan ditambahkan sekaligus.",
+  INVALID_MISCONCEPTION_ID: "Terdapat ID miskonsepsi yang tidak valid.",
+  REVIEW_CAP_INVARIANT_BROKEN:
+    "Status reviewer tidak konsisten. Muat ulang data sebelum mencoba lagi.",
+} as const;
+
+export type ReviewPersistenceErrorCode = keyof typeof reviewErrorMessages;
+
+export class ReviewPersistenceError extends Error {
+  readonly reviewCode?: ReviewPersistenceErrorCode;
+
+  constructor(
+    message: string,
+    reviewCode?: ReviewPersistenceErrorCode,
+  ) {
+    super(message);
+    this.name = "ReviewPersistenceError";
+    this.reviewCode = reviewCode;
+  }
+}
+
+function getReviewErrorCode(
+  error: StorageErrorLike,
+): ReviewPersistenceErrorCode | undefined {
+  const detail = [error.code, error.message, error.details, error.hint]
+    .filter((value): value is string => typeof value === "string")
+    .join(" ");
+
+  return (Object.keys(reviewErrorMessages) as ReviewPersistenceErrorCode[]).find(
+    (token) => detail.includes(token),
+  );
+}
+
+export function isReviewPersistenceError(
+  error: unknown,
+  code: ReviewPersistenceErrorCode,
+): boolean {
+  return error instanceof ReviewPersistenceError && error.reviewCode === code;
+}
+
+function storageError(scope: string, error: StorageErrorLike): Error {
+  const reviewCode = getReviewErrorCode(error);
+  if (reviewCode) {
+    return new ReviewPersistenceError(
+      reviewErrorMessages[reviewCode],
+      reviewCode,
+    );
+  }
+
   const detail = error.message?.trim();
-
-  if (detail?.includes(REVIEW_ALREADY_SUBMITTED)) {
-    return new Error(
-      "Review ini sudah pernah dikirim dan tidak dapat dikirim ulang.",
-    );
-  }
-
-  if (detail?.includes(REVIEW_CAP_REACHED)) {
-    return new Error(
-      "Target ini sudah memiliki tiga reviewer. Review keempat tidak dapat disimpan.",
-    );
-  }
-
-  return new Error(
+  return new ReviewPersistenceError(
     detail ? `${scope} gagal: ${detail}` : `${scope} belum dapat dilakukan.`,
   );
 }
@@ -91,6 +172,10 @@ function mapQuestionReviewHistory(
     id: row.id,
     reviewerId: row.reviewer_id,
     questionId: row.question_id,
+    sourceVersion: row.source_version,
+    isActive: row.is_active,
+    inactiveReason: row.inactive_reason,
+    inactiveAt: row.inactive_at,
     hasIncorrectMisconceptions: row.has_incorrect_misconceptions,
     removedMisconceptionIds: row.removed_misconception_ids ?? [],
     removalReason: row.removal_reason,
@@ -111,6 +196,10 @@ function mapAnswerReviewHistory(
     reviewerId: row.reviewer_id,
     answerId: row.answer_id,
     questionId: row.question_id,
+    sourceVersion: row.source_version,
+    isActive: row.is_active,
+    inactiveReason: row.inactive_reason,
+    inactiveAt: row.inactive_at,
     hasMismatchedMisconceptions: row.has_mismatched_misconceptions,
     removedMisconceptionIds: row.removed_misconception_ids ?? [],
     removalReason: row.removal_reason,
@@ -189,6 +278,89 @@ export async function getAnswerReviewCounts(): Promise<AnswerReviewCount[]> {
   return mapAnswerReviewCountRows(data);
 }
 
+export async function getReviewSourceVersions(): Promise<ReviewSourceVersions> {
+  const [questionResult, answerResult] = await Promise.all([
+    supabase
+      .from("question_misconception_baselines")
+      .select("question_id,source_version"),
+    supabase
+      .from("answer_misconception_baselines")
+      .select("answer_id,question_id,source_version"),
+  ]);
+
+  if (questionResult.error) {
+    throw storageError("Versi sumber soal dimuat", questionResult.error);
+  }
+  if (answerResult.error) {
+    throw storageError("Versi sumber jawaban dimuat", answerResult.error);
+  }
+
+  const questions = new Map<string, string>();
+  for (const row of (questionResult.data ?? []) as QuestionReviewBaselineRow[]) {
+    if (row.question_id?.trim() && row.source_version?.trim()) {
+      questions.set(row.question_id, row.source_version);
+    }
+  }
+
+  const answers = new Map<
+    string,
+    { questionId: string; sourceVersion: string }
+  >();
+  for (const row of (answerResult.data ?? []) as AnswerReviewBaselineRow[]) {
+    if (
+      row.answer_id?.trim() &&
+      row.question_id?.trim() &&
+      row.source_version?.trim()
+    ) {
+      answers.set(row.answer_id, {
+        questionId: row.question_id,
+        sourceVersion: row.source_version,
+      });
+    }
+  }
+
+  return { questions, answers };
+}
+
+export async function getReviewWorkspaceSnapshot() {
+  let sourceVersions = await getReviewSourceVersions();
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await reloadBaselineMasterData();
+    const [questions, answers] = await Promise.all([
+      getQuestions(),
+      getAnswers(),
+    ]);
+    const confirmedSourceVersions = await getReviewSourceVersions();
+
+    if (haveSameReviewSourceVersions(sourceVersions, confirmedSourceVersions)) {
+      return {
+        questions: questions.map((question) => ({
+          ...question,
+          sourceVersion: sourceVersions.questions.get(question.id),
+        })),
+        answers: answers.map((answer) => {
+          const source = sourceVersions.answers.get(answer.id);
+          return {
+            ...answer,
+            sourceVersion:
+              source?.questionId === answer.questionId
+                ? source.sourceVersion
+                : undefined,
+          };
+        }),
+        sourceVersions,
+      };
+    }
+
+    sourceVersions = confirmedSourceVersions;
+  }
+
+  throw new Error(
+    "Data sumber berubah saat workspace review dimuat. Silakan muat ulang.",
+  );
+}
+
 export async function getReviewerHistory(
   reviewerId: string,
 ): Promise<ReviewerHistory> {
@@ -196,7 +368,7 @@ export async function getReviewerHistory(
     supabase
       .from("question_reviews")
       .select(
-        "id,reviewer_id,question_id,has_incorrect_misconceptions,removed_misconception_ids,removal_reason,has_additional_misconceptions,additional_misconception_ids,addition_reason,note,created_at,updated_at",
+        "id,reviewer_id,question_id,source_version,is_active,inactive_reason,inactive_at,has_incorrect_misconceptions,removed_misconception_ids,removal_reason,has_additional_misconceptions,additional_misconception_ids,addition_reason,note,created_at,updated_at",
       )
       .eq("reviewer_id", reviewerId)
       .order("updated_at", { ascending: false }),
@@ -204,7 +376,7 @@ export async function getReviewerHistory(
     supabase
       .from("answer_reviews")
       .select(
-        "id,reviewer_id,answer_id,question_id,has_mismatched_misconceptions,removed_misconception_ids,removal_reason,has_additional_misconceptions,additional_misconception_ids,addition_reason,note,created_at,updated_at",
+        "id,reviewer_id,answer_id,question_id,source_version,is_active,inactive_reason,inactive_at,has_mismatched_misconceptions,removed_misconception_ids,removal_reason,has_additional_misconceptions,additional_misconception_ids,addition_reason,note,created_at,updated_at",
       )
       .eq("reviewer_id", reviewerId)
       .order("updated_at", { ascending: false }),
@@ -234,14 +406,14 @@ export async function getAdminReviewHistory(): Promise<AdminReviewHistory> {
     supabase
       .from("question_reviews")
       .select(
-        "id,reviewer_id,question_id,has_incorrect_misconceptions,removed_misconception_ids,removal_reason,has_additional_misconceptions,additional_misconception_ids,addition_reason,note,created_at,updated_at",
+        "id,reviewer_id,question_id,source_version,is_active,inactive_reason,inactive_at,has_incorrect_misconceptions,removed_misconception_ids,removal_reason,has_additional_misconceptions,additional_misconception_ids,addition_reason,note,created_at,updated_at",
       )
       .order("updated_at", { ascending: false }),
 
     supabase
       .from("answer_reviews")
       .select(
-        "id,reviewer_id,answer_id,question_id,has_mismatched_misconceptions,removed_misconception_ids,removal_reason,has_additional_misconceptions,additional_misconception_ids,addition_reason,note,created_at,updated_at",
+        "id,reviewer_id,answer_id,question_id,source_version,is_active,inactive_reason,inactive_at,has_mismatched_misconceptions,removed_misconception_ids,removal_reason,has_additional_misconceptions,additional_misconception_ids,addition_reason,note,created_at,updated_at",
       )
       .order("updated_at", { ascending: false }),
   ]);
@@ -298,26 +470,21 @@ export async function getAdminReviewHistory(): Promise<AdminReviewHistory> {
 }
 
 export async function saveQuestionReview(
-  reviewerId: string,
   questionId: string,
+  sourceVersion: string,
   values: QuestionReviewValues,
 ): Promise<void> {
-  const { error } = await supabase.from("question_reviews").upsert(
-    {
-      reviewer_id: reviewerId,
-      question_id: questionId,
-      has_incorrect_misconceptions: values.hasIncorrectMisconceptions,
-      removed_misconception_ids: values.removedMisconceptionIds,
-      removal_reason: values.removalReason,
-      has_additional_misconceptions: values.hasAdditionalMisconceptions,
-      additional_misconception_ids: values.additionalMisconceptionIds,
-      addition_reason: values.additionReason,
-      note: values.note,
-    },
-    {
-      onConflict: "reviewer_id,question_id",
-    },
-  );
+  const { error } = await supabase.rpc("save_question_review_v3", {
+    p_question_id: questionId,
+    p_source_version: sourceVersion,
+    p_has_incorrect_misconceptions: values.hasIncorrectMisconceptions,
+    p_removed_misconception_ids: values.removedMisconceptionIds,
+    p_removal_reason: values.removalReason,
+    p_has_additional_misconceptions: values.hasAdditionalMisconceptions,
+    p_additional_misconception_ids: values.additionalMisconceptionIds,
+    p_addition_reason: values.additionReason,
+    p_note: values.note,
+  });
 
   if (error) {
     throw storageError("Validasi soal disimpan", error);
@@ -325,38 +492,56 @@ export async function saveQuestionReview(
 }
 
 export async function saveAnswerReview(
-  reviewerId: string,
   answerId: string,
   questionId: string,
+  sourceVersion: string,
   values: AnswerReviewValues,
 ): Promise<void> {
   assertAnswerReviewEligible(await getQuestionById(questionId));
 
-  const { error } = await supabase
-    .from("answer_reviews")
-    .upsert(
-      {
-        reviewer_id: reviewerId,
-        answer_id: answerId,
-        question_id: questionId,
-        has_mismatched_misconceptions: values.hasMismatchedMisconceptions,
-        removed_misconception_ids: values.removedMisconceptionIds,
-        removal_reason: values.removalReason,
-        has_additional_misconceptions: values.hasAdditionalMisconceptions,
-        additional_misconception_ids: values.additionalMisconceptionIds,
-        addition_reason: values.additionReason,
-        note: values.note,
-      },
-      {
-        onConflict: "reviewer_id,answer_id",
-      },
-    )
-    .select("id,reviewer_id,answer_id,question_id,note")
-    .single();
+  const { error } = await supabase.rpc("save_answer_review_v3", {
+    p_answer_id: answerId,
+    p_source_version: sourceVersion,
+    p_has_mismatched_misconceptions: values.hasMismatchedMisconceptions,
+    p_removed_misconception_ids: values.removedMisconceptionIds,
+    p_removal_reason: values.removalReason,
+    p_has_additional_misconceptions: values.hasAdditionalMisconceptions,
+    p_additional_misconception_ids: values.additionalMisconceptionIds,
+    p_addition_reason: values.additionReason,
+    p_note: values.note,
+  });
 
   if (error) {
     console.error("[Progmiscon] Validasi jawaban gagal disimpan", error);
 
     throw storageError("Validasi jawaban disimpan", error);
+  }
+}
+
+export async function deleteQuestionReview(
+  questionId: string,
+  sourceVersion: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("delete_question_review_v3", {
+    p_question_id: questionId,
+    p_source_version: sourceVersion,
+  });
+
+  if (error) {
+    throw storageError("Review soal dihapus", error);
+  }
+}
+
+export async function deleteAnswerReview(
+  answerId: string,
+  sourceVersion: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("delete_answer_review_v3", {
+    p_answer_id: answerId,
+    p_source_version: sourceVersion,
+  });
+
+  if (error) {
+    throw storageError("Review jawaban dihapus", error);
   }
 }

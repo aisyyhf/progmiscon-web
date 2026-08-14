@@ -1,5 +1,7 @@
 import type {
+  AnswerReviewHistoryItem,
   AnswerReviewValues,
+  QuestionReviewHistoryItem,
   QuestionReviewValues,
 } from "../types/reviewPersistence";
 
@@ -26,6 +28,7 @@ export type MisconceptionReviewFormAction =
       value: string;
     }
   | { type: "set_note"; value: string }
+  | { type: "replace"; value: MisconceptionReviewFormState }
   | { type: "reset" };
 
 export const initialMisconceptionReviewFormState: MisconceptionReviewFormState =
@@ -41,15 +44,57 @@ export const initialMisconceptionReviewFormState: MisconceptionReviewFormState =
 
 export function isMisconceptionReviewFormDirty(
   state: MisconceptionReviewFormState,
+  initialState: MisconceptionReviewFormState =
+    initialMisconceptionReviewFormState,
 ): boolean {
   return (
-    state.removalChoice !== null ||
-    state.removedMisconceptionIds.length > 0 ||
-    state.removalReason.length > 0 ||
-    state.additionChoice !== null ||
-    state.additionalMisconceptionIds.length > 0 ||
-    state.additionReason.length > 0 ||
-    state.note.length > 0
+    state.removalChoice !== initialState.removalChoice ||
+    state.removedMisconceptionIds.join("\u0000") !==
+      initialState.removedMisconceptionIds.join("\u0000") ||
+    state.removalReason !== initialState.removalReason ||
+    state.additionChoice !== initialState.additionChoice ||
+    state.additionalMisconceptionIds.join("\u0000") !==
+      initialState.additionalMisconceptionIds.join("\u0000") ||
+    state.additionReason !== initialState.additionReason ||
+    state.note !== initialState.note
+  );
+}
+
+function historyReviewFormState(
+  review:
+    | QuestionReviewHistoryItem
+    | AnswerReviewHistoryItem
+    | undefined,
+  hasRemoval: boolean,
+): MisconceptionReviewFormState {
+  if (!review) return { ...initialMisconceptionReviewFormState };
+
+  return {
+    removalChoice: hasRemoval,
+    removedMisconceptionIds: [...review.removedMisconceptionIds],
+    removalReason: review.removalReason ?? "",
+    additionChoice: review.hasAdditionalMisconceptions,
+    additionalMisconceptionIds: [...review.additionalMisconceptionIds],
+    additionReason: review.additionReason ?? "",
+    note: review.note ?? "",
+  };
+}
+
+export function questionReviewFormState(
+  review: QuestionReviewHistoryItem | undefined,
+): MisconceptionReviewFormState {
+  return historyReviewFormState(
+    review,
+    review?.hasIncorrectMisconceptions ?? false,
+  );
+}
+
+export function answerReviewFormState(
+  review: AnswerReviewHistoryItem | undefined,
+): MisconceptionReviewFormState {
+  return historyReviewFormState(
+    review,
+    review?.hasMismatchedMisconceptions ?? false,
   );
 }
 
@@ -89,6 +134,10 @@ export function misconceptionReviewFormReducer(
 ): MisconceptionReviewFormState {
   if (action.type === "reset") {
     return { ...initialMisconceptionReviewFormState };
+  }
+
+  if (action.type === "replace") {
+    return { ...action.value };
   }
 
   if (action.type === "set_presence") {
