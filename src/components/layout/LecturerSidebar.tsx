@@ -68,25 +68,17 @@ function SidebarLink({
       className={cn(
         "lecturer-nav-item lecturer-tooltip group",
         subItem && "lecturer-nav-subitem",
-        collapsed && "lecturer-nav-item-collapsed",
+        collapsed && "justify-center px-0",
         active && "lecturer-nav-item-active",
       )}
     >
       <Icon
-        size={subItem ? 16 : 18}
+        size={subItem ? 14 : 16}
         strokeWidth={1.9}
         aria-hidden="true"
         className="shrink-0"
       />
-      <span
-        aria-hidden={collapsed || undefined}
-        className={cn(
-          "lecturer-nav-label truncate",
-          collapsed && "lecturer-nav-label-collapsed",
-        )}
-      >
-        {label}
-      </span>
+      {!collapsed && <span className="truncate whitespace-nowrap">{label}</span>}
     </Link>
   );
 }
@@ -135,20 +127,16 @@ function ProfileMenu({
         collapsed && "lecturer-profile-area-collapsed",
       )}
     >
-      <div
-        aria-hidden={collapsed || undefined}
-        className={cn(
-          "lecturer-profile-copy min-w-0 flex-1 overflow-hidden text-left",
-          collapsed && "lecturer-profile-copy-collapsed",
-        )}
-      >
-        <span className="block truncate whitespace-nowrap text-xs font-medium leading-[18px] text-navy-deep">
-          {lecturerName}
-        </span>
-        <span className="block text-[11px] font-normal leading-4 text-muted">
-          {isIndonesian ? "Dosen" : "Lecturer"}
-        </span>
-      </div>
+      {!collapsed && (
+        <div className="min-w-0 flex-1 overflow-hidden text-left">
+          <span className="block truncate whitespace-nowrap text-[11px] font-medium leading-4 text-navy-deep">
+            {lecturerName}
+          </span>
+          <span className="block text-[10px] font-normal leading-[14px] text-muted">
+            {isIndonesian ? "Dosen" : "Lecturer"}
+          </span>
+        </div>
+      )}
 
       <details ref={menuRef} className="group relative shrink-0">
         <summary
@@ -157,7 +145,7 @@ function ProfileMenu({
           className="lecturer-account-summary lecturer-tooltip"
         >
           <EllipsisVertical
-            size={18}
+            size={16}
             strokeWidth={2}
             aria-hidden="true"
           />
@@ -165,10 +153,12 @@ function ProfileMenu({
 
         <div
           className={cn(
-            "lecturer-account-menu absolute bottom-[calc(100%+8px)] z-50 w-48 rounded-[10px] border border-border bg-[var(--progmiscon-background)] p-2 shadow-[0_12px_28px_rgba(55,44,39,0.08)]",
+            "lecturer-account-menu absolute bottom-[calc(100%+8px)] z-50 w-44 rounded-[10px] border border-border bg-[var(--progmiscon-background)] p-2 shadow-[0_12px_28px_rgba(55,44,39,0.08)]",
             collapsed && !mobile
-              ? "left-[calc(100%+12px)]"
-              : "right-0",
+              ? "left-[calc(100%+28px)]"
+              : mobile
+                ? "right-0"
+                : "right-[-12px]",
           )}
         >
           <p className="lecturer-account-heading px-2 pb-1.5 pt-1 text-muted">
@@ -187,11 +177,11 @@ function ProfileMenu({
                 language === "id" && "lecturer-account-row-active",
               )}
             >
-              <Globe2 size={16} strokeWidth={1.9} aria-hidden="true" />
+              <Globe2 size={14} strokeWidth={1.9} aria-hidden="true" />
               <span className="min-w-0 flex-1">Bahasa Indonesia</span>
               {language === "id" && (
                 <Check
-                  size={14}
+                  size={12}
                   strokeWidth={2}
                   aria-hidden="true"
                   className="lecturer-language-check"
@@ -207,11 +197,11 @@ function ProfileMenu({
                 language === "en" && "lecturer-account-row-active",
               )}
             >
-              <Languages size={16} strokeWidth={1.9} aria-hidden="true" />
+              <Languages size={14} strokeWidth={1.9} aria-hidden="true" />
               <span className="min-w-0 flex-1">English (US)</span>
               {language === "en" && (
                 <Check
-                  size={14}
+                  size={12}
                   strokeWidth={2}
                   aria-hidden="true"
                   className="lecturer-language-check"
@@ -226,7 +216,7 @@ function ProfileMenu({
             onClick={() => void handleLogout()}
             className="lecturer-account-row"
           >
-            <LogOut size={16} strokeWidth={1.9} aria-hidden="true" />
+            <LogOut size={14} strokeWidth={1.9} aria-hidden="true" />
             <span>{isIndonesian ? "Keluar" : "Log out"}</span>
           </button>
           {logoutError && (
@@ -390,9 +380,9 @@ export function LecturerSidebar({
             )}
           >
             {effectiveCollapsed ? (
-              <PanelLeftOpen size={19} strokeWidth={1.9} aria-hidden="true" />
+              <PanelLeftOpen size={17} strokeWidth={1.9} aria-hidden="true" />
             ) : (
-              <PanelLeftClose size={19} strokeWidth={1.9} aria-hidden="true" />
+              <PanelLeftClose size={17} strokeWidth={1.9} aria-hidden="true" />
             )}
           </button>
         )}
@@ -404,32 +394,23 @@ export function LecturerSidebar({
           effectiveCollapsed ? "px-3" : mobile ? "px-4" : "px-3",
         )}
       >
-        <div className="grid">
+        {effectiveCollapsed ? (
           <button
             type="button"
             onClick={expandAndFocusSearch}
             aria-label={searchLabel}
-            aria-hidden={!effectiveCollapsed || undefined}
             data-tooltip={searchLabel}
-            tabIndex={effectiveCollapsed ? 0 : -1}
-            className={cn(
-              "lecturer-search-collapsed lecturer-sidebar-control lecturer-tooltip col-start-1 row-start-1 flex h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-border text-muted hover:border-brand/25 hover:bg-neutral hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-              !effectiveCollapsed && "lecturer-search-collapsed-hidden",
-            )}
+            className="lecturer-sidebar-control lecturer-tooltip flex h-9 w-full cursor-pointer items-center justify-center rounded-lg border border-border text-muted hover:border-brand/25 hover:bg-neutral hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
-            <Search size={18} strokeWidth={1.9} aria-hidden="true" />
+            <Search size={16} strokeWidth={1.9} aria-hidden="true" />
           </button>
-          <label
-            className={cn(
-              "lecturer-search-expanded relative col-start-1 row-start-1 block",
-              effectiveCollapsed && "lecturer-search-expanded-hidden",
-            )}
-          >
+        ) : (
+          <label className="lecturer-search-expanded relative block">
             <span className="sr-only">
               {isIndonesian ? "Cari menu navigasi" : "Search navigation menu"}
             </span>
             <Search
-              size={17}
+              size={15}
               strokeWidth={1.9}
               aria-hidden="true"
               className="lecturer-sidebar-search-icon pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
@@ -438,14 +419,12 @@ export function LecturerSidebar({
               ref={searchRef}
               type="search"
               value={query}
-              aria-hidden={effectiveCollapsed || undefined}
-              tabIndex={effectiveCollapsed ? -1 : 0}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={isIndonesian ? "Cari menu..." : "Search menu..."}
-              className="lecturer-sidebar-search h-10 w-full rounded-lg border border-border bg-white py-2 pl-10 pr-3 text-[12.5px] font-normal leading-[18px] text-navy-deep outline-none placeholder:text-muted/80"
+              className="lecturer-sidebar-search h-9 w-full rounded-lg border border-border bg-white py-2 pl-9 pr-3 text-xs font-normal leading-[18px] text-navy-deep outline-none placeholder:text-muted/80"
             />
           </label>
-        </div>
+        )}
       </div>
 
       <nav
@@ -477,11 +456,11 @@ export function LecturerSidebar({
                   aria-label={labels.bank}
                   data-tooltip={labels.bank}
                   className={cn(
-                    "lecturer-nav-item lecturer-nav-item-collapsed lecturer-tooltip list-none [&::-webkit-details-marker]:hidden",
+                    "lecturer-nav-item lecturer-tooltip list-none justify-center px-0 [&::-webkit-details-marker]:hidden",
                     isBankActive && "lecturer-nav-item-active",
                   )}
                 >
-                  <BookOpen size={18} strokeWidth={1.9} aria-hidden="true" />
+                  <BookOpen size={16} strokeWidth={1.9} aria-hidden="true" />
                 </summary>
                 <div className="lecturer-bank-flyout absolute left-[calc(100%+12px)] top-0 z-50 w-48 rounded-[10px] border border-border bg-white p-2 shadow-[0_16px_36px_rgba(55,44,39,0.14)]">
                   <p className="px-2 pb-2 pt-1 text-xs font-normal leading-[18px] text-navy-deep">
@@ -520,7 +499,7 @@ export function LecturerSidebar({
                     isBankActive && "lecturer-nav-parent-current",
                   )}
                 >
-                  <BookOpen size={18} strokeWidth={1.9} aria-hidden="true" />
+                  <BookOpen size={16} strokeWidth={1.9} aria-hidden="true" />
                   <span className="min-w-0 flex-1 truncate text-left">
                     {labels.bank}
                   </span>

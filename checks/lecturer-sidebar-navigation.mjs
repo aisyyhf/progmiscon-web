@@ -72,15 +72,17 @@ assert.match(
   /lecturer-sidebar-surface[^"]*border-r border-border[\s\S]*?effectiveCollapsed \? "w-\[72px\]" : "w-52"/,
   "the sidebar surface must keep its right divider at both widths",
 );
-assert.match(sidebar, /lecturer-nav-label truncate/);
-assert.match(sidebar, /collapsed && "lecturer-nav-label-collapsed"/);
+assert.match(
+  sidebar,
+  /!collapsed && <span className="truncate whitespace-nowrap">\{label\}<\/span>/,
+);
 assert.match(sidebar, /data-tooltip={collapsed \? label : undefined}/);
 assert.match(sidebar, /onCollapsedChange\?\.\(false\)/);
 assert.match(sidebar, /profile\?\.fullName/);
 assert.doesNotMatch(sidebar, /lecturer-avatar|avatarInitial/);
 assert.match(sidebar, /settingsLabel = isIndonesian \? "Pengaturan" : "Settings"/);
 assert.doesNotMatch(sidebar, /MoreHorizontal/);
-assert.match(sidebar, /<EllipsisVertical[\s\S]*?size=\{18\}/);
+assert.match(sidebar, /<EllipsisVertical[\s\S]*?size=\{16\}/);
 assert.match(sidebar, /formatLecturerSidebarName\(profile\?\.fullName\)/);
 assert.match(
   sidebar,
@@ -112,10 +114,10 @@ assert.match(
   ),
   /font-weight: 400/,
 );
-assert.match(styles, /--lecturer-nav-size: 0\.8125rem/);
+assert.match(styles, /--lecturer-nav-size: 0\.75rem/);
 assert.match(
   styles,
-  /\.lecturer-nav-subitem[\s\S]*?font-size: 0\.75rem;[\s\S]*?line-height: 1\.125rem/,
+  /\.lecturer-nav-subitem[\s\S]*?font-size: 0\.6875rem;[\s\S]*?line-height: 1rem/,
 );
 for (const [token, value] of [
   ["text", "#000000"],
@@ -150,12 +152,12 @@ assert.doesNotMatch(
 );
 assert.match(sidebar, /active && "lecturer-nav-item-active"/);
 assert.match(sidebar, /subItem && "lecturer-nav-subitem"/);
-assert.match(sidebar, /size={subItem \? 16 : 18}/);
-assert.match(sidebar, /text-xs font-medium leading-\[18px\]/);
-assert.match(sidebar, /text-\[11px\] font-normal leading-4/);
+assert.match(sidebar, /size={subItem \? 14 : 16}/);
+assert.match(sidebar, /text-\[11px\] font-medium leading-4/);
+assert.match(sidebar, /text-\[10px\] font-normal leading-\[14px\]/);
 assert.match(
   styles,
-  /\.lecturer-profile-area[\s\S]*?min-height: 2\.5rem;[\s\S]*?padding: 0\.1875rem 0\.25rem 0\.1875rem 1rem/,
+  /\.lecturer-profile-area[\s\S]*?min-height: 2\.25rem;[\s\S]*?padding: 0\.125rem 0\.25rem 0\.125rem 1rem/,
 );
 assert.match(
   styles,
@@ -167,7 +169,7 @@ assert.match(
 );
 assert.match(
   sidebar,
-  /lecturer-profile-copy[\s\S]*?{lecturerName}[\s\S]*?<\/div>[\s\S]*?<details/,
+  /!collapsed && \(\s*<div className="min-w-0 flex-1 overflow-hidden text-left">[\s\S]*?{lecturerName}[\s\S]*?<\/div>\s*\)\}[\s\S]*?<details/,
   "profile text must remain outside the interactive account details",
 );
 const accountSummaryStart = sidebar.indexOf(
@@ -186,19 +188,19 @@ assert.match(sidebar, />English \(US\)</);
 assert.match(sidebar, /isIndonesian \? "Keluar" : "Log out"/);
 assert.match(
   styles,
-  /\.lecturer-account-heading[\s\S]*?font-size: 0\.625rem;[\s\S]*?font-weight: 500/,
+  /\.lecturer-account-heading[\s\S]*?font-size: 0\.5625rem;[\s\S]*?font-weight: 500/,
 );
 assert.match(
   styles,
-  /\.lecturer-account-row[\s\S]*?font-size: 0\.75rem;[\s\S]*?font-weight: 400/,
+  /\.lecturer-account-row[\s\S]*?font-size: 0\.6875rem;[\s\S]*?font-weight: 400/,
 );
 assert.equal(
-  [...sidebar.matchAll(/<(?:Globe2|Languages|LogOut) size=\{16\}/g)].length,
+  [...sidebar.matchAll(/<(?:Globe2|Languages|LogOut) size=\{14\}/g)].length,
   3,
   "language and logout rows must use consistent 16px icons",
 );
-assert.match(sidebar, /<Globe2 size=\{16\}/);
-assert.match(sidebar, /<Languages size=\{16\}/);
+assert.match(sidebar, /<Globe2 size=\{14\}/);
+assert.match(sidebar, /<Languages size=\{14\}/);
 assert.match(
   sidebar,
   /mt-auto shrink-0 border-t border-border py-2/,
@@ -229,10 +231,13 @@ assert.match(
   styles,
   /\.lecturer-sidebar-width[\s\S]*?width var\(--motion-sidebar\) var\(--ease-standard\)/,
 );
-assert.match(
-  styles,
-  /\.lecturer-nav-label-collapsed[\s\S]*?opacity: 0;[\s\S]*?translateX\(-4px\)/,
+assert.doesNotMatch(styles, /lecturer-nav-label-collapsed|transition:[\s\S]{0,120}gap var\(--motion-sidebar\)/);
+assert.doesNotMatch(
+  sidebar,
+  /lecturer-search-collapsed-hidden|lecturer-search-expanded-hidden|lecturer-profile-copy-collapsed/,
 );
+assert.match(sidebar, /\{effectiveCollapsed \? \([\s\S]*?expandAndFocusSearch[\s\S]*?\) : \([\s\S]*?lecturer-search-expanded/);
+assert.match(sidebar, /!collapsed && \([\s\S]*?\{lecturerName\}/);
 assert.match(
   styles,
   /\.lecturer-bank-submenu[\s\S]*?grid-template-rows: 0fr[\s\S]*?\.lecturer-bank-submenu-open[\s\S]*?grid-template-rows: 1fr/,
@@ -264,8 +269,17 @@ assert.match(
 );
 assert.doesNotMatch(
   styles.match(/\.lecturer-nav-item:not\([\s\S]*?\}/)?.[0] ?? "",
-  /font-weight/,
-  "hover must not change navigation font weight",
+  /font-weight|progmiscon-primary|#B6252A/i,
+  "inactive hover must not change navigation weight or use active red",
+);
+assert.match(
+  styles.match(/\.lecturer-nav-item:not\([\s\S]*?\}/)?.[0] ?? "",
+  /background: rgb\(204 186 176 \/ 0\.18\)/,
+);
+assert.match(
+  sidebar,
+  /w-44[\s\S]*?left-\[calc\(100%\+28px\)\][\s\S]*?right-\[-12px\]/,
+  "account popover must align beside the collapsed trigger and inset from the expanded edge",
 );
 assert.doesNotMatch(packageJson, /framer-motion|"motion"\s*:/i);
 assert.match(html, /family=Poppins:wght@400;500;600/);
