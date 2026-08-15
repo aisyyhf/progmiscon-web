@@ -3,12 +3,14 @@ import {
   BrainCircuit,
   ChevronDown,
   ClipboardCheck,
+  Check,
+  EllipsisVertical,
   Eye,
+  Globe2,
   History,
   LayoutDashboard,
   Lightbulb,
   LogOut,
-  MoreHorizontal,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -117,100 +119,103 @@ function ProfileMenu({
   };
 
   return (
-    <details ref={menuRef} className="group relative">
-      <summary
-        aria-label={
-          isIndonesian ? "Buka menu akun" : "Open account menu"
-        }
-        title={collapsed ? (isIndonesian ? "Akun" : "Account") : undefined}
-        className={cn(
-          "lecturer-profile-summary",
-          collapsed && "justify-center px-0",
-        )}
-      >
-        {collapsed ? (
-          <MoreHorizontal
-            size={19}
+    <div
+      className={cn(
+        "lecturer-profile-area",
+        collapsed && "lecturer-profile-area-collapsed",
+      )}
+    >
+      {!collapsed && (
+        <div className="min-w-0 flex-1 overflow-hidden text-left">
+          <span className="block truncate whitespace-nowrap text-xs font-medium leading-[18px] text-navy-deep">
+            {lecturerName}
+          </span>
+          <span className="block text-[11px] font-normal leading-4 text-muted">
+            {isIndonesian ? "Dosen" : "Lecturer"}
+          </span>
+        </div>
+      )}
+
+      <details ref={menuRef} className="group relative shrink-0">
+        <summary
+          aria-label={isIndonesian ? "Pengaturan" : "Settings"}
+          title={isIndonesian ? "Pengaturan" : "Settings"}
+          className="lecturer-account-summary"
+        >
+          <EllipsisVertical
+            size={18}
             strokeWidth={2}
             aria-hidden="true"
-            className="text-muted"
           />
-        ) : (
-          <>
-            <span className="min-w-0 flex-1 overflow-hidden text-left">
-              <span className="block truncate whitespace-nowrap text-xs font-medium leading-[18px] text-navy-deep">
-                {lecturerName}
-              </span>
-              <span className="block text-[11px] font-normal leading-4 text-muted">
-                {isIndonesian ? "Dosen" : "Lecturer"}
-              </span>
-            </span>
-            <MoreHorizontal
-              size={18}
-              strokeWidth={2}
-              aria-hidden="true"
-              className="shrink-0 text-muted"
-            />
-          </>
-        )}
-      </summary>
+        </summary>
 
-      <div
-        className={cn(
-          "absolute bottom-[calc(100%+8px)] z-50 rounded-[10px] border border-border bg-white p-2 shadow-[0_16px_36px_rgba(55,44,39,0.14)]",
-          collapsed && !mobile
-            ? "left-[calc(100%+12px)] w-56"
-            : "inset-x-0",
-        )}
-      >
-        <p className="px-2 pb-1 pt-1 text-xs font-normal leading-[18px] text-navy-deep">
-          {isIndonesian ? "Bahasa" : "Language"}
-        </p>
-        <div className="grid grid-cols-2 gap-1" aria-label={isIndonesian ? "Pilih bahasa" : "Choose language"}>
-          <button
-            type="button"
-            aria-pressed={language === "id"}
-            onClick={() => setLanguage("id")}
-            className={cn(
-              "min-h-9 cursor-pointer rounded-lg px-2 text-xs font-normal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
-              language === "id"
-                ? "bg-brand-soft text-brand"
-                : "text-muted hover:bg-neutral hover:text-navy-deep",
-            )}
-          >
-            Indonesia
-          </button>
-          <button
-            type="button"
-            aria-pressed={language === "en"}
-            onClick={() => setLanguage("en")}
-            className={cn(
-              "min-h-9 cursor-pointer rounded-lg px-2 text-xs font-normal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
-              language === "en"
-                ? "bg-brand-soft text-brand"
-                : "text-muted hover:bg-neutral hover:text-navy-deep",
-            )}
-          >
-            English
-          </button>
-        </div>
-
-        <div className="my-2 border-t border-border" />
-        <button
-          type="button"
-          onClick={() => void handleLogout()}
-          className="flex min-h-10 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] font-normal text-muted hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+        <div
+          className={cn(
+            "absolute bottom-[calc(100%+8px)] z-50 w-48 rounded-[10px] border border-border bg-[var(--progmiscon-background)] p-2 shadow-[0_12px_28px_rgba(55,44,39,0.08)]",
+            collapsed && !mobile
+              ? "left-[calc(100%+12px)]"
+              : "right-0",
+          )}
         >
-          <LogOut size={17} strokeWidth={1.9} aria-hidden="true" />
-          {isIndonesian ? "Logout" : "Logout"}
-        </button>
-        {logoutError && (
-          <p role="alert" className="px-2 pb-1 pt-2 text-xs leading-[18px] text-incorrect">
-            {logoutError}
+          <p className="lecturer-account-heading px-2 pb-1.5 pt-1 text-muted">
+            {isIndonesian ? "PENGATURAN" : "SETTINGS"}
           </p>
-        )}
-      </div>
-    </details>
+          <div
+            className="space-y-0.5"
+            aria-label={isIndonesian ? "Pilih bahasa" : "Choose language"}
+          >
+            <button
+              type="button"
+              aria-pressed={language === "id"}
+              onClick={() => setLanguage("id")}
+              className={cn(
+                "lecturer-account-row",
+                language === "id" && "lecturer-account-row-active",
+              )}
+            >
+              <Globe2 size={16} strokeWidth={1.9} aria-hidden="true" />
+              <span className="min-w-0 flex-1">Bahasa Indonesia</span>
+              {language === "id" && (
+                <Check size={14} strokeWidth={2} aria-hidden="true" />
+              )}
+            </button>
+            <button
+              type="button"
+              aria-pressed={language === "en"}
+              onClick={() => setLanguage("en")}
+              className={cn(
+                "lecturer-account-row",
+                language === "en" && "lecturer-account-row-active",
+              )}
+            >
+              <Globe2 size={16} strokeWidth={1.9} aria-hidden="true" />
+              <span className="min-w-0 flex-1">English</span>
+              {language === "en" && (
+                <Check size={14} strokeWidth={2} aria-hidden="true" />
+              )}
+            </button>
+          </div>
+
+          <div className="my-1.5 border-t border-border" />
+          <button
+            type="button"
+            onClick={() => void handleLogout()}
+            className="lecturer-account-row"
+          >
+            <LogOut size={16} strokeWidth={1.9} aria-hidden="true" />
+            <span>{isIndonesian ? "Keluar" : "Log out"}</span>
+          </button>
+          {logoutError && (
+            <p
+              role="alert"
+              className="px-2 pb-1 pt-2 text-xs leading-[18px] text-incorrect"
+            >
+              {logoutError}
+            </p>
+          )}
+        </div>
+      </details>
+    </div>
   );
 }
 
@@ -347,20 +352,20 @@ export function LecturerSidebar({
             aria-label={
               effectiveCollapsed
                 ? isIndonesian
-                  ? "Perluas sidebar"
-                  : "Expand sidebar"
+                  ? "Perluas menu"
+                  : "Expand menu"
                 : isIndonesian
-                  ? "Perkecil sidebar"
-                  : "Collapse sidebar"
+                  ? "Ringkas menu"
+                  : "Collapse menu"
             }
             title={
               effectiveCollapsed
                 ? isIndonesian
-                  ? "Perluas sidebar"
-                  : "Expand sidebar"
+                  ? "Perluas menu"
+                  : "Expand menu"
                 : isIndonesian
-                  ? "Perkecil sidebar"
-                  : "Collapse sidebar"
+                  ? "Ringkas menu"
+                  : "Collapse menu"
             }
             className={cn(
               "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-neutral hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
@@ -386,8 +391,8 @@ export function LecturerSidebar({
           <button
             type="button"
             onClick={expandAndFocusSearch}
-            aria-label={isIndonesian ? "Cari menu" : "Search menu"}
-            title={isIndonesian ? "Cari menu" : "Search menu"}
+            aria-label={isIndonesian ? "Pencarian" : "Search"}
+            title={isIndonesian ? "Pencarian" : "Search"}
             className="flex h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-border text-muted hover:border-brand/25 hover:bg-neutral hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             <Search size={18} strokeWidth={1.9} aria-hidden="true" />

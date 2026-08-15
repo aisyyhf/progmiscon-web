@@ -71,8 +71,9 @@ assert.match(sidebar, /title={collapsed \? label : undefined}/);
 assert.match(sidebar, /onCollapsedChange\?\.\(false\)/);
 assert.match(sidebar, /profile\?\.fullName/);
 assert.doesNotMatch(sidebar, /lecturer-avatar|avatarInitial/);
-assert.match(sidebar, /isIndonesian \? "Akun" : "Account"/);
-assert.match(sidebar, /collapsed \? \([\s\S]*?<MoreHorizontal/);
+assert.match(sidebar, /isIndonesian \? "Pengaturan" : "Settings"/);
+assert.doesNotMatch(sidebar, /MoreHorizontal/);
+assert.match(sidebar, /<EllipsisVertical[\s\S]*?size=\{18\}/);
 assert.match(sidebar, /formatLecturerSidebarName\(profile\?\.fullName\)/);
 assert.match(
   sidebar,
@@ -100,7 +101,7 @@ assert.match(styles, /\.lecturer-ui/);
 assert.match(
   styles.slice(
     styles.indexOf(".lecturer-nav-item"),
-    styles.indexOf(".lecturer-profile-summary"),
+    styles.indexOf(".lecturer-profile-area"),
   ),
   /font-weight: 400/,
 );
@@ -141,6 +142,62 @@ assert.match(sidebar, /subItem && "lecturer-nav-subitem"/);
 assert.match(sidebar, /size={subItem \? 16 : 18}/);
 assert.match(sidebar, /text-xs font-medium leading-\[18px\]/);
 assert.match(sidebar, /text-\[11px\] font-normal leading-4/);
+assert.match(
+  styles,
+  /\.lecturer-profile-area[\s\S]*?padding: 0\.375rem 0\.25rem 0\.375rem 1rem/,
+);
+assert.match(
+  styles,
+  /\.lecturer-profile-area-collapsed[\s\S]*?padding-inline: 0/,
+);
+assert.match(
+  styles,
+  /\.lecturer-account-summary[\s\S]*?width: 2rem;[\s\S]*?height: 2rem/,
+);
+assert.match(
+  sidebar,
+  /!collapsed && \([\s\S]*?{lecturerName}[\s\S]*?<\/div>[\s\S]*?<details/,
+  "profile text must remain outside the interactive account details",
+);
+const accountSummaryStart = sidebar.indexOf(
+  "<summary",
+  sidebar.indexOf("function ProfileMenu"),
+);
+const accountSummary = sidebar.slice(
+  accountSummaryStart,
+  sidebar.indexOf("</summary>", accountSummaryStart),
+);
+assert.match(accountSummary, /EllipsisVertical/);
+assert.doesNotMatch(accountSummary, /lecturerName|Dosen|Lecturer/);
+assert.match(sidebar, /PENGATURAN/);
+assert.match(sidebar, /Bahasa Indonesia/);
+assert.match(sidebar, />English</);
+assert.match(sidebar, /isIndonesian \? "Keluar" : "Log out"/);
+assert.match(
+  styles,
+  /\.lecturer-account-heading[\s\S]*?font-size: 0\.625rem;[\s\S]*?font-weight: 500/,
+);
+assert.match(
+  styles,
+  /\.lecturer-account-row[\s\S]*?font-size: 0\.75rem;[\s\S]*?font-weight: 400/,
+);
+assert.equal(
+  [...sidebar.matchAll(/<(?:Globe2|LogOut) size=\{16\}/g)].length,
+  3,
+  "language and logout rows must use consistent 16px icons",
+);
+assert.match(
+  sidebar,
+  /aria-label=\{isIndonesian \? "Pencarian" : "Search"\}/,
+);
+assert.match(sidebar, /title=\{isIndonesian \? "Pencarian" : "Search"\}/);
+assert.match(sidebar, /\? "Perluas menu"[\s\S]*?: "Expand menu"/);
+assert.match(sidebar, /\? "Ringkas menu"[\s\S]*?: "Collapse menu"/);
+assert.match(
+  sidebar,
+  /aria-label=\{isIndonesian \? "Pengaturan" : "Settings"\}/,
+);
+assert.doesNotMatch(sidebar, /Perluas sidebar|Perkecil sidebar/);
 assert.match(html, /family=Poppins:wght@400;500;600/);
 
 const brandHeaderStart = sidebar.indexOf('to="/dashboard"');
