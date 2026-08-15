@@ -114,10 +114,10 @@ assert.match(
   ),
   /font-weight: 400/,
 );
-assert.match(styles, /--lecturer-nav-size: 0\.75rem/);
+assert.match(styles, /--lecturer-nav-size: 0\.8125rem/);
 assert.match(
   styles,
-  /\.lecturer-nav-subitem[\s\S]*?font-size: 0\.6875rem;[\s\S]*?line-height: 1rem/,
+  /\.lecturer-nav-subitem[\s\S]*?font-size: 0\.75rem;[\s\S]*?line-height: 1rem/,
 );
 for (const [token, value] of [
   ["text", "#000000"],
@@ -153,8 +153,8 @@ assert.doesNotMatch(
 assert.match(sidebar, /active && "lecturer-nav-item-active"/);
 assert.match(sidebar, /subItem && "lecturer-nav-subitem"/);
 assert.match(sidebar, /size={subItem \? 14 : 16}/);
-assert.match(sidebar, /text-\[11px\] font-medium leading-4/);
-assert.match(sidebar, /text-\[10px\] font-normal leading-\[14px\]/);
+assert.match(sidebar, /text-xs font-medium leading-4/);
+assert.match(sidebar, /text-\[11px\] font-normal leading-\[14px\]/);
 assert.match(
   styles,
   /\.lecturer-profile-area[\s\S]*?min-height: 2\.25rem;[\s\S]*?padding: 0\.125rem 0\.25rem 0\.125rem 1rem/,
@@ -188,11 +188,11 @@ assert.match(sidebar, />English \(US\)</);
 assert.match(sidebar, /isIndonesian \? "Keluar" : "Log out"/);
 assert.match(
   styles,
-  /\.lecturer-account-heading[\s\S]*?font-size: 0\.5625rem;[\s\S]*?font-weight: 500/,
+  /\.lecturer-account-heading[\s\S]*?font-size: 0\.625rem;[\s\S]*?font-weight: 500/,
 );
 assert.match(
   styles,
-  /\.lecturer-account-row[\s\S]*?font-size: 0\.6875rem;[\s\S]*?font-weight: 400/,
+  /\.lecturer-account-row[\s\S]*?font-size: 0\.75rem;[\s\S]*?font-weight: 400/,
 );
 assert.equal(
   [...sidebar.matchAll(/<(?:Globe2|Languages|LogOut) size=\{14\}/g)].length,
@@ -211,6 +211,16 @@ assert.match(
   /searchLabel = isIndonesian \? "Pencarian" : "Search"/,
 );
 assert.match(sidebar, /data-tooltip=\{searchLabel\}/);
+assert.match(
+  sidebar,
+  /placeholder=\{isIndonesian \? "Cari\.\.\." : "Search\.\.\."\}/,
+);
+assert.doesNotMatch(sidebar, /Cari menu\.\.\.|Search menu\.\.\./);
+assert.match(
+  sidebar,
+  /lecturer-sidebar-search[^\n]*text-xs font-normal/,
+  "the 12px search copy must remain 1px smaller than the 13px navigation labels",
+);
 assert.match(sidebar, /\? "Perluas menu"[\s\S]*?: "Expand menu"/);
 assert.match(sidebar, /\? "Ringkas menu"[\s\S]*?: "Collapse menu"/);
 assert.match(
@@ -253,7 +263,7 @@ assert.match(
 );
 assert.match(
   styles,
-  /\.lecturer-tooltip\[data-tooltip\][\s\S]*?transition-delay: 300ms/,
+  /\.lecturer-tooltip\[data-tooltip\][\s\S]*?font-size: 0\.75rem;[\s\S]*?transition-delay: 300ms/,
 );
 assert.match(
   layout,

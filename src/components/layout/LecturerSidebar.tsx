@@ -129,10 +129,10 @@ function ProfileMenu({
     >
       {!collapsed && (
         <div className="min-w-0 flex-1 overflow-hidden text-left">
-          <span className="block truncate whitespace-nowrap text-[11px] font-medium leading-4 text-navy-deep">
+          <span className="block truncate whitespace-nowrap text-xs font-medium leading-4 text-navy-deep">
             {lecturerName}
           </span>
-          <span className="block text-[10px] font-normal leading-[14px] text-muted">
+          <span className="block text-[11px] font-normal leading-[14px] text-muted">
             {isIndonesian ? "Dosen" : "Lecturer"}
           </span>
         </div>
@@ -420,7 +420,7 @@ export function LecturerSidebar({
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder={isIndonesian ? "Cari menu..." : "Search menu..."}
+              placeholder={isIndonesian ? "Cari..." : "Search..."}
               className="lecturer-sidebar-search h-9 w-full rounded-lg border border-border bg-white py-2 pl-9 pr-3 text-xs font-normal leading-[18px] text-navy-deep outline-none placeholder:text-muted/80"
             />
           </label>
@@ -463,7 +463,7 @@ export function LecturerSidebar({
                   <BookOpen size={16} strokeWidth={1.9} aria-hidden="true" />
                 </summary>
                 <div className="lecturer-bank-flyout absolute left-[calc(100%+12px)] top-0 z-50 w-48 rounded-[10px] border border-border bg-white p-2 shadow-[0_16px_36px_rgba(55,44,39,0.14)]">
-                  <p className="px-2 pb-2 pt-1 text-xs font-normal leading-[18px] text-navy-deep">
+                  <p className="px-2 pb-2 pt-1 text-[13px] font-normal leading-[18px] text-navy-deep">
                     {labels.bank}
                   </p>
                   <div className="space-y-1">
