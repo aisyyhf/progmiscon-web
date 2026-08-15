@@ -96,7 +96,6 @@ function ProfileMenu({
   const isIndonesian = language === "id";
   const lecturerName =
     profile?.fullName.trim() || (isIndonesian ? "Dosen" : "Lecturer");
-  const avatarInitial = lecturerName.charAt(0).toLocaleUpperCase() || "D";
 
   const handleLogout = async () => {
     setLogoutError("");
@@ -118,18 +117,22 @@ function ProfileMenu({
     <details ref={menuRef} className="group relative">
       <summary
         aria-label={
-          isIndonesian ? "Buka menu profil dosen" : "Open lecturer profile menu"
+          isIndonesian ? "Buka menu akun" : "Open account menu"
         }
-        title={collapsed ? lecturerName : undefined}
+        title={collapsed ? (isIndonesian ? "Akun" : "Account") : undefined}
         className={cn(
           "lecturer-profile-summary",
           collapsed && "justify-center px-0",
         )}
       >
-        <span className="lecturer-avatar" aria-hidden="true">
-          {avatarInitial}
-        </span>
-        {!collapsed && (
+        {collapsed ? (
+          <MoreHorizontal
+            size={19}
+            strokeWidth={2}
+            aria-hidden="true"
+            className="text-muted"
+          />
+        ) : (
           <>
             <span className="min-w-0 flex-1 text-left">
               <span className="block truncate text-[13px] font-semibold leading-[18px] text-navy-deep">
@@ -151,8 +154,10 @@ function ProfileMenu({
 
       <div
         className={cn(
-          "absolute bottom-[calc(100%+8px)] z-30 w-56 rounded-[10px] border border-border bg-white p-2 shadow-[0_16px_36px_rgba(55,44,39,0.14)]",
-          collapsed && !mobile ? "left-[calc(100%+12px)]" : "inset-x-0",
+          "absolute bottom-[calc(100%+8px)] z-50 rounded-[10px] border border-border bg-white p-2 shadow-[0_16px_36px_rgba(55,44,39,0.14)]",
+          collapsed && !mobile
+            ? "left-[calc(100%+12px)] w-56"
+            : "inset-x-0",
         )}
       >
         <p className="px-2 pb-1 pt-1 text-xs font-semibold leading-[18px] text-navy-deep">
@@ -293,10 +298,19 @@ export function LecturerSidebar({
       }
       className={cn(
         "lecturer-ui flex h-full min-h-0 flex-col bg-white transition-[width] duration-200 ease-out",
-        mobile ? "w-72" : effectiveCollapsed ? "w-[72px]" : "w-64",
+        mobile ? "w-72" : effectiveCollapsed ? "w-[72px]" : "w-52",
       )}
     >
-      <div className={cn("flex h-16 shrink-0 items-center", effectiveCollapsed ? "justify-center px-3" : "gap-2 px-4")}>
+      <div
+        className={cn(
+          "flex h-16 shrink-0 items-center",
+          effectiveCollapsed
+            ? "justify-center px-3"
+            : mobile
+              ? "gap-2 px-4"
+              : "gap-2 px-3",
+        )}
+      >
         {!effectiveCollapsed && (
           <Link
             to="/dashboard"
@@ -362,7 +376,12 @@ export function LecturerSidebar({
         )}
       </div>
 
-      <div className={cn("shrink-0 pb-3", effectiveCollapsed ? "px-3" : "px-4")}>
+      <div
+        className={cn(
+          "shrink-0 pb-3",
+          effectiveCollapsed ? "px-3" : mobile ? "px-4" : "px-3",
+        )}
+      >
         {effectiveCollapsed ? (
           <button
             type="button"
@@ -399,7 +418,11 @@ export function LecturerSidebar({
       <nav
         className={cn(
           "min-h-0 flex-1",
-          effectiveCollapsed ? "overflow-visible px-3" : "overflow-y-auto px-4",
+          effectiveCollapsed
+            ? "overflow-visible px-3"
+            : mobile
+              ? "overflow-y-auto px-4"
+              : "overflow-y-auto px-3",
         )}
       >
         <div className="space-y-1">
@@ -429,7 +452,7 @@ export function LecturerSidebar({
                 >
                   <BookOpen size={19} strokeWidth={1.9} aria-hidden="true" />
                 </summary>
-                <div className="absolute left-[calc(100%+12px)] top-0 z-30 w-48 rounded-[10px] border border-border bg-white p-2 shadow-[0_16px_36px_rgba(55,44,39,0.14)]">
+                <div className="absolute left-[calc(100%+12px)] top-0 z-50 w-48 rounded-[10px] border border-border bg-white p-2 shadow-[0_16px_36px_rgba(55,44,39,0.14)]">
                   <p className="px-2 pb-2 pt-1 text-xs font-semibold leading-[18px] text-navy-deep">
                     {labels.bank}
                   </p>
@@ -481,7 +504,7 @@ export function LecturerSidebar({
                   />
                 </button>
                 {(bankOpen || normalizedQuery) && (
-                  <div className="mt-1 space-y-1 pl-7">
+                  <div className="mt-1 space-y-1 pl-6">
                     {showQuestions && (
                       <SidebarLink
                         to="/materi"
@@ -546,7 +569,12 @@ export function LecturerSidebar({
         </div>
       </nav>
 
-      <div className={cn("mt-auto shrink-0 border-t border-border py-3", effectiveCollapsed ? "px-3" : "px-4")}>
+      <div
+        className={cn(
+          "mt-auto shrink-0 border-t border-border py-3",
+          effectiveCollapsed ? "px-3" : mobile ? "px-4" : "px-3",
+        )}
+      >
         <ProfileMenu
           collapsed={effectiveCollapsed}
           mobile={mobile}

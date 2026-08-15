@@ -64,11 +64,14 @@ for (const label of [
 
 assert.match(sidebar, /isReviewHistory = location\.pathname === "\/review\/riwayat"/);
 assert.match(sidebar, /!isReviewHistory &&/);
-assert.match(sidebar, /effectiveCollapsed \? "w-\[72px\]" : "w-64"/);
+assert.match(sidebar, /effectiveCollapsed \? "w-\[72px\]" : "w-52"/);
 assert.match(sidebar, /!collapsed && <span className="truncate">{label}<\/span>/);
 assert.match(sidebar, /title={collapsed \? label : undefined}/);
 assert.match(sidebar, /onCollapsedChange\?\.\(false\)/);
 assert.match(sidebar, /profile\?\.fullName\.trim\(\)/);
+assert.doesNotMatch(sidebar, /lecturer-avatar|avatarInitial/);
+assert.match(sidebar, /isIndonesian \? "Akun" : "Account"/);
+assert.match(sidebar, /collapsed \? \([\s\S]*?<MoreHorizontal/);
 assert.match(sidebar, /await logout\(\)/);
 assert.match(sidebar, /setLanguage\("id"\)/);
 assert.match(sidebar, /setLanguage\("en"\)/);
@@ -81,6 +84,8 @@ assert.match(layout, /stored === "collapsed"/);
 assert.match(layout, /stored === "expanded"/);
 assert.match(layout, /inert={!drawerOpen}/);
 assert.match(layout, /md:hidden/);
+assert.match(layout, /sticky top-0 z-30[\s\S]*?overflow-visible/);
+assert.match(layout, /collapsed \? "w-\[72px\]" : "w-52"/);
 
 assert.match(auth, /logout: \(\) => Promise<void>/);
 assert.match(language, /setLanguage: \(language: Language\) => void/);
