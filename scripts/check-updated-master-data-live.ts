@@ -11,7 +11,7 @@ import {
   parseDelimitedIds,
   parseReasonMap,
 } from "../src/utils/masterDataContent.ts";
-import { normalizeQuestionType } from "../src/utils/questionMetadata.ts";
+import { normalizeQuestionType, normalizeWeek } from "../src/utils/questionMetadata.ts";
 
 const env = Object.fromEntries(
   readFileSync(".env.local", "utf8")
@@ -59,6 +59,18 @@ const activeQuestions = data.questions.filter((row) => isActiveValue(row.active)
 const ps = activeQuestions.filter((row) => normalizeQuestionType(row.question_type) === "short_answer");
 const mp = activeQuestions.filter((row) => normalizeQuestionType(row.question_type) === "multiple_choice");
 assert.equal(ps.length + mp.length, activeQuestions.length, "every active question has an authoritative PS/MP type");
+const w02 = activeQuestions.filter((row) => normalizeWeek(row.week) === "W02");
+assert.equal(w02.length, 59, "W02 has 59 active questions");
+assert.equal(
+  w02.filter((row) => normalizeQuestionType(row.question_type) === "short_answer").length,
+  19,
+  "W02 has 19 active PS questions",
+);
+assert.equal(
+  w02.filter((row) => normalizeQuestionType(row.question_type) === "multiple_choice").length,
+  40,
+  "W02 has 40 active MP questions",
+);
 
 let structuredQuestionLocales = 0;
 let sampleQuestionCount = 0;

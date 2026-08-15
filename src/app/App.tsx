@@ -20,7 +20,7 @@ import { MiskonsepsiPage } from "../pages/MiskonsepsiPage";
 import { QuestionReviewPage } from "../pages/QuestionReviewPage";
 import { LecturerLoginPage } from "../pages/LecturerLoginPage";
 import { LecturerSignupPage } from "../pages/LecturerSignupPage";
-import { LecturerReviewPage } from "../pages/LecturerReviewPage";
+import { LecturerReviewPage } from "../pages/LecturerReviewWeekFirstPage";
 import { LecturerReviewHistoryPage } from "../pages/LecturerReviewHistoryPage";
 import { AdminPage } from "../pages/AdminPage";
 

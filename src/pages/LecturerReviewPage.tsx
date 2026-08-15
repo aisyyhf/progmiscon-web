@@ -222,7 +222,7 @@ function reloadChangedReviewData(error: unknown): boolean {
   return true;
 }
 
-export function LecturerReviewPage({
+export function LegacyLecturerReviewPage({
   initialAnswerId,
 }: {
   initialAnswerId?: string;
@@ -2084,7 +2084,7 @@ function SubmittedQuestionReview({
   );
 }
 
-function QuestionValidationWorkspace({
+export function QuestionValidationWorkspace({
   question,
   index,
   itemTotal,
@@ -2130,7 +2130,7 @@ function QuestionValidationWorkspace({
   onNext: () => void;
   onViewHistory: () => void;
   onDirtyChange?: (dirty: boolean) => void;
-  onReviewAnswer: (answerId: string) => void;
+  onReviewAnswer?: (answerId: string) => void;
   onSelectMisconception: (misconceptionId: string) => void;
   onDelete: () => Promise<void>;
   onSubmit: (values: QuestionReviewValues) => Promise<void>;
@@ -2600,20 +2600,16 @@ function QuestionValidationWorkspace({
                         </div>
                       )}
 
+                      {answerReviewEligible && onReviewAnswer && (
                       <button
                         type="button"
                         onClick={() => onReviewAnswer(answer.id)}
                         className="mt-3 inline-flex w-fit items-center gap-1 text-xs font-bold text-brand transition-colors hover:text-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:text-muted"
                       >
-                        {language === "id"
-                          ? answerReviewEligible
-                            ? "Review Jawaban"
-                            : "Lihat evidence"
-                          : answerReviewEligible
-                            ? "Review Answer"
-                            : "View evidence"}
+                        {language === "id" ? "Review Jawaban" : "Review Answer"}
                         <span aria-hidden="true">→</span>
                       </button>
+                      )}
                     </li>
                   );
                 })}
@@ -2914,7 +2910,7 @@ function QuestionValidationWorkspace({
   );
 }
 
-function AnswerValidationWorkspace({
+export function AnswerValidationWorkspace({
   task,
   question,
   answer,
