@@ -66,6 +66,11 @@ for (const label of [
 assert.match(sidebar, /isReviewHistory = location\.pathname === "\/review\/riwayat"/);
 assert.match(sidebar, /!isReviewHistory &&/);
 assert.match(sidebar, /effectiveCollapsed \? "w-\[72px\]" : "w-52"/);
+assert.match(
+  sidebar,
+  /lecturer-sidebar-surface[^"]*border-r border-border[\s\S]*?effectiveCollapsed \? "w-\[72px\]" : "w-52"/,
+  "the sidebar surface must keep its right divider at both widths",
+);
 assert.match(sidebar, /!collapsed && <span className="truncate">{label}<\/span>/);
 assert.match(sidebar, /title={collapsed \? label : undefined}/);
 assert.match(sidebar, /onCollapsedChange\?\.\(false\)/);
@@ -144,7 +149,7 @@ assert.match(sidebar, /text-xs font-medium leading-\[18px\]/);
 assert.match(sidebar, /text-\[11px\] font-normal leading-4/);
 assert.match(
   styles,
-  /\.lecturer-profile-area[\s\S]*?padding: 0\.375rem 0\.25rem 0\.375rem 1rem/,
+  /\.lecturer-profile-area[\s\S]*?min-height: 2\.5rem;[\s\S]*?padding: 0\.1875rem 0\.25rem 0\.1875rem 1rem/,
 );
 assert.match(
   styles,
@@ -171,7 +176,7 @@ assert.match(accountSummary, /EllipsisVertical/);
 assert.doesNotMatch(accountSummary, /lecturerName|Dosen|Lecturer/);
 assert.match(sidebar, /PENGATURAN/);
 assert.match(sidebar, /Bahasa Indonesia/);
-assert.match(sidebar, />English</);
+assert.match(sidebar, />English \(US\)</);
 assert.match(sidebar, /isIndonesian \? "Keluar" : "Log out"/);
 assert.match(
   styles,
@@ -182,9 +187,16 @@ assert.match(
   /\.lecturer-account-row[\s\S]*?font-size: 0\.75rem;[\s\S]*?font-weight: 400/,
 );
 assert.equal(
-  [...sidebar.matchAll(/<(?:Globe2|LogOut) size=\{16\}/g)].length,
+  [...sidebar.matchAll(/<(?:Globe2|Languages|LogOut) size=\{16\}/g)].length,
   3,
   "language and logout rows must use consistent 16px icons",
+);
+assert.match(sidebar, /<Globe2 size=\{16\}/);
+assert.match(sidebar, /<Languages size=\{16\}/);
+assert.match(
+  sidebar,
+  /mt-auto shrink-0 border-t border-border py-2/,
+  "the compact profile footer must retain its top divider",
 );
 assert.match(
   sidebar,

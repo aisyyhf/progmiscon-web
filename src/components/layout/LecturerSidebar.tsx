@@ -8,6 +8,7 @@ import {
   Eye,
   Globe2,
   History,
+  Languages,
   LayoutDashboard,
   Lightbulb,
   LogOut,
@@ -188,8 +189,8 @@ function ProfileMenu({
                 language === "en" && "lecturer-account-row-active",
               )}
             >
-              <Globe2 size={16} strokeWidth={1.9} aria-hidden="true" />
-              <span className="min-w-0 flex-1">English</span>
+              <Languages size={16} strokeWidth={1.9} aria-hidden="true" />
+              <span className="min-w-0 flex-1">English (US)</span>
               {language === "en" && (
                 <Check size={14} strokeWidth={2} aria-hidden="true" />
               )}
@@ -305,7 +306,7 @@ export function LecturerSidebar({
         isIndonesian ? "Navigasi ruang kerja dosen" : "Lecturer workspace navigation"
       }
       className={cn(
-        "lecturer-ui lecturer-sidebar-surface flex h-full min-h-0 flex-col transition-[width] duration-200 ease-out",
+        "lecturer-ui lecturer-sidebar-surface flex h-full min-h-0 flex-col border-r border-border transition-[width] duration-200 ease-out",
         mobile ? "w-72" : effectiveCollapsed ? "w-[72px]" : "w-52",
       )}
     >
@@ -576,7 +577,7 @@ export function LecturerSidebar({
 
       <div
         className={cn(
-          "mt-auto shrink-0 border-t border-border py-3",
+          "mt-auto shrink-0 border-t border-border py-2",
           effectiveCollapsed ? "px-3" : mobile ? "px-4" : "px-3",
         )}
       >

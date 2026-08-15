@@ -69,7 +69,7 @@ export function LecturerLayout({ children }: { children: ReactNode }) {
     <div className="flex min-h-dvh bg-bg">
       <div
         className={cn(
-          "sticky top-0 z-30 hidden h-dvh shrink-0 overflow-visible border-r border-border transition-[width] duration-200 ease-out md:block",
+          "sticky top-0 z-30 hidden h-dvh shrink-0 overflow-visible transition-[width] duration-200 ease-out md:block",
           collapsed ? "w-[72px]" : "w-52",
         )}
       >
@@ -137,7 +137,7 @@ export function LecturerLayout({ children }: { children: ReactNode }) {
         />
         <div
           className={cn(
-            "absolute inset-y-0 left-0 border-r border-border bg-white shadow-[12px_0_32px_rgba(55,44,39,0.14)] transition-transform duration-200 ease-out",
+            "absolute inset-y-0 left-0 bg-white shadow-[12px_0_32px_rgba(55,44,39,0.14)] transition-transform duration-200 ease-out",
             drawerOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
