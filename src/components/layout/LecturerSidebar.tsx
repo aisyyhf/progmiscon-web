@@ -42,6 +42,7 @@ type SidebarLinkProps = {
   icon: LucideIcon;
   label: string;
   onNavigate?: () => void;
+  subItem?: boolean;
   to: string;
 };
 
@@ -51,6 +52,7 @@ function SidebarLink({
   icon: Icon,
   label,
   onNavigate,
+  subItem = false,
   to,
 }: SidebarLinkProps) {
   return (
@@ -62,14 +64,13 @@ function SidebarLink({
       title={collapsed ? label : undefined}
       className={cn(
         "lecturer-nav-item group",
+        subItem && "lecturer-nav-subitem",
         collapsed && "justify-center px-0",
-        active
-          ? "bg-brand-soft text-brand"
-          : "text-muted hover:bg-neutral hover:text-navy-deep",
+        active && "lecturer-nav-item-active",
       )}
     >
       <Icon
-        size={19}
+        size={subItem ? 16 : 18}
         strokeWidth={1.9}
         aria-hidden="true"
         className="shrink-0"
@@ -137,10 +138,10 @@ function ProfileMenu({
         ) : (
           <>
             <span className="min-w-0 flex-1 overflow-hidden text-left">
-              <span className="block truncate whitespace-nowrap text-[13px] font-medium leading-[18px] text-navy-deep">
+              <span className="block truncate whitespace-nowrap text-xs font-medium leading-[18px] text-navy-deep">
                 {lecturerName}
               </span>
-              <span className="block text-xs font-normal leading-[18px] text-muted">
+              <span className="block text-[11px] font-normal leading-4 text-muted">
                 {isIndonesian ? "Dosen" : "Lecturer"}
               </span>
             </span>
@@ -299,7 +300,7 @@ export function LecturerSidebar({
         isIndonesian ? "Navigasi ruang kerja dosen" : "Lecturer workspace navigation"
       }
       className={cn(
-        "lecturer-ui flex h-full min-h-0 flex-col bg-white transition-[width] duration-200 ease-out",
+        "lecturer-ui lecturer-sidebar-surface flex h-full min-h-0 flex-col transition-[width] duration-200 ease-out",
         mobile ? "w-72" : effectiveCollapsed ? "w-[72px]" : "w-52",
       )}
     >
@@ -408,7 +409,7 @@ export function LecturerSidebar({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={isIndonesian ? "Cari menu..." : "Search menu..."}
-              className="h-10 w-full rounded-lg border border-border bg-white py-2 pl-10 pr-3 text-[13px] font-normal text-navy-deep outline-none placeholder:text-muted/80 hover:border-brand/25 focus:border-brand focus:ring-2 focus:ring-brand/10"
+              className="lecturer-sidebar-search h-10 w-full rounded-lg border border-border bg-white py-2 pl-10 pr-3 text-[12.5px] font-normal leading-[18px] text-navy-deep outline-none placeholder:text-muted/80"
             />
           </label>
         )}
@@ -444,12 +445,10 @@ export function LecturerSidebar({
                   title={labels.bank}
                   className={cn(
                     "lecturer-nav-item list-none justify-center px-0 [&::-webkit-details-marker]:hidden",
-                    isBankActive
-                      ? "bg-brand-soft text-brand"
-                      : "text-muted hover:bg-neutral hover:text-navy-deep",
+                    isBankActive && "lecturer-nav-item-active",
                   )}
                 >
-                  <BookOpen size={19} strokeWidth={1.9} aria-hidden="true" />
+                  <BookOpen size={18} strokeWidth={1.9} aria-hidden="true" />
                 </summary>
                 <div className="absolute left-[calc(100%+12px)] top-0 z-50 w-48 rounded-[10px] border border-border bg-white p-2 shadow-[0_16px_36px_rgba(55,44,39,0.14)]">
                   <p className="px-2 pb-2 pt-1 text-xs font-normal leading-[18px] text-navy-deep">
@@ -463,6 +462,7 @@ export function LecturerSidebar({
                       active={isQuestionCatalog}
                       collapsed={false}
                       onNavigate={onNavigate}
+                      subItem
                     />
                     <SidebarLink
                       to="/review?task=question"
@@ -471,6 +471,7 @@ export function LecturerSidebar({
                       active={isReview && reviewTask !== "answer"}
                       collapsed={false}
                       onNavigate={onNavigate}
+                      subItem
                     />
                   </div>
                 </div>
@@ -483,12 +484,10 @@ export function LecturerSidebar({
                   aria-expanded={bankOpen || Boolean(normalizedQuery)}
                   className={cn(
                     "lecturer-nav-item w-full cursor-pointer",
-                    isBankActive
-                      ? "text-brand"
-                      : "text-muted hover:bg-neutral hover:text-navy-deep",
+                    isBankActive && "lecturer-nav-parent-current",
                   )}
                 >
-                  <BookOpen size={19} strokeWidth={1.9} aria-hidden="true" />
+                  <BookOpen size={18} strokeWidth={1.9} aria-hidden="true" />
                   <span className="min-w-0 flex-1 truncate text-left">
                     {labels.bank}
                   </span>
@@ -512,6 +511,7 @@ export function LecturerSidebar({
                         active={isQuestionCatalog}
                         collapsed={false}
                         onNavigate={onNavigate}
+                        subItem
                       />
                     )}
                     {showReview && (
@@ -522,6 +522,7 @@ export function LecturerSidebar({
                         active={isReview && reviewTask !== "answer"}
                         collapsed={false}
                         onNavigate={onNavigate}
+                        subItem
                       />
                     )}
                   </div>

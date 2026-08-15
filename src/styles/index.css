@@ -26,6 +26,12 @@
 }
 
 .lecturer-ui {
+  /* Design tokens for new lecturer and Review UI, adopted incrementally. */
+  --progmiscon-text: #000000;
+  --progmiscon-background: #fbfbfe;
+  --progmiscon-primary: #B6252A;
+  --progmiscon-secondary: #ccbab0;
+  --progmiscon-accent: #b09f85;
   --lecturer-page-title-size: 2rem;
   --lecturer-page-title-line-height: 2.5rem;
   --lecturer-section-title-size: 1.25rem;
@@ -34,25 +40,74 @@
   --lecturer-card-title-line-height: 1.5rem;
   --lecturer-body-size: 0.875rem;
   --lecturer-body-line-height: 1.375rem;
-  --lecturer-nav-size: 0.875rem;
+  --lecturer-nav-size: 0.8125rem;
   --lecturer-nav-line-height: 1.25rem;
   --lecturer-label-size: 0.75rem;
   --lecturer-label-line-height: 1.125rem;
   font-family: var(--font-lecturer);
 }
 
+.lecturer-sidebar-surface {
+  background: var(--progmiscon-background);
+}
+
 .lecturer-nav-item {
+  position: relative;
   display: flex;
   min-height: 2.625rem;
   align-items: center;
   gap: 0.75rem;
   border-radius: 9px;
   padding: 0.625rem 0.75rem;
+  color: var(--progmiscon-text);
   font-size: var(--lecturer-nav-size);
   font-weight: 400;
   line-height: var(--lecturer-nav-line-height);
   transition-property: background-color, color, transform;
   transition-duration: 180ms;
+}
+
+.lecturer-nav-subitem {
+  min-height: 2.25rem;
+  font-size: 0.75rem;
+  line-height: 1.125rem;
+}
+
+.lecturer-nav-item:not(.lecturer-nav-item-active):hover {
+  background: rgb(204 186 176 / 0.18);
+}
+
+.lecturer-nav-item-active {
+  background: transparent;
+  color: var(--progmiscon-primary);
+}
+
+.lecturer-nav-item-active::before {
+  position: absolute;
+  inset-block: 0.625rem;
+  left: 0;
+  width: 3px;
+  border-radius: 999px;
+  background: var(--progmiscon-primary);
+  content: "";
+}
+
+.lecturer-nav-parent-current {
+  color: rgb(182 37 42 / 0.72);
+}
+
+.lecturer-nav-item:focus-visible {
+  outline: 2px solid var(--progmiscon-primary);
+  outline-offset: 2px;
+}
+
+.lecturer-sidebar-search:hover {
+  border-color: rgb(204 186 176 / 0.72);
+}
+
+.lecturer-sidebar-search:focus {
+  border-color: var(--progmiscon-primary);
+  box-shadow: 0 0 0 2px rgb(182 37 42 / 0.1);
 }
 
 .lecturer-profile-summary {

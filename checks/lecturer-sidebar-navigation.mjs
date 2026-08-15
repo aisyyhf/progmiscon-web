@@ -104,6 +104,43 @@ assert.match(
   ),
   /font-weight: 400/,
 );
+assert.match(styles, /--lecturer-nav-size: 0\.8125rem/);
+assert.match(
+  styles,
+  /\.lecturer-nav-subitem[\s\S]*?font-size: 0\.75rem;[\s\S]*?line-height: 1\.125rem/,
+);
+for (const [token, value] of [
+  ["text", "#000000"],
+  ["background", "#fbfbfe"],
+  ["primary", "#B6252A"],
+  ["secondary", "#ccbab0"],
+  ["accent", "#b09f85"],
+]) {
+  assert.match(styles, new RegExp(`--progmiscon-${token}: ${value}`));
+}
+assert.match(
+  styles,
+  /\.lecturer-nav-item-active[\s\S]*?background: transparent;[\s\S]*?color: var\(--progmiscon-primary\)/,
+);
+assert.match(
+  styles,
+  /\.lecturer-nav-item-active::before[\s\S]*?width: 3px;[\s\S]*?background: var\(--progmiscon-primary\)/,
+);
+assert.match(styles, /rgb\(204 186 176 \/ 0\.18\)/);
+assert.match(
+  styles,
+  /\.lecturer-nav-item:focus-visible[\s\S]*?outline: 2px solid var\(--progmiscon-primary\)/,
+);
+assert.doesNotMatch(
+  sidebar.match(/active\s*\?[\s\S]*?\)/)?.[0] ?? "",
+  /bg-brand-soft|font-(?:medium|semibold|bold)/,
+  "active navigation must not use a filled background or bold text",
+);
+assert.match(sidebar, /active && "lecturer-nav-item-active"/);
+assert.match(sidebar, /subItem && "lecturer-nav-subitem"/);
+assert.match(sidebar, /size={subItem \? 16 : 18}/);
+assert.match(sidebar, /text-xs font-medium leading-\[18px\]/);
+assert.match(sidebar, /text-\[11px\] font-normal leading-4/);
 assert.match(html, /family=Poppins:wght@400;500;600/);
 
 const brandHeaderStart = sidebar.indexOf('to="/dashboard"');
