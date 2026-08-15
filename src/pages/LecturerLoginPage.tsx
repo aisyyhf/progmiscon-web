@@ -16,7 +16,7 @@ export function LecturerLoginPage() {
 
   useEffect(() => {
     if (!loading && isLecturer) {
-      navigate("/review", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [isLecturer, loading, navigate]);
 
@@ -31,7 +31,7 @@ export function LecturerLoginPage() {
 
     try {
       await login(email, password);
-      navigate("/review", { replace: true });
+      navigate("/dashboard", { replace: true });
     } catch (loginError) {
       setError(
         loginError instanceof Error

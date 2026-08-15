@@ -40,32 +40,62 @@ export function TopNav() {
   const lecturerFirstName =
     lecturerName.split(/\s+/)[0] || (language === "id" ? "Dosen" : "Lecturer");
 
+  const brandLink = (
+    <Link
+      to="/"
+      className="group inline-flex items-center gap-2.5 text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">
+        <img
+          src="/progmiscon-logo.png"
+          alt=""
+          className="h-full w-full scale-[1.4] object-cover contrast-200"
+        />
+      </span>
+      <span className="text-lg font-bold tracking-tight">
+        <span className="text-brand">Prog</span>
+        <span className="text-navy-deep">miscon</span>
+      </span>
+    </Link>
+  );
+
+  if (location.pathname === "/") {
+    return (
+      <header className="sticky top-0 z-30 border-b border-border bg-white/95 backdrop-blur-md">
+        <div className="mx-auto flex min-h-16 max-w-[1240px] flex-wrap items-center gap-3 px-4 py-2 sm:flex-nowrap sm:px-6 lg:px-8">
+          {brandLink}
+          <div className="order-2 flex w-full flex-col gap-2 min-[360px]:flex-row sm:order-none sm:ml-auto sm:w-auto">
+            <Link
+              to="/dosen/login"
+              className="inline-flex min-h-10 flex-1 items-center justify-center whitespace-nowrap rounded-md bg-brand px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:flex-none sm:px-4 sm:text-sm"
+            >
+              {language === "id" ? "Masuk sebagai Dosen" : "Lecturer Sign In"}
+            </Link>
+            <Link
+              to="/materi"
+              className="inline-flex min-h-10 flex-1 items-center justify-center whitespace-nowrap rounded-md border border-border bg-white px-3 py-2 text-xs font-semibold text-navy-deep transition-colors hover:border-brand/35 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:flex-none sm:px-4 sm:text-sm"
+            >
+              {language === "id"
+                ? "Jelajahi sebagai Pengunjung"
+                : "Explore as a Visitor"}
+            </Link>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
   return (
     <header className="sticky top-0 z-30 border-b border-border bg-white/95 backdrop-blur-md">
       <div className="relative mx-auto flex h-16 max-w-[1240px] items-center gap-4 px-4 sm:px-6 lg:px-8">
-        <Link
-          to="/home"
-          className="group inline-flex items-center gap-2.5 text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
-        >
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">
-            <img
-              src="/progmiscon-logo.png"
-              alt=""
-              className="h-full w-full scale-[1.4] object-cover contrast-200"
-            />
-          </span>
-          <span className="text-lg font-bold tracking-tight">
-            <span className="text-brand">Prog</span>
-            <span className="text-navy-deep">miscon</span>
-          </span>
-        </Link>
+        {brandLink}
 
-        <div className="absolute left-1/2 hidden -translate-x-1/2 md:block">
+        <div className="absolute left-1/2 hidden -translate-x-1/2 lg:block">
           <NavTabs />
         </div>
 
-        <div className="ml-auto hidden items-center gap-2 md:flex">
-          {isLecturer ? (
+        <div className="ml-auto hidden items-center gap-2 lg:flex">
+          {isLecturer && (
             <details className="group relative">
               <summary className="inline-flex cursor-pointer list-none items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-semibold text-navy transition-colors hover:bg-neutral focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
                 <span className="flex h-6 w-6 items-center justify-center rounded-md bg-brand-soft text-brand">
@@ -127,14 +157,6 @@ export function TopNav() {
                 </div>
               </div>
             </details>
-          ) : (
-            <Link
-              to="/dosen/login"
-              className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-semibold text-navy-deep transition-colors hover:border-brand/35 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-            >
-              <UserRound size={14} strokeWidth={2} aria-hidden="true" />
-              {language === "id" ? "Akun Dosen" : "Lecturer Account"}
-            </Link>
           )}
         </div>
 
@@ -152,7 +174,7 @@ export function TopNav() {
                 ? "Buka menu"
                 : "Open menu"
           }
-          className="ml-auto inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-md text-navy-deep transition-colors hover:bg-neutral focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand md:hidden"
+          className="ml-auto inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-md text-navy-deep transition-colors hover:bg-neutral focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand lg:hidden"
         >
           {menuOpen ? <X size={20} strokeWidth={2} aria-hidden="true" /> : <Menu size={20} strokeWidth={2} aria-hidden="true" />}
         </button>
@@ -162,7 +184,7 @@ export function TopNav() {
         id="mobile-nav-panel"
         inert={!menuOpen}
         className={cn(
-          "overflow-hidden border-t border-border bg-white transition-[max-height] duration-300 ease-out md:hidden",
+          "overflow-hidden border-t border-border bg-white transition-[max-height] duration-300 ease-out lg:hidden",
           menuOpen ? "max-h-[85vh] overflow-y-auto" : "max-h-0",
         )}
       >
@@ -171,7 +193,11 @@ export function TopNav() {
             <NavLink
               key={link.to}
               to={link.to}
-              end={link.to === "/home"}
+              end={
+                link.to === "/dashboard" ||
+                link.to === "/review" ||
+                link.to === "/review/riwayat"
+              }
               className={({ isActive }) =>
                 cn(
                   "flex min-h-12 items-center rounded-md px-3 text-[15px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
@@ -184,8 +210,8 @@ export function TopNav() {
           ))}
         </nav>
 
-        <div className="border-t border-border px-4 py-4">
-          {isLecturer ? (
+        {isLecturer && (
+          <div className="border-t border-border px-4 py-4">
             <div>
               <div className="px-1">
                 <p className="truncate text-sm font-bold text-navy-deep">{lecturerName}</p>
@@ -222,16 +248,8 @@ export function TopNav() {
                 </button>
               </div>
             </div>
-          ) : (
-            <Link
-              to="/dosen/login"
-              className="flex min-h-12 items-center justify-center gap-2 rounded-lg border border-border text-sm font-semibold text-navy-deep hover:border-brand/35 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-            >
-              <UserRound size={16} strokeWidth={2} aria-hidden="true" />
-              {language === "id" ? "Akun Dosen" : "Lecturer Account"}
-            </Link>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </header>
   );

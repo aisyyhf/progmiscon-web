@@ -11,6 +11,8 @@ export const uiText = {
   navKonsep: { id: "Konsep", en: "Concepts" },
   navMiskonsepsi: { id: "Miskonsepsi", en: "Misconceptions" },
   navReview: { id: "Review", en: "Review" },
+  navDashboard: { id: "Dashboard", en: "Dashboard" },
+  navHistory: { id: "Riwayat", en: "History" },
 
   homeTitle: { id: "Progmiscon", en: "Progmiscon" },
   homeSubtitle: {

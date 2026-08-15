@@ -1,14 +1,20 @@
 import { useLecturerAuth } from "../../hooks/useLecturerAuth";
 import { uiText } from "../../utils/translation";
 
-const baseLinks = [
-  { to: "/home", label: uiText.navHome },
+const publicLinks = [
   { to: "/materi", label: uiText.navMateri },
   { to: "/konsep", label: uiText.navKonsep },
   { to: "/miskonsepsi", label: uiText.navMiskonsepsi },
 ];
 
+const lecturerLinks = [
+  { to: "/dashboard", label: uiText.navDashboard },
+  ...publicLinks,
+  { to: "/review", label: uiText.navReview },
+  { to: "/review/riwayat", label: uiText.navHistory },
+];
+
 export function useNavLinks() {
   const { isLecturer } = useLecturerAuth();
-  return isLecturer ? [...baseLinks, { to: "/review", label: uiText.navReview }] : baseLinks;
+  return isLecturer ? lecturerLinks : publicLinks;
 }

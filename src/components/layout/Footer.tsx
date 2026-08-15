@@ -5,14 +5,14 @@ import { t } from "../../utils/translation";
 
 export function Footer({ compact = false }: { compact?: boolean }) {
   const { language } = useLanguage();
-  const links = useNavLinks().filter((link) => link.to !== "/home");
+  const links = useNavLinks();
 
   return (
     <footer className={`${compact ? "mt-4" : "mt-12"} border-t border-border bg-white`}>
       <div className="mx-auto max-w-[1240px] px-4 py-5 pb-14 sm:px-6 sm:py-5 lg:px-8">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <Link
-            to="/home"
+            to="/"
             className="group inline-flex items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
           >
             <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">
@@ -40,12 +40,6 @@ export function Footer({ compact = false }: { compact?: boolean }) {
                 {t(link.label, language)}
               </Link>
             ))}
-            <Link
-              to="/dosen/login"
-              className="text-xs font-medium text-muted transition-colors hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-            >
-              {language === "id" ? "Akun Dosen" : "Lecturer Account"}
-            </Link>
           </nav>
         </div>
 
