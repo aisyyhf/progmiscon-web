@@ -23,7 +23,7 @@ export function LecturerSignupPage() {
 
   useEffect(() => {
     if (!loading && isLecturer) {
-      navigate("/review", { replace: true });
+      navigate("/dashboard", { replace: true });
     }
   }, [isLecturer, loading, navigate]);
 
@@ -62,7 +62,7 @@ export function LecturerSignupPage() {
             : "Registration succeeded. Open the verification email, then sign in",
         );
       } else {
-        navigate("/review", { replace: true });
+        navigate("/dashboard", { replace: true });
       }
     } catch (signupError) {
       setError(

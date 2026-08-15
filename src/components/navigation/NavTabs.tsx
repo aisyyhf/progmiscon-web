@@ -14,7 +14,11 @@ export function NavTabs() {
         <NavLink
           key={link.to}
           to={link.to}
-          end={link.to === "/home"}
+          end={
+            link.to === "/dashboard" ||
+            link.to === "/review" ||
+            link.to === "/review/riwayat"
+          }
           className={({ isActive }) =>
             cn(
               "relative rounded-md px-2.5 py-2 text-[13px] font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:px-3 md:text-sm",

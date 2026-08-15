@@ -22,6 +22,7 @@ import { LecturerLoginPage } from "../pages/LecturerLoginPage";
 import { LecturerSignupPage } from "../pages/LecturerSignupPage";
 import { LecturerReviewPage } from "../pages/LecturerReviewWeekFirstPage";
 import { LecturerReviewHistoryPage } from "../pages/LecturerReviewHistoryPage";
+import { LecturerDashboardPage } from "../pages/LecturerDashboardPage";
 import { AdminPage } from "../pages/AdminPage";
 
 function LecturerOnly({ children }: { children: ReactNode }) {
@@ -66,7 +67,7 @@ function AdminOnly({ children }: { children: ReactNode }) {
     );
   }
 
-  return isAdmin ? children : <Navigate to="/home" replace />;
+  return isAdmin ? children : <Navigate to="/dashboard" replace />;
 }
 
 function LegacyQuestionRedirect() {
@@ -89,8 +90,8 @@ export default function App() {
         <BrowserRouter>
           <AppShell>
             <Routes>
-              <Route path="/" element={<Navigate to="/home" replace />} />
-              <Route path="/home" element={<HomePage />} />
+              <Route path="/" element={<HomePage />} />
+              <Route path="/home" element={<Navigate to="/" replace />} />
               <Route path="/materi" element={<MateriPage />} />
               <Route path="/konsep" element={<KonsepPage />} />
               <Route path="/konsep/:conceptId" element={<KonsepPage />} />
@@ -101,6 +102,14 @@ export default function App() {
               />
               <Route path="/dosen/login" element={<LecturerLoginPage />} />
               <Route path="/dosen/daftar" element={<LecturerSignupPage />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <LecturerOnly>
+                    <LecturerDashboardPage />
+                  </LecturerOnly>
+                }
+              />
               <Route
                 path="/pustaka"
                 element={<Navigate to="/konsep" replace />}
@@ -145,7 +154,7 @@ export default function App() {
                   </AdminOnly>
                 }
               />
-              <Route path="*" element={<Navigate to="/home" replace />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </AppShell>
         </BrowserRouter>
