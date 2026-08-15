@@ -84,19 +84,20 @@ for (const question of activeQuestions) {
   if (sampleCases.length > 0) sampleQuestionCount += 1;
 }
 assert.equal(duplicateLegacyCodeCount, 0, "legacy code is not duplicated by the structured fallback");
-assert.ok(suppressedSampleLocales > 0, "live duplicate sample fragments are suppressed");
+assert.equal(suppressedSampleLocales, 0, "live question content has no duplicate sample fragments");
 
-const q003 = activeQuestions.find((row) => row.question_id.trim() === "Q003")!;
-const q003Cases = buildSampleCases(q003.sample_inputs, q003.sample_outputs);
-for (const [raw, legacyText] of [[q003.content_blocks_ind, q003.question_ind], [q003.content_blocks_en, q003.question_en]] as const) {
-  const content = buildQuestionContentBlocks(raw, legacyText, q003.question_code, q003Cases)
+const circleAreaQuestion = activeQuestions.find((row) => row.source_key.trim() === "LMS-PS-10413316");
+assert.ok(circleAreaQuestion, "LMS circle-area question remains available");
+const circleAreaCases = buildSampleCases(circleAreaQuestion.sample_inputs, circleAreaQuestion.sample_outputs);
+for (const [raw, legacyText] of [[circleAreaQuestion.content_blocks_ind, circleAreaQuestion.question_ind], [circleAreaQuestion.content_blocks_en, circleAreaQuestion.question_en]] as const) {
+  const content = buildQuestionContentBlocks(raw, legacyText, circleAreaQuestion.question_code, circleAreaCases)
     .filter((block) => block.type === "text")
     .map((block) => block.content)
     .join("\n");
-  for (const sample of q003Cases) {
-    assert.equal(content.includes(sample.output), false, "Q003 sample output is rendered only by sample cards");
+  for (const sample of circleAreaCases) {
+    assert.equal(content.includes(sample.output), false, "circle-area sample output is rendered only by sample cards");
   }
-  assert.match(content, /pi = 3\.14/i, "Q003 instructional prose remains");
+  assert.match(content, /pi.*3\.14/i, "circle-area instructional prose remains");
 }
 
 const q062 = activeQuestions.find((row) => row.question_id.trim() === "Q062")!;
