@@ -26,6 +26,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useLanguage } from "../../hooks/useLanguage";
 import { useLecturerAuth } from "../../hooks/useLecturerAuth";
 import { cn } from "../../utils/cn";
+import { formatLecturerSidebarName } from "../../utils/lecturerSidebar";
 
 type LecturerSidebarProps = {
   collapsed?: boolean;
@@ -95,7 +96,8 @@ function ProfileMenu({
   const [logoutError, setLogoutError] = useState("");
   const isIndonesian = language === "id";
   const lecturerName =
-    profile?.fullName.trim() || (isIndonesian ? "Dosen" : "Lecturer");
+    formatLecturerSidebarName(profile?.fullName) ||
+    (isIndonesian ? "Dosen" : "Lecturer");
 
   const handleLogout = async () => {
     setLogoutError("");
@@ -134,8 +136,8 @@ function ProfileMenu({
           />
         ) : (
           <>
-            <span className="min-w-0 flex-1 text-left">
-              <span className="block truncate text-[13px] font-semibold leading-[18px] text-navy-deep">
+            <span className="min-w-0 flex-1 overflow-hidden text-left">
+              <span className="block truncate whitespace-nowrap text-[13px] font-medium leading-[18px] text-navy-deep">
                 {lecturerName}
               </span>
               <span className="block text-xs font-normal leading-[18px] text-muted">
@@ -160,7 +162,7 @@ function ProfileMenu({
             : "inset-x-0",
         )}
       >
-        <p className="px-2 pb-1 pt-1 text-xs font-semibold leading-[18px] text-navy-deep">
+        <p className="px-2 pb-1 pt-1 text-xs font-normal leading-[18px] text-navy-deep">
           {isIndonesian ? "Bahasa" : "Language"}
         </p>
         <div className="grid grid-cols-2 gap-1" aria-label={isIndonesian ? "Pilih bahasa" : "Choose language"}>
@@ -169,7 +171,7 @@ function ProfileMenu({
             aria-pressed={language === "id"}
             onClick={() => setLanguage("id")}
             className={cn(
-              "min-h-9 cursor-pointer rounded-lg px-2 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
+              "min-h-9 cursor-pointer rounded-lg px-2 text-xs font-normal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
               language === "id"
                 ? "bg-brand-soft text-brand"
                 : "text-muted hover:bg-neutral hover:text-navy-deep",
@@ -182,7 +184,7 @@ function ProfileMenu({
             aria-pressed={language === "en"}
             onClick={() => setLanguage("en")}
             className={cn(
-              "min-h-9 cursor-pointer rounded-lg px-2 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
+              "min-h-9 cursor-pointer rounded-lg px-2 text-xs font-normal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
               language === "en"
                 ? "bg-brand-soft text-brand"
                 : "text-muted hover:bg-neutral hover:text-navy-deep",
@@ -196,7 +198,7 @@ function ProfileMenu({
         <button
           type="button"
           onClick={() => void handleLogout()}
-          className="flex min-h-10 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] font-medium text-muted hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+          className="flex min-h-10 w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] font-normal text-muted hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
         >
           <LogOut size={17} strokeWidth={1.9} aria-hidden="true" />
           {isIndonesian ? "Logout" : "Logout"}
@@ -315,6 +317,7 @@ export function LecturerSidebar({
           <Link
             to="/dashboard"
             onClick={onNavigate}
+            aria-label="Progmiscon"
             className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
@@ -323,10 +326,6 @@ export function LecturerSidebar({
                 alt=""
                 className="h-full w-full scale-[1.4] object-cover contrast-200"
               />
-            </span>
-            <span className="truncate text-[17px] font-semibold tracking-[-0.01em]">
-              <span className="text-brand">Prog</span>
-              <span className="text-navy-deep">miscon</span>
             </span>
           </Link>
         )}
@@ -453,7 +452,7 @@ export function LecturerSidebar({
                   <BookOpen size={19} strokeWidth={1.9} aria-hidden="true" />
                 </summary>
                 <div className="absolute left-[calc(100%+12px)] top-0 z-50 w-48 rounded-[10px] border border-border bg-white p-2 shadow-[0_16px_36px_rgba(55,44,39,0.14)]">
-                  <p className="px-2 pb-2 pt-1 text-xs font-semibold leading-[18px] text-navy-deep">
+                  <p className="px-2 pb-2 pt-1 text-xs font-normal leading-[18px] text-navy-deep">
                     {labels.bank}
                   </p>
                   <div className="space-y-1">
