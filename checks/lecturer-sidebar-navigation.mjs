@@ -5,7 +5,7 @@ import { formatLecturerSidebarName } from "../src/utils/lecturerSidebar.ts";
 const readSource = (path) =>
   readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-const [app, appShell, layout, sidebar, auth, language, styles, html] =
+const [app, appShell, layout, sidebar, auth, language, styles, html, packageJson] =
   await Promise.all([
     readSource("src/app/App.tsx"),
     readSource("src/components/layout/AppShell.tsx"),
@@ -15,6 +15,7 @@ const [app, appShell, layout, sidebar, auth, language, styles, html] =
     readSource("src/hooks/useLanguage.tsx"),
     readSource("src/styles/index.css"),
     readSource("index.html"),
+    readSource("package.json"),
   ]);
 
 assert.match(appShell, /isLecturer && isLecturerWorkspacePath/);
@@ -71,12 +72,13 @@ assert.match(
   /lecturer-sidebar-surface[^"]*border-r border-border[\s\S]*?effectiveCollapsed \? "w-\[72px\]" : "w-52"/,
   "the sidebar surface must keep its right divider at both widths",
 );
-assert.match(sidebar, /!collapsed && <span className="truncate">{label}<\/span>/);
-assert.match(sidebar, /title={collapsed \? label : undefined}/);
+assert.match(sidebar, /lecturer-nav-label truncate/);
+assert.match(sidebar, /collapsed && "lecturer-nav-label-collapsed"/);
+assert.match(sidebar, /data-tooltip={collapsed \? label : undefined}/);
 assert.match(sidebar, /onCollapsedChange\?\.\(false\)/);
 assert.match(sidebar, /profile\?\.fullName/);
 assert.doesNotMatch(sidebar, /lecturer-avatar|avatarInitial/);
-assert.match(sidebar, /isIndonesian \? "Pengaturan" : "Settings"/);
+assert.match(sidebar, /settingsLabel = isIndonesian \? "Pengaturan" : "Settings"/);
 assert.doesNotMatch(sidebar, /MoreHorizontal/);
 assert.match(sidebar, /<EllipsisVertical[\s\S]*?size=\{18\}/);
 assert.match(sidebar, /formatLecturerSidebarName\(profile\?\.fullName\)/);
@@ -130,7 +132,11 @@ assert.match(
 );
 assert.match(
   styles,
-  /\.lecturer-nav-item-active::before[\s\S]*?width: 3px;[\s\S]*?background: var\(--progmiscon-primary\)/,
+  /\.lecturer-nav-item::before[\s\S]*?width: 3px;[\s\S]*?background: var\(--progmiscon-primary\)[\s\S]*?opacity: 0;[\s\S]*?scaleY\(0\.65\)/,
+);
+assert.match(
+  styles,
+  /\.lecturer-nav-item-active::before[\s\S]*?opacity: 1;[\s\S]*?scaleY\(1\)/,
 );
 assert.match(styles, /rgb\(204 186 176 \/ 0\.18\)/);
 assert.match(
@@ -161,7 +167,7 @@ assert.match(
 );
 assert.match(
   sidebar,
-  /!collapsed && \([\s\S]*?{lecturerName}[\s\S]*?<\/div>[\s\S]*?<details/,
+  /lecturer-profile-copy[\s\S]*?{lecturerName}[\s\S]*?<\/div>[\s\S]*?<details/,
   "profile text must remain outside the interactive account details",
 );
 const accountSummaryStart = sidebar.indexOf(
@@ -200,16 +206,68 @@ assert.match(
 );
 assert.match(
   sidebar,
-  /aria-label=\{isIndonesian \? "Pencarian" : "Search"\}/,
+  /searchLabel = isIndonesian \? "Pencarian" : "Search"/,
 );
-assert.match(sidebar, /title=\{isIndonesian \? "Pencarian" : "Search"\}/);
+assert.match(sidebar, /data-tooltip=\{searchLabel\}/);
 assert.match(sidebar, /\? "Perluas menu"[\s\S]*?: "Expand menu"/);
 assert.match(sidebar, /\? "Ringkas menu"[\s\S]*?: "Collapse menu"/);
 assert.match(
   sidebar,
-  /aria-label=\{isIndonesian \? "Pengaturan" : "Settings"\}/,
+  /aria-label=\{settingsLabel\}[\s\S]*?data-tooltip=\{settingsLabel\}/,
 );
 assert.doesNotMatch(sidebar, /Perluas sidebar|Perkecil sidebar/);
+for (const [token, value] of [
+  ["motion-fast", "140ms"],
+  ["motion-normal", "200ms"],
+  ["motion-sidebar", "220ms"],
+  ["motion-popover", "160ms"],
+  ["ease-standard", "cubic-bezier(0.2, 0, 0, 1)"],
+]) {
+  assert.match(styles, new RegExp(`--${token}: ${value.replace(/[().]/g, "\\$&")}`));
+}
+assert.match(
+  styles,
+  /\.lecturer-sidebar-width[\s\S]*?width var\(--motion-sidebar\) var\(--ease-standard\)/,
+);
+assert.match(
+  styles,
+  /\.lecturer-nav-label-collapsed[\s\S]*?opacity: 0;[\s\S]*?translateX\(-4px\)/,
+);
+assert.match(
+  styles,
+  /\.lecturer-bank-submenu[\s\S]*?grid-template-rows: 0fr[\s\S]*?\.lecturer-bank-submenu-open[\s\S]*?grid-template-rows: 1fr/,
+);
+assert.match(sidebar, /inert={!bankExpanded}/);
+assert.match(
+  styles,
+  /details\[open\] > \.lecturer-bank-flyout[\s\S]*?lecturer-flyout-in/,
+);
+assert.match(
+  styles,
+  /details\[open\] > \.lecturer-account-menu[\s\S]*?lecturer-popover-in/,
+);
+assert.match(
+  styles,
+  /\.lecturer-tooltip\[data-tooltip\][\s\S]*?transition-delay: 300ms/,
+);
+assert.match(
+  layout,
+  /lecturer-mobile-overlay[\s\S]*?lecturer-mobile-panel/,
+);
+assert.match(
+  styles,
+  /\.lecturer-mobile-overlay[\s\S]*?var\(--motion-sidebar\)[\s\S]*?\.lecturer-mobile-panel[\s\S]*?var\(--motion-sidebar\)/,
+);
+assert.match(
+  styles,
+  /@media \(prefers-reduced-motion: reduce\)[\s\S]*?animation-duration: 0\.01ms !important[\s\S]*?transition-delay: 0ms !important/,
+);
+assert.doesNotMatch(
+  styles.match(/\.lecturer-nav-item:not\([\s\S]*?\}/)?.[0] ?? "",
+  /font-weight/,
+  "hover must not change navigation font weight",
+);
+assert.doesNotMatch(packageJson, /framer-motion|"motion"\s*:/i);
 assert.match(html, /family=Poppins:wght@400;500;600/);
 
 const brandHeaderStart = sidebar.indexOf('to="/dashboard"');

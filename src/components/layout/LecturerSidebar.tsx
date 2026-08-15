@@ -64,11 +64,11 @@ function SidebarLink({
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       aria-label={collapsed ? label : undefined}
-      title={collapsed ? label : undefined}
+      data-tooltip={collapsed ? label : undefined}
       className={cn(
-        "lecturer-nav-item group",
+        "lecturer-nav-item lecturer-tooltip group",
         subItem && "lecturer-nav-subitem",
-        collapsed && "justify-center px-0",
+        collapsed && "lecturer-nav-item-collapsed",
         active && "lecturer-nav-item-active",
       )}
     >
@@ -78,7 +78,15 @@ function SidebarLink({
         aria-hidden="true"
         className="shrink-0"
       />
-      {!collapsed && <span className="truncate">{label}</span>}
+      <span
+        aria-hidden={collapsed || undefined}
+        className={cn(
+          "lecturer-nav-label truncate",
+          collapsed && "lecturer-nav-label-collapsed",
+        )}
+      >
+        {label}
+      </span>
     </Link>
   );
 }
@@ -99,6 +107,7 @@ function ProfileMenu({
   const { profile, logout } = useLecturerAuth();
   const [logoutError, setLogoutError] = useState("");
   const isIndonesian = language === "id";
+  const settingsLabel = isIndonesian ? "Pengaturan" : "Settings";
   const lecturerName =
     formatLecturerSidebarName(profile?.fullName) ||
     (isIndonesian ? "Dosen" : "Lecturer");
@@ -126,22 +135,26 @@ function ProfileMenu({
         collapsed && "lecturer-profile-area-collapsed",
       )}
     >
-      {!collapsed && (
-        <div className="min-w-0 flex-1 overflow-hidden text-left">
-          <span className="block truncate whitespace-nowrap text-xs font-medium leading-[18px] text-navy-deep">
-            {lecturerName}
-          </span>
-          <span className="block text-[11px] font-normal leading-4 text-muted">
-            {isIndonesian ? "Dosen" : "Lecturer"}
-          </span>
-        </div>
-      )}
+      <div
+        aria-hidden={collapsed || undefined}
+        className={cn(
+          "lecturer-profile-copy min-w-0 flex-1 overflow-hidden text-left",
+          collapsed && "lecturer-profile-copy-collapsed",
+        )}
+      >
+        <span className="block truncate whitespace-nowrap text-xs font-medium leading-[18px] text-navy-deep">
+          {lecturerName}
+        </span>
+        <span className="block text-[11px] font-normal leading-4 text-muted">
+          {isIndonesian ? "Dosen" : "Lecturer"}
+        </span>
+      </div>
 
       <details ref={menuRef} className="group relative shrink-0">
         <summary
-          aria-label={isIndonesian ? "Pengaturan" : "Settings"}
-          title={isIndonesian ? "Pengaturan" : "Settings"}
-          className="lecturer-account-summary"
+          aria-label={settingsLabel}
+          data-tooltip={settingsLabel}
+          className="lecturer-account-summary lecturer-tooltip"
         >
           <EllipsisVertical
             size={18}
@@ -152,7 +165,7 @@ function ProfileMenu({
 
         <div
           className={cn(
-            "absolute bottom-[calc(100%+8px)] z-50 w-48 rounded-[10px] border border-border bg-[var(--progmiscon-background)] p-2 shadow-[0_12px_28px_rgba(55,44,39,0.08)]",
+            "lecturer-account-menu absolute bottom-[calc(100%+8px)] z-50 w-48 rounded-[10px] border border-border bg-[var(--progmiscon-background)] p-2 shadow-[0_12px_28px_rgba(55,44,39,0.08)]",
             collapsed && !mobile
               ? "left-[calc(100%+12px)]"
               : "right-0",
@@ -177,7 +190,12 @@ function ProfileMenu({
               <Globe2 size={16} strokeWidth={1.9} aria-hidden="true" />
               <span className="min-w-0 flex-1">Bahasa Indonesia</span>
               {language === "id" && (
-                <Check size={14} strokeWidth={2} aria-hidden="true" />
+                <Check
+                  size={14}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                  className="lecturer-language-check"
+                />
               )}
             </button>
             <button
@@ -192,7 +210,12 @@ function ProfileMenu({
               <Languages size={16} strokeWidth={1.9} aria-hidden="true" />
               <span className="min-w-0 flex-1">English (US)</span>
               {language === "en" && (
-                <Check size={14} strokeWidth={2} aria-hidden="true" />
+                <Check
+                  size={14}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                  className="lecturer-language-check"
+                />
               )}
             </button>
           </div>
@@ -278,6 +301,15 @@ export function LecturerSidebar({
   const showHistory = matches(labels.history);
   const hasResults =
     showDashboard || showBank || showConcept || showMisconception || showHistory;
+  const bankExpanded = bankOpen || Boolean(normalizedQuery);
+  const searchLabel = isIndonesian ? "Pencarian" : "Search";
+  const sidebarToggleLabel = effectiveCollapsed
+    ? isIndonesian
+      ? "Perluas menu"
+      : "Expand menu"
+    : isIndonesian
+      ? "Ringkas menu"
+      : "Collapse menu";
 
   useEffect(() => {
     setBankOpen((current) => current || isBankActive);
@@ -306,7 +338,7 @@ export function LecturerSidebar({
         isIndonesian ? "Navigasi ruang kerja dosen" : "Lecturer workspace navigation"
       }
       className={cn(
-        "lecturer-ui lecturer-sidebar-surface flex h-full min-h-0 flex-col border-r border-border transition-[width] duration-200 ease-out",
+        "lecturer-ui lecturer-sidebar-surface lecturer-sidebar-width flex h-full min-h-0 flex-col border-r border-border",
         mobile ? "w-72" : effectiveCollapsed ? "w-[72px]" : "w-52",
       )}
     >
@@ -350,26 +382,10 @@ export function LecturerSidebar({
           <button
             type="button"
             onClick={() => onCollapsedChange?.(!effectiveCollapsed)}
-            aria-label={
-              effectiveCollapsed
-                ? isIndonesian
-                  ? "Perluas menu"
-                  : "Expand menu"
-                : isIndonesian
-                  ? "Ringkas menu"
-                  : "Collapse menu"
-            }
-            title={
-              effectiveCollapsed
-                ? isIndonesian
-                  ? "Perluas menu"
-                  : "Expand menu"
-                : isIndonesian
-                  ? "Ringkas menu"
-                  : "Collapse menu"
-            }
+            aria-label={sidebarToggleLabel}
+            data-tooltip={sidebarToggleLabel}
             className={cn(
-              "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-neutral hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+              "lecturer-sidebar-control lecturer-tooltip inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-neutral hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
               effectiveCollapsed && "mx-auto",
             )}
           >
@@ -388,18 +404,27 @@ export function LecturerSidebar({
           effectiveCollapsed ? "px-3" : mobile ? "px-4" : "px-3",
         )}
       >
-        {effectiveCollapsed ? (
+        <div className="grid">
           <button
             type="button"
             onClick={expandAndFocusSearch}
-            aria-label={isIndonesian ? "Pencarian" : "Search"}
-            title={isIndonesian ? "Pencarian" : "Search"}
-            className="flex h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-border text-muted hover:border-brand/25 hover:bg-neutral hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            aria-label={searchLabel}
+            aria-hidden={!effectiveCollapsed || undefined}
+            data-tooltip={searchLabel}
+            tabIndex={effectiveCollapsed ? 0 : -1}
+            className={cn(
+              "lecturer-search-collapsed lecturer-sidebar-control lecturer-tooltip col-start-1 row-start-1 flex h-10 w-full cursor-pointer items-center justify-center rounded-lg border border-border text-muted hover:border-brand/25 hover:bg-neutral hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+              !effectiveCollapsed && "lecturer-search-collapsed-hidden",
+            )}
           >
             <Search size={18} strokeWidth={1.9} aria-hidden="true" />
           </button>
-        ) : (
-          <label className="relative block">
+          <label
+            className={cn(
+              "lecturer-search-expanded relative col-start-1 row-start-1 block",
+              effectiveCollapsed && "lecturer-search-expanded-hidden",
+            )}
+          >
             <span className="sr-only">
               {isIndonesian ? "Cari menu navigasi" : "Search navigation menu"}
             </span>
@@ -407,18 +432,20 @@ export function LecturerSidebar({
               size={17}
               strokeWidth={1.9}
               aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
+              className="lecturer-sidebar-search-icon pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted"
             />
             <input
               ref={searchRef}
               type="search"
               value={query}
+              aria-hidden={effectiveCollapsed || undefined}
+              tabIndex={effectiveCollapsed ? -1 : 0}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={isIndonesian ? "Cari menu..." : "Search menu..."}
               className="lecturer-sidebar-search h-10 w-full rounded-lg border border-border bg-white py-2 pl-10 pr-3 text-[12.5px] font-normal leading-[18px] text-navy-deep outline-none placeholder:text-muted/80"
             />
           </label>
-        )}
+        </div>
       </div>
 
       <nav
@@ -448,15 +475,15 @@ export function LecturerSidebar({
               <details className="group relative">
                 <summary
                   aria-label={labels.bank}
-                  title={labels.bank}
+                  data-tooltip={labels.bank}
                   className={cn(
-                    "lecturer-nav-item list-none justify-center px-0 [&::-webkit-details-marker]:hidden",
+                    "lecturer-nav-item lecturer-nav-item-collapsed lecturer-tooltip list-none [&::-webkit-details-marker]:hidden",
                     isBankActive && "lecturer-nav-item-active",
                   )}
                 >
                   <BookOpen size={18} strokeWidth={1.9} aria-hidden="true" />
                 </summary>
-                <div className="absolute left-[calc(100%+12px)] top-0 z-50 w-48 rounded-[10px] border border-border bg-white p-2 shadow-[0_16px_36px_rgba(55,44,39,0.14)]">
+                <div className="lecturer-bank-flyout absolute left-[calc(100%+12px)] top-0 z-50 w-48 rounded-[10px] border border-border bg-white p-2 shadow-[0_16px_36px_rgba(55,44,39,0.14)]">
                   <p className="px-2 pb-2 pt-1 text-xs font-normal leading-[18px] text-navy-deep">
                     {labels.bank}
                   </p>
@@ -487,7 +514,7 @@ export function LecturerSidebar({
                 <button
                   type="button"
                   onClick={() => setBankOpen((current) => !current)}
-                  aria-expanded={bankOpen || Boolean(normalizedQuery)}
+                  aria-expanded={bankExpanded}
                   className={cn(
                     "lecturer-nav-item w-full cursor-pointer",
                     isBankActive && "lecturer-nav-parent-current",
@@ -502,37 +529,45 @@ export function LecturerSidebar({
                     strokeWidth={1.9}
                     aria-hidden="true"
                     className={cn(
-                      "shrink-0 transition-transform",
-                      (bankOpen || normalizedQuery) && "rotate-180",
+                      "lecturer-bank-chevron shrink-0",
+                      bankExpanded && "rotate-180",
                     )}
                   />
                 </button>
-                {(bankOpen || normalizedQuery) && (
-                  <div className="mt-1 space-y-1 pl-6">
-                    {showQuestions && (
-                      <SidebarLink
-                        to="/materi"
-                        label={labels.questions}
-                        icon={Eye}
-                        active={isQuestionCatalog}
-                        collapsed={false}
-                        onNavigate={onNavigate}
-                        subItem
-                      />
-                    )}
-                    {showReview && (
-                      <SidebarLink
-                        to="/review?task=question"
-                        label={labels.review}
-                        icon={ClipboardCheck}
-                        active={isReview && reviewTask !== "answer"}
-                        collapsed={false}
-                        onNavigate={onNavigate}
-                        subItem
-                      />
-                    )}
+                <div
+                  inert={!bankExpanded}
+                  className={cn(
+                    "lecturer-bank-submenu",
+                    bankExpanded && "lecturer-bank-submenu-open",
+                  )}
+                >
+                  <div className="min-h-0 overflow-hidden">
+                    <div className="mt-1 space-y-1 pl-6">
+                      {showQuestions && (
+                        <SidebarLink
+                          to="/materi"
+                          label={labels.questions}
+                          icon={Eye}
+                          active={isQuestionCatalog}
+                          collapsed={false}
+                          onNavigate={onNavigate}
+                          subItem
+                        />
+                      )}
+                      {showReview && (
+                        <SidebarLink
+                          to="/review?task=question"
+                          label={labels.review}
+                          icon={ClipboardCheck}
+                          active={isReview && reviewTask !== "answer"}
+                          collapsed={false}
+                          onNavigate={onNavigate}
+                          subItem
+                        />
+                      )}
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             ))}
 

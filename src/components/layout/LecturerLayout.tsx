@@ -66,10 +66,10 @@ export function LecturerLayout({ children }: { children: ReactNode }) {
   }, [drawerOpen]);
 
   return (
-    <div className="flex min-h-dvh bg-bg">
+    <div className="lecturer-shell flex min-h-dvh bg-bg">
       <div
         className={cn(
-          "sticky top-0 z-30 hidden h-dvh shrink-0 overflow-visible transition-[width] duration-200 ease-out md:block",
+          "lecturer-sidebar-width sticky top-0 z-30 hidden h-dvh shrink-0 overflow-visible md:block",
           collapsed ? "w-[72px]" : "w-52",
         )}
       >
@@ -131,13 +131,13 @@ export function LecturerLayout({ children }: { children: ReactNode }) {
           aria-label={isIndonesian ? "Tutup navigasi" : "Close navigation"}
           onClick={() => setDrawerOpen(false)}
           className={cn(
-            "absolute inset-0 cursor-default bg-navy-deep/30 transition-opacity duration-200",
+            "lecturer-mobile-overlay absolute inset-0 cursor-default bg-navy-deep/30",
             drawerOpen ? "opacity-100" : "opacity-0",
           )}
         />
         <div
           className={cn(
-            "absolute inset-y-0 left-0 bg-white shadow-[12px_0_32px_rgba(55,44,39,0.14)] transition-transform duration-200 ease-out",
+            "lecturer-mobile-panel absolute inset-y-0 left-0 bg-white shadow-[12px_0_32px_rgba(55,44,39,0.14)]",
             drawerOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >

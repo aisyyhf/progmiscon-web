@@ -25,6 +25,15 @@
   --color-warning-border: #e9b9bb;
 }
 
+.lecturer-ui,
+.lecturer-shell {
+  --motion-fast: 140ms;
+  --motion-normal: 200ms;
+  --motion-sidebar: 220ms;
+  --motion-popover: 160ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
 .lecturer-ui {
   /* Design tokens for new lecturer and Review UI, adopted incrementally. */
   --progmiscon-text: #000000;
@@ -51,6 +60,10 @@
   background: var(--progmiscon-background);
 }
 
+.lecturer-sidebar-width {
+  transition: width var(--motion-sidebar) var(--ease-standard);
+}
+
 .lecturer-nav-item {
   position: relative;
   display: flex;
@@ -63,8 +76,36 @@
   font-size: var(--lecturer-nav-size);
   font-weight: 400;
   line-height: var(--lecturer-nav-line-height);
-  transition-property: background-color, color, transform;
-  transition-duration: 180ms;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard),
+    gap var(--motion-sidebar) var(--ease-standard),
+    padding var(--motion-sidebar) var(--ease-standard);
+}
+
+.lecturer-nav-item-collapsed {
+  justify-content: center;
+  gap: 0;
+  padding-inline: 0;
+}
+
+.lecturer-nav-label {
+  max-width: 10rem;
+  overflow: hidden;
+  opacity: 1;
+  white-space: nowrap;
+  transform: translateX(0);
+  transition:
+    max-width var(--motion-sidebar) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-normal) var(--ease-standard);
+}
+
+.lecturer-nav-label-collapsed {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-4px);
 }
 
 .lecturer-nav-subitem {
@@ -75,6 +116,7 @@
 
 .lecturer-nav-item:not(.lecturer-nav-item-active):hover {
   background: rgb(204 186 176 / 0.18);
+  color: var(--progmiscon-primary);
 }
 
 .lecturer-nav-item-active {
@@ -82,7 +124,7 @@
   color: var(--progmiscon-primary);
 }
 
-.lecturer-nav-item-active::before {
+.lecturer-nav-item::before {
   position: absolute;
   inset-block: 0.625rem;
   left: 0;
@@ -90,6 +132,16 @@
   border-radius: 999px;
   background: var(--progmiscon-primary);
   content: "";
+  opacity: 0;
+  transform: scaleY(0.65);
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.lecturer-nav-item-active::before {
+  opacity: 1;
+  transform: scaleY(1);
 }
 
 .lecturer-nav-parent-current {
@@ -101,6 +153,62 @@
   outline-offset: 2px;
 }
 
+.lecturer-nav-item:active,
+.lecturer-sidebar-control:active,
+.lecturer-account-summary:active,
+.lecturer-account-row:active {
+  transform: scale(0.99);
+}
+
+.lecturer-tooltip {
+  position: relative;
+}
+
+.lecturer-tooltip[data-tooltip]::after {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + 8px);
+  z-index: 70;
+  width: max-content;
+  max-width: 13rem;
+  padding: 0.375rem 0.5rem;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  border-radius: 6px;
+  background: var(--color-navy-deep);
+  color: white;
+  content: attr(data-tooltip);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1rem;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(4px, -50%);
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
+.lecturer-tooltip[data-tooltip]:hover::after,
+.lecturer-tooltip[data-tooltip]:focus-visible::after {
+  opacity: 1;
+  transform: translate(0, -50%);
+  transition-delay: 300ms;
+}
+
+details[open] > .lecturer-tooltip::after {
+  opacity: 0;
+  transition-delay: 0ms;
+}
+
+.lecturer-sidebar-control {
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
+}
+
 .lecturer-sidebar-search:hover {
   border-color: rgb(204 186 176 / 0.72);
 }
@@ -110,17 +218,87 @@
   box-shadow: 0 0 0 2px rgb(182 37 42 / 0.1);
 }
 
+.lecturer-sidebar-search,
+.lecturer-sidebar-search-icon {
+  transition:
+    border-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    box-shadow var(--motion-fast) var(--ease-standard);
+}
+
+.lecturer-search-expanded:hover .lecturer-sidebar-search-icon,
+.lecturer-search-expanded:focus-within .lecturer-sidebar-search-icon {
+  color: var(--progmiscon-primary);
+}
+
+.lecturer-search-collapsed,
+.lecturer-search-expanded {
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-normal) var(--ease-standard);
+}
+
+.lecturer-search-collapsed-hidden,
+.lecturer-search-expanded-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(-4px);
+}
+
+.lecturer-bank-chevron {
+  transition: transform var(--motion-normal) var(--ease-standard);
+}
+
+.lecturer-bank-submenu {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition:
+    grid-template-rows var(--motion-normal) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-normal) var(--ease-standard);
+}
+
+.lecturer-bank-submenu-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .lecturer-profile-area {
   display: flex;
   min-height: 2.5rem;
   align-items: center;
   gap: 0.5rem;
   padding: 0.1875rem 0.25rem 0.1875rem 1rem;
+  transition:
+    gap var(--motion-sidebar) var(--ease-standard),
+    padding var(--motion-sidebar) var(--ease-standard);
 }
 
 .lecturer-profile-area-collapsed {
   justify-content: center;
+  gap: 0;
   padding-inline: 0;
+}
+
+.lecturer-profile-copy {
+  max-width: 9rem;
+  opacity: 1;
+  transform: translateX(0);
+  transition:
+    max-width var(--motion-sidebar) var(--ease-standard),
+    opacity var(--motion-fast) var(--ease-standard),
+    transform var(--motion-normal) var(--ease-standard);
+}
+
+.lecturer-profile-copy-collapsed {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-4px);
 }
 
 .lecturer-account-summary {
@@ -133,7 +311,10 @@
   justify-content: center;
   border-radius: 8px;
   color: var(--color-muted);
-  transition: background-color 180ms ease, color 180ms ease;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
 }
 
 .lecturer-account-summary::-webkit-details-marker {
@@ -172,14 +353,72 @@
   font-weight: 400;
   line-height: 1.125rem;
   text-align: left;
+  transition:
+    background-color var(--motion-fast) var(--ease-standard),
+    color var(--motion-fast) var(--ease-standard),
+    transform var(--motion-fast) var(--ease-standard);
 }
 
 .lecturer-account-row:hover {
   background: rgb(204 186 176 / 0.18);
+  color: var(--progmiscon-primary);
 }
 
 .lecturer-account-row-active {
   color: var(--progmiscon-primary);
+}
+
+.lecturer-language-check {
+  animation: lecturer-check-in var(--motion-fast) var(--ease-standard) both;
+}
+
+details[open] > .lecturer-account-menu {
+  animation: lecturer-popover-in var(--motion-popover) var(--ease-standard) both;
+}
+
+details[open] > .lecturer-bank-flyout {
+  animation: lecturer-flyout-in var(--motion-popover) var(--ease-standard) both;
+}
+
+.lecturer-mobile-overlay {
+  transition: opacity var(--motion-sidebar) var(--ease-standard);
+}
+
+.lecturer-mobile-panel {
+  transition: transform var(--motion-sidebar) var(--ease-standard);
+}
+
+@keyframes lecturer-popover-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lecturer-flyout-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes lecturer-check-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 :root {
@@ -710,5 +949,6 @@ a:active {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
   }
 }
