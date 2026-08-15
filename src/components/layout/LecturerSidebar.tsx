@@ -158,7 +158,7 @@ function ProfileMenu({
               ? "left-[calc(100%+28px)]"
               : mobile
                 ? "right-0"
-                : "right-[-12px]",
+                : "right-0",
           )}
         >
           <p className="lecturer-account-heading px-2 pb-1.5 pt-1 text-muted">
@@ -337,9 +337,7 @@ export function LecturerSidebar({
           "flex h-16 shrink-0 items-center",
           effectiveCollapsed
             ? "justify-center px-3"
-            : mobile
-              ? "gap-2 px-4"
-              : "gap-2 px-3",
+            : "px-4",
         )}
       >
         {!effectiveCollapsed && (
@@ -347,9 +345,9 @@ export function LecturerSidebar({
             to="/dashboard"
             onClick={onNavigate}
             aria-label="Progmiscon"
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            className="inline-flex h-9 w-10 shrink-0 items-center justify-center rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
           >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">
               <img
                 src="/progmiscon-logo.png"
                 alt=""
@@ -376,7 +374,7 @@ export function LecturerSidebar({
             data-tooltip={sidebarToggleLabel}
             className={cn(
               "lecturer-sidebar-control lecturer-tooltip inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted hover:bg-neutral hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
-              effectiveCollapsed && "mx-auto",
+              effectiveCollapsed ? "mx-auto" : "ml-auto",
             )}
           >
             {effectiveCollapsed ? (
@@ -391,7 +389,7 @@ export function LecturerSidebar({
       <div
         className={cn(
           "shrink-0 pb-3",
-          effectiveCollapsed ? "px-3" : mobile ? "px-4" : "px-3",
+          effectiveCollapsed ? "px-3" : "px-4",
         )}
       >
         {effectiveCollapsed ? (
@@ -432,9 +430,7 @@ export function LecturerSidebar({
           "min-h-0 flex-1",
           effectiveCollapsed
             ? "overflow-visible px-3"
-            : mobile
-              ? "overflow-y-auto px-4"
-              : "overflow-y-auto px-3",
+            : "overflow-y-auto px-4",
         )}
       >
         <div className="space-y-1">
@@ -592,7 +588,7 @@ export function LecturerSidebar({
       <div
         className={cn(
           "mt-auto shrink-0 border-t border-border py-2",
-          effectiveCollapsed ? "px-3" : mobile ? "px-4" : "px-3",
+          effectiveCollapsed ? "px-3" : "px-4",
         )}
       >
         <ProfileMenu

@@ -157,7 +157,7 @@ assert.match(sidebar, /text-xs font-medium leading-4/);
 assert.match(sidebar, /text-\[11px\] font-normal leading-\[14px\]/);
 assert.match(
   styles,
-  /\.lecturer-profile-area[\s\S]*?min-height: 2\.25rem;[\s\S]*?padding: 0\.125rem 0\.25rem 0\.125rem 1rem/,
+  /\.lecturer-profile-area[\s\S]*?min-height: 2\.25rem;[\s\S]*?gap: 0\.25rem;[\s\S]*?padding: 0\.125rem 0 0\.125rem 1rem/,
 );
 assert.match(
   styles,
@@ -288,8 +288,8 @@ assert.match(
 );
 assert.match(
   sidebar,
-  /w-44[\s\S]*?left-\[calc\(100%\+28px\)\][\s\S]*?right-\[-12px\]/,
-  "account popover must align beside the collapsed trigger and inset from the expanded edge",
+  /w-44[\s\S]*?left-\[calc\(100%\+28px\)\][\s\S]*?right-0/,
+  "account popover must align beside the collapsed trigger and with the expanded account trigger",
 );
 assert.doesNotMatch(packageJson, /framer-motion|"motion"\s*:/i);
 assert.match(html, /family=Poppins:wght@400;500;600/);
@@ -301,7 +301,22 @@ const brandHeader = sidebar.slice(
 );
 assert.match(brandHeader, /aria-label="Progmiscon"/);
 assert.match(brandHeader, /<img/);
+assert.match(brandHeader, /h-9 w-10[\s\S]*?h-6 w-6/);
 assert.doesNotMatch(brandHeader, />\s*Prog(?:miscon|MisCon)?\s*</i);
+
+assert.match(
+  styles,
+  /\.lecturer-nav-item[\s\S]*?gap: 0\.5rem;[\s\S]*?padding: 0\.5rem 0\.75rem/,
+);
+assert.equal(
+  [...sidebar.matchAll(/effectiveCollapsed \? "px-3" : "px-4"/g)].length,
+  2,
+  "expanded search and footer gutters must use 16px while the collapsed rail stays at 12px",
+);
+assert.match(
+  sidebar,
+  /effectiveCollapsed[\s\S]*?\? "overflow-visible px-3"[\s\S]*?: "overflow-y-auto px-4"/,
+);
 
 assert.deepEqual(
   [...sidebar.matchAll(/font-(?:medium|semibold|bold|extrabold)/g)].map(
