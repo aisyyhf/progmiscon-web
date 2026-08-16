@@ -1,18 +1,51 @@
 import type { ReactNode } from "react";
 import { useLocation } from "react-router-dom";
 import { useLanguage } from "../../hooks/useLanguage";
+import { useLecturerAuth } from "../../hooks/useLecturerAuth";
 import { TopNav } from "./TopNav";
 import { Footer } from "./Footer";
 import { LanguageToggle } from "../navigation/LanguageToggle";
+import { LecturerLayout } from "./LecturerLayout";
+
+function isLecturerWorkspacePath(pathname: string): boolean {
+  return (
+    pathname === "/dashboard" ||
+    pathname === "/materi" ||
+    pathname.startsWith("/question/") ||
+    pathname === "/konsep" ||
+    pathname.startsWith("/konsep/") ||
+    pathname === "/miskonsepsi" ||
+    pathname.startsWith("/miskonsepsi/") ||
+    pathname === "/review" ||
+    pathname.startsWith("/review/")
+  );
+}
 
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const { language } = useLanguage();
+  const { isLecturer } = useLecturerAuth();
   const isAuthRoute = ["/dosen/login", "/dosen/daftar"].includes(
     location.pathname,
   );
   const isQuestionCatalog = location.pathname === "/materi";
   const isQuestionDetail = location.pathname.startsWith("/question/");
+  const isLecturerWorkspace =
+    isLecturer && isLecturerWorkspacePath(location.pathname);
+
+  if (isLecturerWorkspace) {
+    return (
+      <div className="app-frame min-h-dvh">
+        <a
+          href="#main-content"
+          className="lecturer-ui sr-only z-50 bg-white px-4 py-2 text-sm font-semibold text-brand focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
+        >
+          {language === "id" ? "Lewati navigasi" : "Skip navigation"}
+        </a>
+        <LecturerLayout>{children}</LecturerLayout>
+      </div>
+    );
+  }
 
   return (
     <div
