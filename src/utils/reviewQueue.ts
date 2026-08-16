@@ -12,6 +12,13 @@ export type ReviewTaskKind = "question" | "answer";
 export type ReviewPersonalStatus = "unreviewed" | "reviewed";
 export type ReviewQuestionType = "all" | "ps" | "mp";
 
+export type ReviewWeekSummary = {
+  week: string;
+  total: number;
+  completed: number;
+  isComplete: boolean;
+};
+
 export type ReviewNavigationState = {
   week: string;
   task: ReviewTaskKind;
@@ -75,6 +82,78 @@ export function getActiveCurrentAnswerReviewIds(
       })
       .map((review) => ({ id: review.answerId })),
   ).map(({ id }) => id);
+}
+
+export function getReviewWeekSummaries(
+  questions: readonly Question[],
+  reviewedQuestionIds: readonly string[],
+  questionCounts: ReadonlyMap<string, number>,
+  reviewerThreshold: number,
+): ReviewWeekSummary[] {
+  const reviewed = new Set(reviewedQuestionIds);
+
+  return getMaterialWeekOptions([...questions]).map((week) => {
+    const weekQuestions = uniqueById(questions).filter(
+      (question) => question.week === week,
+    );
+    const completed = weekQuestions.filter(
+      (question) =>
+        reviewed.has(question.id) ||
+        (questionCounts.get(question.id) ?? 0) >= reviewerThreshold,
+    ).length;
+
+    return {
+      week,
+      total: weekQuestions.length,
+      completed,
+      isComplete: weekQuestions.length > 0 && completed === weekQuestions.length,
+    };
+  });
+}
+
+export function filterWeekReviewQuestions(
+  questions: readonly Question[],
+  {
+    week,
+    query,
+    type,
+    status,
+    reviewedQuestionIds,
+  }: {
+    week: string;
+    query: string;
+    type: ReviewQuestionType;
+    status: "all" | ReviewPersonalStatus;
+    reviewedQuestionIds: readonly string[];
+  },
+): Question[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const reviewed = new Set(reviewedQuestionIds);
+
+  return uniqueById(questions).filter((question) => {
+    const personallyReviewed = reviewed.has(question.id);
+    const matchesQuery =
+      !normalizedQuery ||
+      [
+        question.id,
+        question.number,
+        question.sourceCode ?? "",
+        question.sourceKey ?? "",
+        question.questionCode ?? "",
+        question.title.id,
+        question.title.en,
+        ...question.expectedConcepts.flatMap((concept) => [concept.id, concept.en]),
+      ].some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
+
+    return (
+      question.week === week &&
+      matchesQuery &&
+      (type === "all" ||
+        (type === "mp") === (question.type === "multiple_choice")) &&
+      (status === "all" ||
+        personallyReviewed === (status === "reviewed"))
+    );
+  });
 }
 
 export function buildReviewQueue({

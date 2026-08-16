@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ChevronRight, History, Users } from "lucide-react";
+import { ArrowLeft, Check, ChevronRight, History, Search, Users } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
@@ -38,10 +38,12 @@ import { sortReviewTasks } from "../utils/reviewPriority";
 import {
   REVIEW_NAVIGATION_SESSION_KEY,
   buildReviewQueue,
+  filterWeekReviewQuestions,
   getActiveCurrentAnswerReviewIds,
   getActiveCurrentQuestionReviewIds,
   getNavigationAfterReviewSave,
   getNavigationAfterWithdraw,
+  getReviewWeekSummaries,
   normalizeReviewNavigationState,
   parseReviewNavigationSearch,
   parseReviewNavigationSession,
@@ -52,6 +54,7 @@ import {
   type ReviewPersonalStatus,
   type ReviewQuestionType,
   type ReviewTaskKind,
+  type ReviewWeekSummary,
 } from "../utils/reviewQueue";
 import { QUESTION_REVIEWED_THRESHOLD } from "../utils/reviewQuestionFilters";
 import {
@@ -90,6 +93,320 @@ function orderAnswersByTaskPriority(
   return [...answers].sort(
     (left, right) =>
       (rank.get(left.id) ?? rank.size) - (rank.get(right.id) ?? rank.size),
+  );
+}
+
+function formatWeekLabel(week: string): string {
+  return `Week ${week.replace(/^W/i, "")}`;
+}
+
+function ReviewBreadcrumb({
+  week,
+  question,
+  language,
+  onOverview,
+  onWeek,
+}: {
+  week?: string;
+  question?: string;
+  language: Language;
+  onOverview?: () => void;
+  onWeek?: () => void;
+}) {
+  const rootLabel = language === "id" ? "Review Soal" : "Question Review";
+
+  return (
+    <nav aria-label="Breadcrumb" className="mb-4 overflow-x-auto text-xs text-muted">
+      <ol className="flex min-w-max items-center gap-1.5">
+        <li>
+          {onOverview ? (
+            <button
+              type="button"
+              onClick={onOverview}
+              className="cursor-pointer rounded-sm font-medium transition-colors hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              {rootLabel}
+            </button>
+          ) : (
+            <span className="font-medium text-navy-deep">{rootLabel}</span>
+          )}
+        </li>
+        {week && (
+          <>
+            <li aria-hidden="true" className="text-[#b09f85]">&gt;</li>
+            <li>
+              {onWeek ? (
+                <button
+                  type="button"
+                  onClick={onWeek}
+                  className="cursor-pointer rounded-sm font-medium transition-colors hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                >
+                  {formatWeekLabel(week)}
+                </button>
+              ) : (
+                <span className="font-medium text-navy-deep">{formatWeekLabel(week)}</span>
+              )}
+            </li>
+          </>
+        )}
+        {question && (
+          <>
+            <li aria-hidden="true" className="text-[#b09f85]">&gt;</li>
+            <li className="font-medium text-navy-deep">{question}</li>
+          </>
+        )}
+      </ol>
+    </nav>
+  );
+}
+
+function WeekOverview({
+  summaries,
+  language,
+  loading,
+  onSelectWeek,
+  onViewHistory,
+}: {
+  summaries: ReviewWeekSummary[];
+  language: Language;
+  loading: boolean;
+  onSelectWeek: (week: string) => void;
+  onViewHistory: () => void;
+}) {
+  return (
+    <>
+      <ReviewBreadcrumb language={language} />
+      <div className="flex flex-col gap-4 border-b border-[#ccbab0]/55 pb-6 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-[1.875rem] font-semibold leading-10 tracking-[-0.02em] text-black">
+            {language === "id" ? "Review soal per minggu" : "Review questions by week"}
+          </h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
+            {language === "id"
+              ? "Pilih minggu untuk melihat soal yang perlu ditinjau."
+              : "Choose a week to see the questions that need review."}
+          </p>
+        </div>
+        <Button type="button" variant="secondary" onClick={onViewHistory} className="w-fit">
+          <History size={15} strokeWidth={2} aria-hidden="true" />
+          {language === "id" ? "Riwayat" : "History"}
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" role="status" aria-label={language === "id" ? "Memuat minggu" : "Loading weeks"}>
+          {Array.from({ length: 8 }, (_, index) => (
+            <div key={index} className="h-36 animate-pulse rounded-xl bg-[#ccbab0]/20" />
+          ))}
+        </div>
+      ) : summaries.length === 0 ? (
+        <div className="mt-7 rounded-xl border border-border bg-white">
+          <EmptyState message={language === "id" ? "Belum ada minggu yang tersedia untuk direview." : "No weeks are available for review yet."} />
+        </div>
+      ) : (
+        <section aria-label={language === "id" ? "Daftar minggu" : "Week list"} className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {summaries.map((summary) => (
+            <button
+              key={summary.week}
+              type="button"
+              onClick={() => onSelectWeek(summary.week)}
+              className="group relative min-h-36 cursor-pointer rounded-xl border border-[#ccbab0]/55 bg-white p-5 text-left transition-[border-color,background-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-brand/45 hover:bg-[#fbfbfe] hover:shadow-[0_10px_28px_rgba(95,71,59,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-semibold text-black">{formatWeekLabel(summary.week)}</h2>
+                  <p className="mt-2 text-sm text-muted">
+                    {summary.total} {language === "id" ? "soal" : summary.total === 1 ? "question" : "questions"}
+                  </p>
+                </div>
+                <ChevronRight size={17} strokeWidth={1.8} aria-hidden="true" className="mt-0.5 text-[#b09f85] transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+              </div>
+              <p className="mt-5 text-xs font-medium tabular-nums text-muted">
+                {language === "id" ? "Tuntas" : "Complete"} {summary.completed}/{summary.total}
+              </p>
+              {summary.isComplete && (
+                <span className="absolute bottom-4 right-4 inline-flex h-6 w-6 items-center justify-center rounded-full bg-correct-bg text-correct" aria-label={language === "id" ? "Semua soal sudah tuntas" : "All questions complete"}>
+                  <Check size={14} strokeWidth={2.4} aria-hidden="true" />
+                </span>
+              )}
+            </button>
+          ))}
+        </section>
+      )}
+    </>
+  );
+}
+
+function WeekQuestionList({
+  week,
+  questions,
+  language,
+  questionCounts,
+  reviewedQuestionIds,
+  onBack,
+  onSelectQuestion,
+}: {
+  week: string;
+  questions: readonly Question[];
+  language: Language;
+  questionCounts: ReadonlyMap<string, number>;
+  reviewedQuestionIds: readonly string[];
+  onBack: () => void;
+  onSelectQuestion: (question: Question) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [type, setType] = useState<ReviewQuestionType>("all");
+  const [status, setStatus] = useState<"all" | ReviewPersonalStatus>("all");
+  const reviewed = useMemo(() => new Set(reviewedQuestionIds), [reviewedQuestionIds]);
+  const weekTotal = useMemo(
+    () => new Set(questions.filter((question) => question.week === week).map(({ id }) => id)).size,
+    [questions, week],
+  );
+  const filteredQuestions = useMemo(
+    () =>
+      filterWeekReviewQuestions(questions, {
+        week,
+        query,
+        type,
+        status,
+        reviewedQuestionIds,
+      }),
+    [questions, query, reviewedQuestionIds, status, type, week],
+  );
+
+  return (
+    <>
+      <ReviewBreadcrumb week={week} language={language} onOverview={onBack} />
+      <button
+        type="button"
+        onClick={onBack}
+        className="mb-4 inline-flex cursor-pointer items-center gap-2 rounded-md text-sm font-medium text-muted transition-colors hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      >
+        <ArrowLeft size={15} strokeWidth={2} aria-hidden="true" />
+        {language === "id" ? "Semua minggu" : "All weeks"}
+      </button>
+      <div className="border-b border-[#ccbab0]/55 pb-6">
+        <h1 className="text-[1.875rem] font-semibold leading-10 tracking-[-0.02em] text-black">
+          {formatWeekLabel(week)}
+        </h1>
+        <p className="mt-2 text-sm leading-6 text-muted">
+          {language === "id"
+            ? `${weekTotal} soal tersedia. Pilih soal untuk membuka workspace review.`
+            : `${weekTotal} questions available. Choose a question to open the review workspace.`}
+        </p>
+      </div>
+
+      <section className="mt-6" aria-label={language === "id" ? "Soal minggu terpilih" : "Selected week questions"}>
+        <div className="grid gap-3 rounded-xl border border-[#ccbab0]/55 bg-white p-3 lg:grid-cols-[minmax(15rem,1fr)_10rem_12rem] lg:items-end">
+          <label className="grid gap-1.5 text-xs font-medium text-navy-deep">
+            <span>{language === "id" ? "Cari soal" : "Search questions"}</span>
+            <span className="relative block">
+              <Search size={16} strokeWidth={1.8} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#b09f85]" />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={language === "id" ? "Judul, kode, atau KC" : "Title, code, or concept"}
+                className="min-h-10 w-full rounded-lg border border-border bg-[#fbfbfe] py-2 pl-9 pr-3 text-sm font-normal text-black outline-none transition-[border-color,box-shadow] placeholder:text-muted/75 focus:border-brand focus:ring-2 focus:ring-brand/10"
+              />
+            </span>
+          </label>
+          <label className="grid gap-1.5 text-xs font-medium text-navy-deep">
+            <span>{language === "id" ? "Jenis soal" : "Question type"}</span>
+            <select
+              value={type}
+              onChange={(event) => setType(event.target.value as ReviewQuestionType)}
+              className="min-h-10 cursor-pointer rounded-lg border border-border bg-[#fbfbfe] px-3 text-sm font-normal text-black outline-none transition-[border-color,box-shadow] focus:border-brand focus:ring-2 focus:ring-brand/10"
+            >
+              <option value="all">{language === "id" ? "Semua jenis" : "All types"}</option>
+              <option value="ps">PS</option>
+              <option value="mp">MP</option>
+            </select>
+          </label>
+          <label className="grid gap-1.5 text-xs font-medium text-navy-deep">
+            <span>{language === "id" ? "Status pribadi" : "Personal status"}</span>
+            <select
+              value={status}
+              onChange={(event) => setStatus(event.target.value as "all" | ReviewPersonalStatus)}
+              className="min-h-10 cursor-pointer rounded-lg border border-border bg-[#fbfbfe] px-3 text-sm font-normal text-black outline-none transition-[border-color,box-shadow] focus:border-brand focus:ring-2 focus:ring-brand/10"
+            >
+              <option value="all">{language === "id" ? "Semua status" : "All statuses"}</option>
+              <option value="unreviewed">{language === "id" ? "Belum direview" : "Not reviewed"}</option>
+              <option value="reviewed">{language === "id" ? "Sudah direview" : "Reviewed"}</option>
+            </select>
+          </label>
+        </div>
+
+        <p className="mt-4 text-xs font-medium tabular-nums text-muted" aria-live="polite">
+          {language === "id"
+            ? `${filteredQuestions.length} dari ${weekTotal} soal`
+            : `${filteredQuestions.length} of ${weekTotal} questions`}
+        </p>
+
+        {filteredQuestions.length === 0 ? (
+          <div className="mt-3 rounded-xl border border-border bg-white">
+            <EmptyState message={language === "id" ? "Tidak ada soal yang cocok dengan pencarian atau filter ini." : "No questions match these filters."} />
+          </div>
+        ) : (
+          <div className="mt-3 overflow-hidden rounded-xl border border-[#ccbab0]/55 bg-white">
+            <div aria-hidden="true" className="hidden grid-cols-[3.5rem_minmax(0,1fr)_5rem_10rem_8rem_2rem] gap-3 border-b border-border bg-[#fbfbfe] px-4 py-3 text-xs font-medium text-muted lg:grid">
+              <span>No.</span>
+              <span>{language === "id" ? "Soal" : "Question"}</span>
+              <span>{language === "id" ? "Tipe" : "Type"}</span>
+              <span>{language === "id" ? "Status pribadi" : "Personal status"}</span>
+              <span>{language === "id" ? "Reviewer" : "Reviewers"}</span>
+              <span />
+            </div>
+            <ul>
+              {filteredQuestions.map((question, index) => {
+                const personallyReviewed = reviewed.has(question.id);
+                const identifier = getMaterialQuestionIdentifier(question);
+                const title = t(question.title, language).trim() || identifier;
+                const concepts = question.expectedConcepts
+                  .slice(0, 2)
+                  .map((concept) => t(concept, language))
+                  .filter(Boolean)
+                  .join(", ");
+                const reviewCount = Math.min(
+                  questionCounts.get(question.id) ?? 0,
+                  QUESTION_REVIEWED_THRESHOLD,
+                );
+
+                return (
+                  <li key={question.id} className="border-b border-border last:border-b-0">
+                    <button
+                      type="button"
+                      onClick={() => onSelectQuestion(question)}
+                      className="group grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-[#fbfbfe] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-brand-soft/45 lg:grid-cols-[3.5rem_minmax(0,1fr)_5rem_10rem_8rem_2rem]"
+                    >
+                      <span className="hidden text-sm tabular-nums text-muted lg:block">{index + 1}</span>
+                      <span className="min-w-0">
+                        <span className="block text-xs font-medium text-brand">{identifier}</span>
+                        <span className="mt-1 block truncate text-sm font-semibold text-black">{title}</span>
+                        {concepts && <span className="mt-1 block truncate text-xs font-normal text-muted">KC: {concepts}</span>}
+                        <span className="mt-2 flex flex-wrap items-center gap-2 lg:hidden">
+                          <span className="rounded-md border border-border bg-neutral px-2 py-1 text-[11px] font-medium text-muted">{question.type === "multiple_choice" ? "MP" : "PS"}</span>
+                          <span className={cn("rounded-md px-2 py-1 text-[11px] font-medium", personallyReviewed ? "bg-correct-bg text-correct" : "bg-[#ccbab0]/20 text-muted")}>
+                            {personallyReviewed ? (language === "id" ? "Sudah direview" : "Reviewed") : language === "id" ? "Belum direview" : "Not reviewed"}
+                          </span>
+                          <span className="text-[11px] font-medium tabular-nums text-muted">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer</span>
+                        </span>
+                      </span>
+                      <span className="hidden text-sm font-medium text-muted lg:block">{question.type === "multiple_choice" ? "MP" : "PS"}</span>
+                      <span className={cn("hidden w-fit rounded-md px-2 py-1 text-xs font-medium lg:block", personallyReviewed ? "bg-correct-bg text-correct" : "bg-[#ccbab0]/20 text-muted")}>
+                        {personallyReviewed ? (language === "id" ? "Sudah direview" : "Reviewed") : language === "id" ? "Belum direview" : "Not reviewed"}
+                      </span>
+                      <span className="hidden text-sm font-medium tabular-nums text-muted lg:block">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD}</span>
+                      <ChevronRight size={17} strokeWidth={1.8} aria-hidden="true" className="text-[#b09f85] transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
 
@@ -427,6 +744,14 @@ export function LecturerReviewPage({
     () => parseReviewNavigationSearch(location.search),
     [location.search],
   );
+  const reviewStage = useMemo<"overview" | "list" | "detail">(() => {
+    if (initialAnswerId || new URLSearchParams(location.search).has("item")) {
+      return "detail";
+    }
+    return new URLSearchParams(location.search).has("week")
+      ? "list"
+      : "overview";
+  }, [initialAnswerId, location.search]);
   const navigation = useMemo(
     () =>
       normalizeReviewNavigationState(
@@ -475,6 +800,7 @@ export function LecturerReviewPage({
   useEffect(() => {
     if (
       !navigationReady ||
+      reviewStage !== "detail" ||
       (initialAnswerId && handledInitialAnswerId !== initialAnswerId)
     ) {
       return;
@@ -501,6 +827,7 @@ export function LecturerReviewPage({
     navigate,
     navigation,
     navigationReady,
+    reviewStage,
   ]);
 
   useEffect(() => {
@@ -585,6 +912,16 @@ export function LecturerReviewPage({
       )
     : undefined;
   const weekOptions = getMaterialWeekOptions(questions);
+  const weekSummaries = useMemo(
+    () =>
+      getReviewWeekSummaries(
+        questions,
+        reviewedQuestionIds,
+        questionCounts,
+        QUESTION_REVIEWED_THRESHOLD,
+      ),
+    [questionCounts, questions, reviewedQuestionIds],
+  );
   const contextQueues = useMemo(
     () =>
       (["unreviewed", "reviewed"] as const).map((status) =>
@@ -651,6 +988,45 @@ export function LecturerReviewPage({
   );
 
   const viewHistory = () => navigate("/review/riwayat");
+  const navigateToOverview = useCallback(() => {
+    if (
+      reviewStage === "detail" &&
+      !confirmNavigation({ ...navigation, item: undefined })
+    ) {
+      return;
+    }
+    setQuestionDirty(false);
+    setAnswerDirty(false);
+    navigate("/review");
+  }, [confirmNavigation, navigate, navigation, reviewStage]);
+  const navigateToWeek = useCallback(
+    (week: string) => {
+      if (
+        reviewStage === "detail" &&
+        !confirmNavigation({ ...navigation, week, task: "question", item: undefined })
+      ) {
+        return;
+      }
+      setQuestionDirty(false);
+      setAnswerDirty(false);
+      navigate({ pathname: "/review", search: `?week=${encodeURIComponent(week)}` });
+    },
+    [confirmNavigation, navigate, navigation, reviewStage],
+  );
+  const openQuestion = useCallback(
+    (question: Question) => {
+      changeNavigation({
+        week: question.week ?? navigation.week,
+        task: "question",
+        status: reviewedQuestionIds.includes(question.id)
+          ? "reviewed"
+          : "unreviewed",
+        type: "all",
+        item: question.id,
+      });
+    },
+    [changeNavigation, navigation.week, reviewedQuestionIds],
+  );
   const selectOffset = (offset: number) => {
     const item = activeQueue[activeIndex + offset];
     if (item) changeNavigation({ item: item.id });
@@ -767,8 +1143,74 @@ export function LecturerReviewPage({
     setReviewDataRevision((current) => current + 1);
   };
 
+  if (reviewStage === "overview") {
+    return (
+      <div className="lecturer-ui mx-auto max-w-[1240px] text-black">
+        {loadError && (
+          <p role="alert" className="mb-5 rounded-lg border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect">
+            {loadError}
+          </p>
+        )}
+        <WeekOverview
+          summaries={weekSummaries}
+          language={language}
+          loading={loading}
+          onSelectWeek={navigateToWeek}
+          onViewHistory={viewHistory}
+        />
+      </div>
+    );
+  }
+
+  if (reviewStage === "list") {
+    const requestedWeek = new URLSearchParams(location.search).get("week") ?? "";
+    const selectedWeek = navigation.week || requestedWeek;
+
+    return (
+      <div className="lecturer-ui mx-auto max-w-[1240px] text-black">
+        {loadError && (
+          <p role="alert" className="mb-5 rounded-lg border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect">
+            {loadError}
+          </p>
+        )}
+        {loading ? (
+          <div role="status" aria-label={language === "id" ? "Memuat daftar soal" : "Loading question list"}>
+            <ReviewBreadcrumb week={requestedWeek || undefined} language={language} onOverview={navigateToOverview} />
+            <div className="h-10 w-56 animate-pulse rounded-lg bg-[#ccbab0]/20" />
+            <div className="mt-3 h-5 w-80 max-w-full animate-pulse rounded bg-[#ccbab0]/15" />
+            <div className="mt-8 h-28 animate-pulse rounded-xl bg-[#ccbab0]/20" />
+            <div className="mt-5 h-72 animate-pulse rounded-xl bg-[#ccbab0]/15" />
+          </div>
+        ) : (
+          <WeekQuestionList
+            key={selectedWeek}
+            week={selectedWeek}
+            questions={questions}
+            language={language}
+            questionCounts={questionCounts}
+            reviewedQuestionIds={reviewedQuestionIds}
+            onBack={navigateToOverview}
+            onSelectQuestion={openQuestion}
+          />
+        )}
+      </div>
+    );
+  }
+
+  const detailQuestion = activeQuestion ?? answerQuestion;
+  const detailLabel = detailQuestion
+    ? getMaterialQuestionIdentifier(detailQuestion)
+    : navigation.item;
+
   return (
-    <div className="mx-auto max-w-[1440px]">
+    <div className="lecturer-ui mx-auto max-w-[1440px] text-black">
+      <ReviewBreadcrumb
+        week={navigation.week || undefined}
+        question={detailLabel}
+        language={language}
+        onOverview={navigateToOverview}
+        onWeek={() => navigateToWeek(navigation.week)}
+      />
       {loadError && (
         <p
           role="alert"

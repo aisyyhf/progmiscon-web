@@ -3,12 +3,14 @@ import { readFile } from "node:fs/promises";
 import {
   REVIEW_NAVIGATION_SESSION_KEY,
   buildReviewQueue,
+  filterWeekReviewQuestions,
   getActiveCurrentAnswerReviewIds,
   getActiveCurrentQuestionReviewIds,
   getDefaultReviewWeek,
   getNavigationAfterReviewSave,
   getNavigationAfterWithdraw,
   getNextQueueItemId,
+  getReviewWeekSummaries,
   normalizeReviewNavigationState,
   parseReviewNavigationSearch,
   parseReviewNavigationSession,
@@ -38,6 +40,61 @@ const answers = [
   { id: "MP-ANSWER-2", questionId: "W02-MP-2" },
   { id: "MP-ANSWER-1", questionId: "W02-MP-1" },
 ];
+
+const weekSummaries = getReviewWeekSummaries(
+  questions,
+  ["W01-PS-1", "W02-PS-1"],
+  new Map([
+    ["W02-PS-2", 3],
+    ["W05-06-MP-1", 3],
+    ["W11-12-PS-1", 3],
+  ]),
+  3,
+);
+assert.deepEqual(
+  weekSummaries.find(({ week }) => week === "W01"),
+  { week: "W01", total: 1, completed: 1, isComplete: true },
+);
+assert.equal(
+  weekSummaries.find(({ week }) => week === "W02")?.completed,
+  2,
+  "week progress counts personal reviews and questions whose reviewer cap is full",
+);
+assert.equal(
+  weekSummaries.find(({ week }) => week === "W05-06")?.isComplete,
+  true,
+);
+
+const searchableQuestions = questions.map((item, index) => ({
+  ...item,
+  number: String(index + 1),
+  sourceCode: index === 1 ? "PS-CODE" : null,
+  sourceKey: null,
+  questionCode: null,
+  title: { id: index === 2 ? "Perulangan bersarang" : item.id, en: item.id },
+  expectedConcepts:
+    index === 3 ? [{ id: "Kompleksitas waktu", en: "Time complexity" }] : [],
+}));
+assert.deepEqual(
+  filterWeekReviewQuestions(searchableQuestions, {
+    week: "W02",
+    query: "PS-CODE",
+    type: "ps",
+    status: "reviewed",
+    reviewedQuestionIds: ["W02-PS-1"],
+  }).map(({ id }) => id),
+  ["W02-PS-1"],
+);
+assert.deepEqual(
+  filterWeekReviewQuestions(searchableQuestions, {
+    week: "W02",
+    query: "kompleksitas waktu",
+    type: "all",
+    status: "all",
+    reviewedQuestionIds: [],
+  }).map(({ id }) => id),
+  ["W02-PS-3"],
+);
 
 assert.equal(REVIEW_NAVIGATION_SESSION_KEY.endsWith(".v2"), true);
 assert.equal(getDefaultReviewWeek(questions), "W02");
@@ -225,6 +282,14 @@ assert.match(activePage, /replace: true/);
 assert.match(activePage, /getNavigationAfterReviewSave/);
 assert.match(activePage, /getNavigationAfterWithdraw/);
 assert.match(activePage, /resolveAnswerDeepLink/);
+assert.match(activePage, /ReviewBreadcrumb/);
+assert.match(activePage, /WeekOverview/);
+assert.match(activePage, /WeekQuestionList/);
+assert.match(activePage, /filterWeekReviewQuestions/);
+assert.match(activePage, /reviewStage === "overview"/);
+assert.match(activePage, /reviewStage === "list"/);
+assert.match(activePage, /Status pribadi/);
+assert.match(activePage, /Judul, kode, atau KC/);
 assert.match(activePage, /saveQuestionReview\(/);
 assert.match(activePage, /saveAnswerReview\(/);
 assert.match(activePage, /deleteQuestionReview\(/);
