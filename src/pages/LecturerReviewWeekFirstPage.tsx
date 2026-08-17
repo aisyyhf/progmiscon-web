@@ -346,6 +346,11 @@ function WeekQuestionList({
     status === "unreviewed"
       ? "lg:grid-cols-[3rem_minmax(0,1fr)_8.5rem_6.5rem_1.5rem]"
       : "lg:grid-cols-[3rem_minmax(0,1fr)_8.5rem_6.5rem_7rem]";
+  const questionColumnHeading = {
+    unreviewed: { id: "Soal yang belum direview", en: "Questions not yet reviewed" },
+    reviewed: { id: "Soal yang sudah direview", en: "Reviewed questions" },
+    full: { id: "Soal dengan jumlah reviewer terpenuhi", en: "Questions with reviewer limit reached" },
+  }[status][language];
   const handleWithdraw = async (question: Question) => {
     if (
       !window.confirm(
@@ -516,7 +521,7 @@ function WeekQuestionList({
           <div className="mt-2 overflow-visible rounded-lg border border-border bg-white shadow-[0_1px_2px_rgba(176,159,133,0.12)]">
             <div aria-hidden="true" className={cn("hidden rounded-t-lg gap-3 border-b border-border bg-[var(--review-header)] px-3 py-2.5 text-[13px] font-semibold text-black lg:grid", tableGridClass)}>
               <span className="text-center">No.</span>
-              <span>{language === "id" ? "Soal" : "Question"}</span>
+              <span>{questionColumnHeading}</span>
               <span>{language === "id" ? "Tipe" : "Type"}</span>
               <span>{language === "id" ? "Reviewer" : "Reviewers"}</span>
               <span className="text-center">{status === "unreviewed" ? "" : language === "id" ? "Aksi" : "Actions"}</span>

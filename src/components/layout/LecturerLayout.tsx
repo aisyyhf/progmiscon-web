@@ -24,13 +24,20 @@ function getInitialCollapsedState(): boolean {
   }
 }
 
-function lecturerContentClass(pathname: string): string {
+function lecturerContentClass(pathname: string, search: string): string {
   if (pathname === "/materi") {
     return "mx-auto min-h-[calc(100dvh-4rem)] w-full max-w-[1240px] flex-1 px-4 py-4 sm:px-6 lg:px-8";
   }
 
   if (pathname.startsWith("/question/")) {
     return "mx-auto w-full max-w-[1440px] flex-1 px-4 pb-0 pt-6 sm:px-6 md:pt-9 lg:px-8";
+  }
+
+  if (pathname === "/review") {
+    const reviewSearch = new URLSearchParams(search);
+    if (reviewSearch.has("week") && !reviewSearch.has("item")) {
+      return "mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 md:pb-9 md:pt-4 lg:px-8";
+    }
   }
 
   return "mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 md:py-9 lg:px-8";
@@ -111,7 +118,10 @@ export function LecturerLayout({ children }: { children: ReactNode }) {
           </Link>
         </header>
 
-        <main id="main-content" className={lecturerContentClass(location.pathname)}>
+        <main
+          id="main-content"
+          className={lecturerContentClass(location.pathname, location.search)}
+        >
           <div key={location.pathname} className="route-frame">
             {children}
           </div>

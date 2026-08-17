@@ -408,6 +408,17 @@ assert.match(activePage, /resolveAnswerDeepLink/);
 assert.match(activePage, /ReviewBreadcrumb/);
 assert.match(activePage, /WeekOverview/);
 assert.match(activePage, /WeekQuestionList/);
+for (const heading of [
+  "Soal yang belum direview",
+  "Soal yang sudah direview",
+  "Soal dengan jumlah reviewer terpenuhi",
+  "Questions not yet reviewed",
+  "Reviewed questions",
+  "Questions with reviewer limit reached",
+]) {
+  assert.match(listSource, new RegExp(heading));
+}
+assert.match(listSource, /<span>{questionColumnHeading}<\/span>/);
 assert.deepEqual(
   [...new Set(targetPageColorSource.match(/#[\da-f]{6}/gi)?.map((color) => color.toLowerCase()))].sort(),
   ["#b09f85", "#ccbab0", "#fbfbfe"],

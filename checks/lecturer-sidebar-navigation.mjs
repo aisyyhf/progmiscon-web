@@ -102,6 +102,15 @@ assert.match(layout, /inert={!drawerOpen}/);
 assert.match(layout, /md:hidden/);
 assert.match(layout, /sticky top-0 z-30[\s\S]*?overflow-visible/);
 assert.match(layout, /collapsed \? "w-\[72px\]" : "w-52"/);
+assert.match(
+  layout,
+  /reviewSearch\.has\("week"\) && !reviewSearch\.has\("item"\)[\s\S]*?px-4 py-6 sm:px-6 md:pb-9 md:pt-4 lg:px-8/,
+  "the weekly question list must align with the desktop sidebar header without changing mobile top spacing",
+);
+assert.match(
+  layout,
+  /lecturerContentClass\(location\.pathname, location\.search\)/,
+);
 
 assert.match(auth, /logout: \(\) => Promise<void>/);
 assert.match(language, /setLanguage: \(language: Language\) => void/);
