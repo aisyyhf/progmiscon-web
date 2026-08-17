@@ -36,10 +36,10 @@ function lecturerContentClass(pathname: string, search: string): string {
   if (pathname === "/review") {
     const reviewSearch = new URLSearchParams(search);
     if (reviewSearch.has("item")) {
-      return "mx-auto w-full max-w-[1440px] flex-1 px-4 pb-9 pt-3 sm:px-6 md:pt-4 lg:px-8";
+      return "mx-auto w-full max-w-[1440px] flex-1 px-4 pb-9 pt-3 sm:px-6 md:pt-6 lg:px-8";
     }
     if (reviewSearch.has("week") && !reviewSearch.has("item")) {
-      return "mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 md:pb-9 md:pt-4 lg:px-8";
+      return "mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 sm:px-6 md:pb-9 md:pt-6 lg:px-8";
     }
   }
 

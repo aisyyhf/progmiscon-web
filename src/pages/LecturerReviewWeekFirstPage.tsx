@@ -1034,14 +1034,17 @@ export function LecturerReviewPage({
     [navigation, orderedAnswers, questions, reviewedAnswerIds, reviewedQuestionIds],
   );
   const commitNavigation = useCallback(
-    (next: ReviewNavigationState, readOnly = false) => {
+    (
+      next: ReviewNavigationState,
+      options: { readOnly?: boolean; replace?: boolean } = {},
+    ) => {
       setReviewNavigationInput(next);
       const search = `${serializeReviewNavigationSearch(next)}${
-        readOnly && next.task === "question" ? "&mode=view" : ""
+        options.readOnly && next.task === "question" ? "&mode=view" : ""
       }`;
       navigate(
         { pathname: "/review", search },
-        { replace: true },
+        { replace: options.replace ?? true },
       );
     },
     [navigate],
@@ -1215,7 +1218,7 @@ export function LecturerReviewPage({
   const changeNavigation = useCallback(
     (
       patch: Partial<ReviewNavigationState>,
-      options: { readOnly?: boolean } = {},
+      options: { readOnly?: boolean; replace?: boolean } = {},
     ) => {
       const next = normalizeReviewNavigationState(
         { ...navigation, ...patch },
@@ -1229,7 +1232,10 @@ export function LecturerReviewPage({
       if (!confirmNavigation(next)) return false;
       setQuestionDirty(false);
       setAnswerDirty(false);
-      commitNavigation(next, options.readOnly ?? reviewReadOnly);
+      commitNavigation(next, {
+        readOnly: options.readOnly ?? reviewReadOnly,
+        replace: options.replace,
+      });
       return true;
     },
     [
@@ -1282,7 +1288,7 @@ export function LecturerReviewPage({
           type: "all",
           item: question.id,
         },
-        { readOnly },
+        { readOnly, replace: false },
       );
     },
     [changeNavigation, navigation.week, reviewedQuestionIds],

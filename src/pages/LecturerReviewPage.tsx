@@ -2118,6 +2118,7 @@ export function QuestionValidationWorkspace({
     t(question.title, language).trim() ||
     `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
   const questionCode = question.sourceCode?.trim() || question.id;
+  const displayQuestionCode = `#${questionCode.replace(/^#/, "")}`;
   const weekMatch = /^W(\d+)(?:-(\d+))?$/i.exec(question.week ?? "");
   const normalizedWeekNumber = weekMatch
     ? weekMatch[2]
@@ -2279,66 +2280,56 @@ export function QuestionValidationWorkspace({
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] lg:items-start xl:gap-14">
         <article className="min-w-0">
           <section aria-labelledby="review-question-title">
-            <header className="grid gap-4 border-b border-border pb-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
-              <div className="min-w-0">
-                <h2
-                  id="review-question-title"
-                  aria-label={`${questionCode} / ${questionTitle}`}
-                  className="text-[1.75rem] font-semibold leading-9 tracking-[-0.02em] text-navy-deep md:text-[2rem] md:leading-10"
-                >
-                  <span className="font-mono font-semibold leading-none tracking-[0.02em] tabular-nums text-brand">
-                    {questionCode}
-                  </span>
-                  <span className="mx-1.5 font-medium text-muted/70" aria-hidden="true">
-                    /
-                  </span>
-                  <span>{questionTitle}</span>
-                </h2>
-                <dl className="mt-2 flex flex-wrap items-baseline gap-x-1 gap-y-1 text-xs font-normal leading-[18px] text-muted">
-                  <div className="flex min-w-0 items-baseline gap-1">
-                    <dt className="sr-only">Week</dt>
-                    <dd>
-                      <span aria-hidden="true">Week </span>
-                      {normalizedWeekNumber}
-                    </dd>
-                  </div>
-                  <div className="flex min-w-0 items-baseline gap-1">
-                    <span className="mx-1 text-muted/65" aria-hidden="true">
-                      ·
-                    </span>
-                    <dt className="shrink-0 font-medium text-navy-deep">KC:</dt>
-                    <dd className="min-w-0">
-                      {question.expectedConcepts.length > 0
-                        ? question.expectedConcepts
-                            .map((concept) => t(concept, language))
-                            .join(", ")
-                        : language === "id"
-                          ? "Belum tersedia"
-                          : "Unavailable"}
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-
-              <div className="flex md:justify-end">
-                {reviewerCount !== undefined && (
-                  <span
+            <header className="border-b border-border pb-5">
+              <h2
+                id="review-question-title"
+                aria-label={`${questionTitle}, ${displayQuestionCode}`}
+                className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[1.375rem] font-semibold leading-8 tracking-[-0.02em] text-navy-deep md:text-2xl"
+              >
+                <span>{questionTitle}</span>
+                <span className="text-xs font-normal leading-5 tracking-normal text-muted">
+                  {displayQuestionCode}
+                </span>
+              </h2>
+              <dl className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-normal leading-[18px] text-navy-deep">
+                <div className="flex items-center gap-1.5">
+                  <CalendarDays size={13} strokeWidth={1.8} aria-hidden="true" className="text-brand" />
+                  <dt className="sr-only">Week</dt>
+                  <dd>
+                    <span aria-hidden="true">Week </span>
+                    {normalizedWeekNumber}
+                  </dd>
+                </div>
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <ListFilter size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-brand" />
+                  <dt className="sr-only">KC</dt>
+                  <dd className="min-w-0">
+                    <span className="font-medium">KC:</span>{" "}
+                    {question.expectedConcepts.length > 0
+                      ? question.expectedConcepts
+                          .map((concept) => t(concept, language))
+                          .join(", ")
+                      : language === "id"
+                        ? "Belum tersedia"
+                        : "Unavailable"}
+                  </dd>
+                </div>
+                {!readOnly && reviewerCount !== undefined && (
+                  <div
                     aria-label={reviewerCountLabel}
-                    className="inline-flex items-center justify-center gap-1.5 rounded-md border border-[#ccbab0] bg-[var(--review-page)] px-2.5 py-1.5 text-muted"
+                    className="flex items-center gap-1.5 text-brand"
                   >
-                    <Users size={14} strokeWidth={2} aria-hidden="true" />
-                    <span className="text-xs font-medium tabular-nums">
-                      {reviewerCount}/{QUESTION_REVIEWED_THRESHOLD}
-                    </span>
-                    <span className="text-[10px] font-normal">
-                      {reviewerLabel}
-                    </span>
-                  </span>
+                    <Users size={13} strokeWidth={1.8} aria-hidden="true" />
+                    <dt className="sr-only">{reviewerLabel}</dt>
+                    <dd className="font-medium tabular-nums">
+                      {reviewerLabel}: {reviewerCount}/{QUESTION_REVIEWED_THRESHOLD}
+                    </dd>
+                  </div>
                 )}
-              </div>
+              </dl>
             </header>
 
-            <div className="mt-7"><QuestionContent question={question} /></div>
+            <div className="mt-6"><QuestionContent question={question} /></div>
           </section>
 
           {question.options && (
@@ -2387,8 +2378,8 @@ export function QuestionValidationWorkspace({
           )}
 
           <section className="mt-6 border-t border-border pt-5">
-            <h3 className="flex items-center gap-2 text-xl font-semibold leading-7 text-navy-deep">
-              <TriangleAlert size={18} strokeWidth={1.9} aria-hidden="true" className="text-brand" />
+            <h3 className="flex items-center gap-2 text-base font-semibold leading-6 tracking-[-0.01em] text-navy-deep">
+              <TriangleAlert size={17} strokeWidth={1.9} aria-hidden="true" className="text-brand" />
               <span>
                 {language === "id"
                   ? "Miskonsepsi terkait"
@@ -2396,20 +2387,20 @@ export function QuestionValidationWorkspace({
               </span>
             </h3>
             {recommended.length > 0 ? (
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
                 {recommended.map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => onSelectMisconception(item.id)}
-                    className="group/misconception relative min-h-28 overflow-hidden rounded-lg border border-brand/20 bg-brand-soft/35 px-4 py-3.5 text-left transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-brand/40 hover:bg-brand-soft/55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 motion-reduce:translate-y-0"
+                    className="group/misconception relative min-h-24 overflow-hidden rounded-lg border border-brand/20 bg-brand-soft/35 px-3.5 py-3 text-left transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-brand/40 hover:bg-brand-soft/55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 motion-reduce:translate-y-0"
                   >
-                    <span aria-hidden="true" className="absolute -right-5 -top-5 h-20 w-20 rounded-full bg-brand/[0.055]" />
-                    <ArrowRight size={15} strokeWidth={1.8} aria-hidden="true" className="absolute right-3.5 top-3.5 text-brand transition-transform duration-150 group-hover/misconception:translate-x-0.5 motion-reduce:translate-x-0" />
+                    <span aria-hidden="true" className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-brand/[0.055]" />
+                    <ArrowRight size={14} strokeWidth={1.8} aria-hidden="true" className="absolute right-3 top-3 text-brand transition-transform duration-150 group-hover/misconception:translate-x-0.5 motion-reduce:translate-x-0" />
                     <span className="relative block font-mono text-[11px] font-medium leading-[18px] text-brand">
                       {item.id}
                     </span>
-                    <span className="relative mt-2 block pr-6 text-sm font-medium leading-6 text-navy-deep">
+                    <span className="relative mt-1 block pr-5 text-sm font-medium leading-5 text-navy-deep">
                       {t(item.title, language)}
                     </span>
                   </button>
@@ -2593,9 +2584,9 @@ export function QuestionValidationWorkspace({
           </section>
         </article>
 
-        <aside className="thin-scroll relative overflow-x-hidden rounded-xl border border-[#ccbab0] bg-white p-5 shadow-[0_18px_48px_rgba(176,159,133,0.12)] md:p-6 lg:sticky lg:top-4 lg:max-h-[calc(100dvh-2rem)] lg:overflow-y-auto">
+        <aside className="thin-scroll relative overflow-x-hidden rounded-xl border border-[#ccbab0] bg-white p-5 shadow-[0_18px_48px_rgba(176,159,133,0.12)] md:p-6 lg:sticky lg:top-14 lg:max-h-[calc(100dvh-4.5rem)] lg:overflow-y-auto">
           <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-brand" />
-          <CircleCheckBig aria-hidden="true" strokeWidth={1.15} className="pointer-events-none absolute right-3 top-8 h-28 w-28 text-brand/[0.045]" />
+          <CircleCheckBig aria-hidden="true" strokeWidth={1.15} className="pointer-events-none absolute -right-2 top-2 h-36 w-36 -rotate-6 text-brand/[0.045]" />
           {reviewedByMe && (
             <SubmittedQuestionReview
               review={submittedReview}

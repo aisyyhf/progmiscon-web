@@ -402,6 +402,13 @@ assert.match(app, /LecturerReviewWeekFirstPage/);
 assert.match(activePage, /REVIEW_NAVIGATION_SESSION_KEY/);
 assert.match(activePage, /serializeReviewNavigationSearch\(navigation\)/);
 assert.match(activePage, /replace: true/);
+assert.match(activePage, /options: \{ readOnly\?: boolean; replace\?: boolean \}/);
+assert.match(activePage, /replace: options\.replace \?\? true/);
+assert.match(
+  activePage,
+  /const openQuestion[\s\S]*?changeNavigation\([\s\S]*?\{ readOnly, replace: false \},/,
+  "opening a question from its week list must preserve the list in browser history",
+);
 assert.match(activePage, /getNavigationAfterReviewSave/);
 assert.match(activePage, /getNavigationAfterWithdraw/);
 assert.match(activePage, /resolveAnswerDeepLink/);
