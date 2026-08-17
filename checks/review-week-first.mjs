@@ -353,6 +353,10 @@ const questionTypeSource = await readFile(
   new URL("../src/types/question.ts", import.meta.url),
   "utf8",
 );
+const stylesSource = await readFile(
+  new URL("../src/styles/index.css", import.meta.url),
+  "utf8",
+);
 const validationWorkspace = await readFile(
   new URL("../src/pages/LecturerReviewPage.tsx", import.meta.url),
   "utf8",
@@ -370,6 +374,10 @@ const overviewAndListStageSource = activePage.slice(
   activePage.indexOf("const detailQuestion"),
 );
 const targetPageColorSource = `${overviewAndListSource}\n${overviewAndListStageSource}`;
+const reviewPaletteSource = stylesSource.slice(
+  stylesSource.indexOf(".review-week-pages"),
+  stylesSource.indexOf(".lecturer-sidebar-surface"),
+);
 const app = await readFile(
   new URL("../src/app/App.tsx", import.meta.url),
   "utf8",
@@ -392,10 +400,23 @@ assert.doesNotMatch(
   targetPageColorSource,
   /bg-correct|text-correct|border-correct|bg-incorrect|text-incorrect|border-incorrect|outline-incorrect|bg-brand-soft|rgba\(95,71,59/,
 );
-assert.match(overviewAndListSource, /bg-\[#ccbab0\]\/25 text-brand/);
-assert.match(listSource, /border-brand\/30 bg-\[#ccbab0\]\/20 text-brand/);
+assert.match(reviewPaletteSource, /--review-card: color-mix\(in srgb, var\(--progmiscon-secondary\) 7%/);
+assert.match(reviewPaletteSource, /--review-header: color-mix\(in srgb, var\(--progmiscon-secondary\) 23%/);
+assert.match(reviewPaletteSource, /--review-row-hover: color-mix\(in srgb, var\(--progmiscon-accent\) 12%/);
+assert.match(reviewPaletteSource, /--review-type-secondary: color-mix\(in srgb, var\(--progmiscon-secondary\) 52%/);
+assert.match(reviewPaletteSource, /--review-type-accent: color-mix\(in srgb, var\(--progmiscon-accent\) 42%/);
+assert.doesNotMatch(reviewPaletteSource, /#[\da-f]{3,8}/i);
+assert.match(overviewAndListSource, /border border-brand\/35 bg-\[var\(--review-page\)\] text-brand/);
+assert.match(listSource, /border-brand bg-brand text-white/);
+assert.match(
+  listSource,
+  /border-\[#ccbab0\] bg-\[var\(--review-page\)\] text-black hover:bg-\[var\(--review-secondary-soft\)\]/,
+);
+assert.match(listSource, /bg-\[var\(--review-header\)\][^\n]+text-black/);
+assert.match(listSource, /border-\[#ccbab0\] bg-\[var\(--review-type-secondary\)\] text-black/);
+assert.match(listSource, /border-\[#b09f85\] bg-\[var\(--review-type-accent\)\] text-black/);
 assert.equal(
-  overviewAndListStageSource.match(/bg-\[#fbfbfe\] text-black/g)?.length,
+  overviewAndListStageSource.match(/lecturer-ui review-week-pages/g)?.length,
   2,
 );
 assert.match(activePage, /filterWeekReviewQuestions/);
@@ -483,10 +504,10 @@ assert.match(
 assert.match(listSource, /Hapus review/);
 assert.match(
   listSource,
-  /text-\[13px\] font-semibold text-muted[\s\S]*tableGridClass/,
+  /text-\[13px\] font-semibold text-black[\s\S]*tableGridClass/,
 );
 assert.match(listSource, /truncate text-xs font-normal leading-4 text-black/);
-assert.match(listSource, /text-xs font-normal tabular-nums text-muted/);
+assert.match(listSource, /text-xs font-normal tabular-nums text-black\/60/);
 assert.match(listSource, /<span className="text-center">/);
 assert.match(listSource, /flex items-center justify-center gap-1/);
 assert.equal(
