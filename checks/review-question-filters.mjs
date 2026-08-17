@@ -417,17 +417,10 @@ assert.match(page, /statusAvailable=\{questionCountsLoaded\}/);
 assert.match(page, /statusLoading=\{questionCountsLoading\}/);
 assert.match(page, /statusError=\{questionCountsError\}/);
 assert.match(page, /Status agregat review belum dapat dimuat\./);
-assert.match(
-  page,
-  /telah selesai oleh \$\{QUESTION_REVIEWED_THRESHOLD\} reviewer/,
-);
-assert.match(
-  page,
-  /has been completed by \$\{QUESTION_REVIEWED_THRESHOLD\} reviewers/,
-);
+assert.doesNotMatch(page, /ReviewLockNotice/);
 assert.match(page, /selectAfterQuestionReview/);
 assert.match(page, /selectAfterAnswerReview/);
-assert.match(page, /onReviewAnswer=/);
+assert.doesNotMatch(page, /onReviewAnswer=/);
 assert.match(
   page,
   /useState<ReviewQuestionFilterSessionState>\(readStoredQuestionFilters\)/,
@@ -494,17 +487,17 @@ assert.match(
 assert.equal(
   page.match(/const formUnavailable = locked \|\| progressUnavailable;/g)
     ?.length,
-  1,
+  undefined,
 );
 assert.equal(
   page.match(
     /const formUnavailable = readOnly \|\| locked \|\| progressUnavailable;/g,
   )?.length,
-  1,
+  2,
 );
 assert.equal(page.match(/\sdisabled=\{formUnavailable\}/g)?.length, 2);
 assert.equal(
-  page.match(/progressUnavailable \? \(\s*<ReviewProgressUnavailableNotice \/>/g)
+  page.match(/progressUnavailable && <ReviewProgressUnavailableNotice \/>/g)
     ?.length,
   2,
 );
@@ -515,9 +508,9 @@ assert.match(
 );
 assert.match(page, /onClick=\{\(\) => window\.location\.reload\(\)\}/);
 assert.match(page, /Muat ulang/);
-assert.match(page, /Anda sudah mereview soal ini\./);
+assert.doesNotMatch(page, /Anda sudah mereview soal ini\./);
 assert.match(page, /Hapus review jawaban ini\?/);
-assert.match(page, /Lihat review saya/);
+assert.doesNotMatch(page, /Lihat review saya/);
 assert.match(page, /navigate\("\/review\/riwayat"\)/);
 assert.doesNotMatch(page, /onPrevious=\{\(\) => selectOffset\(-1\)\}/);
 assert.doesNotMatch(page, /onNext=\{\(\) => selectOffset\(1\)\}/);

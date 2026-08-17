@@ -104,6 +104,58 @@ export function getNextUnreviewedAnswerId(
   return ordered.find(({ id }) => !reviewed.has(id))?.id;
 }
 
+export function isCompositeQuestionReviewComplete(
+  question: Pick<Question, "id" | "type">,
+  answers: readonly StudentAnswer[],
+  reviewedQuestionIds: readonly string[],
+  reviewedAnswerIds: readonly string[],
+  answerReviewCounts: ReadonlyMap<string, number>,
+  reviewerThreshold: number,
+): boolean {
+  if (!reviewedQuestionIds.includes(question.id)) return false;
+  if (!isAnswerReviewEligible(question)) return true;
+
+  const reviewedAnswers = new Set(reviewedAnswerIds);
+  const seen = new Set<string>();
+
+  return answers.every((answer) => {
+    if (
+      answer.questionId !== question.id ||
+      !answer.sourceVersion ||
+      seen.has(answer.id)
+    ) {
+      return true;
+    }
+    seen.add(answer.id);
+    return (
+      reviewedAnswers.has(answer.id) ||
+      (answerReviewCounts.get(answer.id) ?? 0) >= reviewerThreshold
+    );
+  });
+}
+
+export function getCompositeReviewedQuestionIds(
+  questions: readonly Question[],
+  answers: readonly StudentAnswer[],
+  reviewedQuestionIds: readonly string[],
+  reviewedAnswerIds: readonly string[],
+  answerReviewCounts: ReadonlyMap<string, number>,
+  reviewerThreshold: number,
+): string[] {
+  return questions
+    .filter((question) =>
+      isCompositeQuestionReviewComplete(
+        question,
+        answers,
+        reviewedQuestionIds,
+        reviewedAnswerIds,
+        answerReviewCounts,
+        reviewerThreshold,
+      ),
+    )
+    .map(({ id }) => id);
+}
+
 export function filterAdminReviewConsensusItems(
   items: readonly AdminReviewConsensusItem[],
   questionById: ReadonlyMap<string, Pick<Question, "type">>,

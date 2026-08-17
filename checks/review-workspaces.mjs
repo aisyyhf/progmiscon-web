@@ -8,9 +8,11 @@ import {
   filterEligibleAnswerReviewIds,
   filterEligibleAnswerReviewTasks,
   getActionableAnswerReviewSequence,
+  getCompositeReviewedQuestionIds,
   getNextUnreviewedAnswerId,
   getReviewProgress,
   isAnswerReviewEligible,
+  isCompositeQuestionReviewComplete,
   resolveAnswerSelection,
   selectWorkspaceItemId,
   stripSelectedOptionPrefix,
@@ -192,6 +194,57 @@ assert.deepEqual(
   "PS answers remain evidence-only",
 );
 
+assert.equal(
+  isCompositeQuestionReviewComplete(
+    questions[0],
+    sequenceAnswers,
+    ["Q-PS-1"],
+    [],
+    new Map(),
+    3,
+  ),
+  true,
+  "a saved PS question review completes its row without answer steps",
+);
+assert.equal(
+  isCompositeQuestionReviewComplete(
+    questions[1],
+    sequenceAnswers,
+    ["Q-MP-1"],
+    [],
+    new Map(),
+    3,
+  ),
+  false,
+  "an MP question-only save remains incomplete",
+);
+assert.equal(
+  isCompositeQuestionReviewComplete(
+    questions[1],
+    sequenceAnswers,
+    ["Q-MP-1"],
+    ["A-1"],
+    new Map([
+      ["A-2", 3],
+      ["A-3", 3],
+    ]),
+    3,
+  ),
+  true,
+  "owned current reviews and cap-full answers both satisfy MP answer steps",
+);
+assert.deepEqual(
+  getCompositeReviewedQuestionIds(
+    questions,
+    sequenceAnswers,
+    ["Q-PS-1", "Q-MP-1"],
+    ["A-1", "A-2", "A-3"],
+    new Map(),
+    3,
+  ),
+  ["Q-PS-1", "Q-MP-1"],
+);
+
 assert.equal(isAnswerReviewEligible(questions[0]), false);
 assert.equal(isAnswerReviewEligible(questions[1]), true);
 assert.throws(
@@ -295,7 +348,6 @@ assert.match(
 assert.match(page, /siblingAnswerIds=\{\(activeItems as StudentAnswer\[\]\)\.map/);
 assert.doesNotMatch(page, /answerReviewCount=/);
 assert.match(page, /onDirtyChange=\{setMpAnswerReviewDirty\}/);
-assert.match(page, /requestOpenWorkspaceItem\(\s*"answer-mp"/);
 assert.match(
   page,
   /onBackToQuestion=\{\(\) =>\s*requestOpenWorkspaceItem\([\s\S]{0,180}answerQuestion\.id/,
@@ -328,17 +380,20 @@ assert.match(answerWorkspace, /REVIEW JAWABAN/);
 assert.match(answerWorkspace, /Jawaban yang sedang direview/);
 assert.match(answerWorkspace, /Lihat soal & pilihan jawaban/);
 assert.match(answerWorkspace, /Lihat evidence/);
-assert.ok(
-  answerWorkspace.indexOf("<ParentQuestionBackAction") <
-    answerWorkspace.indexOf("<SiblingNavigator") &&
-    answerWorkspace.indexOf("<SiblingNavigator") <
-      answerWorkspace.indexOf("<header"),
-  "MP back and sibling navigation must share the utility row above the answer header",
-);
+assert.match(answerWorkspace, /<ParentQuestionBackAction/);
+assert.doesNotMatch(answerWorkspace, /<SiblingNavigator/);
+assert.match(answerWorkspace, /Jawaban \$\{activeIndex \+ 1\} dari \$\{siblingAnswerIds\.length\}/);
 assert.match(questionWorkspace, /REVIEW MISKONSEPSI SOAL/);
 assert.match(questionWorkspace, /QUESTION MISCONCEPTION REVIEW/);
+assert.match(questionWorkspace, /EDIT REVIEW SOAL/);
+assert.match(questionWorkspace, /HASIL REVIEW SOAL/);
 assert.match(answerWorkspace, /REVIEW MISKONSEPSI JAWABAN/);
 assert.match(answerWorkspace, /ANSWER MISCONCEPTION REVIEW/);
+assert.match(answerWorkspace, /EDIT REVIEW JAWABAN/);
+assert.match(answerWorkspace, /HASIL REVIEW JAWABAN/);
+assert.doesNotMatch(questionWorkspace, /<SubmittedQuestionReview/);
+assert.doesNotMatch(questionWorkspace, /Mode lihat/);
+assert.doesNotMatch(questionWorkspace, /Jawaban terkait/);
 assert.doesNotMatch(
   page,
   /Jawab kedua pertanyaan dan lengkapi pilihan serta alasan jika memilih Ada\.|Answer both questions and complete the selection and reason when choosing Yes\./,

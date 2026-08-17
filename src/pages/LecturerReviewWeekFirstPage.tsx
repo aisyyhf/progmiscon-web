@@ -75,6 +75,7 @@ import {
   filterEligibleAnswerReviewCounts,
   filterEligibleAnswerReviewIds,
   getActionableAnswerReviewSequence,
+  getCompositeReviewedQuestionIds,
   getNextUnreviewedAnswerId,
   resolveAnswerSelection,
   stripSelectedOptionPrefix,
@@ -358,7 +359,12 @@ function WeekQuestionList({
   language,
   questionCounts,
   reviewedQuestionIds,
+  startedQuestionIds,
+  type,
+  status,
   onBack,
+  onTypeChange,
+  onStatusChange,
   onOpenQuestion,
   onDeleteReview,
 }: {
@@ -367,15 +373,19 @@ function WeekQuestionList({
   language: Language;
   questionCounts: ReadonlyMap<string, number>;
   reviewedQuestionIds: readonly string[];
+  startedQuestionIds: readonly string[];
+  type: ReviewQuestionType;
+  status: ReviewWeekListStatus;
   onBack: () => void;
+  onTypeChange: (type: ReviewQuestionType) => void;
+  onStatusChange: (status: ReviewWeekListStatus) => void;
   onOpenQuestion: (question: Question, readOnly: boolean) => void;
   onDeleteReview: (question: Question) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
-  const [type, setType] = useState<ReviewQuestionType>("all");
-  const [status, setStatus] = useState<ReviewWeekListStatus>("unreviewed");
   const [withdrawingId, setWithdrawingId] = useState("");
   const reviewed = useMemo(() => new Set(reviewedQuestionIds), [reviewedQuestionIds]);
+  const started = useMemo(() => new Set(startedQuestionIds), [startedQuestionIds]);
   const typeOptions = [
     {
       value: "all",
@@ -409,10 +419,20 @@ function WeekQuestionList({
         type,
         status,
         reviewedQuestionIds,
+        startedQuestionIds,
         questionCounts,
         reviewerThreshold: QUESTION_REVIEWED_THRESHOLD,
       }),
-    [questionCounts, questions, query, reviewedQuestionIds, status, type, week],
+    [
+      questionCounts,
+      questions,
+      query,
+      reviewedQuestionIds,
+      startedQuestionIds,
+      status,
+      type,
+      week,
+    ],
   );
   const tableGridClass =
     status === "unreviewed"
@@ -485,7 +505,7 @@ function WeekQuestionList({
                 key={value}
                 type="button"
                 aria-pressed={status === value}
-                onClick={() => setStatus(value)}
+                onClick={() => onStatusChange(value)}
                 className={cn(
                   "min-h-6 cursor-pointer rounded-full border px-2 py-0.5 text-[10px] font-medium leading-4 transition-[background-color,border-color,color,transform] duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.99] motion-reduce:scale-none",
                   status === value
@@ -555,7 +575,7 @@ function WeekQuestionList({
                     role="menuitemradio"
                     aria-checked={type === option.value}
                     onClick={(event) => {
-                      setType(option.value);
+                      onTypeChange(option.value);
                       event.currentTarget.closest("details")?.removeAttribute("open");
                     }}
                     className={cn(
@@ -614,6 +634,7 @@ function WeekQuestionList({
                   reviewed,
                   questionCounts,
                   QUESTION_REVIEWED_THRESHOLD,
+                  started,
                 );
                 const viewActionLabel =
                   questionStatus === "reviewed"
@@ -1041,7 +1062,7 @@ export function LecturerReviewPage({
     () => getActiveCurrentQuestionReviewIds(questionHistory, sourceVersions.questions),
     [questionHistory, sourceVersions.questions],
   );
-  const reviewedQuestionIds = useMemo(
+  const reviewedQuestionStepIds = useMemo(
     () => [
       ...new Set([
         ...persistedReviewedQuestionIds,
@@ -1080,6 +1101,24 @@ export function LecturerReviewPage({
         questionById,
       ),
     [answerCounts, orderedAnswers, questionById],
+  );
+  const reviewedQuestionIds = useMemo(
+    () =>
+      getCompositeReviewedQuestionIds(
+        questions,
+        orderedAnswers,
+        reviewedQuestionStepIds,
+        reviewedAnswerIds,
+        eligibleAnswerCounts,
+        QUESTION_REVIEWED_THRESHOLD,
+      ),
+    [
+      eligibleAnswerCounts,
+      orderedAnswers,
+      questions,
+      reviewedAnswerIds,
+      reviewedQuestionStepIds,
+    ],
   );
   const navigationReady = snapshotLoaded && metadataLoaded;
   const urlNavigation = useMemo(
@@ -1141,7 +1180,7 @@ export function LecturerReviewPage({
       setPendingNavigation(next);
       setReviewNavigationInput(next);
       const search = `${serializeReviewNavigationSearch(next)}${
-        options.readOnly && next.task === "question" ? "&mode=view" : ""
+        options.readOnly ? "&mode=view" : ""
       }`;
       navigate(
         { pathname: "/review", search },
@@ -1183,7 +1222,7 @@ export function LecturerReviewPage({
     }
 
     const search = `${serializeReviewNavigationSearch(navigation)}${
-      reviewReadOnly && navigation.task === "question" ? "&mode=view" : ""
+      reviewReadOnly ? "&mode=view" : ""
     }`;
     if (location.pathname !== "/review" || location.search !== search) {
       navigate({ pathname: "/review", search }, { replace: true });
@@ -1277,7 +1316,7 @@ export function LecturerReviewPage({
     [answerTasks],
   );
   const activeQuestionReviewedByMe = activeQuestion
-    ? reviewedQuestionIds.includes(activeQuestion.id)
+    ? reviewedQuestionStepIds.includes(activeQuestion.id)
     : false;
   const activeAnswerReviewedByMe = activeAnswer
     ? reviewedAnswerIds.includes(activeAnswer.id)
@@ -1318,8 +1357,14 @@ export function LecturerReviewPage({
         reviewedQuestionIds,
         questionCounts,
         QUESTION_REVIEWED_THRESHOLD,
+        reviewedQuestionStepIds,
       ),
-    [questionCounts, questions, reviewedQuestionIds],
+    [
+      questionCounts,
+      questions,
+      reviewedQuestionIds,
+      reviewedQuestionStepIds,
+    ],
   );
   const contextQueues = useMemo(
     () =>
@@ -1394,6 +1439,28 @@ export function LecturerReviewPage({
   );
 
   const viewHistory = () => navigate("/review/riwayat");
+  const navigateToWeekList = useCallback(
+    (
+      week: string,
+      status: ReviewWeekListStatus,
+      type: ReviewQuestionType,
+      replace = false,
+    ) => {
+      const next: ReviewNavigationState = {
+        week,
+        task: "question",
+        status,
+        type,
+      };
+      setPendingNavigation(undefined);
+      setReviewNavigationInput(next);
+      navigate(
+        { pathname: "/review", search: serializeReviewNavigationSearch(next) },
+        { replace },
+      );
+    },
+    [navigate],
+  );
   const navigateToOverview = useCallback(() => {
     if (
       reviewStage === "detail" &&
@@ -1415,38 +1482,84 @@ export function LecturerReviewPage({
       }
       setQuestionDirty(false);
       setAnswerDirty(false);
-      navigate({ pathname: "/review", search: `?week=${encodeURIComponent(week)}` });
+      navigateToWeekList(
+        week,
+        reviewStage === "detail" ? navigation.status : "unreviewed",
+        reviewStage === "detail" ? navigation.type : "all",
+      );
     },
-    [confirmNavigation, navigate, navigation, reviewStage],
+    [confirmNavigation, navigateToWeekList, navigation, reviewStage],
   );
   const returnToWeekList = useCallback(() => {
     setCompletionDialog(null);
     setQuestionDirty(false);
     setAnswerDirty(false);
-    navigate(
-      {
-        pathname: "/review",
-        search: `?week=${encodeURIComponent(navigation.week)}`,
-      },
-      { replace: true },
-    );
-  }, [navigate, navigation.week]);
+    navigateToWeekList(navigation.week, "unreviewed", navigation.type, true);
+  }, [navigateToWeekList, navigation.type, navigation.week]);
   const openQuestion = useCallback(
     (question: Question, readOnly: boolean) => {
+      const status = getWeekReviewQuestionStatus(
+        question.id,
+        new Set(reviewedQuestionIds),
+        questionCounts,
+        QUESTION_REVIEWED_THRESHOLD,
+        new Set(reviewedQuestionStepIds),
+      );
+      if (
+        !readOnly &&
+        status === "unreviewed" &&
+        question.type === "multiple_choice" &&
+        reviewedQuestionStepIds.includes(question.id)
+      ) {
+        const firstAnswerId = getNextUnreviewedAnswerId(
+          getActionableAnswerReviewSequence(
+            question,
+            orderedAnswers,
+            reviewedAnswerIds,
+            eligibleAnswerCounts,
+            QUESTION_REVIEWED_THRESHOLD,
+          ),
+          reviewedAnswerIds,
+        );
+        const target = firstAnswerId
+          ? resolveAnswerDeepLink(
+              firstAnswerId,
+              questions,
+              orderedAnswers,
+              reviewedAnswerIds,
+            )
+          : undefined;
+        if (target) {
+          changeNavigation(
+            { ...target, status: "unreviewed", type: navigation.type },
+            { replace: false },
+          );
+          return;
+        }
+      }
       changeNavigation(
         {
           week: question.week ?? navigation.week,
           task: "question",
-          status: reviewedQuestionIds.includes(question.id)
-            ? "reviewed"
-            : "unreviewed",
-          type: "all",
+          status,
+          type: navigation.type,
           item: question.id,
         },
         { readOnly, replace: false },
       );
     },
-    [changeNavigation, navigation.week, reviewedQuestionIds],
+    [
+      changeNavigation,
+      eligibleAnswerCounts,
+      navigation.type,
+      navigation.week,
+      orderedAnswers,
+      questionCounts,
+      questions,
+      reviewedAnswerIds,
+      reviewedQuestionIds,
+      reviewedQuestionStepIds,
+    ],
   );
   const withdrawQuestionReview = useCallback(async (question: Question) => {
     if (!question.sourceVersion) {
@@ -1488,7 +1601,7 @@ export function LecturerReviewPage({
 
   const handleQuestionSubmit = async (values: QuestionReviewValues) => {
     if (!activeQuestion?.sourceVersion || activeQuestionLocked) return;
-    const alreadyReviewed = reviewedQuestionIds.includes(activeQuestion.id);
+    const alreadyReviewed = reviewedQuestionStepIds.includes(activeQuestion.id);
     const answerSequence = getActionableAnswerReviewSequence(
       activeQuestion,
       orderedAnswers,
@@ -1528,7 +1641,11 @@ export function LecturerReviewPage({
             )
           : undefined;
         if (target) {
-          commitNavigation(target);
+          commitNavigation({
+            ...target,
+            status: "unreviewed",
+            type: navigation.type,
+          });
         } else {
           commitNavigation({
             ...navigation,
@@ -1605,20 +1722,28 @@ export function LecturerReviewPage({
           reviewedAnswerIds,
         );
         if (target) {
-          commitNavigation(target);
+          commitNavigation({
+            ...target,
+            status: "unreviewed",
+            type: navigation.type,
+          });
         } else {
           commitNavigation({
-            ...navigation,
+            week: navigation.week,
+            task: "question",
             status: "reviewed",
-            item: activeAnswer.id,
+            type: navigation.type,
+            item: answerQuestion.id,
           });
           setCompletionDialog("workflow");
         }
       } else {
         commitNavigation({
-          ...navigation,
+          week: navigation.week,
+          task: "question",
           status: "reviewed",
-          item: activeAnswer.id,
+          type: navigation.type,
+          item: answerQuestion.id,
         });
         setCompletionDialog("workflow");
       }
@@ -1672,7 +1797,16 @@ export function LecturerReviewPage({
             language={language}
             questionCounts={questionCounts}
             reviewedQuestionIds={reviewedQuestionIds}
+            startedQuestionIds={reviewedQuestionStepIds}
+            type={navigation.type}
+            status={navigation.status}
             onBack={navigateToOverview}
+            onTypeChange={(type) =>
+              navigateToWeekList(selectedWeek, navigation.status, type, true)
+            }
+            onStatusChange={(status) =>
+              navigateToWeekList(selectedWeek, status, navigation.type, true)
+            }
             onOpenQuestion={openQuestion}
             onDeleteReview={withdrawQuestionReview}
           />
@@ -1724,28 +1858,14 @@ export function LecturerReviewPage({
             key={activeQuestion.id}
             question={activeQuestion}
             answers={answers}
-            reviewedAnswerIds={reviewedAnswerIds}
             answerTaskById={answerTaskById}
             misconceptions={misconceptions}
             locked={activeQuestionLocked}
             progressUnavailable={!navigationReady || !activeQuestion.sourceVersion}
             reviewedByMe={activeQuestionReviewedByMe}
-            globallyComplete={activeQuestionCount >= QUESTION_REVIEWED_THRESHOLD}
             submittedReview={activeQuestionReview}
-            submittedReviewLoading={metadataLoading}
-            submittedReviewError={loadError}
             readOnly={reviewReadOnly}
-            onViewHistory={viewHistory}
             onDirtyChange={setQuestionDirty}
-            onReviewAnswer={(answerId) => {
-              const target = resolveAnswerDeepLink(
-                answerId,
-                questions,
-                orderedAnswers,
-                reviewedAnswerIds,
-              );
-              if (target) changeNavigation(target);
-            }}
             onSelectMisconception={(misconceptionId) =>
               navigate(`/miskonsepsi/${misconceptionId}`)
             }
@@ -1813,20 +1933,10 @@ export function LecturerReviewPage({
             locked={activeAnswerLocked}
             progressUnavailable={!navigationReady || !activeAnswer.sourceVersion}
             reviewedByMe={activeAnswerReviewedByMe}
-            globallyComplete={activeAnswerCount >= QUESTION_REVIEWED_THRESHOLD}
+            readOnly={reviewReadOnly}
             isFinalAnswer={!nextAnswerId}
             submittedReview={activeAnswerReview}
-            onViewHistory={viewHistory}
             onDirtyChange={setAnswerDirty}
-            onSelectAnswer={(answerId) => {
-              const target = resolveAnswerDeepLink(
-                answerId,
-                questions,
-                orderedAnswers,
-                reviewedAnswerIds,
-              );
-              if (target) changeNavigation(target);
-            }}
             onBackToQuestion={() =>
               changeNavigation({
                 task: "question",
@@ -2006,28 +2116,14 @@ export function LecturerReviewPage({
                 key={activeQuestion.id}
                 question={activeQuestion}
                 answers={answers}
-                reviewedAnswerIds={reviewedAnswerIds}
                 answerTaskById={answerTaskById}
                 misconceptions={misconceptions}
                 locked={activeQuestionLocked}
                 progressUnavailable={!navigationReady || !activeQuestion.sourceVersion}
                 reviewedByMe={activeQuestionReviewedByMe}
-                globallyComplete={activeQuestionCount >= QUESTION_REVIEWED_THRESHOLD}
                 submittedReview={activeQuestionReview}
-                submittedReviewLoading={metadataLoading}
-                submittedReviewError={loadError}
                 readOnly={reviewReadOnly}
-                onViewHistory={viewHistory}
                 onDirtyChange={setQuestionDirty}
-                onReviewAnswer={(answerId) => {
-                  const target = resolveAnswerDeepLink(
-                    answerId,
-                    questions,
-                    orderedAnswers,
-                    reviewedAnswerIds,
-                  );
-                  if (target) changeNavigation(target);
-                }}
                 onSelectMisconception={(misconceptionId) =>
                   navigate(`/miskonsepsi/${misconceptionId}`)
                 }
@@ -2046,11 +2142,9 @@ export function LecturerReviewPage({
                 locked={activeAnswerLocked}
                 progressUnavailable={!navigationReady || !activeAnswer.sourceVersion}
                 reviewedByMe={activeAnswerReviewedByMe}
-                globallyComplete={activeAnswerCount >= QUESTION_REVIEWED_THRESHOLD}
+                readOnly={reviewReadOnly}
                 submittedReview={activeAnswerReview}
-                onViewHistory={viewHistory}
                 onDirtyChange={setAnswerDirty}
-                onSelectAnswer={(answerId) => changeNavigation({ item: answerId })}
                 onBackToQuestion={() =>
                   changeNavigation({
                     task: "question",

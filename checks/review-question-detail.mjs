@@ -179,20 +179,19 @@ assert.match(answerWorkspace, /Sedang direview/);
 assert.match(answerWorkspace, /Lihat evidence/);
 assert.match(answerWorkspace, /isFinalAnswer[\s\S]*?Simpan & Selesai[\s\S]*?Simpan & Lanjut/);
 assert.match(answerWorkspace, /Simpan Perubahan/);
+assert.doesNotMatch(answerWorkspace, /<SiblingNavigator/);
+assert.match(answerWorkspace, /EDIT REVIEW JAWABAN/);
+assert.match(answerWorkspace, /HASIL REVIEW JAWABAN/);
+assert.match(answerWorkspace, /formUnavailable = readOnly \|\| locked \|\| progressUnavailable/);
 
 assert.match(questionWorkspace, /Lihat evidence/);
-assert.match(questionWorkspace, /<details[\s\S]*?open=\{answerReviewEligible \|\| undefined\}/);
+assert.match(questionWorkspace, /!answerReviewEligible && \([\s\S]*?<details className="group\/evidence"/);
 assert.match(questionWorkspace, /review-evidence-disclosure/);
-assert.match(
-  questionWorkspace,
-  /!readOnly && answerReviewEligible && onReviewAnswer/,
-  "PS evidence must never expose the MP answer-review action",
-);
-assert.match(questionWorkspace, /Review jawaban/);
-assert.match(
-  questionDetail,
-  /onReviewAnswer=\{\(answerId\) => \{[\s\S]*?resolveAnswerDeepLink\([\s\S]*?changeNavigation\(target\)/,
-);
+assert.doesNotMatch(questionWorkspace, /Jawaban terkait|Review jawaban|onReviewAnswer/);
+assert.doesNotMatch(questionDetail, /onReviewAnswer=/);
+assert.doesNotMatch(questionWorkspace, /<SubmittedQuestionReview|Mode lihat/);
+assert.match(questionWorkspace, /EDIT REVIEW SOAL/);
+assert.match(questionWorkspace, /HASIL REVIEW SOAL/);
 assert.match(app, /path="\/review\/answer\/:answerId"/);
 
 assert.match(
@@ -246,12 +245,12 @@ assert.match(
 );
 assert.match(
   activePage,
-  /if \(target\) \{\s*commitNavigation\(target\);\s*\} else \{\s*commitNavigation\(\{[\s\S]*?item: activeQuestion\.id,[\s\S]*?setCompletionDialog\("workflow"\)/,
+  /if \(target\) \{\s*commitNavigation\(\{[\s\S]*?\.\.\.target,[\s\S]*?status: "unreviewed"[\s\S]*?\}\);\s*\} else \{\s*commitNavigation\(\{[\s\S]*?item: activeQuestion\.id,[\s\S]*?setCompletionDialog\("workflow"\)/,
   "an MP question with no eligible answer completes without selecting another question",
 );
 assert.match(
   activePage,
-  /status: "reviewed",\s*item: activeAnswer\.id,[\s\S]*?setCompletionDialog\("workflow"\)/,
+  /task: "question",\s*status: "reviewed",[\s\S]*?item: answerQuestion\.id,[\s\S]*?setCompletionDialog\("workflow"\)/,
 );
 assert.match(activePage, /\{ replace: true \}/);
 
