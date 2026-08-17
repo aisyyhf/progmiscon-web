@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Check, ChevronRight, History, Search, Users } from "lucide-react";
+import { Check, ChevronRight, History, Search, Users } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
@@ -165,46 +165,32 @@ function WeekOverview({
   language,
   loading,
   onSelectWeek,
-  onViewHistory,
 }: {
   summaries: ReviewWeekSummary[];
   language: Language;
   loading: boolean;
   onSelectWeek: (week: string) => void;
-  onViewHistory: () => void;
 }) {
   return (
     <>
-      <ReviewBreadcrumb language={language} />
-      <div className="flex flex-col gap-4 border-b border-[#ccbab0]/55 pb-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-[1.875rem] font-semibold leading-10 tracking-[-0.02em] text-black">
-            {language === "id" ? "Review soal per minggu" : "Review questions by week"}
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-muted">
-            {language === "id"
-              ? "Pilih minggu untuk melihat soal yang perlu ditinjau."
-              : "Choose a week to see the questions that need review."}
-          </p>
-        </div>
-        <Button type="button" variant="secondary" onClick={onViewHistory} className="w-fit">
-          <History size={15} strokeWidth={2} aria-hidden="true" />
-          {language === "id" ? "Riwayat" : "History"}
-        </Button>
+      <div className="pb-2">
+        <h1 className="text-[1.75rem] font-semibold leading-9 tracking-[-0.02em] text-black">
+          {language === "id" ? "REVIEW SOAL PER MINGGU" : "REVIEW QUESTIONS BY WEEK"}
+        </h1>
       </div>
 
       {loading ? (
-        <div className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" role="status" aria-label={language === "id" ? "Memuat minggu" : "Loading weeks"}>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" role="status" aria-label={language === "id" ? "Memuat minggu" : "Loading weeks"}>
           {Array.from({ length: 8 }, (_, index) => (
             <div key={index} className="h-36 animate-pulse rounded-xl bg-[#ccbab0]/20" />
           ))}
         </div>
       ) : summaries.length === 0 ? (
-        <div className="mt-7 rounded-xl border border-border bg-white">
+        <div className="mt-5 rounded-xl border border-border bg-white">
           <EmptyState message={language === "id" ? "Belum ada minggu yang tersedia untuk direview." : "No weeks are available for review yet."} />
         </div>
       ) : (
-        <section aria-label={language === "id" ? "Daftar minggu" : "Week list"} className="mt-7 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <section aria-label={language === "id" ? "Daftar minggu" : "Week list"} className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {summaries.map((summary) => (
             <button
               key={summary.week}
@@ -277,79 +263,83 @@ function WeekQuestionList({
   return (
     <>
       <ReviewBreadcrumb week={week} language={language} onOverview={onBack} />
-      <button
-        type="button"
-        onClick={onBack}
-        className="mb-4 inline-flex cursor-pointer items-center gap-2 rounded-md text-sm font-medium text-muted transition-colors hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-      >
-        <ArrowLeft size={15} strokeWidth={2} aria-hidden="true" />
-        {language === "id" ? "Semua minggu" : "All weeks"}
-      </button>
-      <div className="border-b border-[#ccbab0]/55 pb-6">
-        <h1 className="text-[1.875rem] font-semibold leading-10 tracking-[-0.02em] text-black">
-          {formatWeekLabel(week)}
+      <div className="pb-3">
+        <h1 className="text-[1.75rem] font-semibold leading-9 tracking-[-0.02em] text-black">
+          {formatWeekLabel(week).toLocaleUpperCase(language)}
         </h1>
-        <p className="mt-2 text-sm leading-6 text-muted">
-          {language === "id"
-            ? `${weekTotal} soal tersedia. Pilih soal untuk membuka workspace review.`
-            : `${weekTotal} questions available. Choose a question to open the review workspace.`}
-        </p>
       </div>
 
-      <section className="mt-6" aria-label={language === "id" ? "Soal minggu terpilih" : "Selected week questions"}>
-        <div className="grid gap-3 rounded-xl border border-[#ccbab0]/55 bg-white p-3 lg:grid-cols-[minmax(15rem,1fr)_10rem_12rem] lg:items-end">
-          <label className="grid gap-1.5 text-xs font-medium text-navy-deep">
-            <span>{language === "id" ? "Cari soal" : "Search questions"}</span>
+      <section className="mt-3" aria-label={language === "id" ? "Soal minggu terpilih" : "Selected week questions"}>
+        <div className="flex flex-col gap-2 border-y border-border/80 py-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <div
+            className="inline-flex w-fit items-center rounded-lg bg-[#ccbab0]/20 p-0.5"
+            role="group"
+            aria-label={language === "id" ? "Status review pribadi" : "Personal review status"}
+          >
+            {([
+              ["all", language === "id" ? "Semua" : "All"],
+              ["reviewed", language === "id" ? "Sudah direview" : "Reviewed"],
+              ["unreviewed", language === "id" ? "Belum direview" : "Not reviewed"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={status === value}
+                onClick={() => setStatus(value)}
+                className={cn(
+                  "min-h-7 cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium leading-4 transition-[background-color,color,box-shadow] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
+                  status === value
+                    ? "bg-white text-black shadow-[0_1px_2px_rgba(95,71,59,0.1)]"
+                    : "text-muted hover:text-black",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <label className="sr-only" htmlFor="review-question-type">
+            {language === "id" ? "Jenis soal" : "Question type"}
+          </label>
+          <select
+            id="review-question-type"
+            value={type}
+            onChange={(event) => setType(event.target.value as ReviewQuestionType)}
+            className="min-h-8 w-full cursor-pointer rounded-lg border border-border bg-white px-2.5 text-xs font-medium text-black outline-none transition-[border-color,box-shadow] focus:border-brand focus:ring-2 focus:ring-brand/10 sm:w-auto"
+          >
+            <option value="all">{language === "id" ? "Semua jenis" : "All types"}</option>
+            <option value="mp">Multiple Choice</option>
+            <option value="ps">{language === "id" ? "Esai" : "Essay"}</option>
+          </select>
+
+          <label className="relative block w-full sm:ml-auto sm:max-w-64">
+            <span className="sr-only">{language === "id" ? "Cari soal" : "Search questions"}</span>
             <span className="relative block">
-              <Search size={16} strokeWidth={1.8} aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#b09f85]" />
+              <Search size={14} strokeWidth={1.8} aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#b09f85]" />
               <input
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={language === "id" ? "Judul, kode, atau KC" : "Title, code, or concept"}
-                className="min-h-10 w-full rounded-lg border border-border bg-[#fbfbfe] py-2 pl-9 pr-3 text-sm font-normal text-black outline-none transition-[border-color,box-shadow] placeholder:text-muted/75 focus:border-brand focus:ring-2 focus:ring-brand/10"
+                placeholder="Search"
+                className="min-h-8 w-full rounded-lg border border-border bg-white py-1.5 pl-8 pr-2.5 text-xs font-normal text-black outline-none transition-[border-color,box-shadow] placeholder:text-muted/75 focus:border-brand focus:ring-2 focus:ring-brand/10"
               />
             </span>
           </label>
-          <label className="grid gap-1.5 text-xs font-medium text-navy-deep">
-            <span>{language === "id" ? "Jenis soal" : "Question type"}</span>
-            <select
-              value={type}
-              onChange={(event) => setType(event.target.value as ReviewQuestionType)}
-              className="min-h-10 cursor-pointer rounded-lg border border-border bg-[#fbfbfe] px-3 text-sm font-normal text-black outline-none transition-[border-color,box-shadow] focus:border-brand focus:ring-2 focus:ring-brand/10"
-            >
-              <option value="all">{language === "id" ? "Semua jenis" : "All types"}</option>
-              <option value="ps">PS</option>
-              <option value="mp">MP</option>
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-xs font-medium text-navy-deep">
-            <span>{language === "id" ? "Status pribadi" : "Personal status"}</span>
-            <select
-              value={status}
-              onChange={(event) => setStatus(event.target.value as "all" | ReviewPersonalStatus)}
-              className="min-h-10 cursor-pointer rounded-lg border border-border bg-[#fbfbfe] px-3 text-sm font-normal text-black outline-none transition-[border-color,box-shadow] focus:border-brand focus:ring-2 focus:ring-brand/10"
-            >
-              <option value="all">{language === "id" ? "Semua status" : "All statuses"}</option>
-              <option value="unreviewed">{language === "id" ? "Belum direview" : "Not reviewed"}</option>
-              <option value="reviewed">{language === "id" ? "Sudah direview" : "Reviewed"}</option>
-            </select>
-          </label>
         </div>
 
-        <p className="mt-4 text-xs font-medium tabular-nums text-muted" aria-live="polite">
+        <p className="mt-2 text-[11px] font-medium tabular-nums text-muted" aria-live="polite">
           {language === "id"
             ? `${filteredQuestions.length} dari ${weekTotal} soal`
             : `${filteredQuestions.length} of ${weekTotal} questions`}
         </p>
 
         {filteredQuestions.length === 0 ? (
-          <div className="mt-3 rounded-xl border border-border bg-white">
+          <div className="mt-2 rounded-lg border border-border bg-white">
             <EmptyState message={language === "id" ? "Tidak ada soal yang cocok dengan pencarian atau filter ini." : "No questions match these filters."} />
           </div>
         ) : (
-          <div className="mt-3 overflow-hidden rounded-xl border border-[#ccbab0]/55 bg-white">
-            <div aria-hidden="true" className="hidden grid-cols-[3.5rem_minmax(0,1fr)_5rem_10rem_8rem_2rem] gap-3 border-b border-border bg-[#fbfbfe] px-4 py-3 text-xs font-medium text-muted lg:grid">
+          <div className="mt-2 overflow-hidden rounded-lg border border-border/90 bg-white shadow-[0_1px_2px_rgba(95,71,59,0.04)]">
+            <div aria-hidden="true" className="hidden grid-cols-[3rem_minmax(0,1fr)_8.5rem_9.5rem_6.5rem_1.5rem] gap-3 border-b border-border bg-[#fbfbfe] px-3 py-2.5 text-[13px] font-semibold text-muted lg:grid">
               <span>No.</span>
               <span>{language === "id" ? "Soal" : "Question"}</span>
               <span>{language === "id" ? "Tipe" : "Type"}</span>
@@ -362,11 +352,12 @@ function WeekQuestionList({
                 const personallyReviewed = reviewed.has(question.id);
                 const identifier = getMaterialQuestionIdentifier(question);
                 const title = t(question.title, language).trim() || identifier;
-                const concepts = question.expectedConcepts
-                  .slice(0, 2)
-                  .map((concept) => t(concept, language))
-                  .filter(Boolean)
-                  .join(", ");
+                const typeLabel =
+                  question.type === "multiple_choice"
+                    ? "Multiple Choice"
+                    : language === "id"
+                      ? "Esai"
+                      : "Essay";
                 const reviewCount = Math.min(
                   questionCounts.get(question.id) ?? 0,
                   QUESTION_REVIEWED_THRESHOLD,
@@ -377,27 +368,35 @@ function WeekQuestionList({
                     <button
                       type="button"
                       onClick={() => onSelectQuestion(question)}
-                      className="group grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-4 text-left transition-colors hover:bg-[#fbfbfe] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-brand-soft/45 lg:grid-cols-[3.5rem_minmax(0,1fr)_5rem_10rem_8rem_2rem]"
+                      className="group grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[#fbfbfe] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-brand-soft/45 lg:grid-cols-[3rem_minmax(0,1fr)_8.5rem_9.5rem_6.5rem_1.5rem]"
                     >
-                      <span className="hidden text-sm tabular-nums text-muted lg:block">{index + 1}</span>
+                      <span className="hidden text-xs tabular-nums text-muted lg:block">{index + 1}</span>
                       <span className="min-w-0">
-                        <span className="block text-xs font-medium text-brand">{identifier}</span>
-                        <span className="mt-1 block truncate text-sm font-semibold text-black">{title}</span>
-                        {concepts && <span className="mt-1 block truncate text-xs font-normal text-muted">KC: {concepts}</span>}
-                        <span className="mt-2 flex flex-wrap items-center gap-2 lg:hidden">
-                          <span className="rounded-md border border-border bg-neutral px-2 py-1 text-[11px] font-medium text-muted">{question.type === "multiple_choice" ? "MP" : "PS"}</span>
+                        <span className="block truncate text-xs font-medium leading-5 text-black">{title}</span>
+                        <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
+                          <span className={cn(
+                            "rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-4",
+                            question.type === "multiple_choice"
+                              ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
+                              : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
+                          )}>{typeLabel}</span>
                           <span className={cn("rounded-md px-2 py-1 text-[11px] font-medium", personallyReviewed ? "bg-correct-bg text-correct" : "bg-[#ccbab0]/20 text-muted")}>
                             {personallyReviewed ? (language === "id" ? "Sudah direview" : "Reviewed") : language === "id" ? "Belum direview" : "Not reviewed"}
                           </span>
                           <span className="text-[11px] font-medium tabular-nums text-muted">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer</span>
                         </span>
                       </span>
-                      <span className="hidden text-sm font-medium text-muted lg:block">{question.type === "multiple_choice" ? "MP" : "PS"}</span>
-                      <span className={cn("hidden w-fit rounded-md px-2 py-1 text-xs font-medium lg:block", personallyReviewed ? "bg-correct-bg text-correct" : "bg-[#ccbab0]/20 text-muted")}>
+                      <span className={cn(
+                        "hidden w-fit rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-4 lg:block",
+                        question.type === "multiple_choice"
+                          ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
+                          : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
+                      )}>{typeLabel}</span>
+                      <span className={cn("hidden w-fit rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-4 lg:block", personallyReviewed ? "bg-correct-bg text-correct" : "bg-[#ccbab0]/20 text-muted")}>
                         {personallyReviewed ? (language === "id" ? "Sudah direview" : "Reviewed") : language === "id" ? "Belum direview" : "Not reviewed"}
                       </span>
-                      <span className="hidden text-sm font-medium tabular-nums text-muted lg:block">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD}</span>
-                      <ChevronRight size={17} strokeWidth={1.8} aria-hidden="true" className="text-[#b09f85] transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+                      <span className="hidden text-xs font-medium tabular-nums text-muted lg:block">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD}</span>
+                      <ChevronRight size={15} strokeWidth={1.8} aria-hidden="true" className="text-[#b09f85] transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
                     </button>
                   </li>
                 );
@@ -1156,7 +1155,6 @@ export function LecturerReviewPage({
           language={language}
           loading={loading}
           onSelectWeek={navigateToWeek}
-          onViewHistory={viewHistory}
         />
       </div>
     );
