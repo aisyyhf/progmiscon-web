@@ -522,8 +522,8 @@ assert.match(page, /Anda sudah mereview soal ini\./);
 assert.match(page, /Hapus review jawaban ini\?/);
 assert.match(page, /Lihat review saya/);
 assert.match(page, /navigate\("\/review\/riwayat"\)/);
-assert.match(page, /onPrevious=\{\(\) => selectOffset\(-1\)\}/);
-assert.match(page, /onNext=\{\(\) => selectOffset\(1\)\}/);
+assert.doesNotMatch(page, /onPrevious=\{\(\) => selectOffset\(-1\)\}/);
+assert.doesNotMatch(page, /onNext=\{\(\) => selectOffset\(1\)\}/);
 assert.match(
   filterComponent,
   /const statusDisabled = statusLoading \|\| !statusAvailable/,

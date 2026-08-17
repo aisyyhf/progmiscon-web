@@ -114,6 +114,10 @@ function formatWeekLabel(week: string): string {
   return `Week ${week.replace(/^W/i, "")}`;
 }
 
+function isQuestionDetailTask(task: ReviewTaskKind): boolean {
+  return task === "question";
+}
+
 function ReviewBreadcrumb({
   week,
   question,
@@ -1283,11 +1287,6 @@ export function LecturerReviewPage({
     },
     [changeNavigation, navigation.week, reviewedQuestionIds],
   );
-  const selectOffset = (offset: number) => {
-    const item = activeQueue[activeIndex + offset];
-    if (item) changeNavigation({ item: item.id });
-  };
-
   const withdrawQuestionReview = useCallback(async (question: Question) => {
     if (!question.sourceVersion) {
       throw new Error("Versi sumber soal belum tersedia.");
@@ -1460,8 +1459,89 @@ export function LecturerReviewPage({
 
   const detailQuestion = activeQuestion ?? answerQuestion;
   const detailLabel = detailQuestion
-    ? getMaterialQuestionIdentifier(detailQuestion)
+    ? t(detailQuestion.title, language).trim() ||
+      getMaterialQuestionIdentifier(detailQuestion)
     : navigation.item;
+
+  if (isQuestionDetailTask(navigation.task)) {
+    return (
+      <div className="lecturer-ui review-week-pages review-stage-enter mx-auto max-w-[1320px] text-black">
+        <ReviewBreadcrumb
+          week={navigation.week || undefined}
+          question={detailLabel}
+          language={language}
+          onOverview={navigateToOverview}
+          onWeek={() => navigateToWeek(navigation.week)}
+        />
+        {loadError && (
+          <p
+            role="alert"
+            className="mb-5 rounded-md border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect"
+          >
+            {loadError}
+          </p>
+        )}
+
+        {loading ? (
+          <div
+            role="status"
+            aria-label={language === "id" ? "Memuat detail soal" : "Loading question detail"}
+            className="grid gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] xl:gap-14"
+          >
+            <div>
+              <div className="h-9 w-3/4 animate-pulse rounded bg-[var(--review-secondary-soft)]" />
+              <div className="mt-3 h-5 w-2/5 animate-pulse rounded bg-[var(--review-secondary-soft)]" />
+              <div className="mt-10 h-44 animate-pulse rounded-lg bg-[var(--review-secondary-soft)]" />
+            </div>
+            <div className="h-[32rem] animate-pulse rounded-xl border border-[#ccbab0] bg-white" />
+          </div>
+        ) : activeQuestion ? (
+          <QuestionValidationWorkspace
+            key={activeQuestion.id}
+            question={activeQuestion}
+            questionReviewCount={activeQuestionCount}
+            answers={answers}
+            reviewedAnswerIds={reviewedAnswerIds}
+            answerTaskById={answerTaskById}
+            misconceptions={misconceptions}
+            locked={activeQuestionLocked}
+            progressUnavailable={!navigationReady || !activeQuestion.sourceVersion}
+            reviewedByMe={activeQuestionReviewedByMe}
+            globallyComplete={activeQuestionCount >= QUESTION_REVIEWED_THRESHOLD}
+            submittedReview={activeQuestionReview}
+            submittedReviewLoading={metadataLoading}
+            submittedReviewError={loadError}
+            isAdmin={isAdmin}
+            readOnly={reviewReadOnly}
+            onViewHistory={viewHistory}
+            onDirtyChange={setQuestionDirty}
+            onReviewAnswer={(answerId) => {
+              const target = resolveAnswerDeepLink(
+                answerId,
+                questions,
+                orderedAnswers,
+                reviewedAnswerIds,
+              );
+              if (target) changeNavigation(target);
+            }}
+            onSelectMisconception={(misconceptionId) =>
+              navigate(`/miskonsepsi/${misconceptionId}`)
+            }
+            onDelete={handleQuestionDelete}
+            onSubmit={handleQuestionSubmit}
+          />
+        ) : (
+          <EmptyState
+            message={
+              language === "id"
+                ? "Soal ini tidak tersedia dalam daftar review minggu ini."
+                : "This question is not available in this week's review list."
+            }
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="lecturer-ui mx-auto max-w-[1440px] text-black">
@@ -1607,8 +1687,6 @@ export function LecturerReviewPage({
               <QuestionValidationWorkspace
                 key={activeQuestion.id}
                 question={activeQuestion}
-                index={activeIndex}
-                itemTotal={activeQueue.length}
                 questionReviewCount={activeQuestionCount}
                 answers={answers}
                 reviewedAnswerIds={reviewedAnswerIds}
@@ -1623,8 +1701,6 @@ export function LecturerReviewPage({
                 submittedReviewError={loadError}
                 isAdmin={isAdmin}
                 readOnly={reviewReadOnly}
-                onPrevious={() => selectOffset(-1)}
-                onNext={() => selectOffset(1)}
                 onViewHistory={viewHistory}
                 onDirtyChange={setQuestionDirty}
                 onReviewAnswer={(answerId) => {

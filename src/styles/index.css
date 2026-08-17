@@ -121,6 +121,10 @@
   .review-week-pages details[open] > .review-type-popover {
     animation: review-type-popover-enter 160ms ease-out both;
   }
+
+  .review-week-pages details[open] > .review-evidence-disclosure {
+    animation: review-type-popover-enter 160ms ease-out both;
+  }
 }
 
 .lecturer-sidebar-surface {

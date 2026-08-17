@@ -8,8 +8,7 @@ import {
 import {
   CalendarDays,
   Check,
-  ChevronLeft,
-  ChevronRight,
+  ChevronDown,
   History,
   ListFilter,
   LockKeyhole,
@@ -1006,14 +1005,6 @@ export function LegacyLecturerReviewPage({
       nextParentQuestionId,
     );
   };
-  const selectOffset = (offset: number) => {
-    requestOpenWorkspaceItem(
-      workspace,
-      activeItems[activeIndex + offset]?.id,
-      activeParentQuestionId,
-    );
-  };
-
   useEffect(() => {
     if (
       !initialAnswerId ||
@@ -1451,8 +1442,6 @@ export function LegacyLecturerReviewPage({
               <QuestionValidationWorkspace
                 key={activeQuestion.id}
                 question={activeQuestion}
-                index={activeIndex}
-                itemTotal={activeItems.length}
                 questionReviewCount={
                   questionCountsLoaded
                     ? (questionReviewCounts.get(activeQuestion.id) ?? 0)
@@ -1481,8 +1470,6 @@ export function LegacyLecturerReviewPage({
                 submittedReviewLoading={questionReviewHistoryLoading}
                 submittedReviewError={questionReviewHistoryError}
                 isAdmin={isAdmin}
-                onPrevious={() => selectOffset(-1)}
-                onNext={() => selectOffset(1)}
                 onViewHistory={viewMyReviewHistory}
                 onDirtyChange={
                   workspace === "question-mp"
@@ -2086,8 +2073,6 @@ function SubmittedQuestionReview({
 
 export function QuestionValidationWorkspace({
   question,
-  index,
-  itemTotal,
   questionReviewCount,
   answers,
   reviewedAnswerIds,
@@ -2102,8 +2087,6 @@ export function QuestionValidationWorkspace({
   submittedReviewError,
   isAdmin,
   readOnly = false,
-  onPrevious,
-  onNext,
   onViewHistory,
   onDirtyChange,
   onReviewAnswer,
@@ -2112,8 +2095,6 @@ export function QuestionValidationWorkspace({
   onSubmit,
 }: {
   question: Question;
-  index: number;
-  itemTotal: number;
   questionReviewCount?: number;
   answers: StudentAnswer[];
   reviewedAnswerIds: string[];
@@ -2128,8 +2109,6 @@ export function QuestionValidationWorkspace({
   submittedReviewError: string;
   isAdmin: boolean;
   readOnly?: boolean;
-  onPrevious: () => void;
-  onNext: () => void;
   onViewHistory: () => void;
   onDirtyChange?: (dirty: boolean) => void;
   onReviewAnswer?: (answerId: string) => void;
@@ -2297,42 +2276,13 @@ export function QuestionValidationWorkspace({
     }
   };
 
-  return (
-    <div className="scroll-reveal review-folder-content">
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
-        <article className="review-folder-primary min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
-          <section aria-labelledby="review-question-title">
-            <nav
-              className="-mt-1 flex items-center justify-between gap-2 pb-3 sm:gap-4"
-              aria-label={
-                language === "id"
-                  ? "Navigasi soal review"
-                  : "Review question navigation"
-              }
-            >
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={onPrevious}
-                disabled={index <= 0}
-                className="min-h-7 min-w-0 justify-self-start !gap-1 !px-0.5 !py-1 !text-[11px] hover:!bg-transparent hover:text-brand hover:underline"
-              >
-                <ChevronLeft size={12} strokeWidth={2} aria-hidden="true" />
-                {language === "id" ? "Sebelumnya" : "Previous"}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={onNext}
-                disabled={index >= itemTotal - 1}
-                className="min-h-7 min-w-0 justify-self-end !gap-1 !px-0.5 !py-1 !text-[11px] hover:!bg-transparent hover:text-brand hover:underline"
-              >
-                {language === "id" ? "Berikutnya" : "Next"}
-                <ChevronRight size={12} strokeWidth={2} aria-hidden="true" />
-              </Button>
-            </nav>
 
-            <header className="mt-5 grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+  return (
+    <div className="review-question-detail">
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] lg:items-start xl:gap-14">
+        <article className="min-w-0">
+          <section aria-labelledby="review-question-title">
+            <header className="grid gap-4 border-b border-border pb-6 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
               <div className="min-w-0">
                 <h2
                   id="review-question-title"
@@ -2377,20 +2327,13 @@ export function QuestionValidationWorkspace({
                 {reviewerCount !== undefined && (
                   <span
                     aria-label={reviewerCountLabel}
-                    className={cn(
-                      "inline-flex min-w-[122px] items-center justify-center gap-1.5 rounded-md border px-3 py-1.5",
-                      reviewerCount === QUESTION_REVIEWED_THRESHOLD
-                        ? "border-correct-border bg-correct-bg text-correct"
-                        : reviewerCount > 0
-                          ? "border-brand/25 bg-brand-soft text-brand"
-                          : "border-border bg-neutral text-muted",
-                    )}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md border border-[#ccbab0] bg-[var(--review-page)] px-2.5 py-1.5 text-muted"
                   >
                     <Users size={14} strokeWidth={2} aria-hidden="true" />
                     <span className="text-xs font-bold tabular-nums">
                       {reviewerCount}/{QUESTION_REVIEWED_THRESHOLD}
                     </span>
-                    <span className="text-[9px] font-semibold">
+                    <span className="text-[10px] font-semibold">
                       {reviewerLabel}
                     </span>
                   </span>
@@ -2483,19 +2426,36 @@ export function QuestionValidationWorkspace({
             className="mt-6 border-t border-border pt-5"
             aria-labelledby="related-answers-title"
           >
-            <h3
-              id="related-answers-title"
-              className="text-sm font-bold text-navy-deep"
+            <details
+              open={answerReviewEligible || undefined}
+              className="group/evidence"
             >
-              {answerReviewEligible
-                ? language === "id"
-                  ? "Jawaban terkait"
-                  : "Related answers"
-                : language === "id"
-                  ? "Evidence jawaban terkait"
-                  : "Related answer evidence"}
-            </h3>
+              {answerReviewEligible ? (
+                <h3
+                  id="related-answers-title"
+                  className="text-sm font-bold text-navy-deep"
+                >
+                  {language === "id" ? "Jawaban terkait" : "Related answers"}
+                </h3>
+              ) : (
+                <summary
+                  id="related-answers-title"
+                  className="flex min-h-10 w-fit cursor-pointer list-none items-center gap-2 rounded-md border border-[#ccbab0] bg-[var(--review-page)] px-3 py-2 text-xs font-semibold text-black transition-[background-color,border-color,color] duration-150 hover:border-[#b09f85] hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden"
+                >
+                  {language === "id" ? "Lihat evidence" : "View evidence"}
+                  <span className="tabular-nums text-muted">
+                    ({relatedAnswers.length})
+                  </span>
+                  <ChevronDown
+                    size={14}
+                    strokeWidth={2}
+                    aria-hidden="true"
+                    className="transition-transform duration-150 group-open/evidence:rotate-180"
+                  />
+                </summary>
+              )}
 
+              <div className="review-evidence-disclosure">
             {relatedAnswers.length > 0 ? (
               <ul className="mt-3 grid min-w-0 gap-3 md:grid-cols-2">
                 {relatedAnswers.map((answer) => {
@@ -2606,9 +2566,9 @@ export function QuestionValidationWorkspace({
                       <button
                         type="button"
                         onClick={() => onReviewAnswer(answer.id)}
-                        className="mt-3 inline-flex w-fit items-center gap-1 text-xs font-bold text-brand transition-colors hover:text-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:text-muted"
+                        className="mt-3 inline-flex w-fit items-center gap-1 rounded-sm text-xs font-bold text-brand transition-[color,transform] duration-150 hover:translate-x-0.5 hover:text-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-x-0 motion-reduce:translate-x-0"
                       >
-                        {language === "id" ? "Review Jawaban" : "Review Answer"}
+                        {language === "id" ? "Review jawaban" : "Review answer"}
                         <span aria-hidden="true">→</span>
                       </button>
                       )}
@@ -2623,10 +2583,12 @@ export function QuestionValidationWorkspace({
                   : "There are no related answers for this question"}
               </p>
             )}
+              </div>
+            </details>
           </section>
         </article>
 
-        <aside className="rounded-lg border border-border bg-white p-5 md:p-6">
+        <aside className="rounded-xl border border-[#ccbab0] bg-white p-5 shadow-[0_18px_48px_rgba(176,159,133,0.12)] transition-[border-color,box-shadow] duration-200 hover:border-[#b09f85] md:p-6 lg:sticky lg:top-6">
           {reviewedByMe && (
             <SubmittedQuestionReview
               review={submittedReview}
