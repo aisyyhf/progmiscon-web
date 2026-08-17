@@ -95,13 +95,15 @@ assert.match(questionWorkspace, /displayQuestionCode = `#\$\{questionCode\.repla
 assert.match(questionWorkspace, /\{questionTitle\}[\s\S]*?\{displayQuestionCode\}/);
 assert.match(questionWorkspace, /text-xs font-normal leading-5 tracking-normal text-muted/);
 assert.match(questionWorkspace, /text-\[13px\] font-normal leading-5/);
-assert.match(questionWorkspace, /<CalendarDays size=\{14\}/);
 assert.match(questionWorkspace, /<ListFilter size=\{14\}/);
-assert.match(questionWorkspace, /review-detail-meta-week/);
+assert.doesNotMatch(questionWorkspace, /review-detail-meta-week|normalizedWeekNumber/);
 assert.match(questionWorkspace, /review-detail-meta-kc/);
-assert.match(styles, /review-detail-meta-week[\s\S]*?var\(--progmiscon-accent\) 70%[\s\S]*?var\(--progmiscon-text\)/);
 assert.match(styles, /review-detail-meta-kc[\s\S]*?var\(--progmiscon-secondary\) 60%[\s\S]*?var\(--progmiscon-text\)/);
 assert.doesNotMatch(questionWorkspace, /questionReviewCount|reviewerCountLabel|Reviewer:/);
+assert.match(questionWorkspace, /language === "id" \? "Konsep:" : "Concepts:"/);
+assert.match(questionWorkspace, /Simpan & Selesai/);
+assert.match(questionWorkspace, /Simpan & Lanjut ke Review Jawaban/);
+assert.match(questionWorkspace, /Simpan Perubahan/);
 assert.match(questionWorkspace, /Jawaban yang benar/);
 assert.doesNotMatch(questionWorkspace, /Jawaban acuan|Reference answer/);
 assert.match(questionWorkspace, /Miskonsepsi terkait/);
@@ -161,8 +163,17 @@ assert.doesNotMatch(
 );
 assert.match(answerWorkspace, /add-answer-misconception-question[\s\S]*?yesDisabled=\{addableMisconceptions\.length === 0\}/);
 assert.match(answerWorkspace, /await onSubmit\(buildAnswerReviewValues\(form\)\)/);
-assert.match(answerWorkspace, /Math\.min\(answerReviewCount, QUESTION_REVIEWED_THRESHOLD\)/);
+assert.doesNotMatch(answerWorkspace, /reviewerCountLabel|Math\.min\(answerReviewCount/);
 assert.match(answerWorkspace, /answer-validation-note[\s\S]*?placeholder=\{language === "id" \? "Komentar\.\." : "Comment\.\."\}[\s\S]*?min-h-16 resize-y/);
+assert.match(answerWorkspace, /REVIEW JAWABAN/);
+assert.match(answerWorkspace, /Jawaban yang sedang direview/);
+assert.match(answerWorkspace, /`Jawaban \$\{activeIndex \+ 1\} dari \$\{siblingAnswerIds\.length\}`/);
+assert.match(answerWorkspace, /Lihat soal & pilihan jawaban/);
+assert.match(answerWorkspace, /Jawaban benar/);
+assert.match(answerWorkspace, /Sedang direview/);
+assert.match(answerWorkspace, /Lihat evidence/);
+assert.match(answerWorkspace, /isFinalAnswer[\s\S]*?Simpan & Selesai[\s\S]*?Simpan & Lanjut/);
+assert.match(answerWorkspace, /Simpan Perubahan/);
 
 assert.match(questionWorkspace, /Lihat evidence/);
 assert.match(questionWorkspace, /<details[\s\S]*?open=\{answerReviewEligible \|\| undefined\}/);
@@ -202,5 +213,20 @@ for (const call of [
 assert.match(questionDetail, /progressUnavailable=\{!navigationReady \|\| !activeQuestion\.sourceVersion\}/);
 assert.match(activePage, /getActiveCurrentQuestionReviewIds\(questionHistory, sourceVersions\.questions\)/);
 assert.match(activePage, /getActiveCurrentAnswerReviewIds\(answerHistory, sourceVersions\.answers\)/);
+assert.match(activePage, /Review soal telah berhasil disimpan\./);
+assert.match(activePage, /Review soal dan seluruh jawaban yang tersedia telah selesai\./);
+assert.match(activePage, /getActionableAnswerReviewSequence/);
+assert.match(activePage, /getNextUnreviewedAnswerId/);
+assert.match(activePage, /confirmedQuestionReviewIds/);
+assert.match(activePage, /confirmedAnswerReviewIds/);
+assert.match(
+  activePage,
+  /status: "reviewed",\s*item: activeQuestion\.id,[\s\S]*?setCompletionDialog\("question"\)/,
+);
+assert.match(
+  activePage,
+  /status: "reviewed",\s*item: activeAnswer\.id,[\s\S]*?setCompletionDialog\("workflow"\)/,
+);
+assert.match(activePage, /\{ replace: true \}/);
 
 console.log("Question-detail redesign self-check passed.");

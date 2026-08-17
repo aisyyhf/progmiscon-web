@@ -7,6 +7,8 @@ import {
   filterEligibleAnswerReviewCounts,
   filterEligibleAnswerReviewIds,
   filterEligibleAnswerReviewTasks,
+  getActionableAnswerReviewSequence,
+  getNextUnreviewedAnswerId,
   getReviewProgress,
   isAnswerReviewEligible,
   resolveAnswerSelection,
@@ -116,6 +118,64 @@ assert.deepEqual(getReviewProgress(items["answer-mp"], ["A-MP-1"]), {
   total: 2,
 });
 
+const sequenceAnswers = [
+  { id: "A-1", questionId: "Q-MP-1", sourceVersion: "v1" },
+  { id: "A-2", questionId: "Q-MP-1", sourceVersion: "v1" },
+  { id: "A-3", questionId: "Q-MP-1", sourceVersion: "v1" },
+  { id: "A-3", questionId: "Q-MP-1", sourceVersion: "v1" },
+  { id: "A-STALE", questionId: "Q-MP-1" },
+  { id: "A-OTHER", questionId: "Q-PS-1", sourceVersion: "v1" },
+];
+const actionableSequence = getActionableAnswerReviewSequence(
+  questions[1],
+  sequenceAnswers,
+  ["A-2"],
+  new Map([
+    ["A-1", 1],
+    ["A-2", 3],
+    ["A-3", 3],
+  ]),
+  3,
+);
+assert.deepEqual(
+  actionableSequence.map(({ id }) => id),
+  ["A-1", "A-2"],
+  "the MP sequence keeps owned reviews, skips capped foreign reviews, stale rows, and duplicates",
+);
+assert.equal(getNextUnreviewedAnswerId(actionableSequence, ["A-2"]), "A-1");
+assert.equal(
+  getNextUnreviewedAnswerId(actionableSequence, ["A-1", "A-2"], "A-1"),
+  undefined,
+);
+const fullSequence = getActionableAnswerReviewSequence(
+  questions[1],
+  sequenceAnswers.slice(0, 3),
+  [],
+  new Map(),
+  3,
+);
+assert.equal(getNextUnreviewedAnswerId(fullSequence, ["A-1"], "A-1"), "A-2");
+assert.equal(
+  getNextUnreviewedAnswerId(fullSequence, ["A-1", "A-2"], "A-2"),
+  "A-3",
+);
+assert.equal(
+  getNextUnreviewedAnswerId(fullSequence, ["A-1", "A-2", "A-3"], "A-3"),
+  undefined,
+  "confirmed saves terminate the sequence without looping",
+);
+assert.deepEqual(
+  getActionableAnswerReviewSequence(
+    questions[0],
+    sequenceAnswers,
+    [],
+    new Map(),
+    3,
+  ),
+  [],
+  "PS answers remain evidence-only",
+);
+
 assert.equal(isAnswerReviewEligible(questions[0]), false);
 assert.equal(isAnswerReviewEligible(questions[1]), true);
 assert.throws(
@@ -217,11 +277,7 @@ assert.match(
   "MP toolbar progress must use the global eligible-answer progress source",
 );
 assert.match(page, /siblingAnswerIds=\{\(activeItems as StudentAnswer\[\]\)\.map/);
-assert.match(
-  page,
-  /answerReviewCount=\{[\s\S]{0,180}eligibleAnswerReviewCounts\.get\(activeAnswer\.id\)/,
-  "MP answer badge must use the eligible global answer-review count",
-);
+assert.doesNotMatch(page, /answerReviewCount=/);
 assert.match(page, /onDirtyChange=\{setMpAnswerReviewDirty\}/);
 assert.match(page, /requestOpenWorkspaceItem\(\s*"answer-mp"/);
 assert.match(
@@ -230,19 +286,13 @@ assert.match(
 );
 assert.match(contextAccordion, /question\.options\.map/);
 assert.match(contextAccordion, /<QuestionContent question=\{question\}/);
-assert.doesNotMatch(
-  contextAccordion,
-  /option\.isCorrect|Benar|Salah|Correct|Incorrect|Jawaban acuan|Jawaban yang benar/,
-  "MP context options must not reveal correctness",
-);
+assert.match(contextAccordion, /option\.isCorrect/);
+assert.match(contextAccordion, /Jawaban benar/);
+assert.match(contextAccordion, /Sedang direview/);
 assert.doesNotMatch(answerWorkspace, /AdminAnswerContentEditor|Edit jawaban/);
 assert.doesNotMatch(answerWorkspace, /AdminQuestionContentEditor|Edit soal/);
 assert.doesNotMatch(questionWorkspace, /AdminQuestionContentEditor|Edit soal/);
-assert.doesNotMatch(
-  answerWorkspace,
-  /generalReasons=\{/,
-  "MP answers must not render a general-answer note",
-);
+assert.match(answerWorkspace, /generalReasons=\{answer\.explanation/);
 assert.match(answerWorkspace, /mappedReasons=\{mappedReasons\}/);
 assert.doesNotMatch(
   answerWorkspace,
@@ -257,9 +307,11 @@ assert.match(
   /Are any linked misconceptions inconsistent with this answer\?/,
 );
 assert.doesNotMatch(answerWorkspace, /Belum Anda review|Not yet reviewed/);
-assert.match(answerWorkspace, /Math\.min\(answerReviewCount, QUESTION_REVIEWED_THRESHOLD\)/);
-assert.match(answerWorkspace, /aria-label=\{reviewerCountLabel\}/);
-assert.match(answerWorkspace, /<Users size=\{14\}/);
+assert.doesNotMatch(answerWorkspace, /reviewerCountLabel|<Users size=\{14\}/);
+assert.match(answerWorkspace, /REVIEW JAWABAN/);
+assert.match(answerWorkspace, /Jawaban yang sedang direview/);
+assert.match(answerWorkspace, /Lihat soal & pilihan jawaban/);
+assert.match(answerWorkspace, /Lihat evidence/);
 assert.ok(
   answerWorkspace.indexOf("<ParentQuestionBackAction") <
     answerWorkspace.indexOf("<SiblingNavigator") &&

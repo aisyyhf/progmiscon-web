@@ -133,14 +133,6 @@
   line-height: 1.25rem;
 }
 
-.review-question-detail .review-detail-meta-week {
-  color: color-mix(
-    in srgb,
-    var(--progmiscon-accent) 70%,
-    var(--progmiscon-text)
-  );
-}
-
 .review-question-detail .review-detail-meta-kc {
   color: color-mix(
     in srgb,

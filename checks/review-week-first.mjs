@@ -409,7 +409,9 @@ assert.match(
   /const openQuestion[\s\S]*?changeNavigation\([\s\S]*?\{ readOnly, replace: false \},/,
   "opening a question from its week list must preserve the list in browser history",
 );
-assert.match(activePage, /getNavigationAfterReviewSave/);
+assert.doesNotMatch(activePage, /getNavigationAfterReviewSave/);
+assert.match(activePage, /getActionableAnswerReviewSequence/);
+assert.match(activePage, /getNextUnreviewedAnswerId/);
 assert.match(activePage, /getNavigationAfterWithdraw/);
 assert.match(activePage, /resolveAnswerDeepLink/);
 assert.match(activePage, /ReviewBreadcrumb/);

@@ -53,7 +53,6 @@ import {
   filterWeekReviewQuestions,
   getActiveCurrentAnswerReviewIds,
   getActiveCurrentQuestionReviewIds,
-  getNavigationAfterReviewSave,
   getNavigationAfterWithdraw,
   getReviewWeekSummaries,
   getWeekReviewQuestionStatus,
@@ -74,6 +73,8 @@ import { QUESTION_REVIEWED_THRESHOLD } from "../utils/reviewQuestionFilters";
 import {
   filterEligibleAnswerReviewCounts,
   filterEligibleAnswerReviewIds,
+  getActionableAnswerReviewSequence,
+  getNextUnreviewedAnswerId,
   resolveAnswerSelection,
   stripSelectedOptionPrefix,
 } from "../utils/reviewWorkspace";
@@ -175,6 +176,58 @@ function ReviewBreadcrumb({
         )}
       </ol>
     </nav>
+  );
+}
+
+function ReviewCompletionDialog({
+  kind,
+  week,
+  language,
+  onConfirm,
+}: {
+  kind: "question" | "workflow";
+  week: string;
+  language: Language;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4"
+      role="presentation"
+    >
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="review-completion-title"
+        aria-describedby="review-completion-description"
+        className="w-full max-w-sm rounded-xl border border-[#ccbab0] bg-[#fbfbfe] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.18)]"
+      >
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white">
+          <Check size={18} strokeWidth={2.5} aria-hidden="true" />
+        </div>
+        <h2 id="review-completion-title" className="mt-4 text-lg font-semibold text-black">
+          {language === "id" ? "Review selesai" : "Review complete"}
+        </h2>
+        <p id="review-completion-description" className="mt-2 text-sm leading-6 text-muted">
+          {kind === "question"
+            ? language === "id"
+              ? "Review soal telah berhasil disimpan."
+              : "The question review was saved successfully."
+            : language === "id"
+              ? "Review soal dan seluruh jawaban yang tersedia telah selesai."
+              : "The question and all available answers have been reviewed."}
+        </p>
+        <Button
+          type="button"
+          variant="primary"
+          onClick={onConfirm}
+          autoFocus
+          className="mt-5 w-full justify-center"
+        >
+          {language === "id" ? "Kembali ke" : "Return to"} {formatWeekLabel(week)}
+        </Button>
+      </section>
+    </div>
   );
 }
 
@@ -838,6 +891,15 @@ export function LecturerReviewPage({
   const [handledInitialAnswerId, setHandledInitialAnswerId] = useState("");
   const [questionDirty, setQuestionDirty] = useState(false);
   const [answerDirty, setAnswerDirty] = useState(false);
+  const [completionDialog, setCompletionDialog] = useState<
+    "question" | "workflow" | null
+  >(null);
+  const [confirmedQuestionReviewIds, setConfirmedQuestionReviewIds] = useState<
+    string[]
+  >([]);
+  const [confirmedAnswerReviewIds, setConfirmedAnswerReviewIds] = useState<
+    string[]
+  >([]);
 
   useEffect(() => {
     let active = true;
@@ -957,15 +1019,24 @@ export function LecturerReviewPage({
     () => orderAnswersByTaskPriority(answers, answerTasks),
     [answerTasks, answers],
   );
-  const reviewedQuestionIds = useMemo(
+  const persistedReviewedQuestionIds = useMemo(
     () => getActiveCurrentQuestionReviewIds(questionHistory, sourceVersions.questions),
     [questionHistory, sourceVersions.questions],
+  );
+  const reviewedQuestionIds = useMemo(
+    () => [
+      ...new Set([
+        ...persistedReviewedQuestionIds,
+        ...confirmedQuestionReviewIds,
+      ]),
+    ],
+    [confirmedQuestionReviewIds, persistedReviewedQuestionIds],
   );
   const savedReviewedAnswerIds = useMemo(
     () => getActiveCurrentAnswerReviewIds(answerHistory, sourceVersions.answers),
     [answerHistory, sourceVersions.answers],
   );
-  const reviewedAnswerIds = useMemo(
+  const persistedReviewedAnswerIds = useMemo(
     () =>
       filterEligibleAnswerReviewIds(
         savedReviewedAnswerIds,
@@ -973,6 +1044,15 @@ export function LecturerReviewPage({
         questionById,
       ),
     [orderedAnswers, questionById, savedReviewedAnswerIds],
+  );
+  const reviewedAnswerIds = useMemo(
+    () => [
+      ...new Set([
+        ...persistedReviewedAnswerIds,
+        ...confirmedAnswerReviewIds,
+      ]),
+    ],
+    [confirmedAnswerReviewIds, persistedReviewedAnswerIds],
   );
   const eligibleAnswerCounts = useMemo(
     () =>
@@ -1129,6 +1209,34 @@ export function LecturerReviewPage({
   const answerQuestion = activeAnswer
     ? questionById.get(activeAnswer.questionId)
     : undefined;
+  const answerReviewSequence = useMemo(
+    () =>
+      getActionableAnswerReviewSequence(
+        answerQuestion,
+        orderedAnswers,
+        reviewedAnswerIds,
+        eligibleAnswerCounts,
+        QUESTION_REVIEWED_THRESHOLD,
+      ),
+    [answerQuestion, eligibleAnswerCounts, orderedAnswers, reviewedAnswerIds],
+  );
+  const answerSequenceIndex = Math.max(
+    0,
+    answerReviewSequence.findIndex(({ id }) => id === activeAnswer?.id),
+  );
+  const nextAnswerId = activeAnswer
+    ? getNextUnreviewedAnswerId(
+        answerReviewSequence,
+        [...reviewedAnswerIds, activeAnswer.id],
+        activeAnswer.id,
+      )
+    : undefined;
+  const displayedAnswerSequence =
+    answerReviewSequence.length > 0
+      ? answerReviewSequence
+      : activeAnswer
+        ? [activeAnswer]
+        : [];
   const answerTaskById = useMemo(
     () => new Map(answerTasks.map((task) => [task.answerCaseId, task])),
     [answerTasks],
@@ -1276,6 +1384,18 @@ export function LecturerReviewPage({
     },
     [confirmNavigation, navigate, navigation, reviewStage],
   );
+  const returnToWeekList = useCallback(() => {
+    setCompletionDialog(null);
+    setQuestionDirty(false);
+    setAnswerDirty(false);
+    navigate(
+      {
+        pathname: "/review",
+        search: `?week=${encodeURIComponent(navigation.week)}`,
+      },
+      { replace: true },
+    );
+  }, [navigate, navigation.week]);
   const openQuestion = useCallback(
     (question: Question, readOnly: boolean) => {
       changeNavigation(
@@ -1317,6 +1437,9 @@ export function LecturerReviewPage({
       next.set(question.id, Math.max(0, (next.get(question.id) ?? 1) - 1));
       return next;
     });
+    setConfirmedQuestionReviewIds((current) =>
+      current.filter((questionId) => questionId !== question.id),
+    );
     setReviewDataRevision((current) => current + 1);
   }, []);
 
@@ -1331,20 +1454,55 @@ export function LecturerReviewPage({
   const handleQuestionSubmit = async (values: QuestionReviewValues) => {
     if (!activeQuestion?.sourceVersion || activeQuestionLocked) return;
     const alreadyReviewed = reviewedQuestionIds.includes(activeQuestion.id);
-    const nextNavigation = getNavigationAfterReviewSave(
-      navigation,
-      activeQueue,
-      activeQuestion.id,
-      alreadyReviewed,
+    const answerSequence = getActionableAnswerReviewSequence(
+      activeQuestion,
+      orderedAnswers,
+      reviewedAnswerIds,
+      eligibleAnswerCounts,
+      QUESTION_REVIEWED_THRESHOLD,
     );
     await saveQuestionReview(activeQuestion.id, activeQuestion.sourceVersion, values);
     if (!alreadyReviewed) {
+      setConfirmedQuestionReviewIds((current) => [
+        ...new Set([...current, activeQuestion.id]),
+      ]);
       setQuestionCounts((current) => {
         const next = new Map(current);
         next.set(activeQuestion.id, (next.get(activeQuestion.id) ?? 0) + 1);
         return next;
       });
-      commitNavigation(nextNavigation);
+      setQuestionDirty(false);
+      if (activeQuestion.type !== "multiple_choice") {
+        commitNavigation({
+          ...navigation,
+          status: "reviewed",
+          item: activeQuestion.id,
+        });
+        setCompletionDialog("question");
+      } else {
+        const firstAnswerId = getNextUnreviewedAnswerId(
+          answerSequence,
+          reviewedAnswerIds,
+        );
+        const target = firstAnswerId
+          ? resolveAnswerDeepLink(
+              firstAnswerId,
+              questions,
+              orderedAnswers,
+              reviewedAnswerIds,
+            )
+          : undefined;
+        if (target) {
+          commitNavigation(target);
+        } else {
+          commitNavigation({
+            ...navigation,
+            status: "reviewed",
+            item: activeQuestion.id,
+          });
+          setCompletionDialog("workflow");
+        }
+      }
     }
     setQuestionDirty(false);
     setReviewDataRevision((current) => current + 1);
@@ -1374,6 +1532,9 @@ export function LecturerReviewPage({
       next.set(activeAnswer.id, Math.max(0, (next.get(activeAnswer.id) ?? 1) - 1));
       return next;
     });
+    setConfirmedAnswerReviewIds((current) =>
+      current.filter((answerId) => answerId !== activeAnswer.id),
+    );
     commitNavigation(
       getNavigationAfterWithdraw(navigation, activeAnswer.id),
     );
@@ -1385,12 +1546,6 @@ export function LecturerReviewPage({
       return;
     }
     const alreadyReviewed = reviewedAnswerIds.includes(activeAnswer.id);
-    const nextNavigation = getNavigationAfterReviewSave(
-      navigation,
-      activeQueue,
-      activeAnswer.id,
-      alreadyReviewed,
-    );
     await saveAnswerReview(
       activeAnswer.id,
       answerQuestion.id,
@@ -1398,12 +1553,40 @@ export function LecturerReviewPage({
       values,
     );
     if (!alreadyReviewed) {
+      setConfirmedAnswerReviewIds((current) => [
+        ...new Set([...current, activeAnswer.id]),
+      ]);
       setAnswerCounts((current) => {
         const next = new Map(current);
         next.set(activeAnswer.id, (next.get(activeAnswer.id) ?? 0) + 1);
         return next;
       });
-      commitNavigation(nextNavigation);
+      setAnswerDirty(false);
+      if (nextAnswerId) {
+        const target = resolveAnswerDeepLink(
+          nextAnswerId,
+          questions,
+          orderedAnswers,
+          reviewedAnswerIds,
+        );
+        if (target) {
+          commitNavigation(target);
+        } else {
+          commitNavigation({
+            ...navigation,
+            status: "reviewed",
+            item: activeAnswer.id,
+          });
+          setCompletionDialog("workflow");
+        }
+      } else {
+        commitNavigation({
+          ...navigation,
+          status: "reviewed",
+          item: activeAnswer.id,
+        });
+        setCompletionDialog("workflow");
+      }
     }
     setAnswerDirty(false);
     setReviewDataRevision((current) => current + 1);
@@ -1541,6 +1724,102 @@ export function LecturerReviewPage({
                 ? "Soal ini tidak tersedia dalam daftar review minggu ini."
                 : "This question is not available in this week's review list."
             }
+          />
+        )}
+        {completionDialog && (
+          <ReviewCompletionDialog
+            kind={completionDialog}
+            week={navigation.week}
+            language={language}
+            onConfirm={returnToWeekList}
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (navigation.task === "answer") {
+    return (
+      <div className="lecturer-ui review-week-pages review-stage-enter mx-auto max-w-[1320px] text-black">
+        <ReviewBreadcrumb
+          week={navigation.week || undefined}
+          question={detailLabel}
+          language={language}
+          onOverview={navigateToOverview}
+          onWeek={() => navigateToWeek(navigation.week)}
+        />
+        {loadError && (
+          <p
+            role="alert"
+            className="mb-5 rounded-md border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect"
+          >
+            {loadError}
+          </p>
+        )}
+
+        {loading ? (
+          <div
+            role="status"
+            aria-label={language === "id" ? "Memuat review jawaban" : "Loading answer review"}
+            className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_390px]"
+          >
+            <div className="h-[32rem] animate-pulse rounded-lg bg-[var(--review-secondary-soft)]" />
+            <div className="h-[32rem] animate-pulse rounded-lg border border-[#ccbab0] bg-white" />
+          </div>
+        ) : activeAnswer && answerQuestion ? (
+          <AnswerValidationWorkspace
+            key={activeAnswer.id}
+            task={answerTaskById.get(activeAnswer.id)}
+            question={answerQuestion}
+            answer={activeAnswer}
+            siblingAnswerIds={displayedAnswerSequence.map(({ id }) => id)}
+            activeIndex={answerSequenceIndex}
+            misconceptions={misconceptions}
+            locked={activeAnswerLocked}
+            progressUnavailable={!navigationReady || !activeAnswer.sourceVersion}
+            reviewedByMe={activeAnswerReviewedByMe}
+            globallyComplete={activeAnswerCount >= QUESTION_REVIEWED_THRESHOLD}
+            isFinalAnswer={!nextAnswerId}
+            submittedReview={activeAnswerReview}
+            onViewHistory={viewHistory}
+            onDirtyChange={setAnswerDirty}
+            onSelectAnswer={(answerId) => {
+              const target = resolveAnswerDeepLink(
+                answerId,
+                questions,
+                orderedAnswers,
+                reviewedAnswerIds,
+              );
+              if (target) changeNavigation(target);
+            }}
+            onBackToQuestion={() =>
+              changeNavigation({
+                task: "question",
+                status: reviewedQuestionIds.includes(answerQuestion.id)
+                  ? "reviewed"
+                  : "unreviewed",
+                type: "mp",
+                item: answerQuestion.id,
+              })
+            }
+            onDelete={handleAnswerDelete}
+            onSubmit={handleAnswerSubmit}
+          />
+        ) : (
+          <EmptyState
+            message={
+              language === "id"
+                ? "Jawaban ini tidak tersedia untuk direview."
+                : "This answer is not available for review."
+            }
+          />
+        )}
+        {completionDialog && (
+          <ReviewCompletionDialog
+            kind={completionDialog}
+            week={navigation.week}
+            language={language}
+            onConfirm={returnToWeekList}
           />
         )}
       </div>
@@ -1731,7 +2010,6 @@ export function LecturerReviewPage({
                 misconceptions={misconceptions}
                 locked={activeAnswerLocked}
                 progressUnavailable={!navigationReady || !activeAnswer.sourceVersion}
-                answerReviewCount={activeAnswerCount}
                 reviewedByMe={activeAnswerReviewedByMe}
                 globallyComplete={activeAnswerCount >= QUESTION_REVIEWED_THRESHOLD}
                 submittedReview={activeAnswerReview}

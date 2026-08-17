@@ -16,7 +16,6 @@ import {
   LockKeyhole,
   TriangleAlert,
   Trash2,
-  Users,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
@@ -1600,11 +1599,6 @@ export function LegacyLecturerReviewPage({
                   Boolean(questionReviewHistoryError) ||
                   !activeAnswer.sourceVersion
                 }
-                answerReviewCount={
-                  answerCountsLoaded
-                    ? (eligibleAnswerReviewCounts.get(activeAnswer.id) ?? 0)
-                    : undefined
-                }
                 reviewedByMe={activeAnswerReviewedByMe}
                 globallyComplete={activeAnswerGloballyComplete}
                 submittedReview={activeAnswerReview}
@@ -2112,12 +2106,6 @@ export function QuestionValidationWorkspace({
     `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
   const questionCode = question.sourceCode?.trim() || question.id;
   const displayQuestionCode = `#${questionCode.replace(/^#/, "")}`;
-  const weekMatch = /^W(\d+)(?:-(\d+))?$/i.exec(question.week ?? "");
-  const normalizedWeekNumber = weekMatch
-    ? weekMatch[2]
-      ? `${Number(weekMatch[1])}–${Number(weekMatch[2])}`
-      : String(Number(weekMatch[1]))
-    : question.week || (language === "id" ? "Belum tersedia" : "Unavailable");
   const questionRemovalProposalIds = getQuestionRemovalProposalIds(
     question.questionMisconceptionIds,
   );
@@ -2251,19 +2239,13 @@ export function QuestionValidationWorkspace({
                 </span>
               </h2>
               <dl className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] font-normal leading-5">
-                <div className="review-detail-meta-week flex items-center gap-1.5">
-                  <CalendarDays size={14} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
-                  <dt className="sr-only">Week</dt>
-                  <dd>
-                    <span aria-hidden="true">Week </span>
-                    {normalizedWeekNumber}
-                  </dd>
-                </div>
                 <div className="review-detail-meta-kc flex min-w-0 items-center gap-1.5">
                   <ListFilter size={14} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
-                  <dt className="sr-only">KC</dt>
+                  <dt className="sr-only">{language === "id" ? "Konsep" : "Concepts"}</dt>
                   <dd className="min-w-0">
-                    <span className="font-medium">KC:</span>{" "}
+                    <span className="font-medium">
+                      {language === "id" ? "Konsep:" : "Concepts:"}
+                    </span>{" "}
                     {question.expectedConcepts.length > 0
                       ? question.expectedConcepts
                           .map((concept) => t(concept, language))
@@ -2802,11 +2784,15 @@ export function QuestionValidationWorkspace({
                   : "Saving..."
                 : language === "id"
                   ? reviewedByMe
-                    ? "Simpan perubahan"
-                    : "Simpan & lanjut"
+                    ? "Simpan Perubahan"
+                    : question.type === "multiple_choice"
+                      ? "Simpan & Lanjut ke Review Jawaban"
+                      : "Simpan & Selesai"
                   : reviewedByMe
-                    ? "Save changes"
-                    : "Save & continue"}
+                    ? "Save Changes"
+                    : question.type === "multiple_choice"
+                      ? "Save & Continue to Answer Review"
+                      : "Save & Finish"}
             </Button>
           )}
           {reviewedByMe && !formUnavailable && (
@@ -2842,9 +2828,9 @@ export function AnswerValidationWorkspace({
   misconceptions,
   locked,
   progressUnavailable,
-  answerReviewCount,
   reviewedByMe,
   globallyComplete,
+  isFinalAnswer = false,
   submittedReview,
   onViewHistory,
   onDirtyChange,
@@ -2861,9 +2847,9 @@ export function AnswerValidationWorkspace({
   misconceptions: Misconception[];
   locked: boolean;
   progressUnavailable: boolean;
-  answerReviewCount?: number;
   reviewedByMe: boolean;
   globallyComplete: boolean;
+  isFinalAnswer?: boolean;
   submittedReview?: AnswerReviewHistoryItem;
   onViewHistory: () => void;
   onDirtyChange: (dirty: boolean) => void;
@@ -2886,6 +2872,7 @@ export function AnswerValidationWorkspace({
       ? [task.suggestedMisconceptionId]
       : []),
     ...answer.studentMisconceptionIds,
+    ...(answer.evidenceReasons ?? []).map((item) => item.misconceptionId),
   ]);
   const addableMisconceptions = getAdditionalMisconceptionCandidates(
     misconceptions,
@@ -2923,21 +2910,22 @@ export function AnswerValidationWorkspace({
   const parentReference = /^q/i.test(question.number)
     ? question.number
     : `Q${question.number || question.id}`;
-  const reviewerCount =
-    answerReviewCount === undefined
-      ? undefined
-      : Math.min(answerReviewCount, QUESTION_REVIEWED_THRESHOLD);
-  const reviewerLabel = language === "id" ? "Reviewer" : "Reviewers";
-  const reviewerCountLabel =
-    reviewerCount === undefined
-      ? ""
-      : language === "id"
-        ? `${reviewerCount} dari ${QUESTION_REVIEWED_THRESHOLD} reviewer telah mereview jawaban ini`
-        : `${reviewerCount} of ${QUESTION_REVIEWED_THRESHOLD} reviewers have reviewed this answer`;
-  const mappedReasons = (answer.misconceptionReasons ?? []).map((item) => ({
-    misconceptionId: item.misconceptionId,
-    reasons: [item.reason],
-  }));
+  const mappedReasons = [
+    ...(answer.misconceptionReasons ?? []).map((item) => ({
+      misconceptionId: item.misconceptionId,
+      reasons: [item.reason],
+    })),
+    ...(answer.evidenceReasons ?? []).map((item) => ({
+      misconceptionId: item.misconceptionId,
+      reasons: [item.reason],
+    })),
+    ...(task?.suggestedMisconceptionId
+      ? [{
+          misconceptionId: task.suggestedMisconceptionId,
+          reasons: [task.explanation],
+        }]
+      : []),
+  ];
   useEffect(() => {
     onDirtyChange(formDirty);
     return () => onDirtyChange(false);
@@ -3031,12 +3019,23 @@ export function AnswerValidationWorkspace({
             />
           </div>
 
-          <header className="flex flex-col gap-4 pb-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <p className="academic-label">
-                {language === "id" ? "Jawaban yang dipilih" : "Selected answer"}
+          <header className="pb-4">
+            <p className="text-xs font-semibold tracking-[0.08em] text-brand">
+              {language === "id" ? "REVIEW JAWABAN" : "ANSWER REVIEW"}
+            </p>
+            <h1 className="mt-1.5 text-lg font-semibold leading-7 text-navy-deep">
+              {t(question.title, language)}
+            </h1>
+            <p className="mt-1 text-xs font-medium tabular-nums text-muted">
+              {language === "id"
+                ? `Jawaban ${activeIndex + 1} dari ${siblingAnswerIds.length}`
+                : `Answer ${activeIndex + 1} of ${siblingAnswerIds.length}`}
+            </p>
+            <div className="mt-5 min-w-0 rounded-md border border-[#ccbab0] bg-[var(--review-page)] px-4 py-3">
+              <p className="text-xs font-medium text-muted">
+                {language === "id" ? "Jawaban yang sedang direview" : "Answer being reviewed"}
               </p>
-              <h2 className="mt-1.5 whitespace-pre-wrap text-base font-bold leading-6 text-navy-deep">
+              <p className="mt-1 whitespace-pre-wrap text-base font-semibold leading-6 text-navy-deep">
                 {selectedOption ? (
                   <>
                     <span>{selectedOption.label}.</span>{" "}
@@ -3048,29 +3047,8 @@ export function AnswerValidationWorkspace({
                     ? "Teks jawaban tidak tersedia."
                     : "Answer text is unavailable.")
                 )}
-              </h2>
+              </p>
             </div>
-            {reviewerCount !== undefined && (
-              <span
-                aria-label={reviewerCountLabel}
-                className={cn(
-                  "inline-flex min-w-[122px] shrink-0 items-center justify-center gap-1.5 self-start rounded-md border px-3 py-1.5",
-                  reviewerCount === QUESTION_REVIEWED_THRESHOLD
-                    ? "border-correct-border bg-correct-bg text-correct"
-                    : reviewerCount > 0
-                      ? "border-brand/25 bg-brand-soft text-brand"
-                      : "border-border bg-neutral text-muted",
-                )}
-              >
-                <Users size={14} strokeWidth={2} aria-hidden="true" />
-                <span className="text-xs font-bold tabular-nums">
-                  {reviewerCount}/{QUESTION_REVIEWED_THRESHOLD}
-                </span>
-                <span className="text-[9px] font-semibold">
-                  {reviewerLabel}
-                </span>
-              </span>
-            )}
           </header>
 
           <div className="overflow-hidden rounded-md border border-border">
@@ -3093,8 +3071,8 @@ export function AnswerValidationWorkspace({
               id={`mp-question-context-${question.id}`}
               label={
                 language === "id"
-                  ? "Lihat soal dan pilihan jawaban"
-                  : "View question and answer options"
+                  ? "Lihat soal & pilihan jawaban"
+                  : "View question & answer options"
               }
             >
               <p className="text-xs font-bold text-muted">
@@ -3103,28 +3081,60 @@ export function AnswerValidationWorkspace({
               <div className="mt-3"><QuestionContent question={question} /></div>
               {question.options && (
                 <ul className="mt-4 space-y-2">
-                  {question.options.map((option) => (
-                    <li
-                      key={option.id}
-                      className="flex items-start gap-2 rounded-md border border-border bg-bg px-3 py-2.5 text-sm leading-6 text-navy-deep"
-                    >
-                      <span className="shrink-0 font-semibold">
-                        {option.label}.
-                      </span>
-                      <span>{t(option.text, language)}</span>
-                    </li>
-                  ))}
+                  {question.options.map((option) => {
+                    const isCurrent = option.id === selectedOption?.id;
+                    return (
+                      <li
+                        key={option.id}
+                        className={cn(
+                          "flex items-start gap-2 rounded-md border px-3 py-2.5 text-sm leading-6 text-navy-deep",
+                          isCurrent
+                            ? "border-brand/35 bg-brand-soft/45"
+                            : option.isCorrect
+                              ? "border-correct-border bg-correct-bg"
+                              : "border-border bg-bg",
+                        )}
+                      >
+                        <span className="shrink-0 font-semibold">
+                          {option.label}.
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          {t(option.text, language)}
+                        </span>
+                        <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                          {option.isCorrect && (
+                            <span className="rounded border border-correct-border bg-white/70 px-1.5 py-0.5 text-[10px] font-medium leading-4 text-correct">
+                              {language === "id" ? "Jawaban benar" : "Correct answer"}
+                            </span>
+                          )}
+                          {isCurrent && (
+                            <span className="rounded border border-brand/25 bg-white/70 px-1.5 py-0.5 text-[10px] font-medium leading-4 text-brand">
+                              {language === "id" ? "Sedang direview" : "In review"}
+                            </span>
+                          )}
+                        </span>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </QuestionContextAccordion>
           </div>
 
-          <div className="mt-6 border-t border-border pt-5">
-            <MisconceptionReasonCards
-              misconceptions={linkedMisconceptions}
-              mappedReasons={mappedReasons}
-            />
-          </div>
+          {(linkedMisconceptions.length > 0 || mappedReasons.length > 0 || answer.explanation) && (
+            <div className="mt-3">
+              <QuestionContextAccordion
+                id={`mp-answer-evidence-${answer.id}`}
+                label={language === "id" ? "Lihat evidence" : "View evidence"}
+              >
+                <MisconceptionReasonCards
+                  misconceptions={linkedMisconceptions}
+                  mappedReasons={mappedReasons}
+                  generalReasons={answer.explanation ? [answer.explanation] : []}
+                />
+              </QuestionContextAccordion>
+            </div>
+          )}
         </article>
 
         <aside className="rounded-lg border border-border bg-white p-5 md:p-6">
@@ -3369,11 +3379,15 @@ export function AnswerValidationWorkspace({
                   : "Saving..."
                 : language === "id"
                   ? reviewedByMe
-                    ? "Simpan perubahan"
-                    : "Simpan & lanjut"
+                    ? "Simpan Perubahan"
+                    : isFinalAnswer
+                      ? "Simpan & Selesai"
+                      : "Simpan & Lanjut"
                   : reviewedByMe
-                    ? "Save changes"
-                    : "Save & continue"}
+                    ? "Save Changes"
+                    : isFinalAnswer
+                      ? "Save & Finish"
+                      : "Save & Continue"}
             </Button>
           )}
           {reviewedByMe && !formUnavailable && (
