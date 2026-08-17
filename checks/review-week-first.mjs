@@ -19,6 +19,7 @@ import {
   serializeReviewNavigationSearch,
   serializeReviewNavigationSession,
 } from "../src/utils/reviewQueue.ts";
+import { normalizeQuestionType } from "../src/utils/questionMetadata.ts";
 
 const question = (id, type, week) => ({ id, type, week });
 const w02Questions = [
@@ -41,6 +42,9 @@ const answers = [
   { id: "MP-ANSWER-2", questionId: "W02-MP-2" },
   { id: "MP-ANSWER-1", questionId: "W02-MP-1" },
 ];
+
+assert.equal(normalizeQuestionType("PS"), "short_answer");
+assert.equal(normalizeQuestionType("MP"), "multiple_choice");
 
 const weekSummaries = getReviewWeekSummaries(
   questions,
@@ -341,6 +345,18 @@ const activePage = await readFile(
   new URL("../src/pages/LecturerReviewWeekFirstPage.tsx", import.meta.url),
   "utf8",
 );
+const questionMetadataSource = await readFile(
+  new URL("../src/utils/questionMetadata.ts", import.meta.url),
+  "utf8",
+);
+const questionTypeSource = await readFile(
+  new URL("../src/types/question.ts", import.meta.url),
+  "utf8",
+);
+const translationSource = await readFile(
+  new URL("../src/utils/translation.ts", import.meta.url),
+  "utf8",
+);
 const validationWorkspace = await readFile(
   new URL("../src/pages/LecturerReviewPage.tsx", import.meta.url),
   "utf8",
@@ -378,7 +394,7 @@ assert.doesNotMatch(
 );
 assert.match(activePage, /getWeekReviewQuestionStatus/);
 assert.match(listSource, /useState<ReviewWeekListStatus>\("unreviewed"\)/);
-assert.match(listSource, /useState<ReviewQuestionType>\("ps"\)/);
+assert.match(listSource, /useState<ReviewQuestionType>\("all"\)/);
 assert.doesNotMatch(listSource, /\["all", language === "id" \? "Semua"/);
 assert.match(activePage, /rounded-full/);
 assert.match(activePage, /Tipe soal/);
@@ -398,11 +414,27 @@ assert.doesNotMatch(
   /text-\[8px\]/,
   "selected value, dropdown options, and table rows do not render PS/MP badges",
 );
-assert.match(listSource, /<Info size=\{14\}/);
-assert.match(listSource, /role="tooltip"/);
-assert.match(listSource, /aria-describedby="review-question-type-help"/);
-assert.match(listSource, /PS = Esai · MP = Pilihan Ganda/);
-assert.match(listSource, /PS = Essay · MP = Multiple Choice/);
+assert.doesNotMatch(listSource, /aria-describedby="review-question-type-help"/);
+assert.match(listSource, /selectedType\.explanation &&/);
+assert.match(listSource, /<Info size=\{13\}/);
+assert.match(listSource, /aria-describedby="review-question-type-selected-help"/);
+assert.match(listSource, /event\.preventDefault\(\);\s*event\.stopPropagation\(\);/);
+assert.match(activePage, /function QuestionTypeTooltipLabel/);
+assert.match(activePage, /role="tooltip"/);
+assert.match(listSource, /<QuestionTypeTooltipLabel/);
+assert.match(listSource, /focusable=\{questionStatus !== "unreviewed"\}/);
+assert.match(listSource, /Esai merupakan tipe PS \(Short Answer\)\./);
+assert.match(listSource, /Essay corresponds to PS \(Short Answer\)\./);
+assert.match(listSource, /Pilihan Ganda merupakan tipe MP \(Multiple Choice\)\./);
+assert.match(listSource, /Multiple Choice corresponds to MP \(Multiple Choice\)\./);
+assert.match(questionMetadataSource, /\["ps", "short_answer"\]/);
+assert.match(questionMetadataSource, /\["mp", "multiple_choice"\]/);
+assert.match(
+  questionTypeSource,
+  /QuestionType = "short_answer" \| "multiple_choice"/,
+);
+assert.match(translationSource, /en: "Short Answer"/);
+assert.match(translationSource, /en: "Multiple Choice"/);
 assert.match(activePage, /placeholder="Search"/);
 assert.doesNotMatch(listSource, /weekTotal/);
 assert.doesNotMatch(listSource, /dari \$\{filteredQuestions\.length\} soal/);

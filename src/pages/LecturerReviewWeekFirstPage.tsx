@@ -237,6 +237,37 @@ function WeekOverview({
   );
 }
 
+function QuestionTypeTooltipLabel({
+  label,
+  explanation,
+  tooltipId,
+  focusable = true,
+  className,
+}: {
+  label: string;
+  explanation: string;
+  tooltipId: string;
+  focusable?: boolean;
+  className?: string;
+}) {
+  return (
+    <span
+      tabIndex={focusable ? 0 : undefined}
+      aria-describedby={tooltipId}
+      className={cn("group/type-label relative", className)}
+    >
+      {label}
+      <span
+        id={tooltipId}
+        role="tooltip"
+        className="pointer-events-none invisible absolute left-0 top-full z-30 mt-1 w-max max-w-64 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-white opacity-0 shadow-[0_6px_18px_rgba(95,71,59,0.16)] transition-opacity group-hover/type-label:visible group-hover/type-label:opacity-100 group-focus/type-label:visible group-focus/type-label:opacity-100 group-focus-visible/row:visible group-focus-visible/row:opacity-100"
+      >
+        {explanation}
+      </span>
+    </span>
+  );
+}
+
 function WeekQuestionList({
   week,
   questions,
@@ -257,7 +288,7 @@ function WeekQuestionList({
   onDeleteReview: (question: Question) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
-  const [type, setType] = useState<ReviewQuestionType>("ps");
+  const [type, setType] = useState<ReviewQuestionType>("all");
   const [status, setStatus] = useState<ReviewWeekListStatus>("unreviewed");
   const [withdrawingId, setWithdrawingId] = useState("");
   const reviewed = useMemo(() => new Set(reviewedQuestionIds), [reviewedQuestionIds]);
@@ -265,18 +296,27 @@ function WeekQuestionList({
     {
       value: "all",
       label: language === "id" ? "Semua tipe soal" : "All question types",
+      explanation: undefined,
     },
     {
       value: "ps",
       label: language === "id" ? "Esai" : "Essay",
+      explanation:
+        language === "id"
+          ? "Esai merupakan tipe PS (Short Answer)."
+          : "Essay corresponds to PS (Short Answer).",
     },
     {
       value: "mp",
       label: language === "id" ? "Pilihan Ganda" : "Multiple Choice",
+      explanation:
+        language === "id"
+          ? "Pilihan Ganda merupakan tipe MP (Multiple Choice)."
+          : "Multiple Choice corresponds to MP (Multiple Choice).",
     },
   ] as const;
   const selectedType =
-    typeOptions.find((option) => option.value === type) ?? typeOptions[1];
+    typeOptions.find((option) => option.value === type) ?? typeOptions[0];
   const filteredQuestions = useMemo(
     () =>
       filterWeekReviewQuestions(questions, {
@@ -385,8 +425,35 @@ function WeekQuestionList({
                 aria-label={`${language === "id" ? "Tipe soal" : "Question type"}: ${selectedType.label}`}
                 className="flex min-h-7 w-[9.75rem] cursor-pointer list-none items-center gap-1.5 rounded-md border border-border bg-white py-1 pl-2.5 pr-2 text-[11px] leading-4 text-black outline-none transition-[border-color,box-shadow] marker:hidden focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/10 [&::-webkit-details-marker]:hidden"
               >
-                <span className="min-w-0 flex-1 truncate font-medium">{selectedType.label}</span>
-                <ChevronDown size={12} strokeWidth={2} aria-hidden="true" className="shrink-0 text-[#b09f85] transition-transform group-open/type:rotate-180" />
+                <span className="min-w-0 truncate font-medium">{selectedType.label}</span>
+                {selectedType.explanation && (
+                  <span
+                    tabIndex={0}
+                    aria-label={language === "id" ? "Penjelasan tipe soal" : "Question type explanation"}
+                    aria-describedby="review-question-type-selected-help"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onKeyDown={(event) => {
+                      event.stopPropagation();
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                      }
+                    }}
+                    className="group/type-help relative inline-flex shrink-0 cursor-help rounded text-[#8a7b65] hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                  >
+                    <Info size={13} strokeWidth={1.8} aria-hidden="true" />
+                    <span
+                      id="review-question-type-selected-help"
+                      role="tooltip"
+                      className="pointer-events-none invisible absolute left-1/2 top-full z-30 mt-1 w-max max-w-64 -translate-x-1/2 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-white opacity-0 shadow-[0_6px_18px_rgba(95,71,59,0.16)] transition-opacity group-hover/type-help:visible group-hover/type-help:opacity-100 group-focus/type-help:visible group-focus/type-help:opacity-100"
+                    >
+                      {selectedType.explanation}
+                    </span>
+                  </span>
+                )}
+                <ChevronDown size={12} strokeWidth={2} aria-hidden="true" className="ml-auto shrink-0 text-[#b09f85] transition-transform group-open/type:rotate-180" />
               </summary>
               <div
                 role="menu"
@@ -415,26 +482,6 @@ function WeekQuestionList({
               </div>
             </details>
 
-            <span className="group/type-help relative inline-flex shrink-0">
-              <button
-                type="button"
-                aria-label={language === "id" ? "Penjelasan tipe soal" : "Question type explanation"}
-                aria-describedby="review-question-type-help"
-                className="inline-flex h-7 w-6 cursor-help items-center justify-center rounded text-[#8a7b65] transition-colors hover:bg-[#b09f85]/10 hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
-              >
-                <Info size={14} strokeWidth={1.8} aria-hidden="true" />
-              </button>
-              <span
-                id="review-question-type-help"
-                role="tooltip"
-                className="pointer-events-none invisible absolute left-1/2 top-full z-30 mt-1 w-max -translate-x-1/2 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-white opacity-0 shadow-[0_6px_18px_rgba(95,71,59,0.16)] transition-opacity group-hover/type-help:visible group-hover/type-help:opacity-100 group-focus-within/type-help:visible group-focus-within/type-help:opacity-100"
-              >
-                {language === "id"
-                  ? "PS = Esai · MP = Pilihan Ganda"
-                  : "PS = Essay · MP = Multiple Choice"}
-              </span>
-            </span>
-
             <label className="relative block min-w-0 flex-1 sm:w-48 sm:flex-none">
               <span className="sr-only">{language === "id" ? "Cari soal" : "Search questions"}</span>
               <Search size={13} strokeWidth={1.8} aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[#b09f85]" />
@@ -454,8 +501,8 @@ function WeekQuestionList({
             <EmptyState message={language === "id" ? "Tidak ada soal yang cocok dengan pencarian atau filter ini." : "No questions match these filters."} />
           </div>
         ) : (
-          <div className="mt-2 overflow-hidden rounded-lg border border-border/90 bg-white shadow-[0_1px_2px_rgba(95,71,59,0.04)]">
-            <div aria-hidden="true" className={cn("hidden gap-3 border-b border-border bg-[#fbfbfe] px-3 py-2.5 text-[13px] font-semibold text-[#5e534a] lg:grid", tableGridClass)}>
+          <div className="mt-2 overflow-visible rounded-lg border border-border/90 bg-white shadow-[0_1px_2px_rgba(95,71,59,0.04)]">
+            <div aria-hidden="true" className={cn("hidden rounded-t-lg gap-3 border-b border-border bg-[#fbfbfe] px-3 py-2.5 text-[13px] font-semibold text-[#5e534a] lg:grid", tableGridClass)}>
               <span>No.</span>
               <span>{language === "id" ? "Soal" : "Question"}</span>
               <span>{language === "id" ? "Tipe" : "Type"}</span>
@@ -468,6 +515,7 @@ function WeekQuestionList({
                 const title = t(question.title, language).trim() || identifier;
                 const questionType =
                   question.type === "multiple_choice" ? typeOptions[2] : typeOptions[1];
+                const typeExplanation = questionType.explanation;
                 const reviewCount = Math.min(
                   questionCounts.get(question.id) ?? 0,
                   QUESTION_REVIEWED_THRESHOLD,
@@ -484,25 +532,33 @@ function WeekQuestionList({
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-normal leading-4 text-black">{title}</span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
-                        <span className={cn(
-                          "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4",
-                          question.type === "multiple_choice"
-                            ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
-                            : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
-                        )}>
-                          {questionType.label}
-                        </span>
+                        <QuestionTypeTooltipLabel
+                          label={questionType.label}
+                          explanation={typeExplanation}
+                          tooltipId={`review-question-type-${question.id}-mobile`}
+                          focusable={questionStatus !== "unreviewed"}
+                          className={cn(
+                            "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4",
+                            question.type === "multiple_choice"
+                              ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
+                              : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
+                          )}
+                        />
                         <span className="text-[10px] font-normal tabular-nums text-muted">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer</span>
                       </span>
                     </span>
-                    <span className={cn(
-                      "hidden w-fit items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4 lg:inline-flex",
-                      question.type === "multiple_choice"
-                        ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
-                        : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
-                    )}>
-                      {questionType.label}
-                    </span>
+                    <QuestionTypeTooltipLabel
+                      label={questionType.label}
+                      explanation={typeExplanation}
+                      tooltipId={`review-question-type-${question.id}-desktop`}
+                      focusable={questionStatus !== "unreviewed"}
+                      className={cn(
+                        "hidden w-fit items-center rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4 lg:inline-flex",
+                        question.type === "multiple_choice"
+                          ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
+                          : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
+                      )}
+                    />
                     <span className="hidden text-xs font-normal tabular-nums text-muted lg:block">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD}</span>
                   </>
                 );
@@ -512,8 +568,9 @@ function WeekQuestionList({
                     {questionStatus === "unreviewed" ? (
                       <button
                         type="button"
+                        aria-describedby={`review-question-type-${question.id}-desktop`}
                         onClick={() => onOpenQuestion(question, false)}
-                        className={cn("group grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-[#fbfbfe] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-brand-soft/45", tableGridClass)}
+                        className={cn("group group/row grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-[#fbfbfe] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-brand-soft/45", tableGridClass)}
                       >
                         {rowCells}
                         <ChevronRight size={15} strokeWidth={1.8} aria-hidden="true" className="text-[#b09f85] transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
