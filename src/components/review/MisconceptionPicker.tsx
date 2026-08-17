@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Check, Search, X } from "lucide-react";
+import { Check, ListPlus, Search, X } from "lucide-react";
 import type { Misconception } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
 import { t } from "../../utils/translation";
@@ -156,8 +156,20 @@ export function MisconceptionPicker({
           </ul>
         )}
 
-        <Button type="button" variant="secondary" className="mt-2 !min-h-8 w-fit justify-center !px-2.5 !py-1.5 !text-xs !font-normal" onClick={openPicker}>
-          <Search size={13} strokeWidth={2} aria-hidden="true" />
+        <Button
+          type="button"
+          variant="secondary"
+          className={cn(
+            "mt-2 !min-h-8 justify-center !gap-2 !px-3 !py-1.5 !text-xs !font-normal",
+            variant === "selection" ? "w-full" : "w-fit",
+          )}
+          onClick={openPicker}
+        >
+          {variant === "selection" ? (
+            <ListPlus size={14} strokeWidth={2} aria-hidden="true" />
+          ) : (
+            <Search size={13} strokeWidth={2} aria-hidden="true" />
+          )}
           {variant === "selection"
             ? language === "id"
               ? "Pilih Miskonsepsi yang Ditambahkan"

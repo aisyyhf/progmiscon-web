@@ -1443,11 +1443,6 @@ export function LegacyLecturerReviewPage({
               <QuestionValidationWorkspace
                 key={activeQuestion.id}
                 question={activeQuestion}
-                questionReviewCount={
-                  questionCountsLoaded
-                    ? (questionReviewCounts.get(activeQuestion.id) ?? 0)
-                    : undefined
-                }
                 answers={
                   allWorkspaceItems[
                     activeQuestion.type === "multiple_choice"
@@ -2072,7 +2067,6 @@ function SubmittedQuestionReview({
 
 export function QuestionValidationWorkspace({
   question,
-  questionReviewCount,
   answers,
   reviewedAnswerIds,
   answerTaskById,
@@ -2093,7 +2087,6 @@ export function QuestionValidationWorkspace({
   onSubmit,
 }: {
   question: Question;
-  questionReviewCount?: number;
   answers: StudentAnswer[];
   reviewedAnswerIds: string[];
   answerTaskById: Map<string, ReviewTask>;
@@ -2125,17 +2118,6 @@ export function QuestionValidationWorkspace({
       ? `${Number(weekMatch[1])}–${Number(weekMatch[2])}`
       : String(Number(weekMatch[1]))
     : question.week || (language === "id" ? "Belum tersedia" : "Unavailable");
-  const reviewerCount =
-    questionReviewCount === undefined
-      ? undefined
-      : Math.min(questionReviewCount, QUESTION_REVIEWED_THRESHOLD);
-  const reviewerLabel = language === "id" ? "Reviewer" : "Reviewers";
-  const reviewerCountLabel =
-    reviewerCount === undefined
-      ? ""
-      : language === "id"
-        ? `${reviewerCount} dari ${QUESTION_REVIEWED_THRESHOLD} reviewer telah mereview soal ini`
-        : `${reviewerCount} of ${QUESTION_REVIEWED_THRESHOLD} reviewers have reviewed this question`;
   const questionRemovalProposalIds = getQuestionRemovalProposalIds(
     question.questionMisconceptionIds,
   );
@@ -2253,7 +2235,7 @@ export function QuestionValidationWorkspace({
 
 
   return (
-    <div className="review-question-detail mt-3">
+    <div className="review-question-detail mt-6 md:mt-10">
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] lg:items-start xl:gap-14">
         <article className="min-w-0">
           <section aria-labelledby="review-question-title">
@@ -2291,18 +2273,6 @@ export function QuestionValidationWorkspace({
                         : "Unavailable"}
                   </dd>
                 </div>
-                {!readOnly && reviewerCount !== undefined && (
-                  <div
-                    aria-label={reviewerCountLabel}
-                    className="flex items-center gap-1.5 text-brand"
-                  >
-                    <Users size={14} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
-                    <dt className="sr-only">{reviewerLabel}</dt>
-                    <dd className="font-medium tabular-nums">
-                      {reviewerLabel}: {reviewerCount}/{QUESTION_REVIEWED_THRESHOLD}
-                    </dd>
-                  </div>
-                )}
               </dl>
             </header>
 
@@ -2355,8 +2325,10 @@ export function QuestionValidationWorkspace({
           )}
 
           <section className="mt-4 border-t border-border pt-4">
-            <h3 className="flex items-center gap-2 text-base font-semibold leading-6 tracking-[-0.01em] text-navy-deep">
-              <TriangleAlert size={17} strokeWidth={1.9} aria-hidden="true" className="text-brand" />
+            <h3 className="flex items-center gap-1.5 text-base font-semibold leading-6 tracking-[-0.01em] text-navy-deep">
+              <span className="flex h-6 w-5 shrink-0 items-center justify-center" aria-hidden="true">
+                <TriangleAlert size={16} strokeWidth={1.9} className="text-brand" />
+              </span>
               <span>
                 {language === "id"
                   ? "Miskonsepsi terkait"
@@ -2623,7 +2595,7 @@ export function QuestionValidationWorkspace({
             </legend>
             <section aria-labelledby="remove-misconception-question">
               <div className="flex items-start gap-2.5">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-[10px] font-medium leading-none text-white" aria-hidden="true">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-xs font-medium leading-5 text-white" aria-hidden="true">
                   1
                 </span>
                 <div className="min-w-0 flex-1">
@@ -2715,7 +2687,7 @@ export function QuestionValidationWorkspace({
 
             <section className="border-t border-border pt-5" aria-labelledby="add-misconception-question">
               <div className="flex items-start gap-2.5">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-[10px] font-medium leading-none text-white" aria-hidden="true">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-xs font-medium leading-5 text-white" aria-hidden="true">
                   2
                 </span>
                 <div className="min-w-0 flex-1">
@@ -2785,7 +2757,7 @@ export function QuestionValidationWorkspace({
 
             <section className="border-t border-border pt-5" aria-labelledby="additional-comment-label">
               <div className="flex items-start gap-2.5">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-[10px] font-medium leading-none text-white" aria-hidden="true">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-xs font-medium leading-5 text-white" aria-hidden="true">
                   3
                 </span>
                 <div className="min-w-0 flex-1">
@@ -3189,7 +3161,7 @@ export function AnswerValidationWorkspace({
             </legend>
             <section aria-labelledby="remove-answer-misconception-question">
               <div className="flex items-start gap-2.5">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-[10px] font-medium leading-none text-white" aria-hidden="true">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-xs font-medium leading-5 text-white" aria-hidden="true">
                   1
                 </span>
                 <div className="min-w-0 flex-1">
@@ -3281,7 +3253,7 @@ export function AnswerValidationWorkspace({
 
             <section className="border-t border-border pt-5" aria-labelledby="add-answer-misconception-question">
               <div className="flex items-start gap-2.5">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-[10px] font-medium leading-none text-white" aria-hidden="true">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-xs font-medium leading-5 text-white" aria-hidden="true">
                   2
                 </span>
                 <div className="min-w-0 flex-1">
@@ -3352,7 +3324,7 @@ export function AnswerValidationWorkspace({
 
             <section className="border-t border-border pt-5" aria-labelledby="answer-additional-comment-label">
               <div className="flex items-start gap-2.5">
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-[10px] font-medium leading-none text-white" aria-hidden="true">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-xs font-medium leading-5 text-white" aria-hidden="true">
                   3
                 </span>
                 <div className="min-w-0 flex-1">

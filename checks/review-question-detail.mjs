@@ -83,7 +83,7 @@ assert.doesNotMatch(
   /<article className="[^"]*(?:review-folder-primary|rounded-lg border border-border bg-white)/,
 );
 assert.match(questionWorkspace, /<QuestionContent question=\{question\} \/>/);
-assert.match(questionWorkspace, /review-question-detail mt-3/);
+assert.match(questionWorkspace, /review-question-detail mt-6 md:mt-10/);
 assert.doesNotMatch(questionWorkspace, /lg:sticky|lg:max-h-|lg:overflow-y-auto|thin-scroll/);
 assert.match(questionWorkspace, /REVIEW MISKONSEPSI SOAL/);
 assert.doesNotMatch(questionWorkspace, /Navigasi soal review|Sebelumnya|Berikutnya/);
@@ -96,16 +96,15 @@ assert.match(questionWorkspace, /text-xs font-normal leading-5 tracking-normal t
 assert.match(questionWorkspace, /text-\[13px\] font-normal leading-5/);
 assert.match(questionWorkspace, /<CalendarDays size=\{14\}/);
 assert.match(questionWorkspace, /<ListFilter size=\{14\}/);
-assert.match(questionWorkspace, /<Users size=\{14\}/);
 assert.match(questionWorkspace, /review-detail-meta-week/);
 assert.match(questionWorkspace, /review-detail-meta-kc/);
 assert.match(styles, /review-detail-meta-week[\s\S]*?var\(--progmiscon-accent\) 70%[\s\S]*?var\(--progmiscon-text\)/);
 assert.match(styles, /review-detail-meta-kc[\s\S]*?var\(--progmiscon-secondary\) 60%[\s\S]*?var\(--progmiscon-text\)/);
-assert.match(questionWorkspace, /!readOnly && reviewerCount !== undefined/);
+assert.doesNotMatch(questionWorkspace, /questionReviewCount|reviewerCountLabel|Reviewer:/);
 assert.match(questionWorkspace, /Jawaban yang benar/);
 assert.doesNotMatch(questionWorkspace, /Jawaban acuan|Reference answer/);
 assert.match(questionWorkspace, /Miskonsepsi terkait/);
-assert.match(questionWorkspace, /<TriangleAlert/);
+assert.match(questionWorkspace, /flex items-center gap-1\.5 text-base[\s\S]*?h-6 w-5[\s\S]*?<TriangleAlert size=\{16\}/);
 assert.match(questionWorkspace, /sm:grid-cols-2/);
 assert.match(questionWorkspace, /min-h-\[4\.5rem\][\s\S]*?px-3 py-2\.5/);
 assert.match(questionWorkspace, /h-12 w-12 rounded-full bg-brand\/\[0\.055\]/);
@@ -119,7 +118,7 @@ assert.match(questionWorkspace, /absolute inset-x-0 top-0 h-0\.5 bg-brand/);
 assert.match(questionWorkspace, /<CircleCheckBig/);
 assert.match(questionWorkspace, /right-2 top-2 h-36 w-36 -rotate-6/);
 assert.equal(
-  questionWorkspace.match(/h-5 w-5[\s\S]{0,100}bg-brand text-\[10px\] font-medium leading-none text-white/g)?.length,
+  questionWorkspace.match(/h-5 w-5[\s\S]{0,100}bg-brand text-xs font-medium leading-5 text-white/g)?.length,
   3,
 );
 assert.match(presenceToggle, /inline-grid w-fit grid-cols-2 gap-0\.5/);
@@ -145,11 +144,12 @@ assert.match(questionWorkspace, /\{item\.id\}[\s\S]*?t\(item\.title, language\)/
 assert.doesNotMatch(questionWorkspace, /misconceptionSourceLabel|Terkait langsung ke soal|—/);
 assert.doesNotMatch(questionWorkspace, /Miskonsepsi yang ditambahkan|Anda dapat memilih lebih dari satu\.|Belum ada miskonsepsi tambahan yang dipilih\./);
 assert.match(misconceptionPicker, /Pilih Miskonsepsi yang Ditambahkan/);
-assert.match(misconceptionPicker, /!min-h-8 w-fit[\s\S]*?!px-2\.5 !py-1\.5 !text-xs !font-normal/);
+assert.match(misconceptionPicker, /variant === "selection" \? "w-full" : "w-fit"/);
+assert.match(misconceptionPicker, /variant === "selection" \? \(\s*<ListPlus size=\{14\}/);
 assert.doesNotMatch(misconceptionPicker, /Belum ada miskonsepsi tambahan yang dipilih\.|Anda dapat memilih lebih dari satu miskonsepsi\./);
 
 assert.equal(
-  answerWorkspace.match(/h-5 w-5[\s\S]{0,100}bg-brand text-\[10px\] font-medium leading-none text-white/g)?.length,
+  answerWorkspace.match(/h-5 w-5[\s\S]{0,100}bg-brand text-xs font-medium leading-5 text-white/g)?.length,
   3,
 );
 assert.doesNotMatch(
@@ -177,9 +177,14 @@ assert.match(
 );
 assert.match(app, /path="\/review\/answer\/:answerId"/);
 
-assert.match(questionWorkspace, /questionReviewCount/);
-assert.match(questionWorkspace, /QUESTION_REVIEWED_THRESHOLD/);
-assert.match(questionWorkspace, /\{reviewerCount\}\/\{QUESTION_REVIEWED_THRESHOLD\}/);
+assert.match(
+  workspacePage,
+  /questionReviewCounts\.get\(activeQuestion\.id\) \?\? 0\) >=\s*QUESTION_REVIEWED_THRESHOLD/,
+);
+assert.match(
+  workspacePage,
+  /const activeQuestionLocked =\s*activeQuestionGloballyComplete && !activeQuestionReviewedByMe/,
+);
 assert.match(questionWorkspace, /formUnavailable = readOnly \|\| locked \|\| progressUnavailable/);
 assert.match(questionWorkspace, /await onSubmit\(buildQuestionReviewValues\(form\)\)/);
 assert.match(questionWorkspace, /await onDelete\(\)/);

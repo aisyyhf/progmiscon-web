@@ -1505,7 +1505,6 @@ export function LecturerReviewPage({
           <QuestionValidationWorkspace
             key={activeQuestion.id}
             question={activeQuestion}
-            questionReviewCount={activeQuestionCount}
             answers={answers}
             reviewedAnswerIds={reviewedAnswerIds}
             answerTaskById={answerTaskById}
@@ -1692,7 +1691,6 @@ export function LecturerReviewPage({
               <QuestionValidationWorkspace
                 key={activeQuestion.id}
                 question={activeQuestion}
-                questionReviewCount={activeQuestionCount}
                 answers={answers}
                 reviewedAnswerIds={reviewedAnswerIds}
                 answerTaskById={answerTaskById}

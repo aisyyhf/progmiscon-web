@@ -407,10 +407,7 @@ assert.match(
   page,
   /"answer-mp": allWorkspaceItems\["answer-mp"\]/,
 );
-assert.match(
-  page,
-  /questionReviewCount=\{\s*questionCountsLoaded\s*\? \(questionReviewCounts\.get\(activeQuestion\.id\) \?\? 0\)/,
-);
+assert.doesNotMatch(page, /questionReviewCount=\{/);
 assert.match(page, /alreadyReviewed/);
 assert.match(
   page,
