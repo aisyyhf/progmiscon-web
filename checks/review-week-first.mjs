@@ -22,6 +22,18 @@ import {
 import { normalizeQuestionType } from "../src/utils/questionMetadata.ts";
 
 const question = (id, type, week) => ({ id, type, week });
+const contrastRatio = (foreground, background) => {
+  const luminance = (hex) => {
+    const channels = hex.match(/[\da-f]{2}/gi).map((channel) => parseInt(channel, 16) / 255);
+    const [red, green, blue] = channels.map((channel) =>
+      channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+    );
+    return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  };
+  const lighter = Math.max(luminance(foreground), luminance(background));
+  const darker = Math.min(luminance(foreground), luminance(background));
+  return (lighter + 0.05) / (darker + 0.05);
+};
 const w02Questions = [
   ...Array.from({ length: 19 }, (_, index) =>
     question(`W02-PS-${index + 1}`, "short_answer", "W02"),
@@ -403,11 +415,16 @@ assert.doesNotMatch(
 assert.match(reviewPaletteSource, /--review-card: color-mix\(in srgb, var\(--progmiscon-secondary\) 7%/);
 assert.match(reviewPaletteSource, /--review-header: color-mix\(in srgb, var\(--progmiscon-secondary\) 23%/);
 assert.match(reviewPaletteSource, /--review-row-hover: color-mix\(in srgb, var\(--progmiscon-accent\) 12%/);
-assert.match(reviewPaletteSource, /--review-type-essay-bg: color-mix\(in srgb, var\(--progmiscon-primary\) 14%/);
-assert.match(reviewPaletteSource, /--review-type-essay-text: color-mix\(in srgb, var\(--progmiscon-primary\) 82%/);
-assert.match(reviewPaletteSource, /--review-type-choice-base: color-mix\(in srgb, var\(--progmiscon-secondary\) 72%, var\(--progmiscon-accent\)\)/);
-assert.match(reviewPaletteSource, /--review-type-choice-bg: color-mix\(in srgb, var\(--review-type-choice-base\) 70%/);
-assert.doesNotMatch(reviewPaletteSource, /#[\da-f]{3,8}/i);
+assert.match(reviewPaletteSource, /--review-type-essay-bg: #e49a9a;/);
+assert.match(reviewPaletteSource, /--review-type-essay-text: var\(--progmiscon-text\);/);
+assert.match(reviewPaletteSource, /--review-type-choice-bg: #e45959;/);
+assert.match(reviewPaletteSource, /--review-type-choice-text: var\(--progmiscon-text\);/);
+assert.deepEqual(
+  [...new Set(reviewPaletteSource.match(/#[\da-f]{6}/gi)?.map((color) => color.toLowerCase()))].sort(),
+  ["#e45959", "#e49a9a"],
+);
+assert.ok(contrastRatio("#000000", "#e49a9a") >= 4.5);
+assert.ok(contrastRatio("#000000", "#e45959") >= 4.5);
 assert.match(overviewAndListSource, /border border-brand\/35 bg-\[var\(--review-page\)\] text-brand/);
 assert.match(listSource, /border-brand bg-brand text-white/);
 assert.match(
@@ -418,8 +435,8 @@ assert.match(listSource, /bg-\[var\(--review-header\)\][^\n]+text-black/);
 assert.match(listSource, /border border-border bg-white shadow/);
 assert.match(listSource, /border-\[var\(--review-type-essay-border\)\] bg-\[var\(--review-type-essay-bg\)\] text-\[var\(--review-type-essay-text\)\]/);
 assert.match(listSource, /border-\[var\(--review-type-choice-border\)\] bg-\[var\(--review-type-choice-bg\)\] text-\[var\(--review-type-choice-text\)\]/);
-assert.match(listSource, /hover:bg-\[var\(--review-type-essay-hover\)\] hover:border-\[var\(--progmiscon-primary\)\]/);
-assert.match(listSource, /hover:bg-\[var\(--review-type-choice-hover\)\] hover:border-\[var\(--progmiscon-accent\)\]/);
+assert.match(listSource, /hover:bg-\[var\(--review-type-essay-hover\)\] hover:border-\[var\(--review-type-essay-hover-border\)\]/);
+assert.match(listSource, /hover:bg-\[var\(--review-type-choice-hover\)\] hover:border-\[var\(--review-type-choice-hover-border\)\]/);
 assert.match(
   overviewAndListSource,
   /duration-150 ease-out hover:-translate-y-px[\s\S]*?active:translate-y-0 active:shadow-none motion-reduce:translate-none/,
