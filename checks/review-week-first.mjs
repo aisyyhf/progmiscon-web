@@ -419,16 +419,16 @@ assert.doesNotMatch(
 assert.match(reviewPaletteSource, /--review-card: color-mix\(in srgb, var\(--progmiscon-secondary\) 7%/);
 assert.match(reviewPaletteSource, /--review-header: color-mix\(in srgb, var\(--progmiscon-secondary\) 23%/);
 assert.match(reviewPaletteSource, /--review-row-hover: color-mix\(in srgb, var\(--progmiscon-accent\) 12%/);
-assert.match(reviewPaletteSource, /--review-type-essay-bg: #e49a9a;/);
+assert.match(reviewPaletteSource, /--review-type-essay-bg: #ffecec;/);
 assert.match(reviewPaletteSource, /--review-type-essay-text: var\(--progmiscon-text\);/);
-assert.match(reviewPaletteSource, /--review-type-choice-bg: #e45959;/);
+assert.match(reviewPaletteSource, /--review-type-choice-bg: #eda5a5;/);
 assert.match(reviewPaletteSource, /--review-type-choice-text: var\(--progmiscon-text\);/);
 assert.deepEqual(
   [...new Set(reviewPaletteSource.match(/#[\da-f]{6}/gi)?.map((color) => color.toLowerCase()))].sort(),
-  ["#e45959", "#e49a9a"],
+  ["#eda5a5", "#ffecec"],
 );
-assert.ok(contrastRatio("#000000", "#e49a9a") >= 4.5);
-assert.ok(contrastRatio("#000000", "#e45959") >= 4.5);
+assert.ok(contrastRatio("#000000", "#ffecec") >= 4.5);
+assert.ok(contrastRatio("#000000", "#eda5a5") >= 4.5);
 assert.match(overviewAndListSource, /border border-brand\/35 bg-\[var\(--review-page\)\] text-brand/);
 assert.match(listSource, /border-brand bg-brand text-white/);
 assert.match(

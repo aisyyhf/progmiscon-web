@@ -62,12 +62,12 @@
   --review-header: color-mix(in srgb, var(--progmiscon-secondary) 23%, var(--review-page));
   --review-row-hover: color-mix(in srgb, var(--progmiscon-accent) 12%, var(--review-page));
   --review-secondary-soft: color-mix(in srgb, var(--progmiscon-secondary) 20%, var(--review-page));
-  --review-type-essay-bg: #e49a9a;
+  --review-type-essay-bg: #ffecec;
   --review-type-essay-border: color-mix(in srgb, var(--review-type-essay-bg) 82%, var(--progmiscon-text));
   --review-type-essay-text: var(--progmiscon-text);
   --review-type-essay-hover: color-mix(in srgb, var(--review-type-essay-bg) 90%, var(--progmiscon-text));
   --review-type-essay-hover-border: color-mix(in srgb, var(--review-type-essay-bg) 70%, var(--progmiscon-text));
-  --review-type-choice-bg: #e45959;
+  --review-type-choice-bg: #eda5a5;
   --review-type-choice-border: color-mix(in srgb, var(--review-type-choice-bg) 82%, var(--progmiscon-text));
   --review-type-choice-text: var(--progmiscon-text);
   --review-type-choice-hover: color-mix(in srgb, var(--review-type-choice-bg) 90%, var(--progmiscon-text));
