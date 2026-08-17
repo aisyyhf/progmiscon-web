@@ -127,6 +127,11 @@
   }
 }
 
+.review-question-detail .review-question-content p {
+  font-weight: 400;
+  line-height: 1.5rem;
+}
+
 .lecturer-sidebar-surface {
   background: var(--progmiscon-background);
 }

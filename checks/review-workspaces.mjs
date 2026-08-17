@@ -232,11 +232,12 @@ assert.match(contextAccordion, /question\.options\.map/);
 assert.match(contextAccordion, /<QuestionContent question=\{question\}/);
 assert.doesNotMatch(
   contextAccordion,
-  /option\.isCorrect|Benar|Salah|Correct|Incorrect|Jawaban acuan/,
+  /option\.isCorrect|Benar|Salah|Correct|Incorrect|Jawaban acuan|Jawaban yang benar/,
   "MP context options must not reveal correctness",
 );
 assert.doesNotMatch(answerWorkspace, /AdminAnswerContentEditor|Edit jawaban/);
-assert.match(answerWorkspace, /AdminQuestionContentEditor question=\{question\} answer=\{answer\}/);
+assert.doesNotMatch(answerWorkspace, /AdminQuestionContentEditor|Edit soal/);
+assert.doesNotMatch(questionWorkspace, /AdminQuestionContentEditor|Edit soal/);
 assert.doesNotMatch(
   answerWorkspace,
   /generalReasons=\{/,

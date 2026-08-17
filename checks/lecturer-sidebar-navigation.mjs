@@ -109,6 +109,11 @@ assert.match(
 );
 assert.match(
   layout,
+  /reviewSearch\.has\("item"\)[\s\S]*?px-4 pb-9 pt-3 sm:px-6 md:pt-4 lg:px-8/,
+  "the review detail breadcrumb must align with the sidebar header row",
+);
+assert.match(
+  layout,
   /lecturerContentClass\(location\.pathname, location\.search\)/,
 );
 

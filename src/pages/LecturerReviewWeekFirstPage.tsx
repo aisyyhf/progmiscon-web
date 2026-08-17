@@ -805,7 +805,7 @@ export function LecturerReviewPage({
   initialAnswerId?: string;
 } = {}) {
   const { language } = useLanguage();
-  const { user, isAdmin } = useLecturerAuth();
+  const { user } = useLecturerAuth();
   const { misconceptions, loading: misconceptionsLoading } = useMisconceptions();
   const { tasks: answerTasks, loading: reviewTasksLoading } = useReviewTasks();
   const navigate = useNavigate();
@@ -1511,7 +1511,6 @@ export function LecturerReviewPage({
             submittedReview={activeQuestionReview}
             submittedReviewLoading={metadataLoading}
             submittedReviewError={loadError}
-            isAdmin={isAdmin}
             readOnly={reviewReadOnly}
             onViewHistory={viewHistory}
             onDirtyChange={setQuestionDirty}
@@ -1699,7 +1698,6 @@ export function LecturerReviewPage({
                 submittedReview={activeQuestionReview}
                 submittedReviewLoading={metadataLoading}
                 submittedReviewError={loadError}
-                isAdmin={isAdmin}
                 readOnly={reviewReadOnly}
                 onViewHistory={viewHistory}
                 onDirtyChange={setQuestionDirty}
@@ -1733,7 +1731,6 @@ export function LecturerReviewPage({
                 reviewedByMe={activeAnswerReviewedByMe}
                 globallyComplete={activeAnswerCount >= QUESTION_REVIEWED_THRESHOLD}
                 submittedReview={activeAnswerReview}
-                isAdmin={isAdmin}
                 onViewHistory={viewHistory}
                 onDirtyChange={setAnswerDirty}
                 onSelectAnswer={(answerId) => changeNavigation({ item: answerId })}

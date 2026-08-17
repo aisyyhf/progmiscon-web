@@ -17,6 +17,14 @@ const app = await readFile(
   new URL("../src/app/App.tsx", import.meta.url),
   "utf8",
 );
+const layout = await readFile(
+  new URL("../src/components/layout/LecturerLayout.tsx", import.meta.url),
+  "utf8",
+);
+const reasonCards = await readFile(
+  new URL("../src/components/review/MisconceptionReasonCards.tsx", import.meta.url),
+  "utf8",
+);
 
 const questionDetailStart = activePage.indexOf(
   'if (isQuestionDetailTask(navigation.task))',
@@ -52,9 +60,31 @@ assert.doesNotMatch(
   /<article className="[^"]*(?:review-folder-primary|rounded-lg border border-border bg-white)/,
 );
 assert.match(questionWorkspace, /<QuestionContent question=\{question\} \/>/);
-assert.match(questionWorkspace, /lg:sticky lg:top-6/);
+assert.match(questionWorkspace, /lg:sticky lg:top-4 lg:max-h-\[calc\(100dvh-2rem\)\] lg:overflow-y-auto/);
 assert.match(questionWorkspace, /REVIEW MISKONSEPSI SOAL/);
 assert.doesNotMatch(questionWorkspace, /Navigasi soal review|Sebelumnya|Berikutnya/);
+assert.doesNotMatch(workspacePage, /AdminQuestionContentEditor|isAdmin/);
+assert.match(layout, /reviewSearch\.has\("item"\)[\s\S]*?pb-9 pt-3 sm:px-6 md:pt-4/);
+assert.match(questionWorkspace, /text-\[1\.75rem\] font-semibold leading-9/);
+assert.match(questionWorkspace, /Jawaban yang benar/);
+assert.doesNotMatch(questionWorkspace, /Jawaban acuan|Reference answer/);
+assert.match(questionWorkspace, /Miskonsepsi terkait/);
+assert.match(questionWorkspace, /<TriangleAlert/);
+assert.match(questionWorkspace, /sm:grid-cols-2/);
+assert.match(questionWorkspace, /rounded-full bg-brand\/\[0\.055\]/);
+assert.match(questionWorkspace, /<MisconceptionReasonCards/);
+assert.match(reasonCards, /<BrainCircuit/);
+assert.match(reasonCards, /border-l-2 border-l-brand\/55/);
+assert.match(reasonCards, /Alasan/);
+assert.match(questionWorkspace, /absolute inset-x-0 top-0 h-0\.5 bg-brand/);
+assert.match(questionWorkspace, /<CircleCheckBig/);
+assert.equal(
+  questionWorkspace.match(/bg-brand text-xs font-semibold text-white/g)?.length,
+  3,
+);
+assert.match(questionWorkspace, /remove-misconception-question[\s\S]*?ml-1 text-brand">\*/);
+assert.match(questionWorkspace, /add-misconception-question[\s\S]*?ml-1 text-brand">\*/);
+assert.match(questionWorkspace, /placeholder=\{language === "id" \? "Komentar\.\." : "Comment\.\."\}/);
 
 assert.match(questionWorkspace, /Lihat evidence/);
 assert.match(questionWorkspace, /<details[\s\S]*?open=\{answerReviewEligible \|\| undefined\}/);

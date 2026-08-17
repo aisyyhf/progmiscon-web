@@ -22,7 +22,7 @@ export function QuestionContent({ question }: { question: Question }) {
   const sampleCases = question.sampleCases ?? [];
 
   return (
-    <div className="min-w-0">
+    <div className="review-question-content min-w-0">
       <div className="space-y-4">
         {blocks.map((block, index) =>
           block.type === "code" ? (
