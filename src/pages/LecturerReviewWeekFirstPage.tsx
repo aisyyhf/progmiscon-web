@@ -134,7 +134,7 @@ function ReviewBreadcrumb({
   const rootLabel = language === "id" ? "Review Soal" : "Question Review";
 
   return (
-    <nav aria-label="Breadcrumb" className="mb-4 overflow-x-auto text-xs text-muted">
+    <nav aria-label="Breadcrumb" className="mb-4 overflow-x-auto text-[10px] leading-4 text-muted">
       <ol className="flex min-w-max items-center gap-1.5">
         <li>
           {onOverview ? (

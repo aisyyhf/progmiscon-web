@@ -17,13 +17,13 @@ function Reason({ reasons }: { reasons: LocalizedText[] }) {
         {language === "id" ? "Alasan" : "Reason"}
       </p>
       {reasons.length > 0 ? (
-        <div className="mt-1.5 space-y-1 whitespace-pre-wrap text-sm font-normal leading-6 text-navy-deep">
+        <div className="mt-1.5 space-y-1 whitespace-pre-wrap text-xs font-normal leading-5 text-navy-deep">
           {reasons.map((reason, index) => (
             <p key={index}>{t(reason, language)}</p>
           ))}
         </div>
       ) : (
-        <p className="mt-1.5 text-sm font-normal leading-6 text-muted">
+        <p className="mt-1.5 text-xs font-normal leading-5 text-muted">
           {language === "id"
             ? "Alasan belum tersedia"
             : "Reason not yet available"}
@@ -64,7 +64,7 @@ export function MisconceptionReasonCards({
         </span>
       </h3>
       {presentation.cards.length === 0 && presentation.generalReasons.length === 0 ? (
-        <p className="mt-3 text-sm leading-6 text-muted">
+        <p className="mt-3 text-xs font-normal leading-5 text-muted">
           {language === "id"
             ? "Belum ada miskonsepsi teridentifikasi"
             : "No misconceptions have been identified yet"}
@@ -79,7 +79,7 @@ export function MisconceptionReasonCards({
                 className="min-w-0 rounded-r-lg border border-border border-l-2 border-l-brand/55 bg-white px-4 py-3.5"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-medium leading-6 text-navy-deep">
+                  <p className="text-xs font-medium leading-5 text-navy-deep">
                     {misconceptionLabel(misconception, language)}
                   </p>
                   <ArrowRight size={15} strokeWidth={1.8} aria-hidden="true" className="mt-1 shrink-0 text-muted" />
@@ -90,10 +90,10 @@ export function MisconceptionReasonCards({
           })}
           {presentation.generalReasons.length > 0 && (
             <article className="min-w-0 rounded-r-lg border border-border border-l-2 border-l-[#b09f85] bg-bg px-4 py-3.5">
-              <p className="text-sm font-medium leading-6 text-navy-deep">
+              <p className="text-xs font-medium leading-5 text-navy-deep">
                 {language === "id" ? "Catatan umum jawaban" : "General answer note"}
               </p>
-              <div className="mt-2 space-y-1 whitespace-pre-wrap text-sm leading-6 text-navy-deep">
+              <div className="mt-2 space-y-1 whitespace-pre-wrap text-xs font-normal leading-5 text-navy-deep">
                 {presentation.generalReasons.map((reason, index) => (
                   <p key={index}>{t(reason, language)}</p>
                 ))}

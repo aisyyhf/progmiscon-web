@@ -23,14 +23,14 @@ export function QuestionContent({ question }: { question: Question }) {
 
   return (
     <div className="review-question-content min-w-0">
-      <div className="space-y-4">
+      <div className="space-y-3">
         {blocks.map((block, index) =>
           block.type === "code" ? (
             <div key={`${block.type}-${index}`} className="min-w-0 overflow-hidden rounded-md border border-navy-deep/15">
               <PseudocodeBlock code={block.content} />
             </div>
           ) : (
-            <p key={`${block.type}-${index}`} className="max-w-4xl whitespace-pre-wrap text-sm leading-7 text-navy-deep">
+            <p key={`${block.type}-${index}`} className="max-w-4xl whitespace-pre-wrap text-xs font-normal leading-5 text-navy-deep">
               {block.content}
             </p>
           ),
@@ -38,14 +38,14 @@ export function QuestionContent({ question }: { question: Question }) {
       </div>
 
       {sampleCases.length > 0 && (
-        <section className="mt-6 border-t border-border pt-5" aria-label={language === "id" ? "Contoh masukan dan keluaran" : "Sample input and output"}>
+        <section className="mt-4 border-t border-border pt-4" aria-label={language === "id" ? "Contoh masukan dan keluaran" : "Sample input and output"}>
           <h3 className="academic-label">{language === "id" ? "Contoh kasus" : "Sample cases"}</h3>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <div className="mt-2.5 grid gap-2.5 sm:grid-cols-2">
             {sampleCases.map((sample, index) => (
-              <article key={`${sample.input}\u0000${sample.output}-${index}`} className="min-w-0 rounded-md border border-border bg-white p-3">
-                <p className="text-xs font-bold text-muted">{language === "id" ? "Masukan" : "Input"}</p>
+              <article key={`${sample.input}\u0000${sample.output}-${index}`} className="min-w-0 rounded-md border border-border bg-white p-2.5">
+                <p className="text-xs font-medium text-muted">{language === "id" ? "Masukan" : "Input"}</p>
                 <pre className="mt-1 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-navy-deep">{sample.input}</pre>
-                <p className="mt-3 text-xs font-bold text-muted">{language === "id" ? "Keluaran" : "Output"}</p>
+                <p className="mt-2.5 text-xs font-medium text-muted">{language === "id" ? "Keluaran" : "Output"}</p>
                 <pre className="mt-1 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-navy-deep">{sample.output}</pre>
               </article>
             ))}

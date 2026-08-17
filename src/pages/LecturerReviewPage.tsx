@@ -155,7 +155,7 @@ function PresenceToggle({
           disabled={option.value && yesDisabled}
           onClick={() => onChange(option.value)}
           className={cn(
-            "min-h-9 cursor-pointer rounded px-3 py-2 text-sm font-medium leading-5 transition-[background-color,color,box-shadow] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40",
+            "min-h-9 cursor-pointer rounded px-3 py-2 text-xs font-normal leading-5 transition-[background-color,color,box-shadow] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40",
             value === option.value
               ? option.value
                 ? "bg-white text-brand shadow-[0_2px_8px_rgba(30,41,59,0.08)]"
@@ -2276,7 +2276,7 @@ export function QuestionValidationWorkspace({
 
 
   return (
-    <div className="review-question-detail">
+    <div className="review-question-detail mt-2">
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] lg:items-start xl:gap-14">
         <article className="min-w-0">
           <section aria-labelledby="review-question-title">
@@ -2284,24 +2284,24 @@ export function QuestionValidationWorkspace({
               <h2
                 id="review-question-title"
                 aria-label={`${questionTitle}, ${displayQuestionCode}`}
-                className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[1.375rem] font-semibold leading-8 tracking-[-0.02em] text-navy-deep md:text-2xl"
+                className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-[1.4375rem] font-semibold leading-8 tracking-[-0.02em] text-navy-deep md:text-[1.5625rem]"
               >
                 <span>{questionTitle}</span>
                 <span className="text-xs font-normal leading-5 tracking-normal text-muted">
                   {displayQuestionCode}
                 </span>
               </h2>
-              <dl className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs font-normal leading-[18px] text-navy-deep">
-                <div className="flex items-center gap-1.5">
-                  <CalendarDays size={13} strokeWidth={1.8} aria-hidden="true" className="text-brand" />
+              <dl className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] font-normal leading-5">
+                <div className="review-detail-meta-week flex items-center gap-1.5">
+                  <CalendarDays size={14} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
                   <dt className="sr-only">Week</dt>
                   <dd>
                     <span aria-hidden="true">Week </span>
                     {normalizedWeekNumber}
                   </dd>
                 </div>
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <ListFilter size={13} strokeWidth={1.8} aria-hidden="true" className="shrink-0 text-brand" />
+                <div className="review-detail-meta-kc flex min-w-0 items-center gap-1.5">
+                  <ListFilter size={14} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
                   <dt className="sr-only">KC</dt>
                   <dd className="min-w-0">
                     <span className="font-medium">KC:</span>{" "}
@@ -2319,7 +2319,7 @@ export function QuestionValidationWorkspace({
                     aria-label={reviewerCountLabel}
                     className="flex items-center gap-1.5 text-brand"
                   >
-                    <Users size={13} strokeWidth={1.8} aria-hidden="true" />
+                    <Users size={14} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
                     <dt className="sr-only">{reviewerLabel}</dt>
                     <dd className="font-medium tabular-nums">
                       {reviewerLabel}: {reviewerCount}/{QUESTION_REVIEWED_THRESHOLD}
@@ -2329,11 +2329,11 @@ export function QuestionValidationWorkspace({
               </dl>
             </header>
 
-            <div className="mt-6"><QuestionContent question={question} /></div>
+            <div className="mt-4"><QuestionContent question={question} /></div>
           </section>
 
           {question.options && (
-            <section className="mt-6">
+            <section className="mt-4">
               <h3 className="mb-3 text-base font-semibold leading-6 text-navy-deep">{language === "id" ? "Pilihan jawaban" : "Answer options"}</h3>
               <ul className="space-y-2">
                 {question.options.map((option) => {
@@ -2345,7 +2345,7 @@ export function QuestionValidationWorkspace({
                     <li
                       key={option.id}
                       className={cn(
-                        "flex items-start gap-3 rounded-md border px-4 py-3 text-sm font-normal leading-6",
+                        "flex items-start gap-3 rounded-md border px-3.5 py-2.5 text-xs font-normal leading-5",
                         option.isCorrect
                           ? "border-correct-border bg-correct-bg"
                           : "border-border bg-white",
@@ -2377,7 +2377,7 @@ export function QuestionValidationWorkspace({
             </section>
           )}
 
-          <section className="mt-6 border-t border-border pt-5">
+          <section className="mt-4 border-t border-border pt-4">
             <h3 className="flex items-center gap-2 text-base font-semibold leading-6 tracking-[-0.01em] text-navy-deep">
               <TriangleAlert size={17} strokeWidth={1.9} aria-hidden="true" className="text-brand" />
               <span>
@@ -2387,27 +2387,27 @@ export function QuestionValidationWorkspace({
               </span>
             </h3>
             {recommended.length > 0 ? (
-              <div className="mt-3 grid gap-2.5 sm:grid-cols-2">
+              <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
                 {recommended.map((item) => (
                   <button
                     key={item.id}
                     type="button"
                     onClick={() => onSelectMisconception(item.id)}
-                    className="group/misconception relative min-h-24 overflow-hidden rounded-lg border border-brand/20 bg-brand-soft/35 px-3.5 py-3 text-left transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-brand/40 hover:bg-brand-soft/55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 motion-reduce:translate-y-0"
+                    className="group/misconception relative min-h-[4.5rem] overflow-hidden rounded-md border border-brand/20 bg-brand-soft/35 px-3 py-2.5 text-left transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-brand/40 hover:bg-brand-soft/55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 motion-reduce:translate-y-0"
                   >
-                    <span aria-hidden="true" className="absolute -right-4 -top-4 h-16 w-16 rounded-full bg-brand/[0.055]" />
-                    <ArrowRight size={14} strokeWidth={1.8} aria-hidden="true" className="absolute right-3 top-3 text-brand transition-transform duration-150 group-hover/misconception:translate-x-0.5 motion-reduce:translate-x-0" />
-                    <span className="relative block font-mono text-[11px] font-medium leading-[18px] text-brand">
+                    <span aria-hidden="true" className="absolute -right-3 -top-3 h-12 w-12 rounded-full bg-brand/[0.055]" />
+                    <ArrowRight size={13} strokeWidth={1.8} aria-hidden="true" className="absolute right-2.5 top-2.5 text-brand transition-transform duration-150 group-hover/misconception:translate-x-0.5 motion-reduce:translate-x-0" />
+                    <span className="relative block font-mono text-[11px] font-normal leading-4 text-brand">
                       {item.id}
                     </span>
-                    <span className="relative mt-1 block pr-5 text-sm font-medium leading-5 text-navy-deep">
+                    <span className="relative mt-0.5 block pr-4 text-xs font-normal leading-[18px] text-navy-deep">
                       {t(item.title, language)}
                     </span>
                   </button>
                 ))}
               </div>
             ) : (
-              <p className="mt-3 text-sm text-muted">
+              <p className="mt-3 text-xs leading-5 text-muted">
                 {t(uiText.emptyMisconceptions, language)}
               </p>
             )}
@@ -2431,7 +2431,7 @@ export function QuestionValidationWorkspace({
               ) : (
                 <summary
                   id="related-answers-title"
-                  className="flex min-h-10 w-fit cursor-pointer list-none items-center gap-2 rounded-md border border-[#ccbab0] bg-[var(--review-page)] px-3 py-2 text-sm font-medium leading-5 text-black transition-[background-color,border-color,color] duration-150 hover:border-[#b09f85] hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden"
+                  className="flex min-h-9 w-fit cursor-pointer list-none items-center gap-2 rounded-md border border-[#ccbab0] bg-[var(--review-page)] px-3 py-2 text-xs font-medium leading-5 text-black transition-[background-color,border-color,color] duration-150 hover:border-[#b09f85] hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden"
                 >
                   {language === "id" ? "Lihat evidence" : "View evidence"}
                   <span className="tabular-nums text-muted">
@@ -2518,7 +2518,7 @@ export function QuestionValidationWorkspace({
                       </div>
 
                       {question.type === "multiple_choice" ? (
-                        <p className="mt-3 break-words rounded bg-neutral/70 px-3 py-2.5 text-sm leading-6 text-navy-deep">
+                        <p className="mt-3 break-words rounded bg-neutral/70 px-3 py-2.5 text-xs font-normal leading-5 text-navy-deep">
                           {answerText ||
                               (language === "id"
                                 ? "Teks jawaban tidak tersedia."
@@ -2562,7 +2562,7 @@ export function QuestionValidationWorkspace({
                       <button
                         type="button"
                         onClick={() => onReviewAnswer(answer.id)}
-                        className="mt-4 inline-flex w-fit items-center gap-1 rounded-sm text-sm font-medium leading-5 text-brand transition-[color,transform] duration-150 hover:translate-x-0.5 hover:text-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-x-0 motion-reduce:translate-x-0"
+                        className="mt-4 inline-flex w-fit items-center gap-1 rounded-sm text-xs font-medium leading-5 text-brand transition-[color,transform] duration-150 hover:translate-x-0.5 hover:text-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-x-0 motion-reduce:translate-x-0"
                       >
                         {language === "id" ? "Review jawaban" : "Review answer"}
                         <span aria-hidden="true">→</span>
@@ -2573,7 +2573,7 @@ export function QuestionValidationWorkspace({
                 })}
               </ul>
             ) : (
-              <p className="mt-2 text-sm text-muted">
+              <p className="mt-2 text-xs leading-5 text-muted">
                 {language === "id"
                   ? "Belum ada jawaban terkait untuk soal ini"
                   : "There are no related answers for this question"}
@@ -2584,9 +2584,9 @@ export function QuestionValidationWorkspace({
           </section>
         </article>
 
-        <aside className="thin-scroll relative overflow-x-hidden rounded-xl border border-[#ccbab0] bg-white p-5 shadow-[0_18px_48px_rgba(176,159,133,0.12)] md:p-6 lg:sticky lg:top-14 lg:max-h-[calc(100dvh-4.5rem)] lg:overflow-y-auto">
+        <aside className="relative rounded-xl border border-[#ccbab0] bg-white p-5 shadow-[0_18px_48px_rgba(176,159,133,0.12)] md:p-6">
           <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-brand" />
-          <CircleCheckBig aria-hidden="true" strokeWidth={1.15} className="pointer-events-none absolute -right-2 top-2 h-36 w-36 -rotate-6 text-brand/[0.045]" />
+          <CircleCheckBig aria-hidden="true" strokeWidth={1.15} className="pointer-events-none absolute right-2 top-2 h-36 w-36 -rotate-6 text-brand/[0.045]" />
           {reviewedByMe && (
             <SubmittedQuestionReview
               review={submittedReview}
@@ -2646,11 +2646,11 @@ export function QuestionValidationWorkspace({
             </legend>
             <section aria-labelledby="remove-misconception-question">
               <div className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand text-xs font-semibold text-white" aria-hidden="true">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand text-xs font-medium text-white" aria-hidden="true">
                   1
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p id="remove-misconception-question" className="text-sm font-normal leading-6 text-navy-deep">
+                  <p id="remove-misconception-question" className="text-xs font-normal leading-5 text-navy-deep">
                     {language === "id"
                       ? "Apakah ada miskonsepsi yang tidak seharusnya dicantumkan?"
                       : "Are any misconceptions listed that should not be included?"}
@@ -2684,7 +2684,7 @@ export function QuestionValidationWorkspace({
                     </legend>
                     <div className="mt-2 space-y-2">
                       {recommended.map((item) => (
-                        <label key={item.id} className="flex cursor-pointer items-start gap-2.5 rounded-md border border-border bg-white px-3 py-2.5 text-sm leading-5 text-navy-deep">
+                        <label key={item.id} className="flex cursor-pointer items-start gap-2.5 rounded-md border border-border bg-white px-3 py-2.5 text-xs font-normal leading-5 text-navy-deep">
                           <input
                             type="checkbox"
                             checked={removedMisconceptionIds.includes(item.id)}
@@ -2730,7 +2730,7 @@ export function QuestionValidationWorkspace({
                     }
                     aria-required="true"
                     placeholder={language === "id" ? "Jelaskan mengapa perlu dihapus" : "Explain why it should be removed"}
-                    className="academic-input min-h-20 px-3 py-2.5 text-sm placeholder:text-muted/65"
+                    className="academic-input min-h-20 px-3 py-2.5 text-xs placeholder:text-muted/65"
                   />
                 </div>
               )}
@@ -2738,11 +2738,11 @@ export function QuestionValidationWorkspace({
 
             <section className="border-t border-border pt-6" aria-labelledby="add-misconception-question">
               <div className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand text-xs font-semibold text-white" aria-hidden="true">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand text-xs font-medium text-white" aria-hidden="true">
                   2
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p id="add-misconception-question" className="text-sm font-normal leading-6 text-navy-deep">
+                  <p id="add-misconception-question" className="text-xs font-normal leading-5 text-navy-deep">
                     {language === "id"
                       ? "Apakah ada miskonsepsi lain yang perlu ditambahkan?"
                       : "Should any other misconceptions be added?"}
@@ -2802,7 +2802,7 @@ export function QuestionValidationWorkspace({
                     }
                     aria-required="true"
                     placeholder={language === "id" ? "Jelaskan mengapa perlu ditambahkan" : "Explain why it should be added"}
-                    className="academic-input min-h-20 px-3 py-2.5 text-sm placeholder:text-muted/65"
+                    className="academic-input min-h-20 px-3 py-2.5 text-xs placeholder:text-muted/65"
                   />
                 </div>
               )}
@@ -2810,11 +2810,11 @@ export function QuestionValidationWorkspace({
 
             <section className="border-t border-border pt-6" aria-labelledby="additional-comment-label">
               <div className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand text-xs font-semibold text-white" aria-hidden="true">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand text-xs font-medium text-white" aria-hidden="true">
                   3
                 </span>
                 <div className="min-w-0 flex-1">
-                  <label id="additional-comment-label" htmlFor="question-validation-note" className="block text-sm font-normal leading-6 text-navy-deep">
+                  <label id="additional-comment-label" htmlFor="question-validation-note" className="block text-xs font-normal leading-5 text-navy-deep">
                     {language === "id" ? "Komentar tambahan" : "Additional comment"}
                   </label>
                   <textarea
@@ -2827,7 +2827,7 @@ export function QuestionValidationWorkspace({
                       })
                     }
                     placeholder={language === "id" ? "Komentar.." : "Comment.."}
-                    className="academic-input mt-3 min-h-24 px-3 py-2.5 text-sm placeholder:text-muted/65"
+                    className="academic-input mt-3 min-h-24 px-3 py-2.5 text-xs placeholder:text-muted/65"
                   />
                 </div>
               </div>
