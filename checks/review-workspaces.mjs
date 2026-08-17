@@ -120,11 +120,11 @@ assert.deepEqual(getReviewProgress(items["answer-mp"], ["A-MP-1"]), {
 
 const sequenceAnswers = [
   { id: "A-1", questionId: "Q-MP-1", sourceVersion: "v1" },
+  { id: "A-OTHER", questionId: "Q-MP-OTHER", sourceVersion: "v1" },
   { id: "A-2", questionId: "Q-MP-1", sourceVersion: "v1" },
   { id: "A-3", questionId: "Q-MP-1", sourceVersion: "v1" },
   { id: "A-3", questionId: "Q-MP-1", sourceVersion: "v1" },
   { id: "A-STALE", questionId: "Q-MP-1" },
-  { id: "A-OTHER", questionId: "Q-PS-1", sourceVersion: "v1" },
 ];
 const actionableSequence = getActionableAnswerReviewSequence(
   questions[1],
@@ -149,7 +149,7 @@ assert.equal(
 );
 const fullSequence = getActionableAnswerReviewSequence(
   questions[1],
-  sequenceAnswers.slice(0, 3),
+  sequenceAnswers.filter(({ id }) => ["A-1", "A-2", "A-3"].includes(id)),
   [],
   new Map(),
   3,
@@ -163,6 +163,22 @@ assert.equal(
   getNextUnreviewedAnswerId(fullSequence, ["A-1", "A-2", "A-3"], "A-3"),
   undefined,
   "confirmed saves terminate the sequence without looping",
+);
+const noRemainingSequence = getActionableAnswerReviewSequence(
+  questions[1],
+  sequenceAnswers,
+  ["A-2"],
+  new Map([
+    ["A-1", 3],
+    ["A-2", 3],
+    ["A-3", 3],
+  ]),
+  3,
+);
+assert.equal(
+  getNextUnreviewedAnswerId(noRemainingSequence, ["A-2"]),
+  undefined,
+  "zero remaining actionable MP answers completes the workflow",
 );
 assert.deepEqual(
   getActionableAnswerReviewSequence(

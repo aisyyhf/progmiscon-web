@@ -61,6 +61,10 @@ const answerRemovalSection = answerWorkspace.slice(
   answerWorkspace.indexOf('aria-labelledby="remove-answer-misconception-question"'),
   answerWorkspace.indexOf('aria-labelledby="add-answer-misconception-question"'),
 );
+const completionDialog = activePage.slice(
+  activePage.indexOf("function ReviewCompletionDialog"),
+  activePage.indexOf("function WeekOverview"),
+);
 
 assert.ok(questionDetailStart >= 0 && questionDetailEnd > questionDetailStart);
 assert.match(questionDetail, /<ReviewBreadcrumb/);
@@ -95,7 +99,8 @@ assert.match(questionWorkspace, /displayQuestionCode = `#\$\{questionCode\.repla
 assert.match(questionWorkspace, /\{questionTitle\}[\s\S]*?\{displayQuestionCode\}/);
 assert.match(questionWorkspace, /text-xs font-normal leading-5 tracking-normal text-muted/);
 assert.match(questionWorkspace, /text-\[13px\] font-normal leading-5/);
-assert.match(questionWorkspace, /<ListFilter size=\{14\}/);
+assert.match(questionWorkspace, /<Lightbulb size=\{14\}/);
+assert.doesNotMatch(questionWorkspace, /<ListFilter size=\{14\}/);
 assert.doesNotMatch(questionWorkspace, /review-detail-meta-week|normalizedWeekNumber/);
 assert.match(questionWorkspace, /review-detail-meta-kc/);
 assert.match(styles, /review-detail-meta-kc[\s\S]*?var\(--progmiscon-secondary\) 60%[\s\S]*?var\(--progmiscon-text\)/);
@@ -215,13 +220,34 @@ assert.match(activePage, /getActiveCurrentQuestionReviewIds\(questionHistory, so
 assert.match(activePage, /getActiveCurrentAnswerReviewIds\(answerHistory, sourceVersions\.answers\)/);
 assert.match(activePage, /Review soal telah berhasil disimpan\./);
 assert.match(activePage, /Review soal dan seluruh jawaban yang tersedia telah selesai\./);
+assert.match(completionDialog, /createPortal\(/);
+assert.match(completionDialog, /<dialog/);
+assert.match(completionDialog, /fixed inset-0[^"]*h-dvh[^"]*w-screen[^"]*backdrop:bg-black\/25/);
+assert.match(completionDialog, /document\.body\.style\.overflow = "hidden"/);
+assert.match(completionDialog, /document\.body/);
+assert.match(completionDialog, /p-6 text-center/);
+assert.match(completionDialog, /mx-auto flex h-9 w-9/);
+assert.match(completionDialog, /className="mt-5 w-full justify-center"/);
 assert.match(activePage, /getActionableAnswerReviewSequence/);
 assert.match(activePage, /getNextUnreviewedAnswerId/);
 assert.match(activePage, /confirmedQuestionReviewIds/);
 assert.match(activePage, /confirmedAnswerReviewIds/);
+assert.match(activePage, /pendingNavigation \?\?/);
+assert.match(activePage, /setPendingNavigation\(next\)/);
+assert.match(activePage, /pendingNavigation \|\|/);
+assert.match(
+  activePage,
+  /if \(!alreadyReviewed\) \{[\s\S]*?activeQuestion\.type !== "multiple_choice"[\s\S]*?getNextUnreviewedAnswerId\([\s\S]*?resolveAnswerDeepLink\(/,
+  "only first-time MP saves may start the answer continuation",
+);
 assert.match(
   activePage,
   /status: "reviewed",\s*item: activeQuestion\.id,[\s\S]*?setCompletionDialog\("question"\)/,
+);
+assert.match(
+  activePage,
+  /if \(target\) \{\s*commitNavigation\(target\);\s*\} else \{\s*commitNavigation\(\{[\s\S]*?item: activeQuestion\.id,[\s\S]*?setCompletionDialog\("workflow"\)/,
+  "an MP question with no eligible answer completes without selecting another question",
 );
 assert.match(
   activePage,

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Check,
   ChevronDown,
@@ -190,44 +191,58 @@ function ReviewCompletionDialog({
   language: Language;
   onConfirm: () => void;
 }) {
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/25 p-4"
-      role="presentation"
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialog.showModal();
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      if (dialog.open) dialog.close();
+    };
+  }, []);
+
+  return createPortal(
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="review-completion-title"
+      aria-describedby="review-completion-description"
+      className="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-transparent p-0 backdrop:bg-black/25"
     >
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="review-completion-title"
-        aria-describedby="review-completion-description"
-        className="w-full max-w-sm rounded-xl border border-[#ccbab0] bg-[#fbfbfe] p-6 shadow-[0_24px_70px_rgba(0,0,0,0.18)]"
-      >
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white">
-          <Check size={18} strokeWidth={2.5} aria-hidden="true" />
-        </div>
-        <h2 id="review-completion-title" className="mt-4 text-lg font-semibold text-black">
-          {language === "id" ? "Review selesai" : "Review complete"}
-        </h2>
-        <p id="review-completion-description" className="mt-2 text-sm leading-6 text-muted">
-          {kind === "question"
-            ? language === "id"
-              ? "Review soal telah berhasil disimpan."
-              : "The question review was saved successfully."
-            : language === "id"
-              ? "Review soal dan seluruh jawaban yang tersedia telah selesai."
-              : "The question and all available answers have been reviewed."}
-        </p>
-        <Button
-          type="button"
-          variant="primary"
-          onClick={onConfirm}
-          autoFocus
-          className="mt-5 w-full justify-center"
-        >
-          {language === "id" ? "Kembali ke" : "Return to"} {formatWeekLabel(week)}
-        </Button>
-      </section>
-    </div>
+      <div className="flex min-h-full items-center justify-center p-4">
+        <section className="w-full max-w-sm rounded-xl border border-[#ccbab0] bg-[#fbfbfe] p-6 text-center shadow-[0_24px_70px_rgba(0,0,0,0.18)]">
+          <div className="mx-auto flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white">
+            <Check size={18} strokeWidth={2.5} aria-hidden="true" />
+          </div>
+          <h2 id="review-completion-title" className="mt-4 text-lg font-semibold text-black">
+            {language === "id" ? "Review selesai" : "Review complete"}
+          </h2>
+          <p id="review-completion-description" className="mt-2 text-sm leading-6 text-muted">
+            {kind === "question"
+              ? language === "id"
+                ? "Review soal telah berhasil disimpan."
+                : "The question review was saved successfully."
+              : language === "id"
+                ? "Review soal dan seluruh jawaban yang tersedia telah selesai."
+                : "The question and all available answers have been reviewed."}
+          </p>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={onConfirm}
+            autoFocus
+            className="mt-5 w-full justify-center"
+          >
+            {language === "id" ? "Kembali ke" : "Return to"}{" "}
+            {formatWeekLabel(week)}
+          </Button>
+        </section>
+      </div>
+    </dialog>,
+    document.body,
   );
 }
 
@@ -882,6 +897,9 @@ export function LecturerReviewPage({
   const [reviewNavigationInput, setReviewNavigationInput] = useState<
     Partial<ReviewNavigationState>
   >(() => readInitialNavigation(location.search));
+  const [pendingNavigation, setPendingNavigation] = useState<
+    ReviewNavigationState | undefined
+  >();
   const [snapshotLoading, setSnapshotLoading] = useState(true);
   const [metadataLoading, setMetadataLoading] = useState(true);
   const [snapshotLoaded, setSnapshotLoaded] = useState(false);
@@ -1082,9 +1100,10 @@ export function LecturerReviewPage({
   const navigation = useMemo(
     () =>
       normalizeReviewNavigationState(
-        location.pathname === "/review" && urlNavigation.hasParameters
-          ? urlNavigation.state
-          : reviewNavigationInput,
+        pendingNavigation ??
+          (location.pathname === "/review" && urlNavigation.hasParameters
+            ? urlNavigation.state
+            : reviewNavigationInput),
         {
         questions,
         answers: orderedAnswers,
@@ -1095,6 +1114,7 @@ export function LecturerReviewPage({
     [
       location.pathname,
       orderedAnswers,
+      pendingNavigation,
       questions,
       reviewNavigationInput,
       reviewedAnswerIds,
@@ -1118,6 +1138,7 @@ export function LecturerReviewPage({
       next: ReviewNavigationState,
       options: { readOnly?: boolean; replace?: boolean } = {},
     ) => {
+      setPendingNavigation(next);
       setReviewNavigationInput(next);
       const search = `${serializeReviewNavigationSearch(next)}${
         options.readOnly && next.task === "question" ? "&mode=view" : ""
@@ -1131,9 +1152,22 @@ export function LecturerReviewPage({
   );
 
   useEffect(() => {
+    if (!pendingNavigation) return;
+    const pendingSearch = serializeReviewNavigationSearch(pendingNavigation);
+    if (
+      location.pathname === "/review" &&
+      (location.search === pendingSearch ||
+        location.search === `${pendingSearch}&mode=view`)
+    ) {
+      setPendingNavigation(undefined);
+    }
+  }, [location.pathname, location.search, pendingNavigation]);
+
+  useEffect(() => {
     if (
       !navigationReady ||
       reviewStage !== "detail" ||
+      pendingNavigation ||
       (initialAnswerId && handledInitialAnswerId !== initialAnswerId)
     ) {
       return;
@@ -1162,6 +1196,7 @@ export function LecturerReviewPage({
     navigate,
     navigation,
     navigationReady,
+    pendingNavigation,
     reviewReadOnly,
     reviewStage,
   ]);

@@ -340,6 +340,52 @@ assert.deepEqual(deepLink, {
 });
 assert.equal(resolveAnswerDeepLink("PS-EVIDENCE", questions, answers, []), undefined);
 
+const staleMpQuestionNavigation = {
+  week: "W02",
+  task: "question",
+  status: "unreviewed",
+  type: "all",
+  item: "W02-MP-1",
+};
+const staleNormalizedAfterSave = normalizeReviewNavigationState(
+  staleMpQuestionNavigation,
+  {
+    questions,
+    answers,
+    reviewedQuestionIds: ["W02-MP-1"],
+    reviewedAnswerIds: [],
+  },
+);
+assert.equal(staleNormalizedAfterSave.task, "question");
+assert.notEqual(
+  staleNormalizedAfterSave.item,
+  "W02-MP-1",
+  "a stale unreviewed-question URL falls through to the next question after save",
+);
+const mpContinuation = resolveAnswerDeepLink(
+  "MP-ANSWER-1",
+  questions,
+  answers,
+  [],
+);
+assert.ok(mpContinuation);
+const normalizedMpContinuation = normalizeReviewNavigationState(
+  mpContinuation,
+  {
+    questions,
+    answers,
+    reviewedQuestionIds: ["W02-MP-1"],
+    reviewedAnswerIds: [],
+  },
+);
+assert.equal(normalizedMpContinuation.task, "answer");
+assert.equal(normalizedMpContinuation.item, "MP-ANSWER-1");
+assert.equal(
+  answers.find(({ id }) => id === normalizedMpContinuation.item)?.questionId,
+  "W02-MP-1",
+  "the explicit MP continuation stays on an answer owned by the saved question",
+);
+
 const search = serializeReviewNavigationSearch(deepLink);
 assert.deepEqual(parseReviewNavigationSearch(search), {
   hasParameters: true,

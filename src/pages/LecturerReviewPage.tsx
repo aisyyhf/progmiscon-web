@@ -12,6 +12,7 @@ import {
   ChevronDown,
   CircleCheckBig,
   History,
+  Lightbulb,
   ListFilter,
   LockKeyhole,
   TriangleAlert,
@@ -2240,7 +2241,7 @@ export function QuestionValidationWorkspace({
               </h2>
               <dl className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] font-normal leading-5">
                 <div className="review-detail-meta-kc flex min-w-0 items-center gap-1.5">
-                  <ListFilter size={14} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
+                  <Lightbulb size={14} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
                   <dt className="sr-only">{language === "id" ? "Konsep" : "Concepts"}</dt>
                   <dd className="min-w-0">
                     <span className="font-medium">
