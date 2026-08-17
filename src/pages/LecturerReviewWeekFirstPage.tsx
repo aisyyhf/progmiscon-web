@@ -303,16 +303,16 @@ function WeekQuestionList({
       label: language === "id" ? "Esai" : "Essay",
       explanation:
         language === "id"
-          ? "Esai merupakan tipe PS (Short Answer)."
-          : "Essay corresponds to PS (Short Answer).",
+          ? "Esai — tipe PS"
+          : "Essay — PS type",
     },
     {
       value: "mp",
       label: language === "id" ? "Pilihan Ganda" : "Multiple Choice",
       explanation:
         language === "id"
-          ? "Pilihan Ganda merupakan tipe MP (Multiple Choice)."
-          : "Multiple Choice corresponds to MP (Multiple Choice).",
+          ? "Pilihan Ganda — tipe MP"
+          : "Multiple Choice — MP type",
     },
   ] as const;
   const selectedType =

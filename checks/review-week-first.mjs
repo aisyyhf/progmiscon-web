@@ -353,10 +353,6 @@ const questionTypeSource = await readFile(
   new URL("../src/types/question.ts", import.meta.url),
   "utf8",
 );
-const translationSource = await readFile(
-  new URL("../src/utils/translation.ts", import.meta.url),
-  "utf8",
-);
 const validationWorkspace = await readFile(
   new URL("../src/pages/LecturerReviewPage.tsx", import.meta.url),
   "utf8",
@@ -423,18 +419,20 @@ assert.match(activePage, /function QuestionTypeTooltipLabel/);
 assert.match(activePage, /role="tooltip"/);
 assert.match(listSource, /<QuestionTypeTooltipLabel/);
 assert.match(listSource, /focusable=\{questionStatus !== "unreviewed"\}/);
-assert.match(listSource, /Esai merupakan tipe PS \(Short Answer\)\./);
-assert.match(listSource, /Essay corresponds to PS \(Short Answer\)\./);
-assert.match(listSource, /Pilihan Ganda merupakan tipe MP \(Multiple Choice\)\./);
-assert.match(listSource, /Multiple Choice corresponds to MP \(Multiple Choice\)\./);
+assert.match(listSource, /Esai — tipe PS/);
+assert.match(listSource, /Essay — PS type/);
+assert.match(listSource, /Pilihan Ganda — tipe MP/);
+assert.match(listSource, /Multiple Choice — MP type/);
+assert.doesNotMatch(
+  listSource,
+  /Short Answer|Problem Solving|Pseudocode|Misconception Probe|Misconception Prohibition/,
+);
 assert.match(questionMetadataSource, /\["ps", "short_answer"\]/);
 assert.match(questionMetadataSource, /\["mp", "multiple_choice"\]/);
 assert.match(
   questionTypeSource,
   /QuestionType = "short_answer" \| "multiple_choice"/,
 );
-assert.match(translationSource, /en: "Short Answer"/);
-assert.match(translationSource, /en: "Multiple Choice"/);
 assert.match(activePage, /placeholder="Search"/);
 assert.doesNotMatch(listSource, /weekTotal/);
 assert.doesNotMatch(listSource, /dari \$\{filteredQuestions\.length\} soal/);
