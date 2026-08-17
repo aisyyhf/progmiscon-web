@@ -83,7 +83,8 @@ assert.doesNotMatch(
   /<article className="[^"]*(?:review-folder-primary|rounded-lg border border-border bg-white)/,
 );
 assert.match(questionWorkspace, /<QuestionContent question=\{question\} \/>/);
-assert.match(questionWorkspace, /review-question-detail mt-6 md:mt-10/);
+assert.match(questionWorkspace, /review-question-detail mt-6/);
+assert.doesNotMatch(questionWorkspace, /review-question-detail mt-6 md:mt-10/);
 assert.doesNotMatch(questionWorkspace, /lg:sticky|lg:max-h-|lg:overflow-y-auto|thin-scroll/);
 assert.match(questionWorkspace, /REVIEW MISKONSEPSI SOAL/);
 assert.doesNotMatch(questionWorkspace, /Navigasi soal review|Sebelumnya|Berikutnya/);
@@ -114,7 +115,8 @@ assert.match(questionWorkspace, /<MisconceptionReasonCards/);
 assert.match(reasonCards, /<BrainCircuit/);
 assert.match(reasonCards, /border-l-2 border-l-brand\/55/);
 assert.match(reasonCards, /Alasan/);
-assert.match(questionWorkspace, /absolute inset-x-0 top-0 h-0\.5 bg-brand/);
+assert.match(questionWorkspace, /rounded-xl border border-\[#ccbab0\] border-t-2 border-t-brand/);
+assert.doesNotMatch(questionWorkspace, /absolute inset-x-0 top-0 h-0\.5 bg-brand/);
 assert.match(questionWorkspace, /<CircleCheckBig/);
 assert.match(questionWorkspace, /right-2 top-2 h-36 w-36 -rotate-6/);
 assert.equal(

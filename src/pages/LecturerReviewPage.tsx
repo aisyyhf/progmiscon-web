@@ -2235,7 +2235,7 @@ export function QuestionValidationWorkspace({
 
 
   return (
-    <div className="review-question-detail mt-6 md:mt-10">
+    <div className="review-question-detail mt-6">
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] lg:items-start xl:gap-14">
         <article className="min-w-0">
           <section aria-labelledby="review-question-title">
@@ -2533,8 +2533,7 @@ export function QuestionValidationWorkspace({
           </section>
         </article>
 
-        <aside className="relative rounded-xl border border-[#ccbab0] bg-white p-5 shadow-[0_18px_48px_rgba(176,159,133,0.12)] md:p-6">
-          <span aria-hidden="true" className="absolute inset-x-0 top-0 h-0.5 bg-brand" />
+        <aside className="relative rounded-xl border border-[#ccbab0] border-t-2 border-t-brand bg-white p-5 shadow-[0_18px_48px_rgba(176,159,133,0.12)] md:p-6">
           <CircleCheckBig aria-hidden="true" strokeWidth={1.15} className="pointer-events-none absolute right-2 top-2 h-36 w-36 -rotate-6 text-brand/[0.045]" />
           {reviewedByMe && (
             <SubmittedQuestionReview
