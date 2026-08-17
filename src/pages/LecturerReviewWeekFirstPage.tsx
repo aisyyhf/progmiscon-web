@@ -303,16 +303,16 @@ function WeekQuestionList({
       label: language === "id" ? "Esai" : "Essay",
       explanation:
         language === "id"
-          ? "Esai — tipe PS"
-          : "Essay — PS type",
+          ? "Esai adalah tipe PS"
+          : "Essay is type PS",
     },
     {
       value: "mp",
       label: language === "id" ? "Pilihan Ganda" : "Multiple Choice",
       explanation:
         language === "id"
-          ? "Pilihan Ganda — tipe MP"
-          : "Multiple Choice — MP type",
+          ? "Pilihan Ganda adalah tipe MP"
+          : "Multiple Choice is type MP",
     },
   ] as const;
   const selectedType =
@@ -501,9 +501,9 @@ function WeekQuestionList({
             <EmptyState message={language === "id" ? "Tidak ada soal yang cocok dengan pencarian atau filter ini." : "No questions match these filters."} />
           </div>
         ) : (
-          <div className="mt-2 overflow-visible rounded-lg border border-border bg-[var(--review-row)] shadow-[0_1px_2px_rgba(176,159,133,0.12)]">
+          <div className="mt-2 overflow-visible rounded-lg border border-border bg-white shadow-[0_1px_2px_rgba(176,159,133,0.12)]">
             <div aria-hidden="true" className={cn("hidden rounded-t-lg gap-3 border-b border-border bg-[var(--review-header)] px-3 py-2.5 text-[13px] font-semibold text-black lg:grid", tableGridClass)}>
-              <span>No.</span>
+              <span className="text-center">No.</span>
               <span>{language === "id" ? "Soal" : "Question"}</span>
               <span>{language === "id" ? "Tipe" : "Type"}</span>
               <span>{language === "id" ? "Reviewer" : "Reviewers"}</span>
@@ -528,7 +528,7 @@ function WeekQuestionList({
                 );
                 const rowCells = (
                   <>
-                    <span className="hidden text-xs font-normal tabular-nums text-black/60 lg:block">{index + 1}</span>
+                    <span className="hidden text-center text-xs font-normal tabular-nums text-black/60 lg:block">{index + 1}</span>
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-normal leading-4 text-black">{title}</span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">

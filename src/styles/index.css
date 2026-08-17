@@ -59,12 +59,11 @@
 .review-week-pages {
   --review-page: var(--progmiscon-background);
   --review-card: color-mix(in srgb, var(--progmiscon-secondary) 7%, var(--review-page));
-  --review-row: color-mix(in srgb, var(--progmiscon-secondary) 4%, var(--review-page));
   --review-header: color-mix(in srgb, var(--progmiscon-secondary) 23%, var(--review-page));
   --review-row-hover: color-mix(in srgb, var(--progmiscon-accent) 12%, var(--review-page));
   --review-secondary-soft: color-mix(in srgb, var(--progmiscon-secondary) 20%, var(--review-page));
-  --review-type-secondary: color-mix(in srgb, var(--progmiscon-secondary) 52%, var(--review-page));
-  --review-type-accent: color-mix(in srgb, var(--progmiscon-accent) 42%, var(--review-page));
+  --review-type-secondary: color-mix(in srgb, var(--progmiscon-secondary) 32%, var(--review-page));
+  --review-type-accent: color-mix(in srgb, var(--progmiscon-accent) 58%, var(--review-page));
   --review-primary-soft: color-mix(in srgb, var(--progmiscon-primary) 8%, var(--review-page));
   --review-border: color-mix(in srgb, var(--progmiscon-secondary) 62%, var(--review-page));
   --review-muted: color-mix(in srgb, var(--progmiscon-text) 62%, var(--progmiscon-accent));

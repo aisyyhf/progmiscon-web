@@ -403,8 +403,8 @@ assert.doesNotMatch(
 assert.match(reviewPaletteSource, /--review-card: color-mix\(in srgb, var\(--progmiscon-secondary\) 7%/);
 assert.match(reviewPaletteSource, /--review-header: color-mix\(in srgb, var\(--progmiscon-secondary\) 23%/);
 assert.match(reviewPaletteSource, /--review-row-hover: color-mix\(in srgb, var\(--progmiscon-accent\) 12%/);
-assert.match(reviewPaletteSource, /--review-type-secondary: color-mix\(in srgb, var\(--progmiscon-secondary\) 52%/);
-assert.match(reviewPaletteSource, /--review-type-accent: color-mix\(in srgb, var\(--progmiscon-accent\) 42%/);
+assert.match(reviewPaletteSource, /--review-type-secondary: color-mix\(in srgb, var\(--progmiscon-secondary\) 32%/);
+assert.match(reviewPaletteSource, /--review-type-accent: color-mix\(in srgb, var\(--progmiscon-accent\) 58%/);
 assert.doesNotMatch(reviewPaletteSource, /#[\da-f]{3,8}/i);
 assert.match(overviewAndListSource, /border border-brand\/35 bg-\[var\(--review-page\)\] text-brand/);
 assert.match(listSource, /border-brand bg-brand text-white/);
@@ -413,8 +413,11 @@ assert.match(
   /border-\[#ccbab0\] bg-\[var\(--review-page\)\] text-black hover:bg-\[var\(--review-secondary-soft\)\]/,
 );
 assert.match(listSource, /bg-\[var\(--review-header\)\][^\n]+text-black/);
+assert.match(listSource, /border border-border bg-white shadow/);
 assert.match(listSource, /border-\[#ccbab0\] bg-\[var\(--review-type-secondary\)\] text-black/);
 assert.match(listSource, /border-\[#b09f85\] bg-\[var\(--review-type-accent\)\] text-black/);
+assert.match(listSource, /<span className="text-center">No\.<\/span>/);
+assert.match(listSource, /hidden text-center text-xs font-normal tabular-nums/);
 assert.equal(
   overviewAndListStageSource.match(/lecturer-ui review-week-pages/g)?.length,
   2,
@@ -463,10 +466,11 @@ assert.match(activePage, /function QuestionTypeTooltipLabel/);
 assert.match(activePage, /role="tooltip"/);
 assert.match(listSource, /<QuestionTypeTooltipLabel/);
 assert.match(listSource, /focusable=\{questionStatus !== "unreviewed"\}/);
-assert.match(listSource, /Esai — tipe PS/);
-assert.match(listSource, /Essay — PS type/);
-assert.match(listSource, /Pilihan Ganda — tipe MP/);
-assert.match(listSource, /Multiple Choice — MP type/);
+assert.match(listSource, /Esai adalah tipe PS/);
+assert.match(listSource, /Essay is type PS/);
+assert.match(listSource, /Pilihan Ganda adalah tipe MP/);
+assert.match(listSource, /Multiple Choice is type MP/);
+assert.doesNotMatch(listSource, /—/);
 assert.doesNotMatch(
   listSource,
   /Short Answer|Problem Solving|Pseudocode|Misconception Probe|Misconception Prohibition/,
