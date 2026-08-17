@@ -62,6 +62,8 @@
   --review-header: color-mix(in srgb, var(--progmiscon-secondary) 23%, var(--review-page));
   --review-row-hover: color-mix(in srgb, var(--progmiscon-accent) 12%, var(--review-page));
   --review-secondary-soft: color-mix(in srgb, var(--progmiscon-secondary) 20%, var(--review-page));
+  --review-filter-option-selected: color-mix(in srgb, var(--progmiscon-text) 7%, var(--review-page));
+  --review-filter-option-hover: color-mix(in srgb, var(--progmiscon-text) 4%, var(--review-page));
   --review-type-essay-bg: #ffecec;
   --review-type-essay-border: color-mix(in srgb, var(--review-type-essay-bg) 82%, var(--progmiscon-text));
   --review-type-essay-text: var(--progmiscon-text);

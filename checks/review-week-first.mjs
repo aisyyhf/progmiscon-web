@@ -423,6 +423,14 @@ assert.match(reviewPaletteSource, /--review-type-essay-bg: #ffecec;/);
 assert.match(reviewPaletteSource, /--review-type-essay-text: var\(--progmiscon-text\);/);
 assert.match(reviewPaletteSource, /--review-type-choice-bg: #eda5a5;/);
 assert.match(reviewPaletteSource, /--review-type-choice-text: var\(--progmiscon-text\);/);
+assert.match(
+  reviewPaletteSource,
+  /--review-filter-option-selected: color-mix\(in srgb, var\(--progmiscon-text\) 7%, var\(--review-page\)\);/,
+);
+assert.match(
+  reviewPaletteSource,
+  /--review-filter-option-hover: color-mix\(in srgb, var\(--progmiscon-text\) 4%, var\(--review-page\)\);/,
+);
 assert.deepEqual(
   [...new Set(reviewPaletteSource.match(/#[\da-f]{6}/gi)?.map((color) => color.toLowerCase()))].sort(),
   ["#eda5a5", "#ffecec"],
@@ -456,11 +464,11 @@ assert.match(
 );
 assert.match(
   typeFilterSource,
-  /bg-\[var\(--review-primary-soft\)\] text-black active:bg-\[var\(--review-primary-soft\)\]/,
+  /bg-\[var\(--review-filter-option-selected\)\] text-black active:bg-\[var\(--review-filter-option-selected\)\]/,
 );
 assert.match(
   typeFilterSource,
-  /text-black hover:bg-\[var\(--review-secondary-soft\)\] active:bg-\[var\(--review-secondary-soft\)\]/,
+  /bg-white text-black hover:bg-\[var\(--review-filter-option-hover\)\] active:bg-\[var\(--review-filter-option-hover\)\]/,
 );
 assert.doesNotMatch(typeFilterSource, /text-brand|review-type-(?:essay|choice)/);
 assert.match(listSource, /group-hover\/search:text-brand group-focus-within\/search:text-brand/);

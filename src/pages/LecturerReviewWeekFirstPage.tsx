@@ -484,8 +484,8 @@ function WeekQuestionList({
                     className={cn(
                       "flex min-h-7 w-full cursor-pointer items-center gap-2 rounded px-2 py-1 text-left text-[11px] leading-4 transition-colors duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand",
                       type === option.value
-                        ? "bg-[var(--review-primary-soft)] text-black active:bg-[var(--review-primary-soft)]"
-                        : "text-black hover:bg-[var(--review-secondary-soft)] active:bg-[var(--review-secondary-soft)]",
+                        ? "bg-[var(--review-filter-option-selected)] text-black active:bg-[var(--review-filter-option-selected)]"
+                        : "bg-white text-black hover:bg-[var(--review-filter-option-hover)] active:bg-[var(--review-filter-option-hover)]",
                     )}
                   >
                     <span className="min-w-0 flex-1 font-normal">{option.label}</span>
