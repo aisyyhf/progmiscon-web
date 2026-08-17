@@ -210,7 +210,7 @@ function WeekOverview({
               key={summary.week}
               type="button"
               onClick={() => onSelectWeek(summary.week)}
-              className="group relative min-h-36 cursor-pointer rounded-xl border border-[#ccbab0]/55 bg-white p-5 text-left transition-[border-color,background-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-brand/45 hover:bg-[#fbfbfe] hover:shadow-[0_10px_28px_rgba(95,71,59,0.08)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0"
+              className="group relative min-h-36 cursor-pointer rounded-xl border border-[#ccbab0]/55 bg-white p-5 text-left transition-[border-color,background-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-brand/45 hover:bg-[#fbfbfe] hover:shadow-[0_10px_28px_rgba(176,159,133,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -225,7 +225,7 @@ function WeekOverview({
                 {language === "id" ? "Tuntas" : "Complete"} {summary.completed}/{summary.total}
               </p>
               {summary.isComplete && (
-                <span className="absolute bottom-4 right-4 inline-flex h-6 w-6 items-center justify-center rounded-full bg-correct-bg text-correct" aria-label={language === "id" ? "Semua soal sudah tuntas" : "All questions complete"}>
+                <span className="absolute bottom-4 right-4 inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#ccbab0]/25 text-brand" aria-label={language === "id" ? "Semua soal sudah tuntas" : "All questions complete"}>
                   <Check size={14} strokeWidth={2.4} aria-hidden="true" />
                 </span>
               )}
@@ -260,7 +260,7 @@ function QuestionTypeTooltipLabel({
       <span
         id={tooltipId}
         role="tooltip"
-        className="pointer-events-none invisible absolute left-0 top-full z-30 mt-1 w-max max-w-64 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-white opacity-0 shadow-[0_6px_18px_rgba(95,71,59,0.16)] transition-opacity group-hover/type-label:visible group-hover/type-label:opacity-100 group-focus/type-label:visible group-focus/type-label:opacity-100 group-focus-visible/row:visible group-focus-visible/row:opacity-100"
+        className="pointer-events-none invisible absolute left-0 top-full z-30 mt-1 w-max max-w-64 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-white opacity-0 shadow-[0_6px_18px_rgba(176,159,133,0.2)] transition-opacity group-hover/type-label:visible group-hover/type-label:opacity-100 group-focus/type-label:visible group-focus/type-label:opacity-100 group-focus-visible/row:visible group-focus-visible/row:opacity-100"
       >
         {explanation}
       </span>
@@ -400,7 +400,7 @@ function WeekQuestionList({
                 className={cn(
                   "min-h-6 cursor-pointer rounded-full border px-2 py-0.5 text-[10px] font-medium leading-4 transition-[background-color,border-color,color] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
                   status === value
-                    ? "border-brand/30 bg-brand-soft/75 text-brand"
+                    ? "border-brand/30 bg-[#ccbab0]/20 text-brand"
                     : "border-[#ccbab0]/60 bg-white text-muted hover:border-brand/25 hover:text-black",
                 )}
               >
@@ -441,13 +441,13 @@ function WeekQuestionList({
                         event.preventDefault();
                       }
                     }}
-                    className="group/type-help relative inline-flex shrink-0 cursor-help rounded text-[#8a7b65] hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                    className="group/type-help relative inline-flex shrink-0 cursor-help rounded text-[#b09f85] hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
                   >
                     <Info size={13} strokeWidth={1.8} aria-hidden="true" />
                     <span
                       id="review-question-type-selected-help"
                       role="tooltip"
-                      className="pointer-events-none invisible absolute left-1/2 top-full z-30 mt-1 w-max max-w-64 -translate-x-1/2 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-white opacity-0 shadow-[0_6px_18px_rgba(95,71,59,0.16)] transition-opacity group-hover/type-help:visible group-hover/type-help:opacity-100 group-focus/type-help:visible group-focus/type-help:opacity-100"
+                      className="pointer-events-none invisible absolute left-1/2 top-full z-30 mt-1 w-max max-w-64 -translate-x-1/2 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-white opacity-0 shadow-[0_6px_18px_rgba(176,159,133,0.2)] transition-opacity group-hover/type-help:visible group-hover/type-help:opacity-100 group-focus/type-help:visible group-focus/type-help:opacity-100"
                     >
                       {selectedType.explanation}
                     </span>
@@ -457,7 +457,7 @@ function WeekQuestionList({
               </summary>
               <div
                 role="menu"
-                className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-md border border-border bg-white p-1 shadow-[0_8px_24px_rgba(95,71,59,0.12)]"
+                className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-md border border-border bg-white p-1 shadow-[0_8px_24px_rgba(176,159,133,0.18)]"
               >
                 {typeOptions.map((option) => (
                   <button
@@ -472,7 +472,7 @@ function WeekQuestionList({
                     className={cn(
                       "flex min-h-7 w-full cursor-pointer items-center gap-2 rounded px-2 py-1 text-left text-[11px] leading-4 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand",
                       type === option.value
-                        ? "bg-brand-soft/70 text-brand"
+                        ? "bg-[#ccbab0]/20 text-brand"
                         : "text-black hover:bg-[#fbfbfe]",
                     )}
                   >
@@ -501,8 +501,8 @@ function WeekQuestionList({
             <EmptyState message={language === "id" ? "Tidak ada soal yang cocok dengan pencarian atau filter ini." : "No questions match these filters."} />
           </div>
         ) : (
-          <div className="mt-2 overflow-visible rounded-lg border border-border/90 bg-white shadow-[0_1px_2px_rgba(95,71,59,0.04)]">
-            <div aria-hidden="true" className={cn("hidden rounded-t-lg gap-3 border-b border-border bg-[#fbfbfe] px-3 py-2.5 text-[13px] font-semibold text-[#5e534a] lg:grid", tableGridClass)}>
+          <div className="mt-2 overflow-visible rounded-lg border border-border/90 bg-white shadow-[0_1px_2px_rgba(176,159,133,0.12)]">
+            <div aria-hidden="true" className={cn("hidden rounded-t-lg gap-3 border-b border-border bg-[#fbfbfe] px-3 py-2.5 text-[13px] font-semibold text-muted lg:grid", tableGridClass)}>
               <span>No.</span>
               <span>{language === "id" ? "Soal" : "Question"}</span>
               <span>{language === "id" ? "Tipe" : "Type"}</span>
@@ -570,7 +570,7 @@ function WeekQuestionList({
                         type="button"
                         aria-describedby={`review-question-type-${question.id}-desktop`}
                         onClick={() => onOpenQuestion(question, false)}
-                        className={cn("group group/row grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-[#fbfbfe] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-brand-soft/45", tableGridClass)}
+                        className={cn("group group/row grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-[#fbfbfe] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-[#ccbab0]/20", tableGridClass)}
                       >
                         {rowCells}
                         <ChevronRight size={15} strokeWidth={1.8} aria-hidden="true" className="text-[#b09f85] transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
@@ -584,7 +584,7 @@ function WeekQuestionList({
                             title={questionStatus === "reviewed" ? (language === "id" ? "Lihat" : "View") : language === "id" ? "Lihat soal" : "View question"}
                             aria-label={questionStatus === "reviewed" ? (language === "id" ? "Lihat" : "View") : language === "id" ? "Lihat soal" : "View question"}
                             onClick={() => onOpenQuestion(question, true)}
-                            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-[#ccbab0]/20 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
                           >
                             <Eye size={14} strokeWidth={1.9} aria-hidden="true" />
                           </button>
@@ -595,7 +595,7 @@ function WeekQuestionList({
                                 title="Edit"
                                 aria-label="Edit"
                                 onClick={() => onOpenQuestion(question, false)}
-                                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-[#ccbab0]/20 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
                               >
                                 <Pencil size={14} strokeWidth={1.9} aria-hidden="true" />
                               </button>
@@ -605,7 +605,7 @@ function WeekQuestionList({
                                 aria-label={language === "id" ? "Hapus review" : "Delete review"}
                                 disabled={withdrawingId === question.id}
                                 onClick={() => void handleWithdraw(question)}
-                                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-incorrect-bg hover:text-incorrect disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-incorrect"
+                                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-brand/[0.06] hover:text-brand disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
                               >
                                 <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
                               </button>
@@ -1381,9 +1381,9 @@ export function LecturerReviewPage({
 
   if (reviewStage === "overview") {
     return (
-      <div className="lecturer-ui mx-auto max-w-[1240px] text-black">
+      <div className="lecturer-ui mx-auto max-w-[1240px] bg-[#fbfbfe] text-black">
         {loadError && (
-          <p role="alert" className="mb-5 rounded-lg border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect">
+          <p role="alert" className="mb-5 rounded-lg border border-brand/25 bg-brand/[0.06] px-4 py-3 text-sm text-brand">
             {loadError}
           </p>
         )}
@@ -1402,9 +1402,9 @@ export function LecturerReviewPage({
     const selectedWeek = navigation.week || requestedWeek;
 
     return (
-      <div className="lecturer-ui mx-auto max-w-[1240px] text-black">
+      <div className="lecturer-ui mx-auto max-w-[1240px] bg-[#fbfbfe] text-black">
         {loadError && (
-          <p role="alert" className="mb-5 rounded-lg border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect">
+          <p role="alert" className="mb-5 rounded-lg border border-brand/25 bg-brand/[0.06] px-4 py-3 text-sm text-brand">
             {loadError}
           </p>
         )}

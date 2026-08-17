@@ -361,6 +361,15 @@ const listSource = activePage.slice(
   activePage.indexOf("function WeekQuestionList"),
   activePage.indexOf("function QueuePanel"),
 );
+const overviewAndListSource = activePage.slice(
+  activePage.indexOf("function WeekOverview"),
+  activePage.indexOf("function QueuePanel"),
+);
+const overviewAndListStageSource = activePage.slice(
+  activePage.indexOf('if (reviewStage === "overview")'),
+  activePage.indexOf("const detailQuestion"),
+);
+const targetPageColorSource = `${overviewAndListSource}\n${overviewAndListStageSource}`;
 const app = await readFile(
   new URL("../src/app/App.tsx", import.meta.url),
   "utf8",
@@ -375,6 +384,20 @@ assert.match(activePage, /resolveAnswerDeepLink/);
 assert.match(activePage, /ReviewBreadcrumb/);
 assert.match(activePage, /WeekOverview/);
 assert.match(activePage, /WeekQuestionList/);
+assert.deepEqual(
+  [...new Set(targetPageColorSource.match(/#[\da-f]{6}/gi)?.map((color) => color.toLowerCase()))].sort(),
+  ["#b09f85", "#ccbab0", "#fbfbfe"],
+);
+assert.doesNotMatch(
+  targetPageColorSource,
+  /bg-correct|text-correct|border-correct|bg-incorrect|text-incorrect|border-incorrect|outline-incorrect|bg-brand-soft|rgba\(95,71,59/,
+);
+assert.match(overviewAndListSource, /bg-\[#ccbab0\]\/25 text-brand/);
+assert.match(listSource, /border-brand\/30 bg-\[#ccbab0\]\/20 text-brand/);
+assert.equal(
+  overviewAndListStageSource.match(/bg-\[#fbfbfe\] text-black/g)?.length,
+  2,
+);
 assert.match(activePage, /filterWeekReviewQuestions/);
 assert.match(activePage, /reviewStage === "overview"/);
 assert.match(activePage, /reviewStage === "list"/);
@@ -460,7 +483,7 @@ assert.match(
 assert.match(listSource, /Hapus review/);
 assert.match(
   listSource,
-  /text-\[13px\] font-semibold text-\[#5e534a\][\s\S]*tableGridClass/,
+  /text-\[13px\] font-semibold text-muted[\s\S]*tableGridClass/,
 );
 assert.match(listSource, /truncate text-xs font-normal leading-4 text-black/);
 assert.match(listSource, /text-xs font-normal tabular-nums text-muted/);
