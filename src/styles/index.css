@@ -56,6 +56,73 @@
   font-family: var(--font-lecturer);
 }
 
+.review-week-pages {
+  --review-page: var(--progmiscon-background);
+  --review-card: color-mix(in srgb, var(--progmiscon-secondary) 7%, var(--review-page));
+  --review-header: color-mix(in srgb, var(--progmiscon-secondary) 23%, var(--review-page));
+  --review-row-hover: color-mix(in srgb, var(--progmiscon-accent) 12%, var(--review-page));
+  --review-secondary-soft: color-mix(in srgb, var(--progmiscon-secondary) 20%, var(--review-page));
+  --review-filter-option-selected: color-mix(in srgb, var(--progmiscon-text) 7%, var(--review-page));
+  --review-filter-option-hover: color-mix(in srgb, var(--progmiscon-text) 4%, var(--review-page));
+  --review-type-essay-bg: #ffecec;
+  --review-type-essay-border: color-mix(in srgb, var(--review-type-essay-bg) 82%, var(--progmiscon-text));
+  --review-type-essay-text: var(--progmiscon-text);
+  --review-type-essay-hover: color-mix(in srgb, var(--review-type-essay-bg) 90%, var(--progmiscon-text));
+  --review-type-essay-hover-border: color-mix(in srgb, var(--review-type-essay-bg) 70%, var(--progmiscon-text));
+  --review-type-choice-bg: #f2c2c2;
+  --review-type-choice-border: color-mix(in srgb, var(--review-type-choice-bg) 82%, var(--progmiscon-text));
+  --review-type-choice-text: var(--progmiscon-text);
+  --review-type-choice-hover: color-mix(in srgb, var(--review-type-choice-bg) 90%, var(--progmiscon-text));
+  --review-type-choice-hover-border: color-mix(in srgb, var(--review-type-choice-bg) 70%, var(--progmiscon-text));
+  --review-primary-soft: color-mix(in srgb, var(--progmiscon-primary) 8%, var(--review-page));
+  --review-border: color-mix(in srgb, var(--progmiscon-secondary) 62%, var(--review-page));
+  --review-muted: color-mix(in srgb, var(--progmiscon-text) 62%, var(--progmiscon-accent));
+  --color-brand: var(--progmiscon-primary);
+  --color-brand-deep: color-mix(in srgb, var(--progmiscon-primary) 82%, var(--progmiscon-text));
+  --color-brand-soft: var(--review-primary-soft);
+  --color-neutral: var(--review-secondary-soft);
+  --color-navy-deep: var(--progmiscon-text);
+  --color-bg: var(--review-page);
+  --color-surface: var(--review-card);
+  --color-border: var(--review-border);
+  --color-muted: var(--review-muted);
+  background-color: var(--review-page);
+}
+
+@keyframes review-stage-enter {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes review-type-popover-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .review-week-pages.review-stage-enter {
+    animation: review-stage-enter 160ms ease-out both;
+  }
+
+  .review-week-pages details[open] > .review-type-popover {
+    animation: review-type-popover-enter 160ms ease-out both;
+  }
+}
+
 .lecturer-sidebar-surface {
   background: var(--progmiscon-background);
 }

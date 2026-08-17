@@ -10,7 +10,15 @@ import { isAnswerReviewEligible } from "./reviewWorkspace.ts";
 
 export type ReviewTaskKind = "question" | "answer";
 export type ReviewPersonalStatus = "unreviewed" | "reviewed";
+export type ReviewWeekListStatus = ReviewPersonalStatus | "full";
 export type ReviewQuestionType = "all" | "ps" | "mp";
+
+export type ReviewWeekSummary = {
+  week: string;
+  total: number;
+  completed: number;
+  isComplete: boolean;
+};
 
 export type ReviewNavigationState = {
   week: string;
@@ -75,6 +83,102 @@ export function getActiveCurrentAnswerReviewIds(
       })
       .map((review) => ({ id: review.answerId })),
   ).map(({ id }) => id);
+}
+
+export function getReviewWeekSummaries(
+  questions: readonly Question[],
+  reviewedQuestionIds: readonly string[],
+  questionCounts: ReadonlyMap<string, number>,
+  reviewerThreshold: number,
+): ReviewWeekSummary[] {
+  const reviewed = new Set(reviewedQuestionIds);
+
+  return getMaterialWeekOptions([...questions]).map((week) => {
+    const weekQuestions = uniqueById(questions).filter(
+      (question) => question.week === week,
+    );
+    const completed = weekQuestions.filter(
+      (question) =>
+        getWeekReviewQuestionStatus(
+          question.id,
+          reviewed,
+          questionCounts,
+          reviewerThreshold,
+        ) !== "unreviewed",
+    ).length;
+
+    return {
+      week,
+      total: weekQuestions.length,
+      completed,
+      isComplete: weekQuestions.length > 0 && completed === weekQuestions.length,
+    };
+  });
+}
+
+export function getWeekReviewQuestionStatus(
+  questionId: string,
+  reviewedQuestionIds: ReadonlySet<string>,
+  questionCounts: ReadonlyMap<string, number>,
+  reviewerThreshold: number,
+): ReviewWeekListStatus {
+  if (reviewedQuestionIds.has(questionId)) return "reviewed";
+  return (questionCounts.get(questionId) ?? 0) >= reviewerThreshold
+    ? "full"
+    : "unreviewed";
+}
+
+export function filterWeekReviewQuestions(
+  questions: readonly Question[],
+  {
+    week,
+    query,
+    type,
+    status,
+    reviewedQuestionIds,
+    questionCounts,
+    reviewerThreshold,
+  }: {
+    week: string;
+    query: string;
+    type: ReviewQuestionType;
+    status: ReviewWeekListStatus;
+    reviewedQuestionIds: readonly string[];
+    questionCounts: ReadonlyMap<string, number>;
+    reviewerThreshold: number;
+  },
+): Question[] {
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const reviewed = new Set(reviewedQuestionIds);
+
+  return uniqueById(questions).filter((question) => {
+    const questionStatus = getWeekReviewQuestionStatus(
+      question.id,
+      reviewed,
+      questionCounts,
+      reviewerThreshold,
+    );
+    const matchesQuery =
+      !normalizedQuery ||
+      [
+        question.id,
+        question.number,
+        question.sourceCode ?? "",
+        question.sourceKey ?? "",
+        question.questionCode ?? "",
+        question.title.id,
+        question.title.en,
+        ...question.expectedConcepts.flatMap((concept) => [concept.id, concept.en]),
+      ].some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
+
+    return (
+      question.week === week &&
+      matchesQuery &&
+      (type === "all" ||
+        (type === "mp") === (question.type === "multiple_choice")) &&
+      status === questionStatus
+    );
+  });
 }
 
 export function buildReviewQueue({

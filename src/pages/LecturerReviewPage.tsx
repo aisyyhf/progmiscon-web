@@ -2101,6 +2101,7 @@ export function QuestionValidationWorkspace({
   submittedReviewLoading,
   submittedReviewError,
   isAdmin,
+  readOnly = false,
   onPrevious,
   onNext,
   onViewHistory,
@@ -2126,6 +2127,7 @@ export function QuestionValidationWorkspace({
   submittedReviewLoading: boolean;
   submittedReviewError: string;
   isAdmin: boolean;
+  readOnly?: boolean;
   onPrevious: () => void;
   onNext: () => void;
   onViewHistory: () => void;
@@ -2222,7 +2224,7 @@ export function QuestionValidationWorkspace({
   const [deleting, setDeleting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const formDirty = isMisconceptionReviewFormDirty(form, savedForm);
-  const formUnavailable = locked || progressUnavailable;
+  const formUnavailable = readOnly || locked || progressUnavailable;
   const canSubmit =
     !formUnavailable &&
     canSubmitMisconceptionReview(form);
@@ -2399,7 +2401,7 @@ export function QuestionValidationWorkspace({
             <div className="mt-7"><QuestionContent question={question} /></div>
           </section>
 
-          {isAdmin && question.type !== "multiple_choice" && (
+          {!readOnly && isAdmin && question.type !== "multiple_choice" && (
             <AdminQuestionContentEditor question={question} />
           )}
 
@@ -2448,7 +2450,7 @@ export function QuestionValidationWorkspace({
             </section>
           )}
 
-          {isAdmin && question.type === "multiple_choice" && (
+          {!readOnly && isAdmin && question.type === "multiple_choice" && (
             <AdminQuestionContentEditor question={question} />
           )}
 
@@ -2600,7 +2602,7 @@ export function QuestionValidationWorkspace({
                         </div>
                       )}
 
-                      {answerReviewEligible && onReviewAnswer && (
+                      {!readOnly && answerReviewEligible && onReviewAnswer && (
                       <button
                         type="button"
                         onClick={() => onReviewAnswer(answer.id)}
@@ -2647,6 +2649,19 @@ export function QuestionValidationWorkspace({
 
           {progressUnavailable ? (
             <ReviewProgressUnavailableNotice />
+          ) : readOnly ? (
+            <div
+              role="status"
+              className="mt-3 rounded-md border border-[#b09f85]/35 bg-[#b09f85]/10 px-3 py-2.5 text-xs leading-5 text-muted"
+            >
+              {reviewedByMe
+                ? language === "id"
+                  ? "Mode lihat. Review Anda ditampilkan hanya-baca."
+                  : "View mode. Your review is shown read-only."
+                : language === "id"
+                  ? "Batas 3 reviewer telah tercapai. Soal ditampilkan hanya-baca."
+                  : "The 3-reviewer limit has been reached. This question is shown read-only."}
+            </div>
           ) : (
             <ReviewLockNotice
               kind="question"

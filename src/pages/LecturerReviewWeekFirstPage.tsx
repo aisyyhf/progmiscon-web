@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ChevronRight, History, Users } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  History,
+  Info,
+  Pencil,
+  Search,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
@@ -15,6 +26,7 @@ import {
   getReviewerHistory,
   getReviewProgress,
   getReviewWorkspaceSnapshot,
+  isReviewPersistenceError,
   saveAnswerReview,
   saveQuestionReview,
 } from "../services/reviewPersistenceRepository";
@@ -38,10 +50,13 @@ import { sortReviewTasks } from "../utils/reviewPriority";
 import {
   REVIEW_NAVIGATION_SESSION_KEY,
   buildReviewQueue,
+  filterWeekReviewQuestions,
   getActiveCurrentAnswerReviewIds,
   getActiveCurrentQuestionReviewIds,
   getNavigationAfterReviewSave,
   getNavigationAfterWithdraw,
+  getReviewWeekSummaries,
+  getWeekReviewQuestionStatus,
   normalizeReviewNavigationState,
   parseReviewNavigationSearch,
   parseReviewNavigationSession,
@@ -52,6 +67,8 @@ import {
   type ReviewPersonalStatus,
   type ReviewQuestionType,
   type ReviewTaskKind,
+  type ReviewWeekListStatus,
+  type ReviewWeekSummary,
 } from "../utils/reviewQueue";
 import { QUESTION_REVIEWED_THRESHOLD } from "../utils/reviewQuestionFilters";
 import {
@@ -90,6 +107,546 @@ function orderAnswersByTaskPriority(
   return [...answers].sort(
     (left, right) =>
       (rank.get(left.id) ?? rank.size) - (rank.get(right.id) ?? rank.size),
+  );
+}
+
+function formatWeekLabel(week: string): string {
+  return `Week ${week.replace(/^W/i, "")}`;
+}
+
+function ReviewBreadcrumb({
+  week,
+  question,
+  language,
+  onOverview,
+  onWeek,
+}: {
+  week?: string;
+  question?: string;
+  language: Language;
+  onOverview?: () => void;
+  onWeek?: () => void;
+}) {
+  const rootLabel = language === "id" ? "Review Soal" : "Question Review";
+
+  return (
+    <nav aria-label="Breadcrumb" className="mb-4 overflow-x-auto text-xs text-muted">
+      <ol className="flex min-w-max items-center gap-1.5">
+        <li>
+          {onOverview ? (
+            <button
+              type="button"
+              onClick={onOverview}
+              className="cursor-pointer rounded-sm font-medium transition-colors hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              {rootLabel}
+            </button>
+          ) : (
+            <span className="font-medium text-navy-deep">{rootLabel}</span>
+          )}
+        </li>
+        {week && (
+          <>
+            <li aria-hidden="true" className="text-[#b09f85]">&gt;</li>
+            <li>
+              {onWeek ? (
+                <button
+                  type="button"
+                  onClick={onWeek}
+                  className="cursor-pointer rounded-sm font-medium transition-colors hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                >
+                  {formatWeekLabel(week)}
+                </button>
+              ) : (
+                <span className="font-medium text-navy-deep">{formatWeekLabel(week)}</span>
+              )}
+            </li>
+          </>
+        )}
+        {question && (
+          <>
+            <li aria-hidden="true" className="text-[#b09f85]">&gt;</li>
+            <li className="font-medium text-navy-deep">{question}</li>
+          </>
+        )}
+      </ol>
+    </nav>
+  );
+}
+
+function WeekOverview({
+  summaries,
+  language,
+  loading,
+  onSelectWeek,
+}: {
+  summaries: ReviewWeekSummary[];
+  language: Language;
+  loading: boolean;
+  onSelectWeek: (week: string) => void;
+}) {
+  return (
+    <>
+      <div className="pb-2">
+        <h1 className="text-[1.75rem] font-semibold leading-9 tracking-[-0.02em] text-black">
+          {language === "id" ? "REVIEW SOAL PER MINGGU" : "REVIEW QUESTIONS BY WEEK"}
+        </h1>
+      </div>
+
+      {loading ? (
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" role="status" aria-label={language === "id" ? "Memuat minggu" : "Loading weeks"}>
+          {Array.from({ length: 8 }, (_, index) => (
+            <div key={index} className="h-36 animate-pulse rounded-xl bg-[var(--review-secondary-soft)]" />
+          ))}
+        </div>
+      ) : summaries.length === 0 ? (
+        <div className="mt-5 rounded-xl border border-border bg-[var(--review-card)]">
+          <EmptyState message={language === "id" ? "Belum ada minggu yang tersedia untuk direview." : "No weeks are available for review yet."} />
+        </div>
+      ) : (
+        <section aria-label={language === "id" ? "Daftar minggu" : "Week list"} className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {summaries.map((summary) => (
+            <button
+              key={summary.week}
+              type="button"
+              onClick={() => onSelectWeek(summary.week)}
+              className="group relative min-h-36 cursor-pointer rounded-xl border border-border bg-[var(--review-card)] p-5 text-left transition-[border-color,background-color,transform,box-shadow] duration-150 ease-out hover:-translate-y-px hover:border-[#b09f85] hover:bg-[var(--review-row-hover)] hover:shadow-[0_10px_28px_rgba(176,159,133,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 active:shadow-none motion-reduce:translate-none"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-base font-semibold text-black">{formatWeekLabel(summary.week)}</h2>
+                  <p className="mt-2 text-sm text-muted">
+                    {summary.total} {language === "id" ? "soal" : summary.total === 1 ? "question" : "questions"}
+                  </p>
+                </div>
+                <ChevronRight size={17} strokeWidth={1.8} aria-hidden="true" className="mt-0.5 text-[#b09f85] transition-[color,transform] duration-150 ease-out group-hover:translate-x-0.5 group-hover:text-brand motion-reduce:translate-none" />
+              </div>
+              <p className="mt-5 text-xs font-medium tabular-nums text-muted">
+                {language === "id" ? "Tuntas" : "Complete"} {summary.completed}/{summary.total}
+              </p>
+              {summary.isComplete && (
+                <span className="absolute bottom-4 right-4 inline-flex h-6 w-6 items-center justify-center rounded-full border border-brand/35 bg-[var(--review-page)] text-brand" aria-label={language === "id" ? "Semua soal sudah tuntas" : "All questions complete"}>
+                  <Check size={14} strokeWidth={2.4} aria-hidden="true" />
+                </span>
+              )}
+            </button>
+          ))}
+        </section>
+      )}
+    </>
+  );
+}
+
+function QuestionTypeTooltipLabel({
+  label,
+  explanation,
+  tooltipId,
+  focusable = true,
+  className,
+}: {
+  label: string;
+  explanation: string;
+  tooltipId: string;
+  focusable?: boolean;
+  className?: string;
+}) {
+  return (
+    <span
+      tabIndex={focusable ? 0 : undefined}
+      aria-describedby={tooltipId}
+      className={cn("group/type-label relative", className)}
+    >
+      {label}
+      <span
+        id={tooltipId}
+        role="tooltip"
+        className="pointer-events-none invisible absolute left-0 top-full z-30 mt-1 w-max max-w-64 translate-y-0.5 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-[#fbfbfe] opacity-0 shadow-[0_6px_18px_rgba(176,159,133,0.2)] transition-[opacity,transform,visibility] duration-150 ease-out group-hover/type-label:visible group-hover/type-label:translate-y-0 group-hover/type-label:opacity-100 group-focus/type-label:visible group-focus/type-label:translate-y-0 group-focus/type-label:opacity-100 group-focus-visible/row:visible group-focus-visible/row:translate-y-0 group-focus-visible/row:opacity-100 motion-reduce:translate-y-0"
+      >
+        {explanation}
+      </span>
+    </span>
+  );
+}
+
+function ReviewActionTooltip({ id, label }: { id: string; label: string }) {
+  return (
+    <span
+      id={id}
+      role="tooltip"
+      className="pointer-events-none invisible absolute bottom-full right-0 z-30 mb-1 w-max max-w-48 translate-y-0.5 rounded-md bg-black px-2 py-1 text-[10px] font-normal leading-4 text-[#fbfbfe] opacity-0 shadow-[0_6px_18px_rgba(176,159,133,0.2)] transition-[opacity,transform,visibility] duration-150 ease-out group-hover/action:visible group-hover/action:translate-y-0 group-hover/action:opacity-100 group-focus-visible/action:visible group-focus-visible/action:translate-y-0 group-focus-visible/action:opacity-100 motion-reduce:translate-y-0"
+    >
+      {label}
+    </span>
+  );
+}
+
+function WeekQuestionList({
+  week,
+  questions,
+  language,
+  questionCounts,
+  reviewedQuestionIds,
+  onBack,
+  onOpenQuestion,
+  onDeleteReview,
+}: {
+  week: string;
+  questions: readonly Question[];
+  language: Language;
+  questionCounts: ReadonlyMap<string, number>;
+  reviewedQuestionIds: readonly string[];
+  onBack: () => void;
+  onOpenQuestion: (question: Question, readOnly: boolean) => void;
+  onDeleteReview: (question: Question) => Promise<void>;
+}) {
+  const [query, setQuery] = useState("");
+  const [type, setType] = useState<ReviewQuestionType>("all");
+  const [status, setStatus] = useState<ReviewWeekListStatus>("unreviewed");
+  const [withdrawingId, setWithdrawingId] = useState("");
+  const reviewed = useMemo(() => new Set(reviewedQuestionIds), [reviewedQuestionIds]);
+  const typeOptions = [
+    {
+      value: "all",
+      label: language === "id" ? "Semua tipe soal" : "All question types",
+      explanation: undefined,
+    },
+    {
+      value: "ps",
+      label: language === "id" ? "Esai" : "Essay",
+      explanation:
+        language === "id"
+          ? "Esai adalah tipe PS"
+          : "Essay is type PS",
+    },
+    {
+      value: "mp",
+      label: language === "id" ? "Pilihan Ganda" : "Multiple Choice",
+      explanation:
+        language === "id"
+          ? "Pilihan Ganda adalah tipe MP"
+          : "Multiple Choice is type MP",
+    },
+  ] as const;
+  const selectedType =
+    typeOptions.find((option) => option.value === type) ?? typeOptions[0];
+  const filteredQuestions = useMemo(
+    () =>
+      filterWeekReviewQuestions(questions, {
+        week,
+        query,
+        type,
+        status,
+        reviewedQuestionIds,
+        questionCounts,
+        reviewerThreshold: QUESTION_REVIEWED_THRESHOLD,
+      }),
+    [questionCounts, questions, query, reviewedQuestionIds, status, type, week],
+  );
+  const tableGridClass =
+    status === "unreviewed"
+      ? "lg:grid-cols-[3rem_minmax(0,1fr)_8.5rem_6.5rem_1.5rem]"
+      : "lg:grid-cols-[3rem_minmax(0,1fr)_8.5rem_6.5rem_7rem]";
+  const questionColumnHeading = {
+    unreviewed: { id: "Soal yang belum direview", en: "Questions not yet reviewed" },
+    reviewed: { id: "Soal yang sudah direview", en: "Reviewed questions" },
+    full: { id: "Soal dengan jumlah reviewer terpenuhi", en: "Questions with reviewer limit reached" },
+  }[status][language];
+  const handleWithdraw = async (question: Question) => {
+    if (
+      !window.confirm(
+        language === "id"
+          ? "Hapus review soal ini? Review akan dinonaktifkan dan soal kembali ke daftar tugas jika kuota masih tersedia."
+          : "Delete this question review? It will be deactivated and returned to the task list if quota remains available.",
+      )
+    ) {
+      return;
+    }
+
+    setWithdrawingId(question.id);
+    try {
+      await onDeleteReview(question);
+    } catch (error) {
+      console.error("[Progmiscon] Review soal gagal dihapus", error);
+      if (isReviewPersistenceError(error, "DATA_VERSION_CHANGED")) {
+        window.alert(
+          error instanceof Error
+            ? error.message
+            : "Data sumber telah diperbarui. Muat ulang data lalu review kembali.",
+        );
+        window.location.reload();
+        return;
+      }
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : language === "id"
+            ? "Review soal belum dapat dihapus."
+            : "The question review could not be deleted.",
+      );
+    } finally {
+      setWithdrawingId("");
+    }
+  };
+
+  return (
+    <>
+      <ReviewBreadcrumb week={week} language={language} onOverview={onBack} />
+      <div className="py-1">
+        <h1 className="text-[1.75rem] font-semibold leading-9 tracking-[-0.02em] text-black">
+          {formatWeekLabel(week).toLocaleUpperCase(language)}
+        </h1>
+      </div>
+
+      <section className="mt-4" aria-label={language === "id" ? "Soal minggu terpilih" : "Selected week questions"}>
+        <div className="flex flex-col gap-2 border-y border-border/80 py-1.5 sm:flex-row sm:items-center sm:justify-between">
+          <div
+            className="flex w-fit flex-wrap items-center gap-1.5"
+            role="group"
+            aria-label={language === "id" ? "Status review pribadi" : "Personal review status"}
+          >
+            {([
+              ["unreviewed", language === "id" ? "Belum direview" : "Not reviewed"],
+              ["reviewed", language === "id" ? "Sudah direview" : "Reviewed"],
+              ["full", language === "id" ? "Jumlah reviewer terpenuhi" : "Reviewer limit reached"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={status === value}
+                onClick={() => setStatus(value)}
+                className={cn(
+                  "min-h-6 cursor-pointer rounded-full border px-2 py-0.5 text-[10px] font-medium leading-4 transition-[background-color,border-color,color,transform] duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.99] motion-reduce:scale-none",
+                  status === value
+                    ? "border-brand bg-brand text-white"
+                    : "border-[#ccbab0] bg-[var(--review-page)] text-black hover:border-[#b09f85] hover:bg-[var(--review-secondary-soft)]",
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex w-full items-center gap-1.5 sm:w-auto">
+            <details
+              className="group/type relative shrink-0"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") event.currentTarget.removeAttribute("open");
+              }}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                  event.currentTarget.removeAttribute("open");
+                }
+              }}
+            >
+              <summary
+                aria-label={`${language === "id" ? "Tipe soal" : "Question type"}: ${selectedType.label}`}
+                className="flex min-h-7 w-[9.75rem] cursor-pointer list-none items-center gap-1.5 rounded-md border border-[#ccbab0] bg-[var(--review-page)] py-1 pl-2.5 pr-2 text-[11px] leading-4 text-black outline-none transition-[border-color,background-color,box-shadow] duration-150 ease-out marker:hidden hover:border-[#b09f85] focus-visible:border-brand/55 focus-visible:ring-2 focus-visible:ring-brand/10 group-open/type:border-brand/55 group-open/type:ring-2 group-open/type:ring-brand/10 active:bg-[var(--review-secondary-soft)] [&::-webkit-details-marker]:hidden"
+              >
+                <span className="min-w-0 truncate font-medium">{selectedType.label}</span>
+                {selectedType.explanation && (
+                  <span
+                    tabIndex={0}
+                    aria-label={language === "id" ? "Penjelasan tipe soal" : "Question type explanation"}
+                    aria-describedby="review-question-type-selected-help"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onKeyDown={(event) => {
+                      event.stopPropagation();
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                      }
+                    }}
+                    className="group/type-help relative inline-flex shrink-0 cursor-help rounded text-[#b09f85] transition-colors duration-150 ease-out hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                  >
+                    <Info size={13} strokeWidth={1.8} aria-hidden="true" />
+                    <span
+                      id="review-question-type-selected-help"
+                      role="tooltip"
+                      className="pointer-events-none invisible absolute left-1/2 top-full z-30 mt-1 w-max max-w-64 -translate-x-1/2 translate-y-0.5 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-[#fbfbfe] opacity-0 shadow-[0_6px_18px_rgba(176,159,133,0.2)] transition-[opacity,transform,visibility] duration-150 ease-out group-hover/type-help:visible group-hover/type-help:translate-y-0 group-hover/type-help:opacity-100 group-focus/type-help:visible group-focus/type-help:translate-y-0 group-focus/type-help:opacity-100 motion-reduce:translate-y-0"
+                    >
+                      {selectedType.explanation}
+                    </span>
+                  </span>
+                )}
+                <ChevronDown size={12} strokeWidth={2} aria-hidden="true" className="ml-auto shrink-0 text-[#b09f85] transition-transform duration-150 ease-out group-open/type:rotate-180 motion-reduce:rotate-none" />
+              </summary>
+              <div
+                role="menu"
+                className="review-type-popover absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-md border border-border bg-[var(--review-card)] p-1 shadow-[0_8px_24px_rgba(176,159,133,0.18)]"
+              >
+                {typeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={type === option.value}
+                    onClick={(event) => {
+                      setType(option.value);
+                      event.currentTarget.closest("details")?.removeAttribute("open");
+                    }}
+                    className={cn(
+                      "flex min-h-7 w-full cursor-pointer items-center gap-2 rounded px-2 py-1 text-left text-[11px] leading-4 transition-colors duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand",
+                      type === option.value
+                        ? "bg-[var(--review-filter-option-selected)] text-black active:bg-[var(--review-filter-option-selected)]"
+                        : "bg-white text-black hover:bg-[var(--review-filter-option-hover)] active:bg-[var(--review-filter-option-hover)]",
+                    )}
+                  >
+                    <span className="min-w-0 flex-1 font-normal">{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </details>
+
+            <label className="group/search relative block min-w-0 flex-1 sm:w-48 sm:flex-none">
+              <span className="sr-only">{language === "id" ? "Cari soal" : "Search questions"}</span>
+              <Search size={13} strokeWidth={1.8} aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[#b09f85] transition-colors duration-150 ease-out group-hover/search:text-brand group-focus-within/search:text-brand" />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search"
+                className="min-h-7 w-full rounded-md border border-[#ccbab0] bg-[var(--review-page)] py-1 pl-7 pr-2.5 text-[11px] font-normal leading-4 text-black outline-none transition-[border-color,box-shadow] duration-150 ease-out placeholder:text-muted/75 hover:border-[#b09f85] focus:border-[#b09f85] focus:ring-2 focus:ring-brand/10"
+              />
+            </label>
+          </div>
+        </div>
+
+        {filteredQuestions.length === 0 ? (
+          <div className="mt-2 rounded-lg border border-border bg-[var(--review-card)]">
+            <EmptyState message={language === "id" ? "Tidak ada soal yang cocok dengan pencarian atau filter ini." : "No questions match these filters."} />
+          </div>
+        ) : (
+          <div className="mt-2 overflow-visible rounded-lg border border-border bg-white shadow-[0_1px_2px_rgba(176,159,133,0.12)]">
+            <div aria-hidden="true" className={cn("hidden rounded-t-lg gap-3 border-b border-border bg-[var(--review-header)] px-3 py-2.5 text-[13px] font-semibold text-black lg:grid", tableGridClass)}>
+              <span className="text-center">No</span>
+              <span>{questionColumnHeading}</span>
+              <span>{language === "id" ? "Tipe" : "Type"}</span>
+              <span>{language === "id" ? "Reviewer" : "Reviewers"}</span>
+              <span className="text-center">{status === "unreviewed" ? "" : language === "id" ? "Aksi" : "Actions"}</span>
+            </div>
+            <ul>
+              {filteredQuestions.map((question, index) => {
+                const identifier = getMaterialQuestionIdentifier(question);
+                const title = t(question.title, language).trim() || identifier;
+                const questionType =
+                  question.type === "multiple_choice" ? typeOptions[2] : typeOptions[1];
+                const typeExplanation = questionType.explanation;
+                const reviewCount = Math.min(
+                  questionCounts.get(question.id) ?? 0,
+                  QUESTION_REVIEWED_THRESHOLD,
+                );
+                const questionStatus = getWeekReviewQuestionStatus(
+                  question.id,
+                  reviewed,
+                  questionCounts,
+                  QUESTION_REVIEWED_THRESHOLD,
+                );
+                const viewActionLabel =
+                  questionStatus === "reviewed"
+                    ? language === "id" ? "Lihat" : "View"
+                    : language === "id" ? "Lihat soal" : "View question";
+                const deleteActionLabel = language === "id" ? "Hapus review" : "Delete review";
+                const viewTooltipId = `review-question-action-view-${question.id}`;
+                const editTooltipId = `review-question-action-edit-${question.id}`;
+                const deleteTooltipId = `review-question-action-delete-${question.id}`;
+                const rowCells = (
+                  <>
+                    <span className="hidden text-center text-xs font-normal tabular-nums text-black/60 lg:block">{index + 1}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-normal leading-4 text-black">{title}</span>
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
+                        <QuestionTypeTooltipLabel
+                          label={questionType.label}
+                          explanation={typeExplanation}
+                          tooltipId={`review-question-type-${question.id}-mobile`}
+                          focusable={questionStatus !== "unreviewed"}
+                          className={cn(
+                            "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4 transition-colors duration-150 ease-out",
+                            question.type === "multiple_choice"
+                              ? "border-[var(--review-type-choice-border)] bg-[var(--review-type-choice-bg)] text-[var(--review-type-choice-text)] hover:bg-[var(--review-type-choice-hover)] hover:border-[var(--review-type-choice-hover-border)]"
+                              : "border-[var(--review-type-essay-border)] bg-[var(--review-type-essay-bg)] text-[var(--review-type-essay-text)] hover:bg-[var(--review-type-essay-hover)] hover:border-[var(--review-type-essay-hover-border)]",
+                          )}
+                        />
+                        <span className="text-[10px] font-normal tabular-nums text-black/60">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer</span>
+                      </span>
+                    </span>
+                    <QuestionTypeTooltipLabel
+                      label={questionType.label}
+                      explanation={typeExplanation}
+                      tooltipId={`review-question-type-${question.id}-desktop`}
+                      focusable={questionStatus !== "unreviewed"}
+                      className={cn(
+                        "hidden w-fit items-center rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4 transition-colors duration-150 ease-out lg:inline-flex",
+                        question.type === "multiple_choice"
+                          ? "border-[var(--review-type-choice-border)] bg-[var(--review-type-choice-bg)] text-[var(--review-type-choice-text)] hover:bg-[var(--review-type-choice-hover)] hover:border-[var(--review-type-choice-hover-border)]"
+                          : "border-[var(--review-type-essay-border)] bg-[var(--review-type-essay-bg)] text-[var(--review-type-essay-text)] hover:bg-[var(--review-type-essay-hover)] hover:border-[var(--review-type-essay-hover-border)]",
+                      )}
+                    />
+                    <span className="hidden text-xs font-normal tabular-nums text-black/60 lg:block">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD}</span>
+                  </>
+                );
+
+                return (
+                  <li key={question.id} className="border-b border-border last:border-b-0">
+                    {questionStatus === "unreviewed" ? (
+                      <button
+                        type="button"
+                        aria-describedby={`review-question-type-${question.id}-desktop`}
+                        onClick={() => onOpenQuestion(question, false)}
+                        className={cn("group group/row grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-left transition-colors duration-150 ease-out hover:bg-[var(--review-row-hover)] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-[var(--review-secondary-soft)]", tableGridClass)}
+                      >
+                        {rowCells}
+                        <ChevronRight size={15} strokeWidth={1.8} aria-hidden="true" className="text-[#b09f85] transition-[color,transform] duration-150 ease-out group-hover/row:translate-x-0.5 group-hover/row:text-brand motion-reduce:translate-none" />
+                      </button>
+                    ) : (
+                      <div className={cn("group/row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 transition-colors duration-150 ease-out hover:bg-[var(--review-row-hover)]", tableGridClass)}>
+                        {rowCells}
+                        <div className="flex items-center justify-center gap-1">
+                          <button
+                            type="button"
+                            aria-labelledby={viewTooltipId}
+                            onClick={() => onOpenQuestion(question, true)}
+                            className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
+                          >
+                            <Eye size={14} strokeWidth={1.9} aria-hidden="true" />
+                            <ReviewActionTooltip id={viewTooltipId} label={viewActionLabel} />
+                          </button>
+                          {questionStatus === "reviewed" && (
+                            <>
+                              <button
+                                type="button"
+                                aria-labelledby={editTooltipId}
+                                onClick={() => onOpenQuestion(question, false)}
+                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
+                              >
+                                <Pencil size={14} strokeWidth={1.9} aria-hidden="true" />
+                                <ReviewActionTooltip id={editTooltipId} label="Edit" />
+                              </button>
+                              <button
+                                type="button"
+                                aria-labelledby={deleteTooltipId}
+                                disabled={withdrawingId === question.id}
+                                onClick={() => void handleWithdraw(question)}
+                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-primary-soft)] hover:text-brand disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
+                              >
+                                <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
+                                <ReviewActionTooltip id={deleteTooltipId} label={deleteActionLabel} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </section>
+    </>
   );
 }
 
@@ -427,6 +984,17 @@ export function LecturerReviewPage({
     () => parseReviewNavigationSearch(location.search),
     [location.search],
   );
+  const reviewStage = useMemo<"overview" | "list" | "detail">(() => {
+    if (initialAnswerId || new URLSearchParams(location.search).has("item")) {
+      return "detail";
+    }
+    return new URLSearchParams(location.search).has("week")
+      ? "list"
+      : "overview";
+  }, [initialAnswerId, location.search]);
+  const reviewReadOnly =
+    reviewStage === "detail" &&
+    new URLSearchParams(location.search).get("mode") === "view";
   const navigation = useMemo(
     () =>
       normalizeReviewNavigationState(
@@ -462,10 +1030,13 @@ export function LecturerReviewPage({
     [navigation, orderedAnswers, questions, reviewedAnswerIds, reviewedQuestionIds],
   );
   const commitNavigation = useCallback(
-    (next: ReviewNavigationState) => {
+    (next: ReviewNavigationState, readOnly = false) => {
       setReviewNavigationInput(next);
+      const search = `${serializeReviewNavigationSearch(next)}${
+        readOnly && next.task === "question" ? "&mode=view" : ""
+      }`;
       navigate(
-        { pathname: "/review", search: serializeReviewNavigationSearch(next) },
+        { pathname: "/review", search },
         { replace: true },
       );
     },
@@ -475,6 +1046,7 @@ export function LecturerReviewPage({
   useEffect(() => {
     if (
       !navigationReady ||
+      reviewStage !== "detail" ||
       (initialAnswerId && handledInitialAnswerId !== initialAnswerId)
     ) {
       return;
@@ -489,7 +1061,9 @@ export function LecturerReviewPage({
       // sessionStorage can be unavailable in restricted browser contexts.
     }
 
-    const search = serializeReviewNavigationSearch(navigation);
+    const search = `${serializeReviewNavigationSearch(navigation)}${
+      reviewReadOnly && navigation.task === "question" ? "&mode=view" : ""
+    }`;
     if (location.pathname !== "/review" || location.search !== search) {
       navigate({ pathname: "/review", search }, { replace: true });
     }
@@ -501,6 +1075,8 @@ export function LecturerReviewPage({
     navigate,
     navigation,
     navigationReady,
+    reviewReadOnly,
+    reviewStage,
   ]);
 
   useEffect(() => {
@@ -585,6 +1161,16 @@ export function LecturerReviewPage({
       )
     : undefined;
   const weekOptions = getMaterialWeekOptions(questions);
+  const weekSummaries = useMemo(
+    () =>
+      getReviewWeekSummaries(
+        questions,
+        reviewedQuestionIds,
+        questionCounts,
+        QUESTION_REVIEWED_THRESHOLD,
+      ),
+    [questionCounts, questions, reviewedQuestionIds],
+  );
   const contextQueues = useMemo(
     () =>
       (["unreviewed", "reviewed"] as const).map((status) =>
@@ -623,7 +1209,10 @@ export function LecturerReviewPage({
   );
 
   const changeNavigation = useCallback(
-    (patch: Partial<ReviewNavigationState>) => {
+    (
+      patch: Partial<ReviewNavigationState>,
+      options: { readOnly?: boolean } = {},
+    ) => {
       const next = normalizeReviewNavigationState(
         { ...navigation, ...patch },
         {
@@ -636,7 +1225,7 @@ export function LecturerReviewPage({
       if (!confirmNavigation(next)) return false;
       setQuestionDirty(false);
       setAnswerDirty(false);
-      commitNavigation(next);
+      commitNavigation(next, options.readOnly ?? reviewReadOnly);
       return true;
     },
     [
@@ -645,26 +1234,69 @@ export function LecturerReviewPage({
       navigation,
       orderedAnswers,
       questions,
+      reviewReadOnly,
       reviewedAnswerIds,
       reviewedQuestionIds,
     ],
   );
 
   const viewHistory = () => navigate("/review/riwayat");
+  const navigateToOverview = useCallback(() => {
+    if (
+      reviewStage === "detail" &&
+      !confirmNavigation({ ...navigation, item: undefined })
+    ) {
+      return;
+    }
+    setQuestionDirty(false);
+    setAnswerDirty(false);
+    navigate("/review");
+  }, [confirmNavigation, navigate, navigation, reviewStage]);
+  const navigateToWeek = useCallback(
+    (week: string) => {
+      if (
+        reviewStage === "detail" &&
+        !confirmNavigation({ ...navigation, week, task: "question", item: undefined })
+      ) {
+        return;
+      }
+      setQuestionDirty(false);
+      setAnswerDirty(false);
+      navigate({ pathname: "/review", search: `?week=${encodeURIComponent(week)}` });
+    },
+    [confirmNavigation, navigate, navigation, reviewStage],
+  );
+  const openQuestion = useCallback(
+    (question: Question, readOnly: boolean) => {
+      changeNavigation(
+        {
+          week: question.week ?? navigation.week,
+          task: "question",
+          status: reviewedQuestionIds.includes(question.id)
+            ? "reviewed"
+            : "unreviewed",
+          type: "all",
+          item: question.id,
+        },
+        { readOnly },
+      );
+    },
+    [changeNavigation, navigation.week, reviewedQuestionIds],
+  );
   const selectOffset = (offset: number) => {
     const item = activeQueue[activeIndex + offset];
     if (item) changeNavigation({ item: item.id });
   };
 
-  const handleQuestionDelete = async () => {
-    if (!activeQuestion?.sourceVersion) {
+  const withdrawQuestionReview = useCallback(async (question: Question) => {
+    if (!question.sourceVersion) {
       throw new Error("Versi sumber soal belum tersedia.");
     }
-    await deleteQuestionReview(activeQuestion.id, activeQuestion.sourceVersion);
+    await deleteQuestionReview(question.id, question.sourceVersion);
     setQuestionHistory((current) =>
       current.map((review) =>
-        review.questionId === activeQuestion.id &&
-        review.sourceVersion === activeQuestion.sourceVersion &&
+        review.questionId === question.id &&
+        review.sourceVersion === question.sourceVersion &&
         review.isActive
           ? {
               ...review,
@@ -677,13 +1309,18 @@ export function LecturerReviewPage({
     );
     setQuestionCounts((current) => {
       const next = new Map(current);
-      next.set(activeQuestion.id, Math.max(0, (next.get(activeQuestion.id) ?? 1) - 1));
+      next.set(question.id, Math.max(0, (next.get(question.id) ?? 1) - 1));
       return next;
     });
+    setReviewDataRevision((current) => current + 1);
+  }, []);
+
+  const handleQuestionDelete = async () => {
+    if (!activeQuestion) return;
+    await withdrawQuestionReview(activeQuestion);
     commitNavigation(
       getNavigationAfterWithdraw(navigation, activeQuestion.id),
     );
-    setReviewDataRevision((current) => current + 1);
   };
 
   const handleQuestionSubmit = async (values: QuestionReviewValues) => {
@@ -767,8 +1404,74 @@ export function LecturerReviewPage({
     setReviewDataRevision((current) => current + 1);
   };
 
+  if (reviewStage === "overview") {
+    return (
+      <div className="lecturer-ui review-week-pages review-stage-enter mx-auto max-w-[1240px] text-black">
+        {loadError && (
+          <p role="alert" className="mb-5 rounded-lg border border-brand/25 bg-[var(--review-primary-soft)] px-4 py-3 text-sm text-brand">
+            {loadError}
+          </p>
+        )}
+        <WeekOverview
+          summaries={weekSummaries}
+          language={language}
+          loading={loading}
+          onSelectWeek={navigateToWeek}
+        />
+      </div>
+    );
+  }
+
+  if (reviewStage === "list") {
+    const requestedWeek = new URLSearchParams(location.search).get("week") ?? "";
+    const selectedWeek = navigation.week || requestedWeek;
+
+    return (
+      <div className="lecturer-ui review-week-pages review-stage-enter mx-auto max-w-[1240px] text-black">
+        {loadError && (
+          <p role="alert" className="mb-5 rounded-lg border border-brand/25 bg-[var(--review-primary-soft)] px-4 py-3 text-sm text-brand">
+            {loadError}
+          </p>
+        )}
+        {loading ? (
+          <div role="status" aria-label={language === "id" ? "Memuat daftar soal" : "Loading question list"}>
+            <ReviewBreadcrumb week={requestedWeek || undefined} language={language} onOverview={navigateToOverview} />
+            <div className="h-10 w-56 animate-pulse rounded-lg bg-[var(--review-secondary-soft)]" />
+            <div className="mt-3 h-5 w-80 max-w-full animate-pulse rounded bg-[var(--review-secondary-soft)]" />
+            <div className="mt-8 h-28 animate-pulse rounded-xl bg-[var(--review-secondary-soft)]" />
+            <div className="mt-5 h-72 animate-pulse rounded-xl bg-[var(--review-secondary-soft)]" />
+          </div>
+        ) : (
+          <WeekQuestionList
+            key={selectedWeek}
+            week={selectedWeek}
+            questions={questions}
+            language={language}
+            questionCounts={questionCounts}
+            reviewedQuestionIds={reviewedQuestionIds}
+            onBack={navigateToOverview}
+            onOpenQuestion={openQuestion}
+            onDeleteReview={withdrawQuestionReview}
+          />
+        )}
+      </div>
+    );
+  }
+
+  const detailQuestion = activeQuestion ?? answerQuestion;
+  const detailLabel = detailQuestion
+    ? getMaterialQuestionIdentifier(detailQuestion)
+    : navigation.item;
+
   return (
-    <div className="mx-auto max-w-[1440px]">
+    <div className="lecturer-ui mx-auto max-w-[1440px] text-black">
+      <ReviewBreadcrumb
+        week={navigation.week || undefined}
+        question={detailLabel}
+        language={language}
+        onOverview={navigateToOverview}
+        onWeek={() => navigateToWeek(navigation.week)}
+      />
       {loadError && (
         <p
           role="alert"
@@ -919,6 +1622,7 @@ export function LecturerReviewPage({
                 submittedReviewLoading={metadataLoading}
                 submittedReviewError={loadError}
                 isAdmin={isAdmin}
+                readOnly={reviewReadOnly}
                 onPrevious={() => selectOffset(-1)}
                 onNext={() => selectOffset(1)}
                 onViewHistory={viewHistory}
