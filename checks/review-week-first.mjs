@@ -377,6 +377,10 @@ const listSource = activePage.slice(
   activePage.indexOf("function WeekQuestionList"),
   activePage.indexOf("function QueuePanel"),
 );
+const typeFilterSource = listSource.slice(
+  listSource.indexOf('className="group/type relative shrink-0"'),
+  listSource.indexOf('<label className="group/search'),
+);
 const overviewAndListSource = activePage.slice(
   activePage.indexOf("function WeekOverview"),
   activePage.indexOf("function QueuePanel"),
@@ -446,6 +450,19 @@ assert.match(
   /transition-\[background-color,border-color,color,transform\] duration-150 ease-out[\s\S]*?active:scale-\[0\.99\] motion-reduce:scale-none/,
 );
 assert.match(listSource, /review-type-popover/);
+assert.match(
+  typeFilterSource,
+  /bg-\[var\(--review-page\)\][\s\S]*?text-black[\s\S]*?hover:border-\[#b09f85\][\s\S]*?focus-visible:border-brand\/55[\s\S]*?group-open\/type:border-brand\/55/,
+);
+assert.match(
+  typeFilterSource,
+  /bg-\[var\(--review-primary-soft\)\] text-black active:bg-\[var\(--review-primary-soft\)\]/,
+);
+assert.match(
+  typeFilterSource,
+  /text-black hover:bg-\[var\(--review-secondary-soft\)\] active:bg-\[var\(--review-secondary-soft\)\]/,
+);
+assert.doesNotMatch(typeFilterSource, /text-brand|review-type-(?:essay|choice)/);
 assert.match(listSource, /group-hover\/search:text-brand group-focus-within\/search:text-brand/);
 assert.match(listSource, /group-hover\/row:translate-x-0\.5 group-hover\/row:text-brand motion-reduce:translate-none/);
 assert.match(overviewAndListSource, /function ReviewActionTooltip/);

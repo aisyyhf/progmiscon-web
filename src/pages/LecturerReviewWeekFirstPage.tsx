@@ -435,7 +435,7 @@ function WeekQuestionList({
             >
               <summary
                 aria-label={`${language === "id" ? "Tipe soal" : "Question type"}: ${selectedType.label}`}
-                className="flex min-h-7 w-[9.75rem] cursor-pointer list-none items-center gap-1.5 rounded-md border border-[#ccbab0] bg-[var(--review-page)] py-1 pl-2.5 pr-2 text-[11px] leading-4 text-black outline-none transition-[border-color,background-color,box-shadow] duration-150 ease-out marker:hidden hover:border-[#b09f85] focus-visible:border-[#b09f85] focus-visible:ring-2 focus-visible:ring-brand/10 active:bg-[var(--review-secondary-soft)] [&::-webkit-details-marker]:hidden"
+                className="flex min-h-7 w-[9.75rem] cursor-pointer list-none items-center gap-1.5 rounded-md border border-[#ccbab0] bg-[var(--review-page)] py-1 pl-2.5 pr-2 text-[11px] leading-4 text-black outline-none transition-[border-color,background-color,box-shadow] duration-150 ease-out marker:hidden hover:border-[#b09f85] focus-visible:border-brand/55 focus-visible:ring-2 focus-visible:ring-brand/10 group-open/type:border-brand/55 group-open/type:ring-2 group-open/type:ring-brand/10 active:bg-[var(--review-secondary-soft)] [&::-webkit-details-marker]:hidden"
               >
                 <span className="min-w-0 truncate font-medium">{selectedType.label}</span>
                 {selectedType.explanation && (
@@ -482,10 +482,10 @@ function WeekQuestionList({
                       event.currentTarget.closest("details")?.removeAttribute("open");
                     }}
                     className={cn(
-                      "flex min-h-7 w-full cursor-pointer items-center gap-2 rounded px-2 py-1 text-left text-[11px] leading-4 transition-colors duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-[var(--review-secondary-soft)]",
+                      "flex min-h-7 w-full cursor-pointer items-center gap-2 rounded px-2 py-1 text-left text-[11px] leading-4 transition-colors duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand",
                       type === option.value
-                        ? "bg-[var(--review-secondary-soft)] text-brand"
-                        : "text-black hover:bg-[var(--review-row-hover)]",
+                        ? "bg-[var(--review-primary-soft)] text-black active:bg-[var(--review-primary-soft)]"
+                        : "text-black hover:bg-[var(--review-secondary-soft)] active:bg-[var(--review-secondary-soft)]",
                     )}
                   >
                     <span className="min-w-0 flex-1 font-normal">{option.label}</span>
