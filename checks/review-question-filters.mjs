@@ -497,7 +497,13 @@ assert.match(
 assert.equal(
   page.match(/const formUnavailable = locked \|\| progressUnavailable;/g)
     ?.length,
-  2,
+  1,
+);
+assert.equal(
+  page.match(
+    /const formUnavailable = readOnly \|\| locked \|\| progressUnavailable;/g,
+  )?.length,
+  1,
 );
 assert.equal(page.match(/\sdisabled=\{formUnavailable\}/g)?.length, 2);
 assert.equal(

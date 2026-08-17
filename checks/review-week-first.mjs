@@ -11,6 +11,7 @@ import {
   getNavigationAfterWithdraw,
   getNextQueueItemId,
   getReviewWeekSummaries,
+  getWeekReviewQuestionStatus,
   normalizeReviewNavigationState,
   parseReviewNavigationSearch,
   parseReviewNavigationSession,
@@ -75,7 +76,24 @@ const searchableQuestions = questions.map((item, index) => ({
   expectedConcepts:
     index === 3 ? [{ id: "Kompleksitas waktu", en: "Time complexity" }] : [],
 }));
-const searchableQuestionCounts = new Map([["W02-PS-2", 3]]);
+const searchableQuestionCounts = new Map([
+  ["W02-PS-1", 3],
+  ["W02-PS-2", 3],
+]);
+const reviewedStatusIds = new Set(["reviewed-at-1", "reviewed-at-3"]);
+const statusCounts = new Map([
+  ["unreviewed-at-1", 1],
+  ["unreviewed-at-2", 2],
+  ["reviewed-at-1", 1],
+  ["reviewed-at-3", 3],
+  ["full-at-3", 3],
+]);
+assert.equal(getWeekReviewQuestionStatus("unreviewed-at-0", reviewedStatusIds, statusCounts, 3), "unreviewed");
+assert.equal(getWeekReviewQuestionStatus("unreviewed-at-1", reviewedStatusIds, statusCounts, 3), "unreviewed");
+assert.equal(getWeekReviewQuestionStatus("unreviewed-at-2", reviewedStatusIds, statusCounts, 3), "unreviewed");
+assert.equal(getWeekReviewQuestionStatus("reviewed-at-1", reviewedStatusIds, statusCounts, 3), "reviewed");
+assert.equal(getWeekReviewQuestionStatus("reviewed-at-3", reviewedStatusIds, statusCounts, 3), "reviewed");
+assert.equal(getWeekReviewQuestionStatus("full-at-3", reviewedStatusIds, statusCounts, 3), "full");
 assert.deepEqual(
   filterWeekReviewQuestions(searchableQuestions, {
     week: "W02",
@@ -93,7 +111,7 @@ assert.deepEqual(
     week: "W02",
     query: "kompleksitas waktu",
     type: "all",
-    status: "all",
+    status: "unreviewed",
     reviewedQuestionIds: [],
     questionCounts: searchableQuestionCounts,
     reviewerThreshold: 3,
@@ -173,17 +191,38 @@ const questionVersions = new Map([
   ["W02-PS-1", "question-v2"],
   ["W02-PS-2", "question-v1"],
 ]);
-assert.deepEqual(
-  getActiveCurrentQuestionReviewIds(
+const activeCurrentQuestionReviewIds = getActiveCurrentQuestionReviewIds(
     [
       { questionId: "W02-PS-1", sourceVersion: "question-v2", isActive: true },
       { questionId: "W02-PS-2", sourceVersion: "question-v1", isActive: false },
       { questionId: "W02-PS-3", sourceVersion: "old", isActive: true },
     ],
     questionVersions,
-  ),
+  );
+assert.deepEqual(
+  activeCurrentQuestionReviewIds,
   ["W02-PS-1"],
   "inactive, deleted, and source-updated question reviews are personally unreviewed",
+);
+assert.equal(
+  getWeekReviewQuestionStatus(
+    "W02-PS-2",
+    new Set(activeCurrentQuestionReviewIds),
+    new Map(),
+    3,
+  ),
+  "unreviewed",
+  "deleted personal reviews do not satisfy personal completion",
+);
+assert.equal(
+  getWeekReviewQuestionStatus(
+    "W02-PS-3",
+    new Set(activeCurrentQuestionReviewIds),
+    new Map(),
+    3,
+  ),
+  "unreviewed",
+  "stale/source-updated personal reviews do not satisfy personal completion",
 );
 const answerVersions = new Map([
   ["MP-ANSWER-1", { questionId: "W02-MP-1", sourceVersion: "answer-v2" }],
@@ -302,6 +341,14 @@ const activePage = await readFile(
   new URL("../src/pages/LecturerReviewWeekFirstPage.tsx", import.meta.url),
   "utf8",
 );
+const validationWorkspace = await readFile(
+  new URL("../src/pages/LecturerReviewPage.tsx", import.meta.url),
+  "utf8",
+);
+const listSource = activePage.slice(
+  activePage.indexOf("function WeekQuestionList"),
+  activePage.indexOf("function QueuePanel"),
+);
 const app = await readFile(
   new URL("../src/app/App.tsx", import.meta.url),
   "utf8",
@@ -319,12 +366,14 @@ assert.match(activePage, /WeekQuestionList/);
 assert.match(activePage, /filterWeekReviewQuestions/);
 assert.match(activePage, /reviewStage === "overview"/);
 assert.match(activePage, /reviewStage === "list"/);
-assert.match(activePage, /Status pribadi/);
+assert.doesNotMatch(listSource, /Status pribadi|Personal status/);
 assert.match(activePage, /REVIEW SOAL PER MINGGU/);
 assert.match(activePage, /formatWeekLabel\(week\)\.toLocaleUpperCase/);
 assert.match(activePage, /aria-pressed=\{status === value\}/);
 assert.match(activePage, /Kuota penuh/);
-assert.match(activePage, /reviewCount >= QUESTION_REVIEWED_THRESHOLD/);
+assert.match(activePage, /getWeekReviewQuestionStatus/);
+assert.match(listSource, /useState<ReviewWeekListStatus>\("unreviewed"\)/);
+assert.doesNotMatch(listSource, /\["all", language === "id" \? "Semua"/);
 assert.match(activePage, /appearance-none/);
 assert.match(activePage, /rounded-full/);
 assert.match(activePage, /Tipe soal/);
@@ -339,6 +388,22 @@ assert.match(activePage, /saveQuestionReview\(/);
 assert.match(activePage, /saveAnswerReview\(/);
 assert.match(activePage, /deleteQuestionReview\(/);
 assert.match(activePage, /deleteAnswerReview\(/);
+assert.match(listSource, /questionStatus === "unreviewed"/);
+assert.match(listSource, /questionStatus === "reviewed"/);
+assert.match(listSource, /onOpenQuestion\(question, true\)/);
+assert.match(listSource, /onOpenQuestion\(question, false\)/);
+assert.match(listSource, /<Eye/);
+assert.match(listSource, /<Pencil/);
+assert.match(listSource, /<Trash2/);
+assert.match(listSource, /Hapus review/);
+assert.match(activePage, /withdrawQuestionReview/);
+assert.match(activePage, /deleteQuestionReview\(question\.id, question\.sourceVersion\)/);
+assert.match(activePage, /mode=view/);
+assert.match(activePage, /readOnly=\{reviewReadOnly\}/);
+assert.match(validationWorkspace, /formUnavailable = readOnly \|\| locked \|\| progressUnavailable/);
+assert.match(validationWorkspace, /Mode lihat\. Review Anda ditampilkan hanya-baca\./);
+assert.match(validationWorkspace, /Batas 3 reviewer telah tercapai\. Soal ditampilkan hanya-baca\./);
+assert.match(validationWorkspace, /!readOnly && answerReviewEligible && onReviewAnswer/);
 assert.doesNotMatch(activePage, /question-ps|answer-ps|question-mp|answer-mp/);
 assert.doesNotMatch(
   activePage,

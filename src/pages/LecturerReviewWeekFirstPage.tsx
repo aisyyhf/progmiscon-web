@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, ChevronRight, History, Search, Users } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Eye,
+  History,
+  Pencil,
+  Search,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
@@ -15,6 +25,7 @@ import {
   getReviewerHistory,
   getReviewProgress,
   getReviewWorkspaceSnapshot,
+  isReviewPersistenceError,
   saveAnswerReview,
   saveQuestionReview,
 } from "../services/reviewPersistenceRepository";
@@ -44,6 +55,7 @@ import {
   getNavigationAfterReviewSave,
   getNavigationAfterWithdraw,
   getReviewWeekSummaries,
+  getWeekReviewQuestionStatus,
   normalizeReviewNavigationState,
   parseReviewNavigationSearch,
   parseReviewNavigationSession,
@@ -231,7 +243,8 @@ function WeekQuestionList({
   questionCounts,
   reviewedQuestionIds,
   onBack,
-  onSelectQuestion,
+  onOpenQuestion,
+  onDeleteReview,
 }: {
   week: string;
   questions: readonly Question[];
@@ -239,11 +252,13 @@ function WeekQuestionList({
   questionCounts: ReadonlyMap<string, number>;
   reviewedQuestionIds: readonly string[];
   onBack: () => void;
-  onSelectQuestion: (question: Question) => void;
+  onOpenQuestion: (question: Question, readOnly: boolean) => void;
+  onDeleteReview: (question: Question) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState<ReviewQuestionType>("all");
-  const [status, setStatus] = useState<ReviewWeekListStatus>("all");
+  const [status, setStatus] = useState<ReviewWeekListStatus>("unreviewed");
+  const [withdrawingId, setWithdrawingId] = useState("");
   const reviewed = useMemo(() => new Set(reviewedQuestionIds), [reviewedQuestionIds]);
   const weekTotal = useMemo(
     () => new Set(questions.filter((question) => question.week === week).map(({ id }) => id)).size,
@@ -262,6 +277,46 @@ function WeekQuestionList({
       }),
     [questionCounts, questions, query, reviewedQuestionIds, status, type, week],
   );
+  const tableGridClass =
+    status === "unreviewed"
+      ? "lg:grid-cols-[3rem_minmax(0,1fr)_8.5rem_6.5rem_1.5rem]"
+      : "lg:grid-cols-[3rem_minmax(0,1fr)_8.5rem_6.5rem_7rem]";
+  const handleWithdraw = async (question: Question) => {
+    if (
+      !window.confirm(
+        language === "id"
+          ? "Hapus review soal ini? Review akan dinonaktifkan dan soal kembali ke daftar tugas jika kuota masih tersedia."
+          : "Delete this question review? It will be deactivated and returned to the task list if quota remains available.",
+      )
+    ) {
+      return;
+    }
+
+    setWithdrawingId(question.id);
+    try {
+      await onDeleteReview(question);
+    } catch (error) {
+      console.error("[Progmiscon] Review soal gagal dihapus", error);
+      if (isReviewPersistenceError(error, "DATA_VERSION_CHANGED")) {
+        window.alert(
+          error instanceof Error
+            ? error.message
+            : "Data sumber telah diperbarui. Muat ulang data lalu review kembali.",
+        );
+        window.location.reload();
+        return;
+      }
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : language === "id"
+            ? "Review soal belum dapat dihapus."
+            : "The question review could not be deleted.",
+      );
+    } finally {
+      setWithdrawingId("");
+    }
+  };
 
   return (
     <>
@@ -280,9 +335,8 @@ function WeekQuestionList({
             aria-label={language === "id" ? "Status review pribadi" : "Personal review status"}
           >
             {([
-              ["all", language === "id" ? "Semua" : "All"],
-              ["reviewed", language === "id" ? "Sudah direview" : "Reviewed"],
               ["unreviewed", language === "id" ? "Belum direview" : "Not reviewed"],
+              ["reviewed", language === "id" ? "Sudah direview" : "Reviewed"],
               ["full", language === "id" ? "Kuota penuh" : "Quota full"],
             ] as const).map(([value, label]) => (
               <button
@@ -344,17 +398,15 @@ function WeekQuestionList({
           </div>
         ) : (
           <div className="mt-2 overflow-hidden rounded-lg border border-border/90 bg-white shadow-[0_1px_2px_rgba(95,71,59,0.04)]">
-            <div aria-hidden="true" className="hidden grid-cols-[3rem_minmax(0,1fr)_8.5rem_9.5rem_6.5rem_1.5rem] gap-3 border-b border-border bg-[#fbfbfe] px-3 py-2.5 text-[13px] font-semibold text-muted lg:grid">
+            <div aria-hidden="true" className={cn("hidden gap-3 border-b border-border bg-[#fbfbfe] px-3 py-2.5 text-[13px] font-semibold text-muted lg:grid", tableGridClass)}>
               <span>No.</span>
               <span>{language === "id" ? "Soal" : "Question"}</span>
               <span>{language === "id" ? "Tipe" : "Type"}</span>
-              <span>{language === "id" ? "Status pribadi" : "Personal status"}</span>
               <span>{language === "id" ? "Reviewer" : "Reviewers"}</span>
-              <span />
+              <span>{status === "unreviewed" ? "" : language === "id" ? "Aksi" : "Actions"}</span>
             </div>
             <ul>
               {filteredQuestions.map((question, index) => {
-                const personallyReviewed = reviewed.has(question.id);
                 const identifier = getMaterialQuestionIdentifier(question);
                 const title = t(question.title, language).trim() || identifier;
                 const typeLabel =
@@ -367,61 +419,87 @@ function WeekQuestionList({
                   questionCounts.get(question.id) ?? 0,
                   QUESTION_REVIEWED_THRESHOLD,
                 );
-                const quotaFull =
-                  !personallyReviewed &&
-                  reviewCount >= QUESTION_REVIEWED_THRESHOLD;
-                const personalStatusLabel = personallyReviewed
-                  ? language === "id"
-                    ? "Sudah direview"
-                    : "Reviewed"
-                  : quotaFull
-                    ? language === "id"
-                      ? "Kuota penuh"
-                      : "Quota full"
-                    : language === "id"
-                      ? "Belum direview"
-                      : "Not reviewed";
-                const personalStatusClass = personallyReviewed
-                  ? "bg-correct-bg text-correct"
-                  : quotaFull
-                    ? "border border-[#b09f85]/45 bg-[#b09f85]/10 text-[#6f6250]"
-                    : "bg-[#ccbab0]/20 text-muted";
+                const questionStatus = getWeekReviewQuestionStatus(
+                  question.id,
+                  reviewed,
+                  questionCounts,
+                  QUESTION_REVIEWED_THRESHOLD,
+                );
+                const rowCells = (
+                  <>
+                    <span className="hidden text-xs tabular-nums text-muted lg:block">{index + 1}</span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-xs font-medium leading-4 text-black">{title}</span>
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
+                        <span className={cn(
+                          "rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-4",
+                          question.type === "multiple_choice"
+                            ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
+                            : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
+                        )}>{typeLabel}</span>
+                        <span className="text-[10px] font-medium tabular-nums text-muted">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer</span>
+                      </span>
+                    </span>
+                    <span className={cn(
+                      "hidden w-fit rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-4 lg:block",
+                      question.type === "multiple_choice"
+                        ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
+                        : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
+                    )}>{typeLabel}</span>
+                    <span className="hidden text-xs font-medium tabular-nums text-muted lg:block">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD}</span>
+                  </>
+                );
 
                 return (
                   <li key={question.id} className="border-b border-border last:border-b-0">
-                    <button
-                      type="button"
-                      onClick={() => onSelectQuestion(question)}
-                      className="group grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-[#fbfbfe] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-brand-soft/45 lg:grid-cols-[3rem_minmax(0,1fr)_8.5rem_9.5rem_6.5rem_1.5rem]"
-                    >
-                      <span className="hidden text-xs tabular-nums text-muted lg:block">{index + 1}</span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-xs font-medium leading-4 text-black">{title}</span>
-                        <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
-                          <span className={cn(
-                            "rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-4",
-                            question.type === "multiple_choice"
-                              ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
-                              : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
-                          )}>{typeLabel}</span>
-                          <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-4", personalStatusClass)}>
-                            {personalStatusLabel}
-                          </span>
-                          <span className="text-[11px] font-medium tabular-nums text-muted">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer</span>
-                        </span>
-                      </span>
-                      <span className={cn(
-                        "hidden w-fit rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-4 lg:block",
-                        question.type === "multiple_choice"
-                          ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
-                          : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
-                      )}>{typeLabel}</span>
-                      <span className={cn("hidden w-fit rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-4 lg:block", personalStatusClass)}>
-                        {personalStatusLabel}
-                      </span>
-                      <span className="hidden text-xs font-medium tabular-nums text-muted lg:block">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD}</span>
-                      <ChevronRight size={15} strokeWidth={1.8} aria-hidden="true" className="text-[#b09f85] transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
-                    </button>
+                    {questionStatus === "unreviewed" ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenQuestion(question, false)}
+                        className={cn("group grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-[#fbfbfe] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-brand-soft/45", tableGridClass)}
+                      >
+                        {rowCells}
+                        <ChevronRight size={15} strokeWidth={1.8} aria-hidden="true" className="text-[#b09f85] transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+                      </button>
+                    ) : (
+                      <div className={cn("grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2", tableGridClass)}>
+                        {rowCells}
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            type="button"
+                            title={questionStatus === "reviewed" ? (language === "id" ? "Lihat" : "View") : language === "id" ? "Lihat soal" : "View question"}
+                            aria-label={questionStatus === "reviewed" ? (language === "id" ? "Lihat" : "View") : language === "id" ? "Lihat soal" : "View question"}
+                            onClick={() => onOpenQuestion(question, true)}
+                            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                          >
+                            <Eye size={14} strokeWidth={1.9} aria-hidden="true" />
+                          </button>
+                          {questionStatus === "reviewed" && (
+                            <>
+                              <button
+                                type="button"
+                                title="Edit"
+                                aria-label="Edit"
+                                onClick={() => onOpenQuestion(question, false)}
+                                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-brand-soft hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                              >
+                                <Pencil size={14} strokeWidth={1.9} aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                title={language === "id" ? "Hapus review" : "Delete review"}
+                                aria-label={language === "id" ? "Hapus review" : "Delete review"}
+                                disabled={withdrawingId === question.id}
+                                onClick={() => void handleWithdraw(question)}
+                                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-muted transition-colors hover:bg-incorrect-bg hover:text-incorrect disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-incorrect"
+                              >
+                                <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </li>
                 );
               })}
@@ -775,6 +853,9 @@ export function LecturerReviewPage({
       ? "list"
       : "overview";
   }, [initialAnswerId, location.search]);
+  const reviewReadOnly =
+    reviewStage === "detail" &&
+    new URLSearchParams(location.search).get("mode") === "view";
   const navigation = useMemo(
     () =>
       normalizeReviewNavigationState(
@@ -810,10 +891,13 @@ export function LecturerReviewPage({
     [navigation, orderedAnswers, questions, reviewedAnswerIds, reviewedQuestionIds],
   );
   const commitNavigation = useCallback(
-    (next: ReviewNavigationState) => {
+    (next: ReviewNavigationState, readOnly = false) => {
       setReviewNavigationInput(next);
+      const search = `${serializeReviewNavigationSearch(next)}${
+        readOnly && next.task === "question" ? "&mode=view" : ""
+      }`;
       navigate(
-        { pathname: "/review", search: serializeReviewNavigationSearch(next) },
+        { pathname: "/review", search },
         { replace: true },
       );
     },
@@ -838,7 +922,9 @@ export function LecturerReviewPage({
       // sessionStorage can be unavailable in restricted browser contexts.
     }
 
-    const search = serializeReviewNavigationSearch(navigation);
+    const search = `${serializeReviewNavigationSearch(navigation)}${
+      reviewReadOnly && navigation.task === "question" ? "&mode=view" : ""
+    }`;
     if (location.pathname !== "/review" || location.search !== search) {
       navigate({ pathname: "/review", search }, { replace: true });
     }
@@ -850,6 +936,7 @@ export function LecturerReviewPage({
     navigate,
     navigation,
     navigationReady,
+    reviewReadOnly,
     reviewStage,
   ]);
 
@@ -983,7 +1070,10 @@ export function LecturerReviewPage({
   );
 
   const changeNavigation = useCallback(
-    (patch: Partial<ReviewNavigationState>) => {
+    (
+      patch: Partial<ReviewNavigationState>,
+      options: { readOnly?: boolean } = {},
+    ) => {
       const next = normalizeReviewNavigationState(
         { ...navigation, ...patch },
         {
@@ -996,7 +1086,7 @@ export function LecturerReviewPage({
       if (!confirmNavigation(next)) return false;
       setQuestionDirty(false);
       setAnswerDirty(false);
-      commitNavigation(next);
+      commitNavigation(next, options.readOnly ?? reviewReadOnly);
       return true;
     },
     [
@@ -1005,6 +1095,7 @@ export function LecturerReviewPage({
       navigation,
       orderedAnswers,
       questions,
+      reviewReadOnly,
       reviewedAnswerIds,
       reviewedQuestionIds,
     ],
@@ -1037,16 +1128,19 @@ export function LecturerReviewPage({
     [confirmNavigation, navigate, navigation, reviewStage],
   );
   const openQuestion = useCallback(
-    (question: Question) => {
-      changeNavigation({
-        week: question.week ?? navigation.week,
-        task: "question",
-        status: reviewedQuestionIds.includes(question.id)
-          ? "reviewed"
-          : "unreviewed",
-        type: "all",
-        item: question.id,
-      });
+    (question: Question, readOnly: boolean) => {
+      changeNavigation(
+        {
+          week: question.week ?? navigation.week,
+          task: "question",
+          status: reviewedQuestionIds.includes(question.id)
+            ? "reviewed"
+            : "unreviewed",
+          type: "all",
+          item: question.id,
+        },
+        { readOnly },
+      );
     },
     [changeNavigation, navigation.week, reviewedQuestionIds],
   );
@@ -1055,15 +1149,15 @@ export function LecturerReviewPage({
     if (item) changeNavigation({ item: item.id });
   };
 
-  const handleQuestionDelete = async () => {
-    if (!activeQuestion?.sourceVersion) {
+  const withdrawQuestionReview = useCallback(async (question: Question) => {
+    if (!question.sourceVersion) {
       throw new Error("Versi sumber soal belum tersedia.");
     }
-    await deleteQuestionReview(activeQuestion.id, activeQuestion.sourceVersion);
+    await deleteQuestionReview(question.id, question.sourceVersion);
     setQuestionHistory((current) =>
       current.map((review) =>
-        review.questionId === activeQuestion.id &&
-        review.sourceVersion === activeQuestion.sourceVersion &&
+        review.questionId === question.id &&
+        review.sourceVersion === question.sourceVersion &&
         review.isActive
           ? {
               ...review,
@@ -1076,13 +1170,18 @@ export function LecturerReviewPage({
     );
     setQuestionCounts((current) => {
       const next = new Map(current);
-      next.set(activeQuestion.id, Math.max(0, (next.get(activeQuestion.id) ?? 1) - 1));
+      next.set(question.id, Math.max(0, (next.get(question.id) ?? 1) - 1));
       return next;
     });
+    setReviewDataRevision((current) => current + 1);
+  }, []);
+
+  const handleQuestionDelete = async () => {
+    if (!activeQuestion) return;
+    await withdrawQuestionReview(activeQuestion);
     commitNavigation(
       getNavigationAfterWithdraw(navigation, activeQuestion.id),
     );
-    setReviewDataRevision((current) => current + 1);
   };
 
   const handleQuestionSubmit = async (values: QuestionReviewValues) => {
@@ -1212,7 +1311,8 @@ export function LecturerReviewPage({
             questionCounts={questionCounts}
             reviewedQuestionIds={reviewedQuestionIds}
             onBack={navigateToOverview}
-            onSelectQuestion={openQuestion}
+            onOpenQuestion={openQuestion}
+            onDeleteReview={withdrawQuestionReview}
           />
         )}
       </div>
@@ -1383,6 +1483,7 @@ export function LecturerReviewPage({
                 submittedReviewLoading={metadataLoading}
                 submittedReviewError={loadError}
                 isAdmin={isAdmin}
+                readOnly={reviewReadOnly}
                 onPrevious={() => selectOffset(-1)}
                 onNext={() => selectOffset(1)}
                 onViewHistory={viewHistory}

@@ -10,7 +10,7 @@ import { isAnswerReviewEligible } from "./reviewWorkspace.ts";
 
 export type ReviewTaskKind = "question" | "answer";
 export type ReviewPersonalStatus = "unreviewed" | "reviewed";
-export type ReviewWeekListStatus = "all" | ReviewPersonalStatus | "full";
+export type ReviewWeekListStatus = ReviewPersonalStatus | "full";
 export type ReviewQuestionType = "all" | "ps" | "mp";
 
 export type ReviewWeekSummary = {
@@ -99,8 +99,12 @@ export function getReviewWeekSummaries(
     );
     const completed = weekQuestions.filter(
       (question) =>
-        reviewed.has(question.id) ||
-        (questionCounts.get(question.id) ?? 0) >= reviewerThreshold,
+        getWeekReviewQuestionStatus(
+          question.id,
+          reviewed,
+          questionCounts,
+          reviewerThreshold,
+        ) !== "unreviewed",
     ).length;
 
     return {
@@ -110,6 +114,18 @@ export function getReviewWeekSummaries(
       isComplete: weekQuestions.length > 0 && completed === weekQuestions.length,
     };
   });
+}
+
+export function getWeekReviewQuestionStatus(
+  questionId: string,
+  reviewedQuestionIds: ReadonlySet<string>,
+  questionCounts: ReadonlyMap<string, number>,
+  reviewerThreshold: number,
+): ReviewWeekListStatus {
+  if (reviewedQuestionIds.has(questionId)) return "reviewed";
+  return (questionCounts.get(questionId) ?? 0) >= reviewerThreshold
+    ? "full"
+    : "unreviewed";
 }
 
 export function filterWeekReviewQuestions(
@@ -136,10 +152,12 @@ export function filterWeekReviewQuestions(
   const reviewed = new Set(reviewedQuestionIds);
 
   return uniqueById(questions).filter((question) => {
-    const personallyReviewed = reviewed.has(question.id);
-    const quotaFull =
-      !personallyReviewed &&
-      (questionCounts.get(question.id) ?? 0) >= reviewerThreshold;
+    const questionStatus = getWeekReviewQuestionStatus(
+      question.id,
+      reviewed,
+      questionCounts,
+      reviewerThreshold,
+    );
     const matchesQuery =
       !normalizedQuery ||
       [
@@ -158,10 +176,7 @@ export function filterWeekReviewQuestions(
       matchesQuery &&
       (type === "all" ||
         (type === "mp") === (question.type === "multiple_choice")) &&
-      (status === "all" ||
-        (status === "reviewed" && personallyReviewed) ||
-        (status === "unreviewed" && !personallyReviewed && !quotaFull) ||
-        (status === "full" && quotaFull))
+      status === questionStatus
     );
   });
 }
