@@ -403,8 +403,10 @@ assert.doesNotMatch(
 assert.match(reviewPaletteSource, /--review-card: color-mix\(in srgb, var\(--progmiscon-secondary\) 7%/);
 assert.match(reviewPaletteSource, /--review-header: color-mix\(in srgb, var\(--progmiscon-secondary\) 23%/);
 assert.match(reviewPaletteSource, /--review-row-hover: color-mix\(in srgb, var\(--progmiscon-accent\) 12%/);
-assert.match(reviewPaletteSource, /--review-type-secondary: color-mix\(in srgb, var\(--progmiscon-secondary\) 32%/);
-assert.match(reviewPaletteSource, /--review-type-accent: color-mix\(in srgb, var\(--progmiscon-accent\) 58%/);
+assert.match(reviewPaletteSource, /--review-type-essay-bg: color-mix\(in srgb, var\(--progmiscon-primary\) 14%/);
+assert.match(reviewPaletteSource, /--review-type-essay-text: color-mix\(in srgb, var\(--progmiscon-primary\) 82%/);
+assert.match(reviewPaletteSource, /--review-type-choice-base: color-mix\(in srgb, var\(--progmiscon-secondary\) 72%, var\(--progmiscon-accent\)\)/);
+assert.match(reviewPaletteSource, /--review-type-choice-bg: color-mix\(in srgb, var\(--review-type-choice-base\) 70%/);
 assert.doesNotMatch(reviewPaletteSource, /#[\da-f]{3,8}/i);
 assert.match(overviewAndListSource, /border border-brand\/35 bg-\[var\(--review-page\)\] text-brand/);
 assert.match(listSource, /border-brand bg-brand text-white/);
@@ -414,8 +416,10 @@ assert.match(
 );
 assert.match(listSource, /bg-\[var\(--review-header\)\][^\n]+text-black/);
 assert.match(listSource, /border border-border bg-white shadow/);
-assert.match(listSource, /border-\[#ccbab0\] bg-\[var\(--review-type-secondary\)\] text-black/);
-assert.match(listSource, /border-\[#b09f85\] bg-\[var\(--review-type-accent\)\] text-black/);
+assert.match(listSource, /border-\[var\(--review-type-essay-border\)\] bg-\[var\(--review-type-essay-bg\)\] text-\[var\(--review-type-essay-text\)\]/);
+assert.match(listSource, /border-\[var\(--review-type-choice-border\)\] bg-\[var\(--review-type-choice-bg\)\] text-\[var\(--review-type-choice-text\)\]/);
+assert.match(listSource, /hover:bg-\[var\(--review-type-essay-hover\)\] hover:border-\[var\(--progmiscon-primary\)\]/);
+assert.match(listSource, /hover:bg-\[var\(--review-type-choice-hover\)\] hover:border-\[var\(--progmiscon-accent\)\]/);
 assert.match(listSource, /<span className="text-center">No\.<\/span>/);
 assert.match(listSource, /hidden text-center text-xs font-normal tabular-nums/);
 assert.equal(

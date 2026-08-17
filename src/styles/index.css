@@ -62,8 +62,15 @@
   --review-header: color-mix(in srgb, var(--progmiscon-secondary) 23%, var(--review-page));
   --review-row-hover: color-mix(in srgb, var(--progmiscon-accent) 12%, var(--review-page));
   --review-secondary-soft: color-mix(in srgb, var(--progmiscon-secondary) 20%, var(--review-page));
-  --review-type-secondary: color-mix(in srgb, var(--progmiscon-secondary) 32%, var(--review-page));
-  --review-type-accent: color-mix(in srgb, var(--progmiscon-accent) 58%, var(--review-page));
+  --review-type-essay-bg: color-mix(in srgb, var(--progmiscon-primary) 14%, var(--review-page));
+  --review-type-essay-border: color-mix(in srgb, var(--progmiscon-primary) 45%, var(--review-page));
+  --review-type-essay-text: color-mix(in srgb, var(--progmiscon-primary) 82%, var(--progmiscon-text));
+  --review-type-essay-hover: color-mix(in srgb, var(--progmiscon-primary) 20%, var(--review-page));
+  --review-type-choice-base: color-mix(in srgb, var(--progmiscon-secondary) 72%, var(--progmiscon-accent));
+  --review-type-choice-bg: color-mix(in srgb, var(--review-type-choice-base) 70%, var(--review-page));
+  --review-type-choice-border: color-mix(in srgb, var(--review-type-choice-base) 88%, var(--progmiscon-accent));
+  --review-type-choice-text: color-mix(in srgb, var(--review-type-choice-base) 54%, var(--progmiscon-text));
+  --review-type-choice-hover: color-mix(in srgb, var(--review-type-choice-base) 80%, var(--review-page));
   --review-primary-soft: color-mix(in srgb, var(--progmiscon-primary) 8%, var(--review-page));
   --review-border: color-mix(in srgb, var(--progmiscon-secondary) 62%, var(--review-page));
   --review-muted: color-mix(in srgb, var(--progmiscon-text) 62%, var(--progmiscon-accent));

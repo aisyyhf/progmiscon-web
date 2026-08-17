@@ -538,10 +538,10 @@ function WeekQuestionList({
                           tooltipId={`review-question-type-${question.id}-mobile`}
                           focusable={questionStatus !== "unreviewed"}
                           className={cn(
-                            "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4",
+                            "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4 transition-colors",
                             question.type === "multiple_choice"
-                              ? "border-[#b09f85] bg-[var(--review-type-accent)] text-black"
-                              : "border-[#ccbab0] bg-[var(--review-type-secondary)] text-black",
+                              ? "border-[var(--review-type-choice-border)] bg-[var(--review-type-choice-bg)] text-[var(--review-type-choice-text)] hover:bg-[var(--review-type-choice-hover)] hover:border-[var(--progmiscon-accent)]"
+                              : "border-[var(--review-type-essay-border)] bg-[var(--review-type-essay-bg)] text-[var(--review-type-essay-text)] hover:bg-[var(--review-type-essay-hover)] hover:border-[var(--progmiscon-primary)]",
                           )}
                         />
                         <span className="text-[10px] font-normal tabular-nums text-black/60">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer</span>
@@ -553,10 +553,10 @@ function WeekQuestionList({
                       tooltipId={`review-question-type-${question.id}-desktop`}
                       focusable={questionStatus !== "unreviewed"}
                       className={cn(
-                        "hidden w-fit items-center rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4 lg:inline-flex",
+                        "hidden w-fit items-center rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4 transition-colors lg:inline-flex",
                         question.type === "multiple_choice"
-                          ? "border-[#b09f85] bg-[var(--review-type-accent)] text-black"
-                          : "border-[#ccbab0] bg-[var(--review-type-secondary)] text-black",
+                          ? "border-[var(--review-type-choice-border)] bg-[var(--review-type-choice-bg)] text-[var(--review-type-choice-text)] hover:bg-[var(--review-type-choice-hover)] hover:border-[var(--progmiscon-accent)]"
+                          : "border-[var(--review-type-essay-border)] bg-[var(--review-type-essay-bg)] text-[var(--review-type-essay-text)] hover:bg-[var(--review-type-essay-hover)] hover:border-[var(--progmiscon-primary)]",
                       )}
                     />
                     <span className="hidden text-xs font-normal tabular-nums text-black/60 lg:block">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD}</span>
