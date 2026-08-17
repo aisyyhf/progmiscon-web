@@ -492,7 +492,7 @@ assert.match(
   /@media \(prefers-reduced-motion: no-preference\)[\s\S]*?review-stage-enter 160ms ease-out both[\s\S]*?review-type-popover-enter 160ms ease-out both/,
 );
 assert.doesNotMatch(overviewAndListSource, /duration-(?:300|500)/);
-assert.match(listSource, /<span className="text-center">No\.<\/span>/);
+assert.match(listSource, /<span className="text-center">No<\/span>/);
 assert.match(listSource, /hidden text-center text-xs font-normal tabular-nums/);
 assert.equal(
   overviewAndListStageSource.match(/lecturer-ui review-week-pages/g)?.length,

@@ -520,7 +520,7 @@ function WeekQuestionList({
         ) : (
           <div className="mt-2 overflow-visible rounded-lg border border-border bg-white shadow-[0_1px_2px_rgba(176,159,133,0.12)]">
             <div aria-hidden="true" className={cn("hidden rounded-t-lg gap-3 border-b border-border bg-[var(--review-header)] px-3 py-2.5 text-[13px] font-semibold text-black lg:grid", tableGridClass)}>
-              <span className="text-center">No.</span>
+              <span className="text-center">No</span>
               <span>{questionColumnHeading}</span>
               <span>{language === "id" ? "Tipe" : "Type"}</span>
               <span>{language === "id" ? "Reviewer" : "Reviewers"}</span>
