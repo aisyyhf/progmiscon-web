@@ -10,6 +10,7 @@ import { isAnswerReviewEligible } from "./reviewWorkspace.ts";
 
 export type ReviewTaskKind = "question" | "answer";
 export type ReviewPersonalStatus = "unreviewed" | "reviewed";
+export type ReviewWeekListStatus = "all" | ReviewPersonalStatus | "full";
 export type ReviewQuestionType = "all" | "ps" | "mp";
 
 export type ReviewWeekSummary = {
@@ -119,12 +120,16 @@ export function filterWeekReviewQuestions(
     type,
     status,
     reviewedQuestionIds,
+    questionCounts,
+    reviewerThreshold,
   }: {
     week: string;
     query: string;
     type: ReviewQuestionType;
-    status: "all" | ReviewPersonalStatus;
+    status: ReviewWeekListStatus;
     reviewedQuestionIds: readonly string[];
+    questionCounts: ReadonlyMap<string, number>;
+    reviewerThreshold: number;
   },
 ): Question[] {
   const normalizedQuery = query.trim().toLocaleLowerCase();
@@ -132,6 +137,9 @@ export function filterWeekReviewQuestions(
 
   return uniqueById(questions).filter((question) => {
     const personallyReviewed = reviewed.has(question.id);
+    const quotaFull =
+      !personallyReviewed &&
+      (questionCounts.get(question.id) ?? 0) >= reviewerThreshold;
     const matchesQuery =
       !normalizedQuery ||
       [
@@ -151,7 +159,9 @@ export function filterWeekReviewQuestions(
       (type === "all" ||
         (type === "mp") === (question.type === "multiple_choice")) &&
       (status === "all" ||
-        personallyReviewed === (status === "reviewed"))
+        (status === "reviewed" && personallyReviewed) ||
+        (status === "unreviewed" && !personallyReviewed && !quotaFull) ||
+        (status === "full" && quotaFull))
     );
   });
 }

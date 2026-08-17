@@ -75,6 +75,7 @@ const searchableQuestions = questions.map((item, index) => ({
   expectedConcepts:
     index === 3 ? [{ id: "Kompleksitas waktu", en: "Time complexity" }] : [],
 }));
+const searchableQuestionCounts = new Map([["W02-PS-2", 3]]);
 assert.deepEqual(
   filterWeekReviewQuestions(searchableQuestions, {
     week: "W02",
@@ -82,6 +83,8 @@ assert.deepEqual(
     type: "ps",
     status: "reviewed",
     reviewedQuestionIds: ["W02-PS-1"],
+    questionCounts: searchableQuestionCounts,
+    reviewerThreshold: 3,
   }).map(({ id }) => id),
   ["W02-PS-1"],
 );
@@ -92,8 +95,36 @@ assert.deepEqual(
     type: "all",
     status: "all",
     reviewedQuestionIds: [],
+    questionCounts: searchableQuestionCounts,
+    reviewerThreshold: 3,
   }).map(({ id }) => id),
   ["W02-PS-3"],
+);
+assert.deepEqual(
+  filterWeekReviewQuestions(searchableQuestions, {
+    week: "W02",
+    query: "",
+    type: "ps",
+    status: "full",
+    reviewedQuestionIds: ["W02-PS-1"],
+    questionCounts: searchableQuestionCounts,
+    reviewerThreshold: 3,
+  }).map(({ id }) => id),
+  ["W02-PS-2"],
+  "quota-full filter includes only capped questions not reviewed by the lecturer",
+);
+assert.deepEqual(
+  filterWeekReviewQuestions(searchableQuestions, {
+    week: "W02",
+    query: "W02-PS-2",
+    type: "all",
+    status: "unreviewed",
+    reviewedQuestionIds: [],
+    questionCounts: searchableQuestionCounts,
+    reviewerThreshold: 3,
+  }),
+  [],
+  "quota-full questions are excluded from ordinary personal unreviewed status",
 );
 
 assert.equal(REVIEW_NAVIGATION_SESSION_KEY.endsWith(".v2"), true);
@@ -292,6 +323,11 @@ assert.match(activePage, /Status pribadi/);
 assert.match(activePage, /REVIEW SOAL PER MINGGU/);
 assert.match(activePage, /formatWeekLabel\(week\)\.toLocaleUpperCase/);
 assert.match(activePage, /aria-pressed=\{status === value\}/);
+assert.match(activePage, /Kuota penuh/);
+assert.match(activePage, /reviewCount >= QUESTION_REVIEWED_THRESHOLD/);
+assert.match(activePage, /appearance-none/);
+assert.match(activePage, /rounded-full/);
+assert.match(activePage, /Tipe soal/);
 assert.match(activePage, /Multiple Choice/);
 assert.match(activePage, /Esai/);
 assert.match(activePage, /placeholder="Search"/);

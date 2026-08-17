@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ChevronRight, History, Search, Users } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, History, Search, Users } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
@@ -54,6 +54,7 @@ import {
   type ReviewPersonalStatus,
   type ReviewQuestionType,
   type ReviewTaskKind,
+  type ReviewWeekListStatus,
   type ReviewWeekSummary,
 } from "../utils/reviewQueue";
 import { QUESTION_REVIEWED_THRESHOLD } from "../utils/reviewQuestionFilters";
@@ -242,7 +243,7 @@ function WeekQuestionList({
 }) {
   const [query, setQuery] = useState("");
   const [type, setType] = useState<ReviewQuestionType>("all");
-  const [status, setStatus] = useState<"all" | ReviewPersonalStatus>("all");
+  const [status, setStatus] = useState<ReviewWeekListStatus>("all");
   const reviewed = useMemo(() => new Set(reviewedQuestionIds), [reviewedQuestionIds]);
   const weekTotal = useMemo(
     () => new Set(questions.filter((question) => question.week === week).map(({ id }) => id)).size,
@@ -256,23 +257,25 @@ function WeekQuestionList({
         type,
         status,
         reviewedQuestionIds,
+        questionCounts,
+        reviewerThreshold: QUESTION_REVIEWED_THRESHOLD,
       }),
-    [questions, query, reviewedQuestionIds, status, type, week],
+    [questionCounts, questions, query, reviewedQuestionIds, status, type, week],
   );
 
   return (
     <>
       <ReviewBreadcrumb week={week} language={language} onOverview={onBack} />
-      <div className="pb-3">
+      <div className="py-1">
         <h1 className="text-[1.75rem] font-semibold leading-9 tracking-[-0.02em] text-black">
           {formatWeekLabel(week).toLocaleUpperCase(language)}
         </h1>
       </div>
 
-      <section className="mt-3" aria-label={language === "id" ? "Soal minggu terpilih" : "Selected week questions"}>
-        <div className="flex flex-col gap-2 border-y border-border/80 py-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <section className="mt-4" aria-label={language === "id" ? "Soal minggu terpilih" : "Selected week questions"}>
+        <div className="flex flex-col gap-2 border-y border-border/80 py-1.5 sm:flex-row sm:items-center sm:justify-between">
           <div
-            className="inline-flex w-fit items-center rounded-lg bg-[#ccbab0]/20 p-0.5"
+            className="flex w-fit flex-wrap items-center gap-1.5"
             role="group"
             aria-label={language === "id" ? "Status review pribadi" : "Personal review status"}
           >
@@ -280,6 +283,7 @@ function WeekQuestionList({
               ["all", language === "id" ? "Semua" : "All"],
               ["reviewed", language === "id" ? "Sudah direview" : "Reviewed"],
               ["unreviewed", language === "id" ? "Belum direview" : "Not reviewed"],
+              ["full", language === "id" ? "Kuota penuh" : "Quota full"],
             ] as const).map(([value, label]) => (
               <button
                 key={value}
@@ -287,10 +291,10 @@ function WeekQuestionList({
                 aria-pressed={status === value}
                 onClick={() => setStatus(value)}
                 className={cn(
-                  "min-h-7 cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium leading-4 transition-[background-color,color,box-shadow] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
+                  "min-h-6 cursor-pointer rounded-full border px-2 py-0.5 text-[10px] font-medium leading-4 transition-[background-color,border-color,color] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
                   status === value
-                    ? "bg-white text-black shadow-[0_1px_2px_rgba(95,71,59,0.1)]"
-                    : "text-muted hover:text-black",
+                    ? "border-brand/30 bg-brand-soft/75 text-brand"
+                    : "border-[#ccbab0]/60 bg-white text-muted hover:border-brand/25 hover:text-black",
                 )}
               >
                 {label}
@@ -298,33 +302,34 @@ function WeekQuestionList({
             ))}
           </div>
 
-          <label className="sr-only" htmlFor="review-question-type">
-            {language === "id" ? "Jenis soal" : "Question type"}
-          </label>
-          <select
-            id="review-question-type"
-            value={type}
-            onChange={(event) => setType(event.target.value as ReviewQuestionType)}
-            className="min-h-8 w-full cursor-pointer rounded-lg border border-border bg-white px-2.5 text-xs font-medium text-black outline-none transition-[border-color,box-shadow] focus:border-brand focus:ring-2 focus:ring-brand/10 sm:w-auto"
-          >
-            <option value="all">{language === "id" ? "Semua jenis" : "All types"}</option>
-            <option value="mp">Multiple Choice</option>
-            <option value="ps">{language === "id" ? "Esai" : "Essay"}</option>
-          </select>
+          <div className="flex w-full items-center gap-1.5 sm:w-auto">
+            <label className="relative block shrink-0" htmlFor="review-question-type">
+              <span className="sr-only">{language === "id" ? "Jenis soal" : "Question type"}</span>
+              <select
+                id="review-question-type"
+                value={type}
+                onChange={(event) => setType(event.target.value as ReviewQuestionType)}
+                className="min-h-7 w-32 cursor-pointer appearance-none rounded-md border border-border bg-white py-1 pl-2.5 pr-7 text-[11px] font-medium leading-4 text-black outline-none transition-[border-color,box-shadow] focus:border-brand focus:ring-2 focus:ring-brand/10"
+              >
+                <option value="all">{language === "id" ? "Tipe soal" : "Question type"}</option>
+                <option value="mp">Multiple Choice</option>
+                <option value="ps">{language === "id" ? "Esai" : "Essay"}</option>
+              </select>
+              <ChevronDown size={12} strokeWidth={2} aria-hidden="true" className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#b09f85]" />
+            </label>
 
-          <label className="relative block w-full sm:ml-auto sm:max-w-64">
-            <span className="sr-only">{language === "id" ? "Cari soal" : "Search questions"}</span>
-            <span className="relative block">
-              <Search size={14} strokeWidth={1.8} aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#b09f85]" />
+            <label className="relative block min-w-0 flex-1 sm:w-48 sm:flex-none">
+              <span className="sr-only">{language === "id" ? "Cari soal" : "Search questions"}</span>
+              <Search size={13} strokeWidth={1.8} aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[#b09f85]" />
               <input
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search"
-                className="min-h-8 w-full rounded-lg border border-border bg-white py-1.5 pl-8 pr-2.5 text-xs font-normal text-black outline-none transition-[border-color,box-shadow] placeholder:text-muted/75 focus:border-brand focus:ring-2 focus:ring-brand/10"
+                className="min-h-7 w-full rounded-md border border-border bg-white py-1 pl-7 pr-2.5 text-[11px] font-normal leading-4 text-black outline-none transition-[border-color,box-shadow] placeholder:text-muted/75 focus:border-brand focus:ring-2 focus:ring-brand/10"
               />
-            </span>
-          </label>
+            </label>
+          </div>
         </div>
 
         <p className="mt-2 text-[11px] font-medium tabular-nums text-muted" aria-live="polite">
@@ -362,17 +367,36 @@ function WeekQuestionList({
                   questionCounts.get(question.id) ?? 0,
                   QUESTION_REVIEWED_THRESHOLD,
                 );
+                const quotaFull =
+                  !personallyReviewed &&
+                  reviewCount >= QUESTION_REVIEWED_THRESHOLD;
+                const personalStatusLabel = personallyReviewed
+                  ? language === "id"
+                    ? "Sudah direview"
+                    : "Reviewed"
+                  : quotaFull
+                    ? language === "id"
+                      ? "Kuota penuh"
+                      : "Quota full"
+                    : language === "id"
+                      ? "Belum direview"
+                      : "Not reviewed";
+                const personalStatusClass = personallyReviewed
+                  ? "bg-correct-bg text-correct"
+                  : quotaFull
+                    ? "border border-[#b09f85]/45 bg-[#b09f85]/10 text-[#6f6250]"
+                    : "bg-[#ccbab0]/20 text-muted";
 
                 return (
                   <li key={question.id} className="border-b border-border last:border-b-0">
                     <button
                       type="button"
                       onClick={() => onSelectQuestion(question)}
-                      className="group grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[#fbfbfe] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-brand-soft/45 lg:grid-cols-[3rem_minmax(0,1fr)_8.5rem_9.5rem_6.5rem_1.5rem]"
+                      className="group grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-[#fbfbfe] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-brand-soft/45 lg:grid-cols-[3rem_minmax(0,1fr)_8.5rem_9.5rem_6.5rem_1.5rem]"
                     >
                       <span className="hidden text-xs tabular-nums text-muted lg:block">{index + 1}</span>
                       <span className="min-w-0">
-                        <span className="block truncate text-xs font-medium leading-5 text-black">{title}</span>
+                        <span className="block truncate text-xs font-medium leading-4 text-black">{title}</span>
                         <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
                           <span className={cn(
                             "rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-4",
@@ -380,8 +404,8 @@ function WeekQuestionList({
                               ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
                               : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
                           )}>{typeLabel}</span>
-                          <span className={cn("rounded-md px-2 py-1 text-[11px] font-medium", personallyReviewed ? "bg-correct-bg text-correct" : "bg-[#ccbab0]/20 text-muted")}>
-                            {personallyReviewed ? (language === "id" ? "Sudah direview" : "Reviewed") : language === "id" ? "Belum direview" : "Not reviewed"}
+                          <span className={cn("rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-4", personalStatusClass)}>
+                            {personalStatusLabel}
                           </span>
                           <span className="text-[11px] font-medium tabular-nums text-muted">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer</span>
                         </span>
@@ -392,8 +416,8 @@ function WeekQuestionList({
                           ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
                           : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
                       )}>{typeLabel}</span>
-                      <span className={cn("hidden w-fit rounded-md px-1.5 py-0.5 text-[11px] font-medium leading-4 lg:block", personallyReviewed ? "bg-correct-bg text-correct" : "bg-[#ccbab0]/20 text-muted")}>
-                        {personallyReviewed ? (language === "id" ? "Sudah direview" : "Reviewed") : language === "id" ? "Belum direview" : "Not reviewed"}
+                      <span className={cn("hidden w-fit rounded-md px-1.5 py-0.5 text-[10px] font-medium leading-4 lg:block", personalStatusClass)}>
+                        {personalStatusLabel}
                       </span>
                       <span className="hidden text-xs font-medium tabular-nums text-muted lg:block">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD}</span>
                       <ChevronRight size={15} strokeWidth={1.8} aria-hidden="true" className="text-[#b09f85] transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
