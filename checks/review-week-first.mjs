@@ -412,7 +412,7 @@ assert.match(overviewAndListSource, /border border-brand\/35 bg-\[var\(--review-
 assert.match(listSource, /border-brand bg-brand text-white/);
 assert.match(
   listSource,
-  /border-\[#ccbab0\] bg-\[var\(--review-page\)\] text-black hover:bg-\[var\(--review-secondary-soft\)\]/,
+  /border-\[#ccbab0\] bg-\[var\(--review-page\)\] text-black hover:border-\[#b09f85\] hover:bg-\[var\(--review-secondary-soft\)\]/,
 );
 assert.match(listSource, /bg-\[var\(--review-header\)\][^\n]+text-black/);
 assert.match(listSource, /border border-border bg-white shadow/);
@@ -420,6 +420,25 @@ assert.match(listSource, /border-\[var\(--review-type-essay-border\)\] bg-\[var\
 assert.match(listSource, /border-\[var\(--review-type-choice-border\)\] bg-\[var\(--review-type-choice-bg\)\] text-\[var\(--review-type-choice-text\)\]/);
 assert.match(listSource, /hover:bg-\[var\(--review-type-essay-hover\)\] hover:border-\[var\(--progmiscon-primary\)\]/);
 assert.match(listSource, /hover:bg-\[var\(--review-type-choice-hover\)\] hover:border-\[var\(--progmiscon-accent\)\]/);
+assert.match(
+  overviewAndListSource,
+  /duration-150 ease-out hover:-translate-y-px[\s\S]*?active:translate-y-0 active:shadow-none motion-reduce:translate-none/,
+);
+assert.match(
+  listSource,
+  /transition-\[background-color,border-color,color,transform\] duration-150 ease-out[\s\S]*?active:scale-\[0\.99\] motion-reduce:scale-none/,
+);
+assert.match(listSource, /review-type-popover/);
+assert.match(listSource, /group-hover\/search:text-brand group-focus-within\/search:text-brand/);
+assert.match(listSource, /group-hover\/row:translate-x-0\.5 group-hover\/row:text-brand motion-reduce:translate-none/);
+assert.match(overviewAndListSource, /function ReviewActionTooltip/);
+assert.match(overviewAndListSource, /group-hover\/action:visible[\s\S]*?group-focus-visible\/action:visible/);
+assert.match(listSource, /active:scale-\[0\.98\] motion-reduce:scale-none/);
+assert.match(
+  reviewPaletteSource,
+  /@media \(prefers-reduced-motion: no-preference\)[\s\S]*?review-stage-enter 160ms ease-out both[\s\S]*?review-type-popover-enter 160ms ease-out both/,
+);
+assert.doesNotMatch(overviewAndListSource, /duration-(?:300|500)/);
 assert.match(listSource, /<span className="text-center">No\.<\/span>/);
 assert.match(listSource, /hidden text-center text-xs font-normal tabular-nums/);
 assert.equal(

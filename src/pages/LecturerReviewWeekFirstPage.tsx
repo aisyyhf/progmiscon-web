@@ -210,7 +210,7 @@ function WeekOverview({
               key={summary.week}
               type="button"
               onClick={() => onSelectWeek(summary.week)}
-              className="group relative min-h-36 cursor-pointer rounded-xl border border-border bg-[var(--review-card)] p-5 text-left transition-[border-color,background-color,transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:border-[#b09f85] hover:bg-[var(--review-row-hover)] hover:shadow-[0_10px_28px_rgba(176,159,133,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0"
+              className="group relative min-h-36 cursor-pointer rounded-xl border border-border bg-[var(--review-card)] p-5 text-left transition-[border-color,background-color,transform,box-shadow] duration-150 ease-out hover:-translate-y-px hover:border-[#b09f85] hover:bg-[var(--review-row-hover)] hover:shadow-[0_10px_28px_rgba(176,159,133,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 active:shadow-none motion-reduce:translate-none"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -219,7 +219,7 @@ function WeekOverview({
                     {summary.total} {language === "id" ? "soal" : summary.total === 1 ? "question" : "questions"}
                   </p>
                 </div>
-                <ChevronRight size={17} strokeWidth={1.8} aria-hidden="true" className="mt-0.5 text-[#b09f85] transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+                <ChevronRight size={17} strokeWidth={1.8} aria-hidden="true" className="mt-0.5 text-[#b09f85] transition-[color,transform] duration-150 ease-out group-hover:translate-x-0.5 group-hover:text-brand motion-reduce:translate-none" />
               </div>
               <p className="mt-5 text-xs font-medium tabular-nums text-muted">
                 {language === "id" ? "Tuntas" : "Complete"} {summary.completed}/{summary.total}
@@ -260,10 +260,22 @@ function QuestionTypeTooltipLabel({
       <span
         id={tooltipId}
         role="tooltip"
-        className="pointer-events-none invisible absolute left-0 top-full z-30 mt-1 w-max max-w-64 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-[#fbfbfe] opacity-0 shadow-[0_6px_18px_rgba(176,159,133,0.2)] transition-opacity group-hover/type-label:visible group-hover/type-label:opacity-100 group-focus/type-label:visible group-focus/type-label:opacity-100 group-focus-visible/row:visible group-focus-visible/row:opacity-100"
+        className="pointer-events-none invisible absolute left-0 top-full z-30 mt-1 w-max max-w-64 translate-y-0.5 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-[#fbfbfe] opacity-0 shadow-[0_6px_18px_rgba(176,159,133,0.2)] transition-[opacity,transform,visibility] duration-150 ease-out group-hover/type-label:visible group-hover/type-label:translate-y-0 group-hover/type-label:opacity-100 group-focus/type-label:visible group-focus/type-label:translate-y-0 group-focus/type-label:opacity-100 group-focus-visible/row:visible group-focus-visible/row:translate-y-0 group-focus-visible/row:opacity-100 motion-reduce:translate-y-0"
       >
         {explanation}
       </span>
+    </span>
+  );
+}
+
+function ReviewActionTooltip({ id, label }: { id: string; label: string }) {
+  return (
+    <span
+      id={id}
+      role="tooltip"
+      className="pointer-events-none invisible absolute bottom-full right-0 z-30 mb-1 w-max max-w-48 translate-y-0.5 rounded-md bg-black px-2 py-1 text-[10px] font-normal leading-4 text-[#fbfbfe] opacity-0 shadow-[0_6px_18px_rgba(176,159,133,0.2)] transition-[opacity,transform,visibility] duration-150 ease-out group-hover/action:visible group-hover/action:translate-y-0 group-hover/action:opacity-100 group-focus-visible/action:visible group-focus-visible/action:translate-y-0 group-focus-visible/action:opacity-100 motion-reduce:translate-y-0"
+    >
+      {label}
     </span>
   );
 }
@@ -398,10 +410,10 @@ function WeekQuestionList({
                 aria-pressed={status === value}
                 onClick={() => setStatus(value)}
                 className={cn(
-                  "min-h-6 cursor-pointer rounded-full border px-2 py-0.5 text-[10px] font-medium leading-4 transition-[background-color,border-color,color] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
+                  "min-h-6 cursor-pointer rounded-full border px-2 py-0.5 text-[10px] font-medium leading-4 transition-[background-color,border-color,color,transform] duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.99] motion-reduce:scale-none",
                   status === value
                     ? "border-brand bg-brand text-white"
-                    : "border-[#ccbab0] bg-[var(--review-page)] text-black hover:bg-[var(--review-secondary-soft)]",
+                    : "border-[#ccbab0] bg-[var(--review-page)] text-black hover:border-[#b09f85] hover:bg-[var(--review-secondary-soft)]",
                 )}
               >
                 {label}
@@ -423,7 +435,7 @@ function WeekQuestionList({
             >
               <summary
                 aria-label={`${language === "id" ? "Tipe soal" : "Question type"}: ${selectedType.label}`}
-                className="flex min-h-7 w-[9.75rem] cursor-pointer list-none items-center gap-1.5 rounded-md border border-[#ccbab0] bg-[var(--review-page)] py-1 pl-2.5 pr-2 text-[11px] leading-4 text-black outline-none transition-[border-color,box-shadow] marker:hidden hover:border-[#b09f85] focus-visible:border-[#b09f85] focus-visible:ring-2 focus-visible:ring-brand/10 [&::-webkit-details-marker]:hidden"
+                className="flex min-h-7 w-[9.75rem] cursor-pointer list-none items-center gap-1.5 rounded-md border border-[#ccbab0] bg-[var(--review-page)] py-1 pl-2.5 pr-2 text-[11px] leading-4 text-black outline-none transition-[border-color,background-color,box-shadow] duration-150 ease-out marker:hidden hover:border-[#b09f85] focus-visible:border-[#b09f85] focus-visible:ring-2 focus-visible:ring-brand/10 active:bg-[var(--review-secondary-soft)] [&::-webkit-details-marker]:hidden"
               >
                 <span className="min-w-0 truncate font-medium">{selectedType.label}</span>
                 {selectedType.explanation && (
@@ -441,23 +453,23 @@ function WeekQuestionList({
                         event.preventDefault();
                       }
                     }}
-                    className="group/type-help relative inline-flex shrink-0 cursor-help rounded text-[#b09f85] hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                    className="group/type-help relative inline-flex shrink-0 cursor-help rounded text-[#b09f85] transition-colors duration-150 ease-out hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
                   >
                     <Info size={13} strokeWidth={1.8} aria-hidden="true" />
                     <span
                       id="review-question-type-selected-help"
                       role="tooltip"
-                      className="pointer-events-none invisible absolute left-1/2 top-full z-30 mt-1 w-max max-w-64 -translate-x-1/2 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-[#fbfbfe] opacity-0 shadow-[0_6px_18px_rgba(176,159,133,0.2)] transition-opacity group-hover/type-help:visible group-hover/type-help:opacity-100 group-focus/type-help:visible group-focus/type-help:opacity-100"
+                      className="pointer-events-none invisible absolute left-1/2 top-full z-30 mt-1 w-max max-w-64 -translate-x-1/2 translate-y-0.5 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-[#fbfbfe] opacity-0 shadow-[0_6px_18px_rgba(176,159,133,0.2)] transition-[opacity,transform,visibility] duration-150 ease-out group-hover/type-help:visible group-hover/type-help:translate-y-0 group-hover/type-help:opacity-100 group-focus/type-help:visible group-focus/type-help:translate-y-0 group-focus/type-help:opacity-100 motion-reduce:translate-y-0"
                     >
                       {selectedType.explanation}
                     </span>
                   </span>
                 )}
-                <ChevronDown size={12} strokeWidth={2} aria-hidden="true" className="ml-auto shrink-0 text-[#b09f85] transition-transform group-open/type:rotate-180" />
+                <ChevronDown size={12} strokeWidth={2} aria-hidden="true" className="ml-auto shrink-0 text-[#b09f85] transition-transform duration-150 ease-out group-open/type:rotate-180 motion-reduce:rotate-none" />
               </summary>
               <div
                 role="menu"
-                className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-md border border-border bg-[var(--review-card)] p-1 shadow-[0_8px_24px_rgba(176,159,133,0.18)]"
+                className="review-type-popover absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-md border border-border bg-[var(--review-card)] p-1 shadow-[0_8px_24px_rgba(176,159,133,0.18)]"
               >
                 {typeOptions.map((option) => (
                   <button
@@ -470,7 +482,7 @@ function WeekQuestionList({
                       event.currentTarget.closest("details")?.removeAttribute("open");
                     }}
                     className={cn(
-                      "flex min-h-7 w-full cursor-pointer items-center gap-2 rounded px-2 py-1 text-left text-[11px] leading-4 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand",
+                      "flex min-h-7 w-full cursor-pointer items-center gap-2 rounded px-2 py-1 text-left text-[11px] leading-4 transition-colors duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-[var(--review-secondary-soft)]",
                       type === option.value
                         ? "bg-[var(--review-secondary-soft)] text-brand"
                         : "text-black hover:bg-[var(--review-row-hover)]",
@@ -482,15 +494,15 @@ function WeekQuestionList({
               </div>
             </details>
 
-            <label className="relative block min-w-0 flex-1 sm:w-48 sm:flex-none">
+            <label className="group/search relative block min-w-0 flex-1 sm:w-48 sm:flex-none">
               <span className="sr-only">{language === "id" ? "Cari soal" : "Search questions"}</span>
-              <Search size={13} strokeWidth={1.8} aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[#b09f85]" />
+              <Search size={13} strokeWidth={1.8} aria-hidden="true" className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[#b09f85] transition-colors duration-150 ease-out group-hover/search:text-brand group-focus-within/search:text-brand" />
               <input
                 type="search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search"
-                className="min-h-7 w-full rounded-md border border-[#ccbab0] bg-[var(--review-page)] py-1 pl-7 pr-2.5 text-[11px] font-normal leading-4 text-black outline-none transition-[border-color,box-shadow] placeholder:text-muted/75 hover:border-[#b09f85] focus:border-[#b09f85] focus:ring-2 focus:ring-brand/10"
+                className="min-h-7 w-full rounded-md border border-[#ccbab0] bg-[var(--review-page)] py-1 pl-7 pr-2.5 text-[11px] font-normal leading-4 text-black outline-none transition-[border-color,box-shadow] duration-150 ease-out placeholder:text-muted/75 hover:border-[#b09f85] focus:border-[#b09f85] focus:ring-2 focus:ring-brand/10"
               />
             </label>
           </div>
@@ -526,6 +538,14 @@ function WeekQuestionList({
                   questionCounts,
                   QUESTION_REVIEWED_THRESHOLD,
                 );
+                const viewActionLabel =
+                  questionStatus === "reviewed"
+                    ? language === "id" ? "Lihat" : "View"
+                    : language === "id" ? "Lihat soal" : "View question";
+                const deleteActionLabel = language === "id" ? "Hapus review" : "Delete review";
+                const viewTooltipId = `review-question-action-view-${question.id}`;
+                const editTooltipId = `review-question-action-edit-${question.id}`;
+                const deleteTooltipId = `review-question-action-delete-${question.id}`;
                 const rowCells = (
                   <>
                     <span className="hidden text-center text-xs font-normal tabular-nums text-black/60 lg:block">{index + 1}</span>
@@ -538,7 +558,7 @@ function WeekQuestionList({
                           tooltipId={`review-question-type-${question.id}-mobile`}
                           focusable={questionStatus !== "unreviewed"}
                           className={cn(
-                            "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4 transition-colors",
+                            "inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4 transition-colors duration-150 ease-out",
                             question.type === "multiple_choice"
                               ? "border-[var(--review-type-choice-border)] bg-[var(--review-type-choice-bg)] text-[var(--review-type-choice-text)] hover:bg-[var(--review-type-choice-hover)] hover:border-[var(--progmiscon-accent)]"
                               : "border-[var(--review-type-essay-border)] bg-[var(--review-type-essay-bg)] text-[var(--review-type-essay-text)] hover:bg-[var(--review-type-essay-hover)] hover:border-[var(--progmiscon-primary)]",
@@ -553,7 +573,7 @@ function WeekQuestionList({
                       tooltipId={`review-question-type-${question.id}-desktop`}
                       focusable={questionStatus !== "unreviewed"}
                       className={cn(
-                        "hidden w-fit items-center rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4 transition-colors lg:inline-flex",
+                        "hidden w-fit items-center rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4 transition-colors duration-150 ease-out lg:inline-flex",
                         question.type === "multiple_choice"
                           ? "border-[var(--review-type-choice-border)] bg-[var(--review-type-choice-bg)] text-[var(--review-type-choice-text)] hover:bg-[var(--review-type-choice-hover)] hover:border-[var(--progmiscon-accent)]"
                           : "border-[var(--review-type-essay-border)] bg-[var(--review-type-essay-bg)] text-[var(--review-type-essay-text)] hover:bg-[var(--review-type-essay-hover)] hover:border-[var(--progmiscon-primary)]",
@@ -570,44 +590,44 @@ function WeekQuestionList({
                         type="button"
                         aria-describedby={`review-question-type-${question.id}-desktop`}
                         onClick={() => onOpenQuestion(question, false)}
-                        className={cn("group group/row grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-left transition-colors hover:bg-[var(--review-row-hover)] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-[var(--review-secondary-soft)]", tableGridClass)}
+                        className={cn("group group/row grid w-full cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 text-left transition-colors duration-150 ease-out hover:bg-[var(--review-row-hover)] focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-[var(--review-secondary-soft)]", tableGridClass)}
                       >
                         {rowCells}
-                        <ChevronRight size={15} strokeWidth={1.8} aria-hidden="true" className="text-[#b09f85] transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+                        <ChevronRight size={15} strokeWidth={1.8} aria-hidden="true" className="text-[#b09f85] transition-[color,transform] duration-150 ease-out group-hover/row:translate-x-0.5 group-hover/row:text-brand motion-reduce:translate-none" />
                       </button>
                     ) : (
-                      <div className={cn("grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2", tableGridClass)}>
+                      <div className={cn("group/row grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2 transition-colors duration-150 ease-out hover:bg-[var(--review-row-hover)]", tableGridClass)}>
                         {rowCells}
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
-                            title={questionStatus === "reviewed" ? (language === "id" ? "Lihat" : "View") : language === "id" ? "Lihat soal" : "View question"}
-                            aria-label={questionStatus === "reviewed" ? (language === "id" ? "Lihat" : "View") : language === "id" ? "Lihat soal" : "View question"}
+                            aria-labelledby={viewTooltipId}
                             onClick={() => onOpenQuestion(question, true)}
-                            className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-colors hover:bg-[var(--review-secondary-soft)] hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                            className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
                           >
                             <Eye size={14} strokeWidth={1.9} aria-hidden="true" />
+                            <ReviewActionTooltip id={viewTooltipId} label={viewActionLabel} />
                           </button>
                           {questionStatus === "reviewed" && (
                             <>
                               <button
                                 type="button"
-                                title="Edit"
-                                aria-label="Edit"
+                                aria-labelledby={editTooltipId}
                                 onClick={() => onOpenQuestion(question, false)}
-                                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-colors hover:bg-[var(--review-secondary-soft)] hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
                               >
                                 <Pencil size={14} strokeWidth={1.9} aria-hidden="true" />
+                                <ReviewActionTooltip id={editTooltipId} label="Edit" />
                               </button>
                               <button
                                 type="button"
-                                title={language === "id" ? "Hapus review" : "Delete review"}
-                                aria-label={language === "id" ? "Hapus review" : "Delete review"}
+                                aria-labelledby={deleteTooltipId}
                                 disabled={withdrawingId === question.id}
                                 onClick={() => void handleWithdraw(question)}
-                                className="inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-colors hover:bg-[var(--review-primary-soft)] hover:text-brand disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-primary-soft)] hover:text-brand disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
                               >
                                 <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
+                                <ReviewActionTooltip id={deleteTooltipId} label={deleteActionLabel} />
                               </button>
                             </>
                           )}
@@ -1381,7 +1401,7 @@ export function LecturerReviewPage({
 
   if (reviewStage === "overview") {
     return (
-      <div className="lecturer-ui review-week-pages mx-auto max-w-[1240px] text-black">
+      <div className="lecturer-ui review-week-pages review-stage-enter mx-auto max-w-[1240px] text-black">
         {loadError && (
           <p role="alert" className="mb-5 rounded-lg border border-brand/25 bg-[var(--review-primary-soft)] px-4 py-3 text-sm text-brand">
             {loadError}
@@ -1402,7 +1422,7 @@ export function LecturerReviewPage({
     const selectedWeek = navigation.week || requestedWeek;
 
     return (
-      <div className="lecturer-ui review-week-pages mx-auto max-w-[1240px] text-black">
+      <div className="lecturer-ui review-week-pages review-stage-enter mx-auto max-w-[1240px] text-black">
         {loadError && (
           <p role="alert" className="mb-5 rounded-lg border border-brand/25 bg-[var(--review-primary-soft)] px-4 py-3 text-sm text-brand">
             {loadError}
