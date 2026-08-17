@@ -256,14 +256,29 @@ function WeekQuestionList({
   onDeleteReview: (question: Question) => Promise<void>;
 }) {
   const [query, setQuery] = useState("");
-  const [type, setType] = useState<ReviewQuestionType>("all");
+  const [type, setType] = useState<ReviewQuestionType>("ps");
   const [status, setStatus] = useState<ReviewWeekListStatus>("unreviewed");
   const [withdrawingId, setWithdrawingId] = useState("");
   const reviewed = useMemo(() => new Set(reviewedQuestionIds), [reviewedQuestionIds]);
-  const weekTotal = useMemo(
-    () => new Set(questions.filter((question) => question.week === week).map(({ id }) => id)).size,
-    [questions, week],
-  );
+  const typeOptions = [
+    {
+      value: "all",
+      label: language === "id" ? "Semua tipe" : "All types",
+      code: undefined,
+    },
+    {
+      value: "ps",
+      label: language === "id" ? "Esai" : "Essay",
+      code: "PS",
+    },
+    {
+      value: "mp",
+      label: language === "id" ? "Pilihan Ganda" : "Multiple Choice",
+      code: "MP",
+    },
+  ] as const;
+  const selectedType =
+    typeOptions.find((option) => option.value === type) ?? typeOptions[1];
   const filteredQuestions = useMemo(
     () =>
       filterWeekReviewQuestions(questions, {
@@ -337,7 +352,7 @@ function WeekQuestionList({
             {([
               ["unreviewed", language === "id" ? "Belum direview" : "Not reviewed"],
               ["reviewed", language === "id" ? "Sudah direview" : "Reviewed"],
-              ["full", language === "id" ? "Kuota penuh" : "Quota full"],
+              ["full", language === "id" ? "Reviewer penuh" : "Reviewers full"],
             ] as const).map(([value, label]) => (
               <button
                 key={value}
@@ -357,20 +372,60 @@ function WeekQuestionList({
           </div>
 
           <div className="flex w-full items-center gap-1.5 sm:w-auto">
-            <label className="relative block shrink-0" htmlFor="review-question-type">
-              <span className="sr-only">{language === "id" ? "Jenis soal" : "Question type"}</span>
-              <select
-                id="review-question-type"
-                value={type}
-                onChange={(event) => setType(event.target.value as ReviewQuestionType)}
-                className="min-h-7 w-32 cursor-pointer appearance-none rounded-md border border-border bg-white py-1 pl-2.5 pr-7 text-[11px] font-medium leading-4 text-black outline-none transition-[border-color,box-shadow] focus:border-brand focus:ring-2 focus:ring-brand/10"
+            <details
+              className="group/type relative shrink-0"
+              onKeyDown={(event) => {
+                if (event.key === "Escape") event.currentTarget.removeAttribute("open");
+              }}
+              onBlur={(event) => {
+                if (!event.currentTarget.contains(event.relatedTarget)) {
+                  event.currentTarget.removeAttribute("open");
+                }
+              }}
+            >
+              <summary
+                aria-label={`${language === "id" ? "Tipe soal" : "Question type"}: ${selectedType.label}${selectedType.code ? ` (${selectedType.code})` : ""}`}
+                className="flex min-h-7 w-[9.75rem] cursor-pointer list-none items-center gap-1.5 rounded-md border border-border bg-white py-1 pl-2.5 pr-2 text-[11px] leading-4 text-black outline-none transition-[border-color,box-shadow] marker:hidden focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/10 [&::-webkit-details-marker]:hidden"
               >
-                <option value="all">{language === "id" ? "Tipe soal" : "Question type"}</option>
-                <option value="mp">Multiple Choice</option>
-                <option value="ps">{language === "id" ? "Esai" : "Essay"}</option>
-              </select>
-              <ChevronDown size={12} strokeWidth={2} aria-hidden="true" className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[#b09f85]" />
-            </label>
+                <span className="min-w-0 flex-1 truncate font-medium">{selectedType.label}</span>
+                {selectedType.code && (
+                  <span className="rounded border border-[#ccbab0]/60 bg-[#ccbab0]/15 px-1 py-px text-[8px] font-semibold leading-3 tracking-[0.04em] text-muted">
+                    {selectedType.code}
+                  </span>
+                )}
+                <ChevronDown size={12} strokeWidth={2} aria-hidden="true" className="shrink-0 text-[#b09f85] transition-transform group-open/type:rotate-180" />
+              </summary>
+              <div
+                role="menu"
+                className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-md border border-border bg-white p-1 shadow-[0_8px_24px_rgba(95,71,59,0.12)]"
+              >
+                {typeOptions.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={type === option.value}
+                    onClick={(event) => {
+                      setType(option.value);
+                      event.currentTarget.closest("details")?.removeAttribute("open");
+                    }}
+                    className={cn(
+                      "flex min-h-7 w-full cursor-pointer items-center gap-2 rounded px-2 py-1 text-left text-[11px] leading-4 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand",
+                      type === option.value
+                        ? "bg-brand-soft/70 text-brand"
+                        : "text-black hover:bg-[#fbfbfe]",
+                    )}
+                  >
+                    <span className="min-w-0 flex-1 font-normal">{option.label}</span>
+                    {option.code && (
+                      <span className="rounded border border-[#ccbab0]/60 bg-[#ccbab0]/15 px-1 py-px text-[8px] font-semibold leading-3 tracking-[0.04em] text-muted">
+                        {option.code}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </details>
 
             <label className="relative block min-w-0 flex-1 sm:w-48 sm:flex-none">
               <span className="sr-only">{language === "id" ? "Cari soal" : "Search questions"}</span>
@@ -386,35 +441,25 @@ function WeekQuestionList({
           </div>
         </div>
 
-        <p className="mt-2 text-[11px] font-medium tabular-nums text-muted" aria-live="polite">
-          {language === "id"
-            ? `${filteredQuestions.length} dari ${weekTotal} soal`
-            : `${filteredQuestions.length} of ${weekTotal} questions`}
-        </p>
-
         {filteredQuestions.length === 0 ? (
           <div className="mt-2 rounded-lg border border-border bg-white">
             <EmptyState message={language === "id" ? "Tidak ada soal yang cocok dengan pencarian atau filter ini." : "No questions match these filters."} />
           </div>
         ) : (
           <div className="mt-2 overflow-hidden rounded-lg border border-border/90 bg-white shadow-[0_1px_2px_rgba(95,71,59,0.04)]">
-            <div aria-hidden="true" className={cn("hidden gap-3 border-b border-border bg-[#fbfbfe] px-3 py-2.5 text-[13px] font-semibold text-muted lg:grid", tableGridClass)}>
+            <div aria-hidden="true" className={cn("hidden gap-3 border-b border-border bg-[#fbfbfe] px-3 py-2.5 text-[13px] font-semibold text-[#5e534a] lg:grid", tableGridClass)}>
               <span>No.</span>
               <span>{language === "id" ? "Soal" : "Question"}</span>
               <span>{language === "id" ? "Tipe" : "Type"}</span>
               <span>{language === "id" ? "Reviewer" : "Reviewers"}</span>
-              <span>{status === "unreviewed" ? "" : language === "id" ? "Aksi" : "Actions"}</span>
+              <span className="text-center">{status === "unreviewed" ? "" : language === "id" ? "Aksi" : "Actions"}</span>
             </div>
             <ul>
               {filteredQuestions.map((question, index) => {
                 const identifier = getMaterialQuestionIdentifier(question);
                 const title = t(question.title, language).trim() || identifier;
-                const typeLabel =
-                  question.type === "multiple_choice"
-                    ? "Multiple Choice"
-                    : language === "id"
-                      ? "Esai"
-                      : "Essay";
+                const questionType =
+                  question.type === "multiple_choice" ? typeOptions[2] : typeOptions[1];
                 const reviewCount = Math.min(
                   questionCounts.get(question.id) ?? 0,
                   QUESTION_REVIEWED_THRESHOLD,
@@ -427,26 +472,32 @@ function WeekQuestionList({
                 );
                 const rowCells = (
                   <>
-                    <span className="hidden text-xs tabular-nums text-muted lg:block">{index + 1}</span>
+                    <span className="hidden text-xs font-normal tabular-nums text-muted lg:block">{index + 1}</span>
                     <span className="min-w-0">
-                      <span className="block truncate text-xs font-medium leading-4 text-black">{title}</span>
+                      <span className="block truncate text-xs font-normal leading-4 text-black">{title}</span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
                         <span className={cn(
-                          "rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-4",
+                          "inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4",
                           question.type === "multiple_choice"
                             ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
                             : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
-                        )}>{typeLabel}</span>
-                        <span className="text-[10px] font-medium tabular-nums text-muted">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer</span>
+                        )}>
+                          {questionType.label}
+                          <span className="text-[8px] font-semibold tracking-[0.04em] text-muted">{questionType.code}</span>
+                        </span>
+                        <span className="text-[10px] font-normal tabular-nums text-muted">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer</span>
                       </span>
                     </span>
                     <span className={cn(
-                      "hidden w-fit rounded-md border px-1.5 py-0.5 text-[10px] font-medium leading-4 lg:block",
+                      "hidden w-fit items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-normal leading-4 lg:inline-flex",
                       question.type === "multiple_choice"
                         ? "border-[#ccbab0]/60 bg-[#ccbab0]/20 text-navy-deep"
                         : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
-                    )}>{typeLabel}</span>
-                    <span className="hidden text-xs font-medium tabular-nums text-muted lg:block">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD}</span>
+                    )}>
+                      {questionType.label}
+                      <span className="text-[8px] font-semibold tracking-[0.04em] text-muted">{questionType.code}</span>
+                    </span>
+                    <span className="hidden text-xs font-normal tabular-nums text-muted lg:block">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD}</span>
                   </>
                 );
 
@@ -464,7 +515,7 @@ function WeekQuestionList({
                     ) : (
                       <div className={cn("grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2", tableGridClass)}>
                         {rowCells}
-                        <div className="flex items-center justify-end gap-1">
+                        <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
                             title={questionStatus === "reviewed" ? (language === "id" ? "Lihat" : "View") : language === "id" ? "Lihat soal" : "View question"}

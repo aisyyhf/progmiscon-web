@@ -370,16 +370,29 @@ assert.doesNotMatch(listSource, /Status pribadi|Personal status/);
 assert.match(activePage, /REVIEW SOAL PER MINGGU/);
 assert.match(activePage, /formatWeekLabel\(week\)\.toLocaleUpperCase/);
 assert.match(activePage, /aria-pressed=\{status === value\}/);
-assert.match(activePage, /Kuota penuh/);
+assert.match(listSource, /Reviewer penuh/);
+assert.match(listSource, /Reviewers full/);
+assert.doesNotMatch(listSource, /Kuota penuh|Quota full/);
 assert.match(activePage, /getWeekReviewQuestionStatus/);
 assert.match(listSource, /useState<ReviewWeekListStatus>\("unreviewed"\)/);
+assert.match(listSource, /useState<ReviewQuestionType>\("ps"\)/);
 assert.doesNotMatch(listSource, /\["all", language === "id" \? "Semua"/);
-assert.match(activePage, /appearance-none/);
 assert.match(activePage, /rounded-full/);
 assert.match(activePage, /Tipe soal/);
-assert.match(activePage, /Multiple Choice/);
-assert.match(activePage, /Esai/);
+assert.match(listSource, /label: language === "id" \? "Esai" : "Essay"/);
+assert.match(
+  listSource,
+  /label: language === "id" \? "Pilihan Ganda" : "Multiple Choice"/,
+);
+assert.match(listSource, /language === "id" \? "Semua tipe" : "All types"/);
+assert.match(listSource, /code: "PS"/);
+assert.match(listSource, /code: "MP"/);
+assert.match(listSource, /role="menuitemradio"/);
+assert.match(listSource, /selectedType\.code/);
 assert.match(activePage, /placeholder="Search"/);
+assert.doesNotMatch(listSource, /weekTotal/);
+assert.doesNotMatch(listSource, /dari \$\{filteredQuestions\.length\} soal/);
+assert.doesNotMatch(listSource, /of \$\{filteredQuestions\.length\} questions/);
 assert.doesNotMatch(activePage, /<ReviewBreadcrumb language=\{language\} \/>/);
 assert.doesNotMatch(activePage, /Pilih minggu untuk melihat soal/);
 assert.doesNotMatch(activePage, /Semua minggu/);
@@ -395,7 +408,25 @@ assert.match(listSource, /onOpenQuestion\(question, false\)/);
 assert.match(listSource, /<Eye/);
 assert.match(listSource, /<Pencil/);
 assert.match(listSource, /<Trash2/);
+assert.match(
+  listSource,
+  /\{questionStatus === "reviewed" && \([\s\S]*?<Pencil[\s\S]*?<Trash2[\s\S]*?\)\}/,
+  "edit and delete controls are restricted to personally reviewed questions",
+);
 assert.match(listSource, /Hapus review/);
+assert.match(
+  listSource,
+  /text-\[13px\] font-semibold text-\[#5e534a\][\s\S]*tableGridClass/,
+);
+assert.match(listSource, /truncate text-xs font-normal leading-4 text-black/);
+assert.match(listSource, /text-xs font-normal tabular-nums text-muted/);
+assert.match(listSource, /<span className="text-center">/);
+assert.match(listSource, /flex items-center justify-center gap-1/);
+assert.equal(
+  listSource.match(/tableGridClass/g)?.length,
+  4,
+  "the header and every row variant share the same desktop column grid",
+);
 assert.match(activePage, /withdrawQuestionReview/);
 assert.match(activePage, /deleteQuestionReview\(question\.id, question\.sourceVersion\)/);
 assert.match(activePage, /mode=view/);
