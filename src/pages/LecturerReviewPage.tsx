@@ -145,7 +145,7 @@ function PresenceToggle({
   ] as const;
 
   return (
-    <div className="mt-3 grid grid-cols-2 gap-1 rounded-md border border-border bg-neutral p-1" role="radiogroup" aria-label={label}>
+    <div className="mt-2 inline-grid w-fit grid-cols-2 gap-0.5 rounded-md border border-[#ccbab0]/70 bg-[var(--review-secondary-soft)] p-0.5" role="radiogroup" aria-label={label}>
       {options.map((option) => (
         <button
           key={String(option.value)}
@@ -155,12 +155,12 @@ function PresenceToggle({
           disabled={option.value && yesDisabled}
           onClick={() => onChange(option.value)}
           className={cn(
-            "min-h-9 cursor-pointer rounded px-3 py-2 text-xs font-normal leading-5 transition-[background-color,color,box-shadow] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40",
+            "min-h-7 min-w-20 cursor-pointer rounded border px-2.5 py-1 text-xs font-normal leading-4 transition-[background-color,border-color,color,box-shadow] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-40",
             value === option.value
               ? option.value
-                ? "bg-white text-brand shadow-[0_2px_8px_rgba(30,41,59,0.08)]"
-                : "bg-white text-navy-deep shadow-[0_2px_8px_rgba(30,41,59,0.08)]"
-              : "text-muted hover:bg-white/60 hover:text-navy-deep",
+                ? "border-brand/20 bg-brand-soft/65 text-brand"
+                : "border-[#ccbab0]/70 bg-white text-black shadow-sm"
+              : "border-transparent bg-white/70 text-muted hover:bg-white hover:text-black",
           )}
         >
           {option.label}
@@ -2143,29 +2143,6 @@ export function QuestionValidationWorkspace({
     misconceptions,
     questionRemovalProposalIds,
   );
-  const directQuestionMisconceptionIdSet = new Set(
-    question.directQuestionMisconceptionIds,
-  );
-  const answerDerivedMisconceptionIdSet = new Set(
-    question.answerDerivedMisconceptionIds,
-  );
-  const misconceptionSourceLabel = (misconceptionId: string): string => {
-    const directlyLinked = directQuestionMisconceptionIdSet.has(misconceptionId);
-    const answerDerived = answerDerivedMisconceptionIdSet.has(misconceptionId);
-    if (directlyLinked && answerDerived) {
-      return language === "id"
-        ? "Terkait ke soal dan jawaban"
-        : "Linked to question and answer";
-    }
-    if (answerDerived) {
-      return language === "id"
-        ? "Diturunkan dari jawaban"
-        : "Derived from answer";
-    }
-    return language === "id"
-      ? "Terkait langsung ke soal"
-      : "Directly linked to question";
-  };
   const misconceptionById = new Map(
     misconceptions.map((item) => [item.id, item]),
   );
@@ -2276,7 +2253,7 @@ export function QuestionValidationWorkspace({
 
 
   return (
-    <div className="review-question-detail mt-2">
+    <div className="review-question-detail mt-3">
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] lg:items-start xl:gap-14">
         <article className="min-w-0">
           <section aria-labelledby="review-question-title">
@@ -2635,7 +2612,7 @@ export function QuestionValidationWorkspace({
             disabled={formUnavailable}
             aria-disabled={formUnavailable}
             className={cn(
-              "mt-6 space-y-6",
+              "mt-5 space-y-5",
               formUnavailable && "opacity-65",
             )}
           >
@@ -2645,8 +2622,8 @@ export function QuestionValidationWorkspace({
                 : "Question validation fields"}
             </legend>
             <section aria-labelledby="remove-misconception-question">
-              <div className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand text-xs font-medium text-white" aria-hidden="true">
+              <div className="flex items-start gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-[10px] font-medium leading-none text-white" aria-hidden="true">
                   1
                 </span>
                 <div className="min-w-0 flex-1">
@@ -2677,14 +2654,14 @@ export function QuestionValidationWorkspace({
               </div>
 
               {hasIncorrectMisconceptions && (
-                <div className="ml-9 mt-4 space-y-4 rounded-md border border-border bg-neutral/60 p-3">
+                <div className="ml-[1.875rem] mt-3 space-y-3 rounded-md border border-brand/15 bg-brand-soft/35 p-2.5">
                   <fieldset>
-                    <legend className="text-xs font-medium leading-5 text-navy-deep">
+                    <legend className="text-xs font-normal leading-5 text-navy-deep">
                       {language === "id" ? "Pilih yang perlu dihapus" : "Select items to remove"}
                     </legend>
                     <div className="mt-2 space-y-2">
                       {recommended.map((item) => (
-                        <label key={item.id} className="flex cursor-pointer items-start gap-2.5 rounded-md border border-border bg-white px-3 py-2.5 text-xs font-normal leading-5 text-navy-deep">
+                        <label key={item.id} className="flex cursor-pointer items-start gap-2 rounded-md border border-brand/15 bg-white px-2.5 py-2 text-xs font-normal leading-4 text-navy-deep">
                           <input
                             type="checkbox"
                             checked={removedMisconceptionIds.includes(item.id)}
@@ -2702,11 +2679,11 @@ export function QuestionValidationWorkspace({
                             className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
                           />
                           <span className="min-w-0">
-                            <span className="block">
-                              {misconceptionLabel(item, language)}
+                            <span className="block font-mono text-[11px] font-normal leading-4 text-brand">
+                              {item.id}
                             </span>
-                            <span className="mt-0.5 block text-xs text-muted">
-                              {misconceptionSourceLabel(item.id)}
+                            <span className="mt-0.5 block text-xs font-normal leading-4 text-navy-deep">
+                              {t(item.title, language)}
                             </span>
                           </span>
                         </label>
@@ -2714,7 +2691,7 @@ export function QuestionValidationWorkspace({
                     </div>
                   </fieldset>
 
-                  <label htmlFor="removal-reason" className="block text-xs font-medium text-navy-deep">
+                  <label htmlFor="removal-reason" className="block text-xs font-normal text-navy-deep">
                     {language === "id" ? "Alasan" : "Reason"}
                     <span aria-hidden="true" className="ml-1 text-brand">*</span>
                   </label>
@@ -2730,15 +2707,15 @@ export function QuestionValidationWorkspace({
                     }
                     aria-required="true"
                     placeholder={language === "id" ? "Jelaskan mengapa perlu dihapus" : "Explain why it should be removed"}
-                    className="academic-input min-h-20 px-3 py-2.5 text-xs placeholder:text-muted/65"
+                    className="academic-input min-h-16 resize-y px-3 py-2 text-xs placeholder:text-muted/65"
                   />
                 </div>
               )}
             </section>
 
-            <section className="border-t border-border pt-6" aria-labelledby="add-misconception-question">
-              <div className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand text-xs font-medium text-white" aria-hidden="true">
+            <section className="border-t border-border pt-5" aria-labelledby="add-misconception-question">
+              <div className="flex items-start gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-[10px] font-medium leading-none text-white" aria-hidden="true">
                   2
                 </span>
                 <div className="min-w-0 flex-1">
@@ -2769,7 +2746,7 @@ export function QuestionValidationWorkspace({
               </div>
 
               {hasAdditionalMisconceptions && (
-                <div className="ml-9 mt-4 space-y-4 rounded-md border border-border bg-neutral/60 p-3">
+                <div className="ml-[1.875rem] mt-3 space-y-3 rounded-md border border-brand/15 bg-brand-soft/35 p-2.5">
                   <MisconceptionPicker
                     misconceptions={addableMisconceptions}
                     recommended={similarMisconceptions}
@@ -2782,11 +2759,9 @@ export function QuestionValidationWorkspace({
                       })
                     }
                     variant="selection"
-                    label={language === "id" ? "Miskonsepsi yang ditambahkan" : "Misconceptions to add"}
-                    helper={language === "id" ? "Anda dapat memilih lebih dari satu." : "You may select more than one."}
                   />
 
-                  <label htmlFor="addition-reason" className="block text-xs font-medium text-navy-deep">
+                  <label htmlFor="addition-reason" className="block text-xs font-normal text-navy-deep">
                     {language === "id" ? "Alasan" : "Reason"}
                     <span aria-hidden="true" className="ml-1 text-brand">*</span>
                   </label>
@@ -2802,15 +2777,15 @@ export function QuestionValidationWorkspace({
                     }
                     aria-required="true"
                     placeholder={language === "id" ? "Jelaskan mengapa perlu ditambahkan" : "Explain why it should be added"}
-                    className="academic-input min-h-20 px-3 py-2.5 text-xs placeholder:text-muted/65"
+                    className="academic-input min-h-16 resize-y px-3 py-2 text-xs placeholder:text-muted/65"
                   />
                 </div>
               )}
             </section>
 
-            <section className="border-t border-border pt-6" aria-labelledby="additional-comment-label">
-              <div className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand text-xs font-medium text-white" aria-hidden="true">
+            <section className="border-t border-border pt-5" aria-labelledby="additional-comment-label">
+              <div className="flex items-start gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-[10px] font-medium leading-none text-white" aria-hidden="true">
                   3
                 </span>
                 <div className="min-w-0 flex-1">
@@ -2827,7 +2802,7 @@ export function QuestionValidationWorkspace({
                       })
                     }
                     placeholder={language === "id" ? "Komentar.." : "Comment.."}
-                    className="academic-input mt-3 min-h-24 px-3 py-2.5 text-xs placeholder:text-muted/65"
+                    className="academic-input mt-2 min-h-16 resize-y px-3 py-2 text-xs placeholder:text-muted/65"
                   />
                 </div>
               </div>
@@ -3203,7 +3178,7 @@ export function AnswerValidationWorkspace({
             disabled={formUnavailable}
             aria-disabled={formUnavailable}
             className={cn(
-              "mt-6 space-y-6",
+              "mt-5 space-y-5",
               formUnavailable && "opacity-65",
             )}
           >
@@ -3213,12 +3188,12 @@ export function AnswerValidationWorkspace({
                 : "Answer validation fields"}
             </legend>
             <section aria-labelledby="remove-answer-misconception-question">
-              <div className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand-soft text-xs font-bold text-brand" aria-hidden="true">
+              <div className="flex items-start gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-[10px] font-medium leading-none text-white" aria-hidden="true">
                   1
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p id="remove-answer-misconception-question" className="text-sm font-semibold leading-5 text-navy-deep">
+                  <p id="remove-answer-misconception-question" className="text-xs font-normal leading-5 text-navy-deep">
                     {language === "id"
                       ? "Apakah ada miskonsepsi terkait yang tidak sesuai dengan jawaban ini?"
                       : "Are any linked misconceptions inconsistent with this answer?"}
@@ -3238,20 +3213,19 @@ export function AnswerValidationWorkspace({
                         ? "Apakah ada miskonsepsi terkait yang tidak sesuai dengan jawaban ini?"
                         : "Are any linked misconceptions inconsistent with this answer?"
                     }
-                    yesDisabled={linkedMisconceptions.length === 0}
                   />
                 </div>
               </div>
 
               {hasMismatchedMisconceptions && (
-                <div className="ml-9 mt-4 space-y-4 rounded-md border border-border bg-neutral/60 p-3">
+                <div className="ml-[1.875rem] mt-3 space-y-3 rounded-md border border-brand/15 bg-brand-soft/35 p-2.5">
                   <fieldset>
-                    <legend className="text-xs font-semibold leading-5 text-navy-deep">
+                    <legend className="text-xs font-normal leading-5 text-navy-deep">
                       {language === "id" ? "Pilih miskonsepsi yang sebaiknya dilepas" : "Select misconceptions to unlink"}
                     </legend>
                     <div className="mt-2 space-y-2">
                       {linkedMisconceptions.map((item) => (
-                        <label key={item.id} className="flex cursor-pointer items-start gap-2.5 rounded-md border border-border bg-white px-3 py-2.5 text-sm leading-5 text-navy-deep">
+                        <label key={item.id} className="flex cursor-pointer items-start gap-2 rounded-md border border-brand/15 bg-white px-2.5 py-2 text-xs font-normal leading-4 text-navy-deep">
                           <input
                             type="checkbox"
                             checked={removedMisconceptionIds.includes(item.id)}
@@ -3268,13 +3242,20 @@ export function AnswerValidationWorkspace({
                             }
                             className="mt-0.5 h-4 w-4 shrink-0 accent-brand"
                           />
-                          <span>{misconceptionLabel(item, language)}</span>
+                          <span className="min-w-0">
+                            <span className="block font-mono text-[11px] font-normal leading-4 text-brand">
+                              {item.id}
+                            </span>
+                            <span className="mt-0.5 block text-xs font-normal leading-4 text-navy-deep">
+                              {t(item.title, language)}
+                            </span>
+                          </span>
                         </label>
                       ))}
                     </div>
                   </fieldset>
 
-                  <label htmlFor="answer-removal-reason" className="block text-xs font-semibold leading-5 text-navy-deep">
+                  <label htmlFor="answer-removal-reason" className="block text-xs font-normal leading-5 text-navy-deep">
                     {language === "id"
                       ? "Mengapa miskonsepsi tersebut tidak sesuai dengan pola jawaban ini?"
                       : "Why is this misconception inconsistent with the answer pattern?"}
@@ -3292,19 +3273,19 @@ export function AnswerValidationWorkspace({
                     }
                     aria-required="true"
                     placeholder={language === "id" ? "Tuliskan alasan" : "Write a reason"}
-                    className="academic-input min-h-20 px-3 py-2.5 text-sm placeholder:text-muted/65"
+                    className="academic-input min-h-16 resize-y px-3 py-2 text-xs placeholder:text-muted/65"
                   />
                 </div>
               )}
             </section>
 
-            <section className="border-t border-border pt-6" aria-labelledby="add-answer-misconception-question">
-              <div className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand-soft text-xs font-bold text-brand" aria-hidden="true">
+            <section className="border-t border-border pt-5" aria-labelledby="add-answer-misconception-question">
+              <div className="flex items-start gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-[10px] font-medium leading-none text-white" aria-hidden="true">
                   2
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p id="add-answer-misconception-question" className="text-sm font-semibold leading-5 text-navy-deep">
+                  <p id="add-answer-misconception-question" className="text-xs font-normal leading-5 text-navy-deep">
                     {language === "id"
                       ? "Apakah ada miskonsepsi lain yang perlu dikaitkan dengan jawaban ini?"
                       : "Should any other misconceptions be linked to this answer?"}
@@ -3330,7 +3311,7 @@ export function AnswerValidationWorkspace({
               </div>
 
               {hasAdditionalMisconceptions && (
-                <div className="ml-9 mt-4 space-y-4 rounded-md border border-border bg-neutral/60 p-3">
+                <div className="ml-[1.875rem] mt-3 space-y-3 rounded-md border border-brand/15 bg-brand-soft/35 p-2.5">
                   <MisconceptionPicker
                     misconceptions={addableMisconceptions}
                     recommended={similarMisconceptions}
@@ -3343,11 +3324,9 @@ export function AnswerValidationWorkspace({
                       })
                     }
                     variant="selection"
-                    label={language === "id" ? "Miskonsepsi yang dikaitkan" : "Misconceptions to link"}
-                    helper={language === "id" ? "Anda dapat memilih lebih dari satu." : "You may select more than one."}
                   />
 
-                  <label htmlFor="answer-addition-reason" className="block text-xs font-semibold leading-5 text-navy-deep">
+                  <label htmlFor="answer-addition-reason" className="block text-xs font-normal leading-5 text-navy-deep">
                     {language === "id"
                       ? "Mengapa miskonsepsi tersebut sesuai dengan pola jawaban ini?"
                       : "Why does this misconception match the answer pattern?"}
@@ -3365,19 +3344,19 @@ export function AnswerValidationWorkspace({
                     }
                     aria-required="true"
                     placeholder={language === "id" ? "Tuliskan alasan" : "Write a reason"}
-                    className="academic-input min-h-20 px-3 py-2.5 text-sm placeholder:text-muted/65"
+                    className="academic-input min-h-16 resize-y px-3 py-2 text-xs placeholder:text-muted/65"
                   />
                 </div>
               )}
             </section>
 
-            <section className="border-t border-border pt-6" aria-labelledby="answer-additional-comment-label">
-              <div className="flex items-start gap-3">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-brand-soft text-xs font-bold text-brand" aria-hidden="true">
+            <section className="border-t border-border pt-5" aria-labelledby="answer-additional-comment-label">
+              <div className="flex items-start gap-2.5">
+                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-brand text-[10px] font-medium leading-none text-white" aria-hidden="true">
                   3
                 </span>
                 <div className="min-w-0 flex-1">
-                  <label id="answer-additional-comment-label" htmlFor="answer-validation-note" className="block text-sm font-semibold text-navy-deep">
+                  <label id="answer-additional-comment-label" htmlFor="answer-validation-note" className="block text-xs font-normal leading-5 text-navy-deep">
                     {language === "id" ? "Komentar tambahan" : "Additional comment"}
                   </label>
                   <textarea
@@ -3389,12 +3368,8 @@ export function AnswerValidationWorkspace({
                         value: event.target.value,
                       })
                     }
-                    placeholder={
-                      language === "id"
-                        ? "Tuliskan catatan lain mengenai jawaban atau pemetaan miskonsepsinya."
-                        : "Write another note about the answer or its misconception mapping."
-                    }
-                    className="academic-input mt-3 min-h-24 px-3 py-2.5 text-sm placeholder:text-muted/65"
+                    placeholder={language === "id" ? "Komentar.." : "Comment.."}
+                    className="academic-input mt-2 min-h-16 resize-y px-3 py-2 text-xs placeholder:text-muted/65"
                   />
                 </div>
               </div>

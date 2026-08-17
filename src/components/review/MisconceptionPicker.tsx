@@ -77,15 +77,19 @@ export function MisconceptionPicker({
   return (
     <>
       <div>
-        <p className="text-sm font-bold text-navy-deep">
-          {label ?? (language === "id" ? "Keputusan miskonsepsi" : "Misconception decisions")}
-        </p>
-        <p className="mt-1 text-xs leading-5 text-muted">
-          {helper ??
-            (language === "id"
-              ? "Tentukan keputusan untuk setiap kandidat. Anda dapat menyetujui lebih dari satu miskonsepsi."
-              : "Decide on each candidate. You may approve more than one misconception.")}
-        </p>
+        {variant !== "selection" && (
+          <>
+            <p className="text-sm font-bold text-navy-deep">
+              {label ?? (language === "id" ? "Keputusan miskonsepsi" : "Misconception decisions")}
+            </p>
+            <p className="mt-1 text-xs leading-5 text-muted">
+              {helper ??
+                (language === "id"
+                  ? "Tentukan keputusan untuk setiap kandidat. Anda dapat menyetujui lebih dari satu miskonsepsi."
+                  : "Decide on each candidate. You may approve more than one misconception.")}
+            </p>
+          </>
+        )}
 
         {displayedItems.length > 0 && (
           <ul className="mt-3 space-y-2">
@@ -98,13 +102,13 @@ export function MisconceptionPicker({
                       type="button"
                       aria-label={`${language === "id" ? "Hapus" : "Remove"} ${misconceptionLabel(item, language)}`}
                       onClick={() => toggle(item.id)}
-                      className="flex w-full cursor-pointer items-start gap-3 rounded-md border border-correct-border bg-correct-bg/70 px-3 py-2.5 text-left text-navy-deep transition-colors hover:bg-correct-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      className="flex w-full cursor-pointer items-start gap-2 rounded-md border border-brand/20 bg-brand-soft/35 px-2.5 py-2 text-left text-navy-deep transition-colors hover:bg-brand-soft/55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                     >
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border border-correct bg-correct text-white" aria-hidden="true">
-                        <Check size={13} strokeWidth={2.5} />
+                      <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded border border-brand bg-brand text-white" aria-hidden="true">
+                        <Check size={11} strokeWidth={2.5} />
                       </span>
-                      <span className="text-sm font-medium leading-5">{misconceptionLabel(item, language)}</span>
-                      <X size={15} className="ml-auto mt-0.5 shrink-0 text-muted" aria-hidden="true" />
+                      <span className="text-xs font-normal leading-4">{misconceptionLabel(item, language)}</span>
+                      <X size={13} className="ml-auto mt-0.5 shrink-0 text-muted" aria-hidden="true" />
                     </button>
                   </li>
                 );
@@ -152,26 +156,22 @@ export function MisconceptionPicker({
           </ul>
         )}
 
-        <Button type="button" variant="secondary" className="mt-3 w-full justify-center" onClick={openPicker}>
-          <Search size={15} strokeWidth={2} aria-hidden="true" />
+        <Button type="button" variant="secondary" className="mt-2 !min-h-8 w-fit justify-center !px-2.5 !py-1.5 !text-xs !font-normal" onClick={openPicker}>
+          <Search size={13} strokeWidth={2} aria-hidden="true" />
           {variant === "selection"
             ? language === "id"
-              ? "Pilih miskonsepsi"
-              : "Select misconceptions"
+              ? "Pilih Miskonsepsi yang Ditambahkan"
+              : "Select Misconceptions to Add"
             : language === "id"
               ? "Cari miskonsepsi lain"
               : "Find another misconception"}
         </Button>
 
-        {value.length === 0 && (
+        {variant !== "selection" && value.length === 0 && (
           <p className="mt-3 rounded-md bg-neutral px-3 py-2 text-xs leading-5 text-muted">
             {language === "id"
-              ? variant === "selection"
-                ? "Belum ada miskonsepsi tambahan yang dipilih."
-                : "Belum ada miskonsepsi yang disetujui. Validasi akan disimpan tanpa label miskonsepsi."
-              : variant === "selection"
-                ? "No additional misconception has been selected."
-                : "No misconception has been approved. The validation will be saved without a misconception label."}
+              ? "Belum ada miskonsepsi yang disetujui. Validasi akan disimpan tanpa label miskonsepsi."
+              : "No misconception has been approved. The validation will be saved without a misconception label."}
           </p>
         )}
       </div>
@@ -198,11 +198,6 @@ export function MisconceptionPicker({
                 <h2 id="misconception-picker-title" className="mt-1 text-xl font-bold text-navy-deep">
                   {language === "id" ? "Pilih miskonsepsi" : "Choose misconceptions"}
                 </h2>
-                <p className="mt-1 text-sm text-muted">
-                  {language === "id"
-                    ? "Anda dapat memilih lebih dari satu miskonsepsi."
-                    : "You may select more than one misconception."}
-                </p>
               </div>
               <button
                 type="button"

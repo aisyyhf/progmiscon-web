@@ -29,6 +29,10 @@ const questionContent = await readFile(
   new URL("../src/components/review/QuestionContent.tsx", import.meta.url),
   "utf8",
 );
+const misconceptionPicker = await readFile(
+  new URL("../src/components/review/MisconceptionPicker.tsx", import.meta.url),
+  "utf8",
+);
 const styles = await readFile(
   new URL("../src/styles/index.css", import.meta.url),
   "utf8",
@@ -45,6 +49,17 @@ const questionDetail = activePage.slice(questionDetailStart, questionDetailEnd);
 const questionWorkspace = workspacePage.slice(
   workspacePage.indexOf("export function QuestionValidationWorkspace"),
   workspacePage.indexOf("export function AnswerValidationWorkspace"),
+);
+const answerWorkspace = workspacePage.slice(
+  workspacePage.indexOf("export function AnswerValidationWorkspace"),
+);
+const presenceToggle = workspacePage.slice(
+  workspacePage.indexOf("function PresenceToggle"),
+  workspacePage.indexOf("function orderAnswersByTaskPriority"),
+);
+const answerRemovalSection = answerWorkspace.slice(
+  answerWorkspace.indexOf('aria-labelledby="remove-answer-misconception-question"'),
+  answerWorkspace.indexOf('aria-labelledby="add-answer-misconception-question"'),
 );
 
 assert.ok(questionDetailStart >= 0 && questionDetailEnd > questionDetailStart);
@@ -68,7 +83,7 @@ assert.doesNotMatch(
   /<article className="[^"]*(?:review-folder-primary|rounded-lg border border-border bg-white)/,
 );
 assert.match(questionWorkspace, /<QuestionContent question=\{question\} \/>/);
-assert.match(questionWorkspace, /review-question-detail mt-2/);
+assert.match(questionWorkspace, /review-question-detail mt-3/);
 assert.doesNotMatch(questionWorkspace, /lg:sticky|lg:max-h-|lg:overflow-y-auto|thin-scroll/);
 assert.match(questionWorkspace, /REVIEW MISKONSEPSI SOAL/);
 assert.doesNotMatch(questionWorkspace, /Navigasi soal review|Sebelumnya|Berikutnya/);
@@ -104,16 +119,48 @@ assert.match(questionWorkspace, /absolute inset-x-0 top-0 h-0\.5 bg-brand/);
 assert.match(questionWorkspace, /<CircleCheckBig/);
 assert.match(questionWorkspace, /right-2 top-2 h-36 w-36 -rotate-6/);
 assert.equal(
-  questionWorkspace.match(/bg-brand text-xs font-medium text-white/g)?.length,
+  questionWorkspace.match(/h-5 w-5[\s\S]{0,100}bg-brand text-\[10px\] font-medium leading-none text-white/g)?.length,
   3,
 );
+assert.match(presenceToggle, /inline-grid w-fit grid-cols-2 gap-0\.5/);
+assert.match(presenceToggle, /min-h-7 min-w-20[\s\S]*?px-2\.5 py-1 text-xs font-normal leading-4/);
+assert.match(presenceToggle, /border-brand\/20 bg-brand-soft\/65 text-brand/);
+assert.doesNotMatch(presenceToggle, /min-h-9|w-full|py-2 text-xs/);
 assert.match(activePage, /text-\[10px\] leading-4 text-muted/);
 assert.match(questionContent, /space-y-3/);
 assert.match(questionContent, /whitespace-pre-wrap text-xs font-normal leading-5/);
-assert.match(questionContent, /mt-4 border-t border-border pt-4/);
+assert.match(questionContent, /<table[\s\S]*?<caption[\s\S]*?Contoh kasus/);
+assert.match(questionContent, /<th[\s\S]*?Masukan[\s\S]*?<th[\s\S]*?Keluaran/);
+assert.match(questionContent, /odd:bg-white even:bg-\[var\(--review-secondary-soft\)\]/);
+assert.match(questionContent, /border border-\[#ccbab0\]\/70 px-2\.5 py-1\.5/);
+assert.doesNotMatch(questionContent, /sm:grid-cols-2|<article key=|blue|green|gray|slate/);
 assert.match(questionWorkspace, /remove-misconception-question[\s\S]*?ml-1 text-brand">\*/);
 assert.match(questionWorkspace, /add-misconception-question[\s\S]*?ml-1 text-brand">\*/);
 assert.match(questionWorkspace, /placeholder=\{language === "id" \? "Komentar\.\." : "Comment\.\."\}/);
+assert.match(questionWorkspace, /question-validation-note[\s\S]*?min-h-16 resize-y/);
+assert.match(questionWorkspace, /<legend className="text-xs font-normal[^"]*">[\s\S]*?Pilih yang perlu dihapus/);
+assert.match(questionWorkspace, /htmlFor="removal-reason" className="block text-xs font-normal/);
+assert.match(questionWorkspace, /htmlFor="addition-reason" className="block text-xs font-normal/);
+assert.match(questionWorkspace, /\{item\.id\}[\s\S]*?t\(item\.title, language\)/);
+assert.doesNotMatch(questionWorkspace, /misconceptionSourceLabel|Terkait langsung ke soal|—/);
+assert.doesNotMatch(questionWorkspace, /Miskonsepsi yang ditambahkan|Anda dapat memilih lebih dari satu\.|Belum ada miskonsepsi tambahan yang dipilih\./);
+assert.match(misconceptionPicker, /Pilih Miskonsepsi yang Ditambahkan/);
+assert.match(misconceptionPicker, /!min-h-8 w-fit[\s\S]*?!px-2\.5 !py-1\.5 !text-xs !font-normal/);
+assert.doesNotMatch(misconceptionPicker, /Belum ada miskonsepsi tambahan yang dipilih\.|Anda dapat memilih lebih dari satu miskonsepsi\./);
+
+assert.equal(
+  answerWorkspace.match(/h-5 w-5[\s\S]{0,100}bg-brand text-\[10px\] font-medium leading-none text-white/g)?.length,
+  3,
+);
+assert.doesNotMatch(
+  answerRemovalSection,
+  /yesDisabled|selectedOption\.isCorrect|answer\.status/,
+  "Question 1 Ada must stay enabled for both incorrect and correct MP answers",
+);
+assert.match(answerWorkspace, /add-answer-misconception-question[\s\S]*?yesDisabled=\{addableMisconceptions\.length === 0\}/);
+assert.match(answerWorkspace, /await onSubmit\(buildAnswerReviewValues\(form\)\)/);
+assert.match(answerWorkspace, /Math\.min\(answerReviewCount, QUESTION_REVIEWED_THRESHOLD\)/);
+assert.match(answerWorkspace, /answer-validation-note[\s\S]*?placeholder=\{language === "id" \? "Komentar\.\." : "Comment\.\."\}[\s\S]*?min-h-16 resize-y/);
 
 assert.match(questionWorkspace, /Lihat evidence/);
 assert.match(questionWorkspace, /<details[\s\S]*?open=\{answerReviewEligible \|\| undefined\}/);
