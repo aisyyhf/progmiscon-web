@@ -370,9 +370,12 @@ assert.doesNotMatch(listSource, /Status pribadi|Personal status/);
 assert.match(activePage, /REVIEW SOAL PER MINGGU/);
 assert.match(activePage, /formatWeekLabel\(week\)\.toLocaleUpperCase/);
 assert.match(activePage, /aria-pressed=\{status === value\}/);
-assert.match(listSource, /Reviewer penuh/);
-assert.match(listSource, /Reviewers full/);
-assert.doesNotMatch(listSource, /Kuota penuh|Quota full/);
+assert.match(listSource, /Jumlah reviewer terpenuhi/);
+assert.match(listSource, /Reviewer limit reached/);
+assert.doesNotMatch(
+  listSource,
+  /Kuota penuh|Quota full|Reviewer penuh|Reviewers full/,
+);
 assert.match(activePage, /getWeekReviewQuestionStatus/);
 assert.match(listSource, /useState<ReviewWeekListStatus>\("unreviewed"\)/);
 assert.match(listSource, /useState<ReviewQuestionType>\("ps"\)/);
@@ -384,11 +387,22 @@ assert.match(
   listSource,
   /label: language === "id" \? "Pilihan Ganda" : "Multiple Choice"/,
 );
-assert.match(listSource, /language === "id" \? "Semua tipe" : "All types"/);
-assert.match(listSource, /code: "PS"/);
-assert.match(listSource, /code: "MP"/);
+assert.match(
+  listSource,
+  /language === "id" \? "Semua tipe soal" : "All question types"/,
+);
 assert.match(listSource, /role="menuitemradio"/);
-assert.match(listSource, /selectedType\.code/);
+assert.doesNotMatch(listSource, /selectedType\.code|option\.code|questionType\.code/);
+assert.doesNotMatch(
+  listSource,
+  /text-\[8px\]/,
+  "selected value, dropdown options, and table rows do not render PS/MP badges",
+);
+assert.match(listSource, /<Info size=\{14\}/);
+assert.match(listSource, /role="tooltip"/);
+assert.match(listSource, /aria-describedby="review-question-type-help"/);
+assert.match(listSource, /PS = Esai · MP = Pilihan Ganda/);
+assert.match(listSource, /PS = Essay · MP = Multiple Choice/);
 assert.match(activePage, /placeholder="Search"/);
 assert.doesNotMatch(listSource, /weekTotal/);
 assert.doesNotMatch(listSource, /dari \$\{filteredQuestions\.length\} soal/);

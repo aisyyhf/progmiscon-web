@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Eye,
   History,
+  Info,
   Pencil,
   Search,
   Trash2,
@@ -263,18 +264,15 @@ function WeekQuestionList({
   const typeOptions = [
     {
       value: "all",
-      label: language === "id" ? "Semua tipe" : "All types",
-      code: undefined,
+      label: language === "id" ? "Semua tipe soal" : "All question types",
     },
     {
       value: "ps",
       label: language === "id" ? "Esai" : "Essay",
-      code: "PS",
     },
     {
       value: "mp",
       label: language === "id" ? "Pilihan Ganda" : "Multiple Choice",
-      code: "MP",
     },
   ] as const;
   const selectedType =
@@ -352,7 +350,7 @@ function WeekQuestionList({
             {([
               ["unreviewed", language === "id" ? "Belum direview" : "Not reviewed"],
               ["reviewed", language === "id" ? "Sudah direview" : "Reviewed"],
-              ["full", language === "id" ? "Reviewer penuh" : "Reviewers full"],
+              ["full", language === "id" ? "Jumlah reviewer terpenuhi" : "Reviewer limit reached"],
             ] as const).map(([value, label]) => (
               <button
                 key={value}
@@ -384,15 +382,10 @@ function WeekQuestionList({
               }}
             >
               <summary
-                aria-label={`${language === "id" ? "Tipe soal" : "Question type"}: ${selectedType.label}${selectedType.code ? ` (${selectedType.code})` : ""}`}
+                aria-label={`${language === "id" ? "Tipe soal" : "Question type"}: ${selectedType.label}`}
                 className="flex min-h-7 w-[9.75rem] cursor-pointer list-none items-center gap-1.5 rounded-md border border-border bg-white py-1 pl-2.5 pr-2 text-[11px] leading-4 text-black outline-none transition-[border-color,box-shadow] marker:hidden focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-brand/10 [&::-webkit-details-marker]:hidden"
               >
                 <span className="min-w-0 flex-1 truncate font-medium">{selectedType.label}</span>
-                {selectedType.code && (
-                  <span className="rounded border border-[#ccbab0]/60 bg-[#ccbab0]/15 px-1 py-px text-[8px] font-semibold leading-3 tracking-[0.04em] text-muted">
-                    {selectedType.code}
-                  </span>
-                )}
                 <ChevronDown size={12} strokeWidth={2} aria-hidden="true" className="shrink-0 text-[#b09f85] transition-transform group-open/type:rotate-180" />
               </summary>
               <div
@@ -417,15 +410,30 @@ function WeekQuestionList({
                     )}
                   >
                     <span className="min-w-0 flex-1 font-normal">{option.label}</span>
-                    {option.code && (
-                      <span className="rounded border border-[#ccbab0]/60 bg-[#ccbab0]/15 px-1 py-px text-[8px] font-semibold leading-3 tracking-[0.04em] text-muted">
-                        {option.code}
-                      </span>
-                    )}
                   </button>
                 ))}
               </div>
             </details>
+
+            <span className="group/type-help relative inline-flex shrink-0">
+              <button
+                type="button"
+                aria-label={language === "id" ? "Penjelasan tipe soal" : "Question type explanation"}
+                aria-describedby="review-question-type-help"
+                className="inline-flex h-7 w-6 cursor-help items-center justify-center rounded text-[#8a7b65] transition-colors hover:bg-[#b09f85]/10 hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand"
+              >
+                <Info size={14} strokeWidth={1.8} aria-hidden="true" />
+              </button>
+              <span
+                id="review-question-type-help"
+                role="tooltip"
+                className="pointer-events-none invisible absolute left-1/2 top-full z-30 mt-1 w-max -translate-x-1/2 rounded-md bg-black px-2.5 py-1.5 text-[10px] font-normal leading-4 text-white opacity-0 shadow-[0_6px_18px_rgba(95,71,59,0.16)] transition-opacity group-hover/type-help:visible group-hover/type-help:opacity-100 group-focus-within/type-help:visible group-focus-within/type-help:opacity-100"
+              >
+                {language === "id"
+                  ? "PS = Esai · MP = Pilihan Ganda"
+                  : "PS = Essay · MP = Multiple Choice"}
+              </span>
+            </span>
 
             <label className="relative block min-w-0 flex-1 sm:w-48 sm:flex-none">
               <span className="sr-only">{language === "id" ? "Cari soal" : "Search questions"}</span>
@@ -483,7 +491,6 @@ function WeekQuestionList({
                             : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
                         )}>
                           {questionType.label}
-                          <span className="text-[8px] font-semibold tracking-[0.04em] text-muted">{questionType.code}</span>
                         </span>
                         <span className="text-[10px] font-normal tabular-nums text-muted">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD} reviewer</span>
                       </span>
@@ -495,7 +502,6 @@ function WeekQuestionList({
                         : "border-[#b09f85]/45 bg-[#b09f85]/10 text-navy-deep",
                     )}>
                       {questionType.label}
-                      <span className="text-[8px] font-semibold tracking-[0.04em] text-muted">{questionType.code}</span>
                     </span>
                     <span className="hidden text-xs font-normal tabular-nums text-muted lg:block">{reviewCount}/{QUESTION_REVIEWED_THRESHOLD}</span>
                   </>
