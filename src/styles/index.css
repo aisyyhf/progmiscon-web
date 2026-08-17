@@ -134,13 +134,17 @@
 }
 
 .review-question-detail .review-detail-meta-week {
-  color: var(--progmiscon-accent);
+  color: color-mix(
+    in srgb,
+    var(--progmiscon-accent) 70%,
+    var(--progmiscon-text)
+  );
 }
 
 .review-question-detail .review-detail-meta-kc {
   color: color-mix(
     in srgb,
-    var(--progmiscon-secondary) 70%,
+    var(--progmiscon-secondary) 60%,
     var(--progmiscon-text)
   );
 }
