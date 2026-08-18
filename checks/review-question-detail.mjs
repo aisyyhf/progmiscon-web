@@ -91,10 +91,14 @@ assert.doesNotMatch(
   /<article className="[^"]*(?:review-folder-primary|rounded-lg border border-border bg-white)/,
 );
 assert.match(questionWorkspace, /<QuestionContent question=\{question\} \/>/);
-assert.match(questionWorkspace, /review-question-detail mt-0\.5/);
+assert.match(questionWorkspace, /className="review-question-detail"/);
 assert.doesNotMatch(questionWorkspace, /review-question-detail mt-6 md:mt-10/);
-assert.match(stepNavigation, /text-\[10px\] font-medium leading-4 text-muted/);
-assert.match(stepNavigation, /mb-0\.5 flex min-h-5 items-center justify-between/);
+assert.match(
+  stepNavigation,
+  /h-\[22px\][\s\S]*?border border-border bg-white px-2 text-\[11px\] font-medium leading-4 text-navy-deep/,
+);
+assert.match(stepNavigation, /flex min-h-\[22px\] items-center justify-between/);
+assert.match(stepNavigation, /hover:border-navy\/25 hover:bg-neutral/);
 assert.doesNotMatch(stepNavigation, /text-brand|bg-brand|border-brand/);
 assert.match(
   answerWorkspace,

@@ -412,8 +412,12 @@ assert.match(
   /previousStep=\{\{[\s\S]{0,180}Kembali ke soal[\s\S]{0,220}requestOpenWorkspaceItem\([\s\S]{0,180}answerQuestion\.id/,
 );
 assert.match(page, /function ReviewStepNavigation/);
-assert.match(stepNavigation, /text-\[10px\] font-medium leading-4 text-muted/);
-assert.match(stepNavigation, /mb-0\.5 flex min-h-5 items-center justify-between/);
+assert.match(
+  stepNavigation,
+  /h-\[22px\][\s\S]*?border border-border bg-white px-2 text-\[11px\] font-medium leading-4 text-navy-deep/,
+);
+assert.match(stepNavigation, /flex min-h-\[22px\] items-center justify-between/);
+assert.match(stepNavigation, /hover:border-navy\/25 hover:bg-neutral/);
 assert.doesNotMatch(stepNavigation, /text-brand|bg-brand|border-brand/);
 assert.match(stepNavigation, /<ArrowLeft size=\{13\}/);
 assert.match(page, /<ArrowRight size=\{13\}/);

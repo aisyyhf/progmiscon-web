@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import type { AuthChangeEvent, Session, User } from "@supabase/supabase-js";
 import type { LecturerProfile, LecturerSignUpResult } from "../types";
 import {
   getCurrentUserAdminAccess,
@@ -140,14 +140,24 @@ export function LecturerAuthProvider({ children }: { children: ReactNode }) {
   const [adminAccess, setAdminAccess] = useState(false);
   const [adminAccessError, setAdminAccessError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [pendingAuthState, setPendingAuthState] = useState<{
+    event: AuthChangeEvent;
+    session: Session | null;
+  } | null>(null);
   const syncRequestId = useRef(0);
+  const resolvedUserId = useRef<string | null>(null);
+  const syncingUserId = useRef<string | null | undefined>(undefined);
+  const accessResolved = useRef(false);
 
   const syncSession = useCallback(
     async (session: Session | null): Promise<boolean> => {
       const requestId = ++syncRequestId.current;
-      setLoading(true);
-
       const nextUser = session?.user ?? null;
+      const nextUserId = nextUser?.id ?? null;
+
+      syncingUserId.current = nextUserId;
+      accessResolved.current = false;
+      setLoading(true);
       setUser(nextUser);
 
       if (!nextUser) {
@@ -155,6 +165,9 @@ export function LecturerAuthProvider({ children }: { children: ReactNode }) {
           setProfile(null);
           setAdminAccess(false);
           setAdminAccessError("");
+          resolvedUserId.current = null;
+          syncingUserId.current = undefined;
+          accessResolved.current = true;
           setLoading(false);
         }
         return false;
@@ -199,6 +212,9 @@ export function LecturerAuthProvider({ children }: { children: ReactNode }) {
         return false;
       } finally {
         if (requestId === syncRequestId.current) {
+          resolvedUserId.current = nextUserId;
+          syncingUserId.current = undefined;
+          accessResolved.current = true;
           setLoading(false);
         }
       }
@@ -207,36 +223,33 @@ export function LecturerAuthProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    let active = true;
-
-    const initialize = async () => {
-      const { data, error } = await supabase.auth.getSession();
-
-      if (!active) return;
-
-      if (error) {
-        console.error("[Progmiscon] Sesi Supabase gagal dimuat", error);
-        await syncSession(null);
-        return;
-      }
-
-      await syncSession(data.session);
-    };
-
-    void initialize();
-
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!active) return;
-      void syncSession(session);
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setPendingAuthState({ event, session });
     });
 
-    return () => {
-      active = false;
-      subscription.unsubscribe();
-    };
-  }, [syncSession]);
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!pendingAuthState) return;
+
+    const nextUser = pendingAuthState.session?.user ?? null;
+    const nextUserId = nextUser?.id ?? null;
+    const alreadyResolved =
+      accessResolved.current && resolvedUserId.current === nextUserId;
+    const alreadySyncing = syncingUserId.current === nextUserId;
+
+    if (alreadyResolved || alreadySyncing) {
+      if (pendingAuthState.event === "USER_UPDATED") {
+        setUser(nextUser);
+      }
+      return;
+    }
+
+    void syncSession(pendingAuthState.session);
+  }, [pendingAuthState, syncSession]);
 
   const login = useCallback(
     async (email: string, password: string) => {

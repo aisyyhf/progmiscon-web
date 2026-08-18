@@ -139,12 +139,12 @@ function ReviewStepNavigation({
   if (!previous && !next) return null;
 
   const actionClass =
-    "inline-flex min-h-5 items-center gap-0.5 rounded-sm text-[10px] font-medium leading-4 text-muted transition-colors hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
+    "inline-flex h-[22px] items-center gap-1 rounded border border-border bg-white px-2 text-[11px] font-medium leading-4 text-navy-deep transition-colors hover:border-navy/25 hover:bg-neutral focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
 
   return (
     <nav
       aria-label="Navigasi langkah review"
-      className="mb-0.5 flex min-h-5 items-center justify-between gap-3"
+      className="flex min-h-[22px] items-center justify-between gap-3"
     >
       {previous ? (
         <button type="button" onClick={previous.onClick} className={actionClass}>
@@ -1974,7 +1974,7 @@ export function QuestionValidationWorkspace({
 
 
   return (
-    <div className="review-question-detail mt-0.5">
+    <div className="review-question-detail">
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] lg:items-start xl:gap-14">
         <article className="min-w-0">
           <ReviewStepNavigation previous={previousStep} next={nextStep} />
