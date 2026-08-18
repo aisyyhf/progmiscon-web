@@ -1159,7 +1159,7 @@ export function LecturerReviewPage({
         {
         questions,
         answers: orderedAnswers,
-        reviewedQuestionIds,
+        reviewedQuestionIds: reviewedQuestionStepIds,
         reviewedAnswerIds,
         },
       ),
@@ -1170,7 +1170,7 @@ export function LecturerReviewPage({
       questions,
       reviewNavigationInput,
       reviewedAnswerIds,
-      reviewedQuestionIds,
+      reviewedQuestionStepIds,
       urlNavigation,
     ],
   );
@@ -1180,10 +1180,10 @@ export function LecturerReviewPage({
         questions,
         answers: orderedAnswers,
         ...navigation,
-        reviewedQuestionIds,
+        reviewedQuestionIds: reviewedQuestionStepIds,
         reviewedAnswerIds,
       }),
-    [navigation, orderedAnswers, questions, reviewedAnswerIds, reviewedQuestionIds],
+    [navigation, orderedAnswers, questions, reviewedAnswerIds, reviewedQuestionStepIds],
   );
   const commitNavigation = useCallback(
     (
@@ -1313,7 +1313,7 @@ export function LecturerReviewPage({
     [activeQuestion, eligibleAnswerCounts, orderedAnswers, reviewedAnswerIds],
   );
   const answerStepSequence = useMemo(() => {
-    if (navigation.mode === "review") return answerReviewSequence;
+    if (navigation.mode !== "view") return answerReviewSequence;
     const reviewed = new Set(reviewedAnswerIds);
     return answerReviewSequence.filter(({ id }) => reviewed.has(id));
   }, [answerReviewSequence, navigation.mode, reviewedAnswerIds]);
@@ -1397,11 +1397,11 @@ export function LecturerReviewPage({
           answers: orderedAnswers,
           ...navigation,
           status,
-          reviewedQuestionIds,
+          reviewedQuestionIds: reviewedQuestionStepIds,
           reviewedAnswerIds,
         }),
       ),
-    [navigation, orderedAnswers, questions, reviewedAnswerIds, reviewedQuestionIds],
+    [navigation, orderedAnswers, questions, reviewedAnswerIds, reviewedQuestionStepIds],
   );
   const reviewedTotal = contextQueues[1].length;
   const contextTotal = contextQueues[0].length + reviewedTotal;
@@ -1436,7 +1436,7 @@ export function LecturerReviewPage({
         {
           questions,
           answers: orderedAnswers,
-          reviewedQuestionIds,
+          reviewedQuestionIds: reviewedQuestionStepIds,
           reviewedAnswerIds,
         },
       );
@@ -1455,7 +1455,7 @@ export function LecturerReviewPage({
       orderedAnswers,
       questions,
       reviewedAnswerIds,
-      reviewedQuestionIds,
+      reviewedQuestionStepIds,
     ],
   );
 
@@ -1524,7 +1524,7 @@ export function LecturerReviewPage({
     (question: Question, mode: ReviewSessionMode) => {
       const status = getWeekReviewQuestionStatus(
         question.id,
-        new Set(reviewedQuestionIds),
+        new Set(reviewedQuestionStepIds),
         questionCounts,
         QUESTION_REVIEWED_THRESHOLD,
         new Set(reviewedQuestionStepIds),
@@ -1547,7 +1547,6 @@ export function LecturerReviewPage({
       navigation.type,
       navigation.week,
       questionCounts,
-      reviewedQuestionIds,
       reviewedQuestionStepIds,
     ],
   );
@@ -1773,7 +1772,7 @@ export function LecturerReviewPage({
       task: "question",
       status: getWeekReviewQuestionStatus(
         question.id,
-        new Set(reviewedQuestionIds),
+        new Set(reviewedQuestionStepIds),
         questionCounts,
         QUESTION_REVIEWED_THRESHOLD,
         new Set(reviewedQuestionStepIds),
@@ -1791,9 +1790,11 @@ export function LecturerReviewPage({
           reviewedAnswerIds,
           navigation.returnAnswer,
         )
-      : questionAnswerReviewSequence.filter(({ id }) =>
-          reviewedAnswerIds.includes(id),
-        );
+      : navigation.mode === "edit"
+        ? questionAnswerReviewSequence
+        : questionAnswerReviewSequence.filter(({ id }) =>
+            reviewedAnswerIds.includes(id),
+          );
   const questionNextAnswer =
     activeQuestion?.type === "multiple_choice"
       ? navigation.mode === "review"
@@ -1918,7 +1919,7 @@ export function LecturerReviewPage({
             questions={questions}
             language={language}
             questionCounts={questionCounts}
-            reviewedQuestionIds={reviewedQuestionIds}
+            reviewedQuestionIds={reviewedQuestionStepIds}
             startedQuestionIds={reviewedQuestionStepIds}
             type={navigation.type}
             status={navigation.status}
@@ -2220,7 +2221,7 @@ export function LecturerReviewPage({
             questionById={questionById}
             questionCounts={questionCounts}
             answerCounts={eligibleAnswerCounts}
-            reviewedQuestionIds={reviewedQuestionIds}
+            reviewedQuestionIds={reviewedQuestionStepIds}
             reviewedAnswerIds={reviewedAnswerIds}
             onSelect={(itemId) => changeNavigation({ item: itemId })}
           />

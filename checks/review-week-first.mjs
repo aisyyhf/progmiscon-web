@@ -81,6 +81,17 @@ assert.equal(
   weekSummaries.find(({ week }) => week === "W05-06")?.isComplete,
   true,
 );
+assert.deepEqual(
+  getReviewWeekSummaries(
+    [question("PARTIAL-MP", "multiple_choice", "W02")],
+    [],
+    new Map([["PARTIAL-MP", 3]]),
+    3,
+    ["PARTIAL-MP"],
+  )[0],
+  { week: "W02", total: 1, completed: 0, isComplete: false },
+  "reviewed-first status does not mark an incomplete MP workflow complete",
+);
 
 const searchableQuestions = questions.map((item, index) => ({
   ...item,
@@ -119,8 +130,8 @@ assert.equal(
     3,
     new Set(["full-at-3"]),
   ),
-  "unreviewed",
-  "a cap-full MP question step remains unreviewed while its composite task is partial",
+  "reviewed",
+  "a lecturer-owned question remains reviewed while its composite MP task is partial",
 );
 assert.deepEqual(
   filterWeekReviewQuestions(searchableQuestions, {
@@ -177,14 +188,14 @@ assert.deepEqual(
     week: "W02",
     query: "W02-MP-40",
     type: "mp",
-    status: "unreviewed",
+    status: "reviewed",
     reviewedQuestionIds: [],
     startedQuestionIds: ["W02-MP-40"],
     questionCounts: searchableQuestionCounts,
     reviewerThreshold: 3,
   }).map(({ id }) => id),
   ["W02-MP-40"],
-  "a started but composite-incomplete row stays in Belum direview even at question cap",
+  "a started but composite-incomplete row keeps reviewed-first status at question cap",
 );
 
 assert.equal(REVIEW_NAVIGATION_SESSION_KEY.endsWith(".v2"), true);
@@ -494,6 +505,11 @@ const app = await readFile(
 );
 assert.match(app, /LecturerReviewWeekFirstPage/);
 assert.match(activePage, /REVIEW_NAVIGATION_SESSION_KEY/);
+assert.match(
+  activePage,
+  /reviewedQuestionIds: reviewedQuestionStepIds/,
+  "Primary Review queues use personal question ownership, not composite MP completion",
+);
 assert.match(activePage, /serializeReviewNavigationSearch\(navigation\)/);
 assert.match(activePage, /replace: true/);
 assert.match(activePage, /options: \{ replace\?: boolean \}/);
@@ -521,6 +537,16 @@ assert.match(
   /returnAnswerForPreviousStep\s*=\s*navigation\.mode === "review"[\s\S]*?navigation\.returnAnswer \?\? activeAnswer\?\.id/,
 );
 assert.match(activePage, /getReachableAnswerReviewSequence/);
+assert.match(
+  activePage,
+  /if \(navigation\.mode !== "view"\) return answerReviewSequence/,
+  "Edit keeps unfinished MP answer targets in the sequence",
+);
+assert.match(
+  activePage,
+  /navigation\.mode === "edit"\s*\? questionAnswerReviewSequence/,
+  "Edit can continue from the question step into unfinished MP answers",
+);
 assert.match(activePage, /navigation\.mode !== "review" \|\|[\s\S]*?reachableAnswerStepIds\.has\(nextAnswer\.id\)/);
 assert.match(activePage, /answerStepSequence\.findIndex\(\(\{ id \}\) => id === activeAnswer\?\.id\)/);
 assert.match(activePage, /previousAnswer\s*=\s*answerSequenceIndex > 0[\s\S]*?displayedAnswerSequence\[answerSequenceIndex - 1\]/);
