@@ -9,7 +9,6 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
-  ChevronDown,
   CircleCheckBig,
   History,
   Lightbulb,
@@ -54,7 +53,6 @@ import {
   getReviewerHistory,
   getReviewProgress as getSavedReviewProgress,
   deleteAnswerReview,
-  deleteQuestionReview,
   isReviewPersistenceError,
   saveAnswerReview,
   saveQuestionReview,
@@ -62,7 +60,7 @@ import {
 import { QuestionContent } from "../components/review/QuestionContent";
 import { PsAnswerEvidenceWorkspace } from "../components/review/PsAnswerEvidenceWorkspace";
 import { QuestionContextAccordion } from "../components/review/AnswerWorkspaceNavigation";
-import { StructuredEvidenceList } from "../components/review/StructuredEvidenceList";
+import { MisconceptionEvidenceDialog } from "../components/review/StructuredEvidenceList";
 import { getMaterialQuestionIdentifier } from "../utils/materialQuestionFilters";
 import {
   classifyReviewItems,
@@ -141,12 +139,12 @@ function ReviewStepNavigation({
   if (!previous && !next) return null;
 
   const actionClass =
-    "inline-flex h-[22px] items-center gap-1 rounded border border-border bg-white px-2 text-[11px] font-medium leading-4 text-navy-deep transition-colors hover:border-navy/25 hover:bg-neutral focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
+    "inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border bg-white px-3 py-1.5 text-[13px] font-medium leading-5 text-navy-deep transition-colors hover:border-brand/30 hover:bg-neutral focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
 
   return (
     <nav
       aria-label="Navigasi langkah review"
-      className="flex min-h-[22px] items-center justify-between gap-3"
+      className="flex min-h-9 items-center justify-between gap-3"
     >
       {previous ? (
         <button type="button" onClick={previous.onClick} className={actionClass}>
@@ -1538,7 +1536,6 @@ export function LegacyLecturerReviewPage({
                   Boolean(questionReviewHistoryError) ||
                   !activeQuestion.sourceVersion
                 }
-                reviewedByMe={activeQuestionReviewedByMe}
                 submittedReview={activeQuestionReview}
                 onDirtyChange={
                   workspace === "question-mp"
@@ -1548,42 +1545,6 @@ export function LegacyLecturerReviewPage({
                 onSelectMisconception={(misconceptionId) =>
                   navigate(`/miskonsepsi/${misconceptionId}`)
                 }
-                onDelete={async () => {
-                  if (!activeQuestion.sourceVersion) {
-                    throw new Error("Versi sumber soal belum tersedia.");
-                  }
-                  await deleteQuestionReview(
-                    activeQuestion.id,
-                    activeQuestion.sourceVersion,
-                  );
-                  setReviewedQuestionIds((current) =>
-                    current.filter((id) => id !== activeQuestion.id),
-                  );
-                  setQuestionReviewHistory((current) =>
-                    current.map((review) =>
-                      review.questionId === activeQuestion.id &&
-                      review.sourceVersion === activeQuestion.sourceVersion &&
-                      review.isActive
-                        ? {
-                            ...review,
-                            isActive: false,
-                            inactiveReason: "deleted",
-                            inactiveAt: new Date().toISOString(),
-                          }
-                        : review,
-                    ),
-                  );
-                  setQuestionReviewCounts((current) => {
-                    const next = new Map(current);
-                    next.set(
-                      activeQuestion.id,
-                      Math.max(0, (next.get(activeQuestion.id) ?? 1) - 1),
-                    );
-                    return next;
-                  });
-                  setQueueMode("unreviewed");
-                  setReviewDataRevision((current) => current + 1);
-                }}
                 onSubmit={async (values) => {
                   if (!progressLoaded || activeQuestionLocked) return;
                   if (!user) throw new Error("Sesi dosen tidak ditemukan.");
@@ -1653,10 +1614,7 @@ export function LegacyLecturerReviewPage({
                 question={answerQuestion}
                 answer={activeAnswer}
                 evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
-                siblingAnswerIds={(activeItems as StudentAnswer[]).map(
-                  (item) => item.id,
-                )}
-                activeIndex={activeIndex}
+                optionAnswers={getMpOptionAnswersForQuestion(answerQuestion.id, answers)}
                 misconceptions={misconceptions}
                 locked={activeAnswerLocked}
                 progressUnavailable={
@@ -1821,14 +1779,12 @@ export function QuestionValidationWorkspace({
   misconceptions,
   locked,
   progressUnavailable,
-  reviewedByMe,
   submittedReview,
   mode = "review",
   previousStep,
   nextStep,
   onDirtyChange,
   onSelectMisconception,
-  onDelete,
   onSubmit,
 }: {
   question: Question;
@@ -1836,14 +1792,12 @@ export function QuestionValidationWorkspace({
   misconceptions: Misconception[];
   locked: boolean;
   progressUnavailable: boolean;
-  reviewedByMe: boolean;
   submittedReview?: QuestionReviewHistoryItem;
   mode?: ReviewFormMode;
   previousStep?: ReviewStepAction;
   nextStep?: ReviewStepAction;
   onDirtyChange?: (dirty: boolean) => void;
   onSelectMisconception: (misconceptionId: string) => void;
-  onDelete: () => Promise<void>;
   onSubmit: (values: QuestionReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
@@ -1858,9 +1812,6 @@ export function QuestionValidationWorkspace({
   const recommended = prioritizeMisconceptions(
     misconceptions,
     questionRemovalProposalIds,
-  );
-  const misconceptionById = new Map(
-    misconceptions.map((item) => [item.id, item]),
   );
   const addableMisconceptions = getAdditionalMisconceptionCandidates(
     misconceptions,
@@ -1889,7 +1840,6 @@ export function QuestionValidationWorkspace({
     note,
   } = form;
   const [submitting, setSubmitting] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [validationAttempted, setValidationAttempted] = useState(false);
   const formDirty = isMisconceptionReviewFormDirty(form, savedForm);
@@ -1946,42 +1896,10 @@ export function QuestionValidationWorkspace({
     }
   };
 
-  const handleDelete = async () => {
-    if (!reviewedByMe || deleting || submitting) return;
-    if (
-      !window.confirm(
-        language === "id"
-          ? "Hapus review soal ini? Review akan dinonaktifkan dan soal kembali ke antrian belum direview."
-          : "Delete this question review? It will be deactivated and returned to the not-reviewed queue.",
-      )
-    ) {
-      return;
-    }
-
-    setSubmitError("");
-    setDeleting(true);
-    try {
-      await onDelete();
-      onDirtyChange?.(false);
-    } catch (error) {
-      console.error("[Progmiscon] Review soal gagal dihapus", error);
-      if (reloadChangedReviewData(error)) return;
-      setSubmitError(
-        error instanceof Error
-          ? error.message
-          : "Review soal belum dapat dihapus.",
-      );
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-
   return (
     <div className="review-question-detail">
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] lg:items-start xl:gap-14">
         <article className="min-w-0">
-          <ReviewStepNavigation previous={previousStep} next={nextStep} />
           <section aria-labelledby="review-question-title">
             <header className="border-b border-border pb-5">
               <h2
@@ -2018,46 +1936,31 @@ export function QuestionValidationWorkspace({
           </section>
 
           {question.options && (
-            <section className="mt-4">
-              <h3 className="mb-3 text-base font-semibold leading-6 text-navy-deep">{language === "id" ? "Pilihan jawaban" : "Answer options"}</h3>
-              <ul className="space-y-2">
-                {question.options.map((option) => {
-                  const optionMisconceptions =
-                    getQuestionOptionMisconceptionIds(option)
-                      .map((id) => misconceptionById.get(id))
-                      .filter((item) => item !== undefined);
-                  return (
-                    <li
-                      key={option.id}
-                      className={cn(
-                        "flex items-start gap-3 rounded-md border px-3.5 py-2.5 text-xs font-normal leading-5",
-                        option.isCorrect
-                          ? "border-correct-border bg-correct-bg"
-                          : "border-border bg-white",
-                      )}
-                    >
-                      <span className="font-medium text-navy-deep">{option.label}.</span>
-                      <span className="min-w-0 flex-1 text-navy-deep">
-                        <span className="block">{t(option.text, language)}</span>
-                        {optionMisconceptions.length > 0 && (
-                          <span className="mt-1 block space-y-1 text-xs text-muted">
-                            {optionMisconceptions.map((misconception) => (
-                              <span key={misconception.id} className="block">
-                                {misconceptionLabel(misconception, language)}
-                              </span>
-                            ))}
-                          </span>
-                        )}
+            <section
+              className="mt-3"
+              aria-label={language === "id" ? "Pilihan jawaban" : "Answer options"}
+            >
+              <ul className="space-y-1.5">
+                {question.options.map((option) => (
+                  <li
+                    key={option.id}
+                    className={cn(
+                      "flex items-start gap-2 rounded-md border px-3 py-2 text-[11px] font-normal leading-5",
+                      option.isCorrect
+                        ? "border-[#2F6B4F] bg-[#2F6B4F] text-white"
+                        : "border-border bg-white text-navy-deep",
+                    )}
+                  >
+                    <span className="font-medium">{option.label}.</span>
+                    <span className="min-w-0 flex-1">{t(option.text, language)}</span>
+                    {option.isCorrect && (
+                      <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded border border-white/35 bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white">
+                        <Check size={11} strokeWidth={3} aria-hidden="true" />
+                        {language === "id" ? "Jawaban yang benar" : "Correct answer"}
                       </span>
-                      {option.isCorrect && (
-                        <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded border border-correct-border bg-white/70 px-2 py-0.5 text-[10px] font-medium text-correct">
-                          <Check size={11} strokeWidth={3} aria-hidden="true" />
-                          {language === "id" ? "Jawaban yang benar" : "Correct answer"}
-                        </span>
-                      )}
-                    </li>
-                  );
-                })}
+                    )}
+                  </li>
+                ))}
               </ul>
             </section>
           )}
@@ -2075,23 +1978,39 @@ export function QuestionValidationWorkspace({
             </h3>
             {recommended.length > 0 ? (
               <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
-                {recommended.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => onSelectMisconception(item.id)}
-                    className="group/misconception relative min-h-[4.5rem] overflow-hidden rounded-md border border-brand/20 bg-brand-soft/35 px-3 py-2.5 text-left transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-brand/40 hover:bg-brand-soft/55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 motion-reduce:translate-y-0"
-                  >
-                    <span aria-hidden="true" className="absolute -right-3 -top-3 h-12 w-12 rounded-full bg-brand/[0.055]" />
-                    <ArrowRight size={13} strokeWidth={1.8} aria-hidden="true" className="absolute right-2.5 top-2.5 text-brand transition-transform duration-150 group-hover/misconception:translate-x-0.5 motion-reduce:translate-x-0" />
-                    <span className="relative block font-mono text-[11px] font-normal leading-4 text-brand">
-                      {item.id}
-                    </span>
-                    <span className="relative mt-0.5 block pr-4 text-xs font-normal leading-[18px] text-navy-deep">
-                      {t(item.title, language)}
-                    </span>
-                  </button>
-                ))}
+                {recommended.map((item) => {
+                  const itemEvidence = relatedEvidence.filter(
+                    (evidence) => evidence.evidenceMisconceptionId?.trim() === item.id,
+                  );
+                  return (
+                    <article
+                      key={item.id}
+                      className="relative overflow-hidden rounded-md border border-brand/20 bg-brand-soft/35 p-2.5"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => onSelectMisconception(item.id)}
+                        className="group/misconception block min-h-[3.25rem] w-full rounded-sm pr-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                      >
+                        <ArrowRight size={13} strokeWidth={1.8} aria-hidden="true" className="absolute right-2.5 top-2.5 text-brand transition-transform duration-150 group-hover/misconception:translate-x-0.5 motion-reduce:translate-x-0" />
+                        <span className="block font-mono text-[11px] font-normal leading-4 text-brand">
+                          {item.id}
+                        </span>
+                        <span className="mt-0.5 block text-xs font-normal leading-[18px] text-navy-deep">
+                          {t(item.title, language)}
+                        </span>
+                      </button>
+                      {itemEvidence.length > 0 && (
+                        <div className="mt-2 border-t border-brand/15 pt-2">
+                          <MisconceptionEvidenceDialog
+                            answers={itemEvidence}
+                            misconception={item}
+                          />
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
               </div>
             ) : (
               <p className="mt-3 text-xs leading-5 text-muted">
@@ -2100,36 +2019,6 @@ export function QuestionValidationWorkspace({
             )}
           </section>
 
-          {relatedEvidence.length > 0 && (
-            <section
-              className="mt-6 border-t border-border pt-5"
-              aria-labelledby="question-evidence-title"
-            >
-              <details className="group/evidence">
-                <summary
-                  id="question-evidence-title"
-                  className="flex min-h-9 w-fit cursor-pointer list-none items-center gap-2 rounded-md border border-[#ccbab0] bg-[var(--review-page)] px-3 py-2 text-xs font-medium leading-5 text-black transition-[background-color,border-color,color] duration-150 hover:border-[#b09f85] hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden"
-                >
-                  {language === "id" ? "Lihat evidence" : "View evidence"}
-                  <span className="tabular-nums text-muted">
-                    ({relatedEvidence.length})
-                  </span>
-                  <ChevronDown
-                    size={14}
-                    strokeWidth={2}
-                    aria-hidden="true"
-                    className="transition-transform duration-150 group-open/evidence:rotate-180"
-                  />
-                </summary>
-                <div className="review-evidence-disclosure">
-                  <StructuredEvidenceList
-                    answers={relatedEvidence}
-                    misconceptions={misconceptions}
-                  />
-                </div>
-              </details>
-            </section>
-          )}
         </article>
 
         <aside className="relative rounded-xl border border-[#ccbab0] border-t-2 border-t-brand bg-white p-5 shadow-[0_18px_48px_rgba(176,159,133,0.12)] md:p-6">
@@ -2398,7 +2287,7 @@ export function QuestionValidationWorkspace({
             <Button
               variant="primary"
               onClick={handleSubmit}
-              disabled={submitting || deleting}
+              disabled={submitting}
               className="mt-4 w-full justify-center !font-medium"
             >
               {submitting
@@ -2418,23 +2307,10 @@ export function QuestionValidationWorkspace({
                       : "Save & Finish"}
             </Button>
           )}
-          {mode === "edit" && reviewedByMe && !formUnavailable && (
-            <Button
-              type="button"
-              variant="danger"
-              onClick={handleDelete}
-              disabled={deleting || submitting}
-              className="mt-2 w-full justify-center !font-medium"
-            >
-              <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
-              {deleting
-                ? language === "id"
-                  ? "Menghapus..."
-                  : "Deleting..."
-                : language === "id"
-                  ? "Hapus review"
-                  : "Delete review"}
-            </Button>
+          {(previousStep || nextStep) && (
+            <div className="mt-4 border-t border-border pt-4">
+              <ReviewStepNavigation previous={previousStep} next={nextStep} />
+            </div>
           )}
         </aside>
       </div>
@@ -2447,8 +2323,7 @@ export function AnswerValidationWorkspace({
   question,
   answer,
   evidenceAnswers = [],
-  siblingAnswerIds,
-  activeIndex,
+  optionAnswers = [],
   misconceptions,
   locked,
   progressUnavailable,
@@ -2466,8 +2341,7 @@ export function AnswerValidationWorkspace({
   question: Question;
   answer: StudentAnswer;
   evidenceAnswers?: StudentAnswer[];
-  siblingAnswerIds: string[];
-  activeIndex: number;
+  optionAnswers?: StudentAnswer[];
   misconceptions: Misconception[];
   locked: boolean;
   progressUnavailable: boolean;
@@ -2496,6 +2370,17 @@ export function AnswerValidationWorkspace({
       : []),
     ...answer.studentMisconceptionIds,
   ]);
+  const misconceptionById = new Map(
+    misconceptions.map((item) => [item.id, item]),
+  );
+  const optionAnswerById = new Map(
+    optionAnswers.flatMap((item) => {
+      const optionId =
+        item.selectedOptionId ??
+        question.options?.find((option) => option.label === item.optionLabel)?.id;
+      return optionId ? [[optionId, item] as const] : [];
+    }),
+  );
   const addableMisconceptions = getAdditionalMisconceptionCandidates(
     misconceptions,
     linkedMisconceptions.map((item) => item.id),
@@ -2530,7 +2415,6 @@ export function AnswerValidationWorkspace({
     ? getMisconceptionReviewFormErrors(form)
     : {};
   const formDirty = isMisconceptionReviewFormDirty(form, savedForm);
-  const parentReference = `#${getMaterialQuestionIdentifier(question).replace(/^#/, "")}`;
   useEffect(() => {
     onDirtyChange(formDirty);
     return () => onDirtyChange(false);
@@ -2611,46 +2495,28 @@ export function AnswerValidationWorkspace({
 
   return (
     <div className="scroll-reveal review-folder-content">
-      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
-        <article className="review-folder-primary min-w-0 overflow-hidden rounded-lg border border-border bg-white px-5 pb-5 pt-0 md:px-7 md:pb-7 md:pt-1.5">
-          <ReviewStepNavigation previous={previousStep} next={nextStep} />
-
-          <header className="pb-4">
-            <p className="text-xs font-semibold tracking-[0.08em] text-brand">
-              {language === "id" ? "REVIEW JAWABAN" : "ANSWER REVIEW"}
-            </p>
-            <h1 className="mt-1.5 text-lg font-semibold leading-7 text-navy-deep">
-              {t(question.title, language)}
+      <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] lg:items-start xl:gap-14">
+        <article className="min-w-0">
+          <header className="border-b border-border pb-4">
+            <h1 className="text-lg font-semibold leading-7 tracking-[-0.01em] text-navy-deep">
+              {language === "id" ? "Jawaban yang sedang direview" : "Answer being reviewed"}
             </h1>
-            <p className="mt-0.5 font-mono text-[11px] font-normal text-muted">
-              {parentReference}
+            <p className="mt-2 whitespace-pre-wrap text-base font-medium leading-6 text-navy-deep">
+              {selectedOption ? (
+                <>
+                  <span>{selectedOption.label}.</span>{" "}
+                  {t(selectedOption.text, language)}
+                </>
+              ) : (
+                fallbackText ||
+                (language === "id"
+                  ? "Teks jawaban tidak tersedia."
+                  : "Answer text is unavailable.")
+              )}
             </p>
-            <p className="mt-1 text-xs font-medium tabular-nums text-muted">
-              {language === "id"
-                ? `Jawaban ${activeIndex + 1} dari ${siblingAnswerIds.length}`
-                : `Answer ${activeIndex + 1} of ${siblingAnswerIds.length}`}
-            </p>
-            <div className="mt-5 min-w-0 rounded-md border border-[#ccbab0] bg-[var(--review-page)] px-4 py-3">
-              <p className="text-xs font-medium text-muted">
-                {language === "id" ? "Jawaban yang sedang direview" : "Answer being reviewed"}
-              </p>
-              <p className="mt-1 whitespace-pre-wrap text-base font-semibold leading-6 text-navy-deep">
-                {selectedOption ? (
-                  <>
-                    <span>{selectedOption.label}.</span>{" "}
-                    {t(selectedOption.text, language)}
-                  </>
-                ) : (
-                  fallbackText ||
-                  (language === "id"
-                    ? "Teks jawaban tidak tersedia."
-                    : "Answer text is unavailable.")
-                )}
-              </p>
-            </div>
           </header>
 
-          <div className="overflow-hidden rounded-md border border-border">
+          <div className="mt-4 overflow-hidden rounded-md border border-border">
             <AnswerStatusBar status={answer.status} />
           </div>
 
@@ -2674,44 +2540,94 @@ export function AnswerValidationWorkspace({
                   : "View question & answer options"
               }
             >
-              <p className="text-xs font-bold text-muted">
-                {parentReference} / {t(question.title, language)}
+              <p className="text-sm font-semibold leading-6 text-navy-deep">
+                {t(question.title, language)}
               </p>
               <div className="mt-3"><QuestionContent question={question} /></div>
               {question.options && (
                 <ul className="mt-4 space-y-2">
                   {question.options.map((option) => {
                     const isCurrent = option.id === selectedOption?.id;
+                    const optionAnswer = optionAnswerById.get(option.id);
+                    const optionMisconceptions = getQuestionOptionMisconceptionIds(option)
+                      .map((id) => misconceptionById.get(id))
+                      .filter((item) => item !== undefined);
+                    const reasonByMisconceptionId = new Map(
+                      (optionAnswer?.misconceptionReasons ?? []).map((item) => [
+                        item.misconceptionId,
+                        item.reason,
+                      ]),
+                    );
                     return (
                       <li
                         key={option.id}
                         className={cn(
-                          "flex items-start gap-2 rounded-md border px-3 py-2.5 text-sm leading-6 text-navy-deep",
-                          isCurrent
-                            ? "border-brand/35 bg-brand-soft/45"
-                            : option.isCorrect
-                              ? "border-correct-border bg-correct-bg"
-                              : "border-border bg-bg",
+                          "rounded-md border px-3 py-2.5 text-xs leading-5",
+                          option.isCorrect
+                            ? "border-[#2F6B4F] bg-[#2F6B4F] text-white"
+                            : isCurrent
+                              ? "border-brand/35 bg-brand-soft/45 text-navy-deep"
+                              : "border-border bg-white text-navy-deep",
                         )}
                       >
-                        <span className="shrink-0 font-semibold">
-                          {option.label}.
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          {t(option.text, language)}
-                        </span>
-                        <span className="flex shrink-0 flex-wrap justify-end gap-1">
-                          {option.isCorrect && (
-                            <span className="rounded border border-correct-border bg-white/70 px-1.5 py-0.5 text-[10px] font-medium leading-4 text-correct">
-                              {language === "id" ? "Jawaban benar" : "Correct answer"}
-                            </span>
-                          )}
-                          {isCurrent && (
-                            <span className="rounded border border-brand/25 bg-white/70 px-1.5 py-0.5 text-[10px] font-medium leading-4 text-brand">
-                              {language === "id" ? "Sedang direview" : "In review"}
-                            </span>
-                          )}
-                        </span>
+                        <div className="flex items-start gap-2">
+                          <span className="shrink-0 font-medium">{option.label}.</span>
+                          <span className="min-w-0 flex-1">{t(option.text, language)}</span>
+                          <span className="flex shrink-0 flex-wrap justify-end gap-1">
+                            {option.isCorrect && (
+                              <span className="rounded border border-white/35 bg-white/10 px-1.5 py-0.5 text-[10px] font-medium leading-4 text-white">
+                                {language === "id" ? "Jawaban benar" : "Correct answer"}
+                              </span>
+                            )}
+                            {isCurrent && (
+                              <span className={cn(
+                                "rounded border px-1.5 py-0.5 text-[10px] font-medium leading-4",
+                                option.isCorrect
+                                  ? "border-white/35 bg-white/10 text-white"
+                                  : "border-brand/25 bg-white/70 text-brand",
+                              )}>
+                                {language === "id" ? "Sedang direview" : "In review"}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                        {optionMisconceptions.length > 0 && (
+                          <div className={cn(
+                            "mt-2 space-y-2 border-t pt-2",
+                            option.isCorrect ? "border-white/25" : "border-brand/15",
+                          )}>
+                            {optionMisconceptions.map((misconception) => {
+                              const reason = reasonByMisconceptionId.get(misconception.id);
+                              const misconceptionEvidence = evidenceAnswers.filter(
+                                (evidence) =>
+                                  evidence.evidenceMisconceptionId?.trim() === misconception.id,
+                              );
+                              return (
+                                <div key={misconception.id} className="min-w-0">
+                                  <p className="font-medium">
+                                    {misconceptionLabel(misconception, language)}
+                                  </p>
+                                  {reason && (
+                                    <p className={cn(
+                                      "mt-0.5 font-normal",
+                                      option.isCorrect ? "text-white/80" : "text-muted",
+                                    )}>
+                                      {t(reason, language)}
+                                    </p>
+                                  )}
+                                  {misconceptionEvidence.length > 0 && (
+                                    <div className="mt-2">
+                                      <MisconceptionEvidenceDialog
+                                        answers={misconceptionEvidence}
+                                        misconception={misconception}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </li>
                     );
                   })}
@@ -2720,19 +2636,6 @@ export function AnswerValidationWorkspace({
             </QuestionContextAccordion>
           </div>
 
-          {evidenceAnswers.length > 0 && (
-            <div className="mt-3">
-              <QuestionContextAccordion
-                id={`mp-answer-evidence-${answer.id}`}
-                label={`${language === "id" ? "Lihat evidence" : "View evidence"} (${evidenceAnswers.length})`}
-              >
-                <StructuredEvidenceList
-                  answers={evidenceAnswers}
-                  misconceptions={misconceptions}
-                />
-              </QuestionContextAccordion>
-            </div>
-          )}
         </article>
 
         <aside className="rounded-lg border border-border bg-white p-5 md:p-6">
@@ -3038,6 +2941,11 @@ export function AnswerValidationWorkspace({
                   ? "Hapus review"
                   : "Delete review"}
             </Button>
+          )}
+          {(previousStep || nextStep) && (
+            <div className="mt-4 border-t border-border pt-4">
+              <ReviewStepNavigation previous={previousStep} next={nextStep} />
+            </div>
           )}
         </aside>
       </div>

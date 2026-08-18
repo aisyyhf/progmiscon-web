@@ -484,7 +484,8 @@ assert.match(
   /`\$\{progress\.reviewed\} dari \$\{progress\.total\} jawaban sudah Anda review`/,
   "MP toolbar progress must use the global eligible-answer progress source",
 );
-assert.match(page, /siblingAnswerIds=\{\(activeItems as StudentAnswer\[\]\)\.map/);
+assert.match(page, /optionAnswers=\{getMpOptionAnswersForQuestion\(answerQuestion\.id, answers\)\}/);
+assert.doesNotMatch(page, /siblingAnswerIds=|activeIndex=\{/);
 assert.doesNotMatch(page, /answerReviewCount=/);
 assert.match(page, /onDirtyChange=\{setMpAnswerReviewDirty\}/);
 assert.match(
@@ -494,11 +495,11 @@ assert.match(
 assert.match(page, /function ReviewStepNavigation/);
 assert.match(
   stepNavigation,
-  /h-\[22px\][\s\S]*?border border-border bg-white px-2 text-\[11px\] font-medium leading-4 text-navy-deep/,
+  /min-h-9[\s\S]*?border border-border bg-white px-3 py-1\.5 text-\[13px\] font-medium leading-5 text-navy-deep/,
 );
-assert.match(stepNavigation, /flex min-h-\[22px\] items-center justify-between/);
-assert.match(stepNavigation, /hover:border-navy\/25 hover:bg-neutral/);
-assert.doesNotMatch(stepNavigation, /text-brand|bg-brand|border-brand/);
+assert.match(stepNavigation, /flex min-h-9 items-center justify-between/);
+assert.match(stepNavigation, /hover:border-brand\/30 hover:bg-neutral/);
+assert.doesNotMatch(stepNavigation, /(?:text|bg|border)-brand(?:\s|")/);
 assert.match(stepNavigation, /<ArrowLeft size=\{13\}/);
 assert.match(page, /<ArrowRight size=\{13\}/);
 assert.match(contextAccordion, /question\.options\.map/);
@@ -509,8 +510,10 @@ assert.match(contextAccordion, /Sedang direview/);
 assert.doesNotMatch(answerWorkspace, /AdminAnswerContentEditor|Edit jawaban/);
 assert.doesNotMatch(answerWorkspace, /AdminQuestionContentEditor|Edit soal/);
 assert.doesNotMatch(questionWorkspace, /AdminQuestionContentEditor|Edit soal/);
-assert.match(answerWorkspace, /answers=\{evidenceAnswers\}/);
-assert.match(answerWorkspace, /<StructuredEvidenceList/);
+assert.match(answerWorkspace, /optionAnswer\?\.misconceptionReasons/);
+assert.match(answerWorkspace, /evidence\.evidenceMisconceptionId\?\.trim\(\) === misconception\.id/);
+assert.match(answerWorkspace, /<MisconceptionEvidenceDialog/);
+assert.doesNotMatch(answerWorkspace, /<StructuredEvidenceList|mp-answer-evidence/);
 assert.doesNotMatch(
   answerWorkspace,
   /Nilai label berdasarkan pola yang terlihat|Evaluate labels based on the pattern visible/,
@@ -525,13 +528,12 @@ assert.match(
 );
 assert.doesNotMatch(answerWorkspace, /Belum Anda review|Not yet reviewed/);
 assert.doesNotMatch(answerWorkspace, /reviewerCountLabel|<Users size=\{14\}/);
-assert.match(answerWorkspace, /REVIEW JAWABAN/);
 assert.match(answerWorkspace, /Jawaban yang sedang direview/);
 assert.match(answerWorkspace, /Lihat soal & pilihan jawaban/);
-assert.match(answerWorkspace, /Lihat evidence/);
 assert.match(answerWorkspace, /<ReviewStepNavigation previous=\{previousStep\} next=\{nextStep\} \/>/);
 assert.doesNotMatch(answerWorkspace, /<SiblingNavigator/);
-assert.match(answerWorkspace, /Jawaban \$\{activeIndex \+ 1\} dari \$\{siblingAnswerIds\.length\}/);
+assert.doesNotMatch(answerWorkspace, /parentReference|siblingAnswerIds|activeIndex/);
+assert.doesNotMatch(answerWorkspace, /\? "REVIEW JAWABAN" : "ANSWER REVIEW"/);
 assert.match(questionWorkspace, /REVIEW MISKONSEPSI SOAL/);
 assert.match(questionWorkspace, /QUESTION MISCONCEPTION REVIEW/);
 assert.match(questionWorkspace, /EDIT REVIEW SOAL/);
@@ -550,11 +552,14 @@ assert.doesNotMatch(
 assert.match(editor, />\s*Edit soal\s*</);
 assert.match(editor, /saveAnswerContentOverride\(answer\.id, answerText\)/);
 assert.doesNotMatch(editor, />\s*Edit jawaban\s*</);
-assert.match(structuredEvidence, /Nama siswa/);
-assert.match(structuredEvidence, /Jawaban siswa/);
+assert.match(structuredEvidence, /"Nama"/);
+assert.match(structuredEvidence, /"Jawaban"/);
 assert.match(structuredEvidence, /Miskonsepsi/);
 assert.match(structuredEvidence, /Penjelasan/);
 assert.match(structuredEvidence, /Tidak tersedia/);
+assert.match(structuredEvidence, /showModal\(\)/);
+assert.match(structuredEvidence, /<PseudocodeBlock code=\{answerText\} \/>/);
+assert.doesNotMatch(structuredEvidence, /answer\.evidenceId/);
 assert.doesNotMatch(structuredEvidence, /General answer note|Catatan umum jawaban/);
 assert.match(navigation, /aria-expanded=\{open\}/);
 assert.match(navigation, /aria-controls=\{id\}/);

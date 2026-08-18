@@ -598,8 +598,11 @@ assert.match(activePage, /navigation\.mode !== "review" \|\|[\s\S]*?reachableAns
 assert.match(activePage, /answerStepSequence\.findIndex\(\(\{ id \}\) => id === activeAnswer\?\.id\)/);
 assert.match(activePage, /previousAnswer\s*=\s*answerSequenceIndex > 0[\s\S]*?displayedAnswerSequence\[answerSequenceIndex - 1\]/);
 assert.match(activePage, /nextAnswer\s*=\s*displayedAnswerSequence\[answerSequenceIndex \+ 1\]/);
-assert.match(activePage, /siblingAnswerIds=\{displayedAnswerSequence\.map/);
-assert.match(activePage, /activeIndex=\{answerSequenceIndex\}/);
+assert.match(
+  activePage,
+  /optionAnswers=\{getMpOptionAnswersForQuestion\(answerQuestion\.id, answers\)\}/,
+);
+assert.doesNotMatch(activePage, /siblingAnswerIds=|activeIndex=\{/);
 assert.match(activePage, /getNextUnreviewedAnswerId\(questionAnswerReviewSequence, reviewedAnswerIds\)/);
 assert.match(activePage, /function getAnswerStepLabel[\s\S]*?option\?\.label/);
 assert.doesNotMatch(activePage, /getNavigationAfterReviewSave/);

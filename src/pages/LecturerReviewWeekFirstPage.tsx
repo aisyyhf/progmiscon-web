@@ -72,7 +72,10 @@ import {
   type ReviewWeekSummary,
 } from "../utils/reviewQueue";
 import { QUESTION_REVIEWED_THRESHOLD } from "../utils/reviewQuestionFilters";
-import { getEvidenceAnswersForQuestion } from "../utils/reviewLinking";
+import {
+  getEvidenceAnswersForQuestion,
+  getMpOptionAnswersForQuestion,
+} from "../utils/reviewLinking";
 import {
   filterEligibleAnswerReviewCounts,
   filterEligibleAnswerReviewIds,
@@ -662,9 +665,6 @@ function WeekQuestionList({
                     <span className="hidden text-center text-xs font-normal tabular-nums text-black/60 lg:block">{index + 1}</span>
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-normal leading-4 text-black">{title}</span>
-                      <span className="mt-0.5 block truncate font-mono text-[10px] font-normal leading-4 text-black/55">
-                        #{identifier.replace(/^#/, "")}
-                      </span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
                         <QuestionTypeTooltipLabel
                           label={questionType.label}
@@ -1581,14 +1581,6 @@ export function LecturerReviewPage({
     setReviewDataRevision((current) => current + 1);
   }, []);
 
-  const handleQuestionDelete = async () => {
-    if (!activeQuestion) return;
-    await withdrawQuestionReview(activeQuestion);
-    commitNavigation(
-      getNavigationAfterWithdraw(navigation, activeQuestion.id),
-    );
-  };
-
   const handleQuestionSubmit = async (values: QuestionReviewValues) => {
     if (
       !activeQuestion?.sourceVersion ||
@@ -1983,7 +1975,6 @@ export function LecturerReviewPage({
             misconceptions={misconceptions}
             locked={activeQuestionLocked}
             progressUnavailable={!navigationReady || !activeQuestion.sourceVersion}
-            reviewedByMe={activeQuestionReviewedByMe}
             submittedReview={activeQuestionReview}
             mode={navigation.mode}
             nextStep={questionNextStep}
@@ -1991,7 +1982,6 @@ export function LecturerReviewPage({
             onSelectMisconception={(misconceptionId) =>
               navigate(`/miskonsepsi/${misconceptionId}`)
             }
-            onDelete={handleQuestionDelete}
             onSubmit={handleQuestionSubmit}
           />
         ) : (
@@ -2050,8 +2040,7 @@ export function LecturerReviewPage({
             question={answerQuestion}
             answer={activeAnswer}
             evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
-            siblingAnswerIds={displayedAnswerSequence.map(({ id }) => id)}
-            activeIndex={answerSequenceIndex}
+            optionAnswers={getMpOptionAnswersForQuestion(answerQuestion.id, answers)}
             misconceptions={misconceptions}
             locked={activeAnswerLocked}
             progressUnavailable={!navigationReady || !activeAnswer.sourceVersion}
@@ -2234,7 +2223,6 @@ export function LecturerReviewPage({
                 misconceptions={misconceptions}
                 locked={activeQuestionLocked}
                 progressUnavailable={!navigationReady || !activeQuestion.sourceVersion}
-                reviewedByMe={activeQuestionReviewedByMe}
                 submittedReview={activeQuestionReview}
                 mode={navigation.mode}
                 nextStep={questionNextStep}
@@ -2242,7 +2230,6 @@ export function LecturerReviewPage({
                 onSelectMisconception={(misconceptionId) =>
                   navigate(`/miskonsepsi/${misconceptionId}`)
                 }
-                onDelete={handleQuestionDelete}
                 onSubmit={handleQuestionSubmit}
               />
             ) : activeAnswer && answerQuestion ? (
@@ -2252,8 +2239,7 @@ export function LecturerReviewPage({
                 question={answerQuestion}
                 answer={activeAnswer}
                 evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
-                siblingAnswerIds={displayedAnswerSequence.map(({ id }) => id)}
-                activeIndex={answerSequenceIndex}
+                optionAnswers={getMpOptionAnswersForQuestion(answerQuestion.id, answers)}
                 misconceptions={misconceptions}
                 locked={activeAnswerLocked}
                 progressUnavailable={!navigationReady || !activeAnswer.sourceVersion}
