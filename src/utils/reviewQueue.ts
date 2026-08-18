@@ -109,9 +109,13 @@ export function getReviewWeekSummaries(
     );
     const completed = weekQuestions.filter(
       (question) =>
-        reviewed.has(question.id) ||
-        (!started.has(question.id) &&
-          (questionCounts.get(question.id) ?? 0) >= reviewerThreshold),
+        getWeekReviewQuestionStatus(
+          question.id,
+          reviewed,
+          questionCounts,
+          reviewerThreshold,
+          started,
+        ) !== "unreviewed",
     ).length;
 
     return {
@@ -131,7 +135,7 @@ export function getWeekReviewQuestionStatus(
   startedQuestionIds: ReadonlySet<string> = new Set(),
 ): ReviewWeekListStatus {
   if (reviewedQuestionIds.has(questionId)) return "reviewed";
-  if (startedQuestionIds.has(questionId)) return "reviewed";
+  if (startedQuestionIds.has(questionId)) return "unreviewed";
   return (questionCounts.get(questionId) ?? 0) >= reviewerThreshold
     ? "full"
     : "unreviewed";

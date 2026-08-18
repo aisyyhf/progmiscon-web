@@ -269,6 +269,17 @@ assert.equal(
   undefined,
   "confirmed saves terminate the sequence without looping",
 );
+const partialMpSequence = ["A", "B", "C", "D"].map((id) => ({ id }));
+assert.equal(
+  getNextUnreviewedAnswerId(partialMpSequence, ["A", "B"]),
+  "C",
+  "resuming a partial MP review starts at the first unfinished answer",
+);
+assert.equal(
+  getNextUnreviewedAnswerId(partialMpSequence, ["A", "B", "C"], "C"),
+  "D",
+  "the resumed MP sequence continues from C to D",
+);
 assert.deepEqual(
   getReachableAnswerReviewSequence(fullSequence, ["A-1", "A-2"]).map(
     ({ id }) => id,

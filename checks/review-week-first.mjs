@@ -90,7 +90,7 @@ assert.deepEqual(
     ["PARTIAL-MP"],
   )[0],
   { week: "W02", total: 1, completed: 0, isComplete: false },
-  "reviewed-first status does not mark an incomplete MP workflow complete",
+  "a partial MP workflow remains incomplete even when the question cap is full",
 );
 
 const searchableQuestions = questions.map((item, index) => ({
@@ -122,6 +122,37 @@ assert.equal(getWeekReviewQuestionStatus("unreviewed-at-2", reviewedStatusIds, s
 assert.equal(getWeekReviewQuestionStatus("reviewed-at-1", reviewedStatusIds, statusCounts, 3), "reviewed");
 assert.equal(getWeekReviewQuestionStatus("reviewed-at-3", reviewedStatusIds, statusCounts, 3), "reviewed");
 assert.equal(getWeekReviewQuestionStatus("full-at-3", reviewedStatusIds, statusCounts, 3), "full");
+const primaryStatus = ({ completed = false, started = false, count }) =>
+  getWeekReviewQuestionStatus(
+    "target",
+    new Set(completed ? ["target"] : []),
+    new Map([["target", count]]),
+    3,
+    new Set(started ? ["target"] : []),
+  );
+assert.deepEqual(
+  {
+    noParticipationAt0: primaryStatus({ count: 0 }),
+    noParticipationAt2: primaryStatus({ count: 2 }),
+    noParticipationAt3: primaryStatus({ count: 3 }),
+    completedPsAt3: primaryStatus({ completed: true, count: 3 }),
+    completedMpAt3: primaryStatus({ completed: true, started: true, count: 3 }),
+    partialMpAt3: primaryStatus({ started: true, count: 3 }),
+    withdrawnAt3: primaryStatus({ count: 3 }),
+    withdrawnAt2: primaryStatus({ count: 2 }),
+  },
+  {
+    noParticipationAt0: "unreviewed",
+    noParticipationAt2: "unreviewed",
+    noParticipationAt3: "full",
+    completedPsAt3: "reviewed",
+    completedMpAt3: "reviewed",
+    partialMpAt3: "unreviewed",
+    withdrawnAt3: "full",
+    withdrawnAt2: "unreviewed",
+  },
+  "primary status keeps completion, ownership, and the reviewer cap distinct",
+);
 assert.equal(
   getWeekReviewQuestionStatus(
     "full-at-3",
@@ -130,8 +161,8 @@ assert.equal(
     3,
     new Set(["full-at-3"]),
   ),
-  "reviewed",
-  "a lecturer-owned question remains reviewed while its composite MP task is partial",
+  "unreviewed",
+  "a cap-full MP question step remains unreviewed while its composite task is partial",
 );
 assert.deepEqual(
   filterWeekReviewQuestions(searchableQuestions, {
@@ -188,15 +219,31 @@ assert.deepEqual(
     week: "W02",
     query: "W02-MP-40",
     type: "mp",
-    status: "reviewed",
+    status: "unreviewed",
     reviewedQuestionIds: [],
     startedQuestionIds: ["W02-MP-40"],
     questionCounts: searchableQuestionCounts,
     reviewerThreshold: 3,
   }).map(({ id }) => id),
   ["W02-MP-40"],
-  "a started but composite-incomplete row keeps reviewed-first status at question cap",
+  "a started but composite-incomplete row stays in Belum direview even at question cap",
 );
+for (const status of ["reviewed", "full"]) {
+  assert.deepEqual(
+    filterWeekReviewQuestions(searchableQuestions, {
+      week: "W02",
+      query: "W02-MP-40",
+      type: "mp",
+      status,
+      reviewedQuestionIds: [],
+      startedQuestionIds: ["W02-MP-40"],
+      questionCounts: searchableQuestionCounts,
+      reviewerThreshold: 3,
+    }),
+    [],
+    `a partial MP task must not also appear under ${status}`,
+  );
+}
 
 assert.equal(REVIEW_NAVIGATION_SESSION_KEY.endsWith(".v2"), true);
 assert.equal(getDefaultReviewWeek(questions), "W02");
@@ -505,10 +552,20 @@ const app = await readFile(
 );
 assert.match(app, /LecturerReviewWeekFirstPage/);
 assert.match(activePage, /REVIEW_NAVIGATION_SESSION_KEY/);
-assert.match(
+assert.doesNotMatch(
   activePage,
   /reviewedQuestionIds: reviewedQuestionStepIds/,
-  "Primary Review queues use personal question ownership, not composite MP completion",
+  "Primary Review queues must use composite completion IDs",
+);
+assert.match(
+  activePage,
+  /reviewedQuestionIds=\{reviewedQuestionIds\}[\s\S]{0,120}startedQuestionIds=\{reviewedQuestionStepIds\}/,
+  "The Week list keeps completed and started question IDs separate",
+);
+assert.match(
+  activePage,
+  /const activeQuestionReviewedByMe = activeQuestion[\s\S]{0,100}reviewedQuestionStepIds\.includes\(activeQuestion\.id\)/,
+  "Cap bypass remains based on personal question ownership",
 );
 assert.match(activePage, /serializeReviewNavigationSearch\(navigation\)/);
 assert.match(activePage, /replace: true/);
@@ -537,16 +594,6 @@ assert.match(
   /returnAnswerForPreviousStep\s*=\s*navigation\.mode === "review"[\s\S]*?navigation\.returnAnswer \?\? activeAnswer\?\.id/,
 );
 assert.match(activePage, /getReachableAnswerReviewSequence/);
-assert.match(
-  activePage,
-  /if \(navigation\.mode !== "view"\) return answerReviewSequence/,
-  "Edit keeps unfinished MP answer targets in the sequence",
-);
-assert.match(
-  activePage,
-  /navigation\.mode === "edit"\s*\? questionAnswerReviewSequence/,
-  "Edit can continue from the question step into unfinished MP answers",
-);
 assert.match(activePage, /navigation\.mode !== "review" \|\|[\s\S]*?reachableAnswerStepIds\.has\(nextAnswer\.id\)/);
 assert.match(activePage, /answerStepSequence\.findIndex\(\(\{ id \}\) => id === activeAnswer\?\.id\)/);
 assert.match(activePage, /previousAnswer\s*=\s*answerSequenceIndex > 0[\s\S]*?displayedAnswerSequence\[answerSequenceIndex - 1\]/);
