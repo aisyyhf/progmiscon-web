@@ -182,7 +182,8 @@ assert.match(answerWorkspace, /Simpan Perubahan/);
 assert.doesNotMatch(answerWorkspace, /<SiblingNavigator/);
 assert.match(answerWorkspace, /EDIT REVIEW JAWABAN/);
 assert.match(answerWorkspace, /HASIL REVIEW JAWABAN/);
-assert.match(answerWorkspace, /formUnavailable = readOnly \|\| locked \|\| progressUnavailable/);
+assert.match(answerWorkspace, /formUnavailable = mode === "view" \|\| locked \|\| progressUnavailable/);
+assert.match(answerWorkspace, /<ReviewStepNavigation previous=\{previousStep\} next=\{nextStep\} \/>/);
 
 assert.match(questionWorkspace, /Lihat evidence/);
 assert.match(questionWorkspace, /!answerReviewEligible && \([\s\S]*?<details className="group\/evidence"/);
@@ -202,7 +203,8 @@ assert.match(
   workspacePage,
   /const activeQuestionLocked =\s*activeQuestionGloballyComplete && !activeQuestionReviewedByMe/,
 );
-assert.match(questionWorkspace, /formUnavailable = readOnly \|\| locked \|\| progressUnavailable/);
+assert.match(questionWorkspace, /formUnavailable = mode === "view" \|\| locked \|\| progressUnavailable/);
+assert.match(questionWorkspace, /<ReviewStepNavigation previous=\{previousStep\} next=\{nextStep\} \/>/);
 assert.match(questionWorkspace, /await onSubmit\(buildQuestionReviewValues\(form\)\)/);
 assert.match(questionWorkspace, /await onDelete\(\)/);
 
@@ -236,16 +238,26 @@ assert.match(activePage, /setPendingNavigation\(next\)/);
 assert.match(activePage, /pendingNavigation \|\|/);
 assert.match(
   activePage,
-  /if \(!alreadyReviewed\) \{[\s\S]*?activeQuestion\.type !== "multiple_choice"[\s\S]*?getNextUnreviewedAnswerId\([\s\S]*?resolveAnswerDeepLink\(/,
-  "only first-time MP saves may start the answer continuation",
+  /if \(navigation\.mode === "edit"\) return;[\s\S]*?activeQuestion\.type !== "multiple_choice"[\s\S]*?getNextUnreviewedAnswerId\([\s\S]*?resolveAnswerDeepLink\(/,
+  "Review mode continues a prefilled partial MP while explicit Edit mode stays put",
 );
+assert.match(activePage, /returnAnswerId \?\?\s*getNextUnreviewedAnswerId/);
+assert.match(activePage, /mode: navigation\.mode/);
+assert.match(activePage, /previousStep=\{answerPreviousStep\}/);
+assert.match(activePage, /nextStep=\{answerNextStep\}/);
+assert.match(activePage, /nextStep=\{questionNextStep\}/);
+assert.match(workspacePage, /scrollIntoView\(\{ behavior: "smooth", block: "center" \}\)/);
+assert.match(workspacePage, /\.focus\(\{ preventScroll: true \}\)/);
+assert.match(workspacePage, /getMisconceptionReviewFormErrors\(form\)/);
+assert.doesNotMatch(questionWorkspace, /disabled=\{[^}]*canSubmit/);
+assert.doesNotMatch(answerWorkspace, /disabled=\{[^}]*canSubmit/);
 assert.match(
   activePage,
   /status: "reviewed",\s*item: activeQuestion\.id,[\s\S]*?setCompletionDialog\("question"\)/,
 );
 assert.match(
   activePage,
-  /if \(target\) \{\s*commitNavigation\(\{[\s\S]*?\.\.\.target,[\s\S]*?status: "unreviewed"[\s\S]*?\}\);\s*\} else \{\s*commitNavigation\(\{[\s\S]*?item: activeQuestion\.id,[\s\S]*?setCompletionDialog\("workflow"\)/,
+  /if \(target\) \{\s*commitNavigation\(\{[\s\S]*?\.\.\.target,[\s\S]*?mode: "review"[\s\S]*?\}\);\s*\} else \{\s*commitNavigation\(\{[\s\S]*?item: activeQuestion\.id,[\s\S]*?setCompletionDialog\("workflow"\)/,
   "an MP question with no eligible answer completes without selecting another question",
 );
 assert.match(

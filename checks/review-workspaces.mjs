@@ -21,6 +21,39 @@ import {
   shouldWarnForMpAnswerNavigation,
   shouldWarnForMpQuestionNavigation,
 } from "../src/utils/mpQuestionNavigator.ts";
+import {
+  getMisconceptionReviewFormErrors,
+  initialMisconceptionReviewFormState,
+} from "../src/utils/reviewMisconceptionForm.ts";
+
+assert.deepEqual(
+  getMisconceptionReviewFormErrors(initialMisconceptionReviewFormState),
+  { removal: "choice", addition: "choice" },
+);
+const selectedReviewState = {
+  ...initialMisconceptionReviewFormState,
+  removalChoice: false,
+  additionChoice: true,
+};
+assert.deepEqual(getMisconceptionReviewFormErrors(selectedReviewState), {
+  addition: "selection",
+});
+assert.deepEqual(
+  getMisconceptionReviewFormErrors({
+    ...selectedReviewState,
+    additionalMisconceptionIds: ["M-1"],
+  }),
+  { addition: "reason" },
+);
+assert.deepEqual(
+  getMisconceptionReviewFormErrors({
+    ...selectedReviewState,
+    additionalMisconceptionIds: ["M-1"],
+    additionReason: "Relevant reason",
+  }),
+  {},
+  "a field error clears as soon as its existing business rule is satisfied",
+);
 
 const questions = [
   { id: "Q-PS-1", type: "short_answer" },
@@ -350,8 +383,11 @@ assert.doesNotMatch(page, /answerReviewCount=/);
 assert.match(page, /onDirtyChange=\{setMpAnswerReviewDirty\}/);
 assert.match(
   page,
-  /onBackToQuestion=\{\(\) =>\s*requestOpenWorkspaceItem\([\s\S]{0,180}answerQuestion\.id/,
+  /previousStep=\{\{[\s\S]{0,180}Kembali ke soal[\s\S]{0,220}requestOpenWorkspaceItem\([\s\S]{0,180}answerQuestion\.id/,
 );
+assert.match(page, /function ReviewStepNavigation/);
+assert.match(page, /text-\[11px\][\s\S]*?<ArrowLeft size=\{13\}/);
+assert.match(page, /<ArrowRight size=\{13\}/);
 assert.match(contextAccordion, /question\.options\.map/);
 assert.match(contextAccordion, /<QuestionContent question=\{question\}/);
 assert.match(contextAccordion, /option\.isCorrect/);
@@ -380,7 +416,7 @@ assert.match(answerWorkspace, /REVIEW JAWABAN/);
 assert.match(answerWorkspace, /Jawaban yang sedang direview/);
 assert.match(answerWorkspace, /Lihat soal & pilihan jawaban/);
 assert.match(answerWorkspace, /Lihat evidence/);
-assert.match(answerWorkspace, /<ParentQuestionBackAction/);
+assert.match(answerWorkspace, /<ReviewStepNavigation previous=\{previousStep\} next=\{nextStep\} \/>/);
 assert.doesNotMatch(answerWorkspace, /<SiblingNavigator/);
 assert.match(answerWorkspace, /Jawaban \$\{activeIndex \+ 1\} dari \$\{siblingAnswerIds\.length\}/);
 assert.match(questionWorkspace, /REVIEW MISKONSEPSI SOAL/);

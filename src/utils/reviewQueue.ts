@@ -12,6 +12,7 @@ export type ReviewTaskKind = "question" | "answer";
 export type ReviewPersonalStatus = "unreviewed" | "reviewed";
 export type ReviewWeekListStatus = ReviewPersonalStatus | "full";
 export type ReviewQuestionType = "all" | "ps" | "mp";
+export type ReviewSessionMode = "review" | "edit" | "view";
 
 export type ReviewWeekSummary = {
   week: string;
@@ -25,7 +26,9 @@ export type ReviewNavigationState = {
   task: ReviewTaskKind;
   status: ReviewWeekListStatus;
   type: ReviewQuestionType;
+  mode: ReviewSessionMode;
   item?: string;
+  returnAnswer?: string;
 };
 
 export const REVIEW_NAVIGATION_SESSION_KEY =
@@ -38,6 +41,7 @@ const weekListStatuses = new Set<ReviewWeekListStatus>([
   "full",
 ]);
 const questionTypes = new Set<ReviewQuestionType>(["all", "ps", "mp"]);
+const sessionModes = new Set<ReviewSessionMode>(["review", "edit", "view"]);
 
 function uniqueById<T extends { id: string }>(items: readonly T[]): T[] {
   const seen = new Set<string>();
@@ -268,6 +272,9 @@ export function normalizeReviewNavigationState(
     ? (input.type as ReviewQuestionType)
     : "all";
   const type = requestedType;
+  const mode = sessionModes.has(input.mode as ReviewSessionMode)
+    ? (input.mode as ReviewSessionMode)
+    : "review";
   const queue = buildReviewQueue({
     questions,
     answers,
@@ -282,8 +289,13 @@ export function normalizeReviewNavigationState(
   const item = queue.some(({ id }) => id === requestedItem)
     ? requestedItem
     : queue[0]?.id;
+  const requestedReturnAnswer =
+    typeof input.returnAnswer === "string" ? input.returnAnswer : "";
+  const returnAnswer = answers.some(({ id }) => id === requestedReturnAnswer)
+    ? requestedReturnAnswer
+    : undefined;
 
-  return { week, task, status, type, item };
+  return { week, task, status, type, mode, item, returnAnswer };
 }
 
 export function getNextQueueItemId(
@@ -313,7 +325,13 @@ export function getNavigationAfterWithdraw(
   state: ReviewNavigationState,
   itemId: string,
 ): ReviewNavigationState {
-  return { ...state, status: "unreviewed", item: itemId };
+  return {
+    ...state,
+    status: "unreviewed",
+    mode: "review",
+    item: itemId,
+    returnAnswer: undefined,
+  };
 }
 
 export function parseReviewNavigationSession(
@@ -340,7 +358,15 @@ export function parseReviewNavigationSearch(search: string): {
   state: Partial<ReviewNavigationState>;
 } {
   const params = new URLSearchParams(search);
-  const keys = ["week", "task", "status", "type", "item"] as const;
+  const keys = [
+    "week",
+    "task",
+    "status",
+    "type",
+    "mode",
+    "item",
+    "returnAnswer",
+  ] as const;
   const hasParameters = keys.some((key) => params.has(key));
   return {
     hasParameters,
@@ -361,8 +387,10 @@ export function serializeReviewNavigationSearch(
     task: state.task,
     status: state.status,
     type: state.type,
+    mode: state.mode,
   });
   if (state.item) params.set("item", state.item);
+  if (state.returnAnswer) params.set("returnAnswer", state.returnAnswer);
   return `?${params.toString()}`;
 }
 
@@ -383,6 +411,7 @@ export function resolveAnswerDeepLink(
     task: "answer",
     status: reviewedAnswerIds.includes(answer.id) ? "reviewed" : "unreviewed",
     type: "all",
+    mode: "review",
     item: answer.id,
   };
 }

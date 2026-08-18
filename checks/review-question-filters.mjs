@@ -491,7 +491,7 @@ assert.equal(
 );
 assert.equal(
   page.match(
-    /const formUnavailable = readOnly \|\| locked \|\| progressUnavailable;/g,
+    /const formUnavailable = mode === "view" \|\| locked \|\| progressUnavailable;/g,
   )?.length,
   2,
 );
@@ -501,7 +501,15 @@ assert.equal(
     ?.length,
   2,
 );
-assert.match(page, /if \(\s*formUnavailable \|\|\s*!canSubmit/);
+assert.equal(
+  page.match(/if \(formUnavailable \|\| submitting\) return;/g)?.length,
+  2,
+);
+assert.equal(
+  page.match(/const errors = getMisconceptionReviewFormErrors\(form\);/g)?.length,
+  2,
+);
+assert.doesNotMatch(page, /!canSubmitMisconceptionReviewForm/);
 assert.match(
   page,
   /Status review Anda belum dapat dimuat\. Muat ulang halaman sebelum melanjutkan review\./,
