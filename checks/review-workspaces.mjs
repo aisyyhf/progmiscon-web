@@ -10,6 +10,7 @@ import {
   getActionableAnswerReviewSequence,
   getCompositeReviewedQuestionIds,
   getNextUnreviewedAnswerId,
+  getReachableAnswerReviewSequence,
   getReviewProgress,
   isAnswerReviewEligible,
   isCompositeQuestionReviewComplete,
@@ -199,6 +200,27 @@ assert.equal(
   undefined,
   "confirmed saves terminate the sequence without looping",
 );
+assert.deepEqual(
+  getReachableAnswerReviewSequence(fullSequence, ["A-1", "A-2"]).map(
+    ({ id }) => id,
+  ),
+  ["A-1", "A-2"],
+  "persisted A and B remain reachable after navigating back while untouched C stays hidden",
+);
+assert.deepEqual(
+  getReachableAnswerReviewSequence(fullSequence, ["A-1"], "A-2").map(
+    ({ id }) => id,
+  ),
+  ["A-1", "A-2"],
+  "the current unfinished B remains reachable from A",
+);
+assert.deepEqual(
+  getReachableAnswerReviewSequence(fullSequence, ["A-1"], "A-3").map(
+    ({ id }) => id,
+  ),
+  ["A-1"],
+  "an active target cannot skip the earlier untouched B",
+);
 const noRemainingSequence = getActionableAnswerReviewSequence(
   questions[1],
   sequenceAnswers,
@@ -372,6 +394,10 @@ const contextEnd = answerWorkspace.indexOf(
   contextStart,
 );
 const contextAccordion = answerWorkspace.slice(contextStart, contextEnd);
+const stepNavigation = page.slice(
+  page.indexOf("function ReviewStepNavigation"),
+  page.indexOf("function reviewValidationMessage"),
+);
 
 assert.match(
   page,
@@ -386,7 +412,10 @@ assert.match(
   /previousStep=\{\{[\s\S]{0,180}Kembali ke soal[\s\S]{0,220}requestOpenWorkspaceItem\([\s\S]{0,180}answerQuestion\.id/,
 );
 assert.match(page, /function ReviewStepNavigation/);
-assert.match(page, /text-\[11px\][\s\S]*?<ArrowLeft size=\{13\}/);
+assert.match(stepNavigation, /text-\[10px\] font-medium leading-4 text-muted/);
+assert.match(stepNavigation, /mb-0\.5 flex min-h-5 items-center justify-between/);
+assert.doesNotMatch(stepNavigation, /text-brand|bg-brand|border-brand/);
+assert.match(stepNavigation, /<ArrowLeft size=\{13\}/);
 assert.match(page, /<ArrowRight size=\{13\}/);
 assert.match(contextAccordion, /question\.options\.map/);
 assert.match(contextAccordion, /<QuestionContent question=\{question\}/);

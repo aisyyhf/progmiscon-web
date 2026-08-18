@@ -139,12 +139,12 @@ function ReviewStepNavigation({
   if (!previous && !next) return null;
 
   const actionClass =
-    "inline-flex min-h-7 items-center gap-1 rounded px-1.5 py-1 text-[11px] font-medium leading-4 text-brand transition-colors hover:bg-brand-soft/55 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
+    "inline-flex min-h-5 items-center gap-0.5 rounded-sm text-[10px] font-medium leading-4 text-muted transition-colors hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
 
   return (
     <nav
       aria-label="Navigasi langkah review"
-      className="mb-3 flex min-h-7 items-center justify-between gap-3"
+      className="mb-0.5 flex min-h-5 items-center justify-between gap-3"
     >
       {previous ? (
         <button type="button" onClick={previous.onClick} className={actionClass}>
@@ -1974,7 +1974,7 @@ export function QuestionValidationWorkspace({
 
 
   return (
-    <div className="review-question-detail mt-6">
+    <div className="review-question-detail mt-0.5">
       <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] lg:items-start xl:gap-14">
         <article className="min-w-0">
           <ReviewStepNavigation previous={previousStep} next={nextStep} />
@@ -2728,7 +2728,7 @@ export function AnswerValidationWorkspace({
   return (
     <div className="scroll-reveal review-folder-content">
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_390px] lg:items-start">
-        <article className="review-folder-primary min-w-0 overflow-hidden rounded-lg border border-border bg-white p-5 md:p-7">
+        <article className="review-folder-primary min-w-0 overflow-hidden rounded-lg border border-border bg-white px-5 pb-5 pt-0 md:px-7 md:pb-7 md:pt-1.5">
           <ReviewStepNavigation previous={previousStep} next={nextStep} />
 
           <header className="pb-4">

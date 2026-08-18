@@ -514,10 +514,14 @@ assert.match(listSource, /onOpenQuestion\(question, "edit"\)/);
 assert.match(activePage, /mode=\{navigation\.mode\}/);
 assert.match(
   activePage,
-  /navigateToQuestionStep\([\s\S]{0,100}navigation\.mode === "review" \? activeAnswer\.id : undefined/,
+  /navigateToQuestionStep\(answerQuestion, returnAnswerForPreviousStep\)/,
 );
-assert.match(activePage, /questionReturnAnswer \?\?[\s\S]*?reviewedAnswerIds\.includes/);
-assert.match(activePage, /navigation\.mode !== "review" \|\|[\s\S]*?reviewedAnswerIds\.includes\(activeAnswer\.id\)/);
+assert.match(
+  activePage,
+  /returnAnswerForPreviousStep\s*=\s*navigation\.mode === "review"[\s\S]*?navigation\.returnAnswer \?\? activeAnswer\?\.id/,
+);
+assert.match(activePage, /getReachableAnswerReviewSequence/);
+assert.match(activePage, /navigation\.mode !== "review" \|\|[\s\S]*?reachableAnswerStepIds\.has\(nextAnswer\.id\)/);
 assert.match(activePage, /function getAnswerStepLabel[\s\S]*?option\?\.label/);
 assert.doesNotMatch(activePage, /getNavigationAfterReviewSave/);
 assert.match(activePage, /getActionableAnswerReviewSequence/);
