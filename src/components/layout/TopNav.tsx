@@ -13,14 +13,15 @@ import { NavTabs } from "../navigation/NavTabs";
 import { useNavLinks } from "../navigation/useNavLinks";
 import { useLecturerAuth } from "../../hooks/useLecturerAuth";
 import { useLanguage } from "../../hooks/useLanguage";
-import { t } from "../../utils/translation";
+import { t, uiText } from "../../utils/translation";
 import { cn } from "../../utils/cn";
 
 export function TopNav() {
   const { language } = useLanguage();
   const { isLecturer, isAdmin, profile, logout } = useLecturerAuth();
   const location = useLocation();
-  const links = useNavLinks();
+  const isAdminRoute = location.pathname === "/admin";
+  const links = useNavLinks(!isAdminRoute);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -43,7 +44,8 @@ export function TopNav() {
   const brandLink = (
     <Link
       to="/"
-      className="group inline-flex items-center gap-2.5 text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
+      aria-label="Progmiscon"
+      className="group inline-flex shrink-0 items-center gap-2.5 text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand"
     >
       <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">
         <img
@@ -59,25 +61,82 @@ export function TopNav() {
     </Link>
   );
 
-  if (location.pathname === "/") {
+  if (!isAdminRoute) {
     return (
-      <header className="sticky top-0 z-30 border-b border-border bg-white/95 backdrop-blur-md">
-        <div className="mx-auto flex min-h-16 max-w-[1240px] flex-wrap items-center gap-3 px-4 py-2 sm:flex-nowrap sm:px-6 lg:px-8">
-          {brandLink}
-          <div className="order-2 flex w-full flex-col gap-2 min-[360px]:flex-row sm:order-none sm:ml-auto sm:w-auto">
+      <header className="sticky top-0 z-30 border-b border-border bg-[var(--progmiscon-background)]/95 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-[1240px] items-center px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-7 xl:gap-9">
+            {brandLink}
+            <div className="hidden lg:block">
+              <NavTabs publicOnly />
+            </div>
+          </div>
+
+          <Link
+            to="/dosen/login"
+            className="ml-auto hidden min-h-9 items-center justify-center whitespace-nowrap rounded-md bg-brand px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand lg:inline-flex"
+          >
+            {t(uiText.navLecturerLogin, language)}
+          </Link>
+
+          <button
+            type="button"
+            onClick={() => setMenuOpen((current) => !current)}
+            aria-expanded={menuOpen}
+            aria-controls="mobile-nav-panel"
+            aria-label={
+              menuOpen
+                ? language === "id"
+                  ? "Tutup menu"
+                  : "Close menu"
+                : language === "id"
+                  ? "Buka menu"
+                  : "Open menu"
+            }
+            className="ml-auto inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-md text-black transition-colors hover:bg-neutral focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand lg:hidden"
+          >
+            {menuOpen ? (
+              <X size={20} strokeWidth={2} aria-hidden="true" />
+            ) : (
+              <Menu size={20} strokeWidth={2} aria-hidden="true" />
+            )}
+          </button>
+        </div>
+
+        <div
+          id="mobile-nav-panel"
+          inert={!menuOpen}
+          className={cn(
+            "overflow-hidden border-t border-border bg-[var(--progmiscon-background)] transition-[max-height] duration-300 ease-out lg:hidden",
+            menuOpen ? "max-h-[85vh] overflow-y-auto" : "max-h-0",
+          )}
+        >
+          <nav
+            className="flex flex-col px-4 py-2"
+            aria-label={language === "id" ? "Navigasi utama" : "Main navigation"}
+          >
+            {links.map((link) => (
+              <NavLink
+                key={link.to}
+                to={link.to}
+                className={({ isActive }) =>
+                  cn(
+                    "flex min-h-12 items-center rounded-md px-3 text-[15px] font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                    isActive ? "text-brand" : "text-black hover:bg-neutral",
+                  )
+                }
+              >
+                {t(link.label, language)}
+              </NavLink>
+            ))}
+          </nav>
+
+          <div className="border-t border-border px-4 py-4">
             <Link
               to="/dosen/login"
-              className="inline-flex min-h-10 flex-1 items-center justify-center whitespace-nowrap rounded-md bg-brand px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:flex-none sm:px-4 sm:text-sm"
+              className="inline-flex min-h-11 w-full items-center justify-center rounded-md bg-brand px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
             >
-              {language === "id" ? "Masuk sebagai Dosen" : "Lecturer Sign In"}
-            </Link>
-            <Link
-              to="/materi"
-              className="inline-flex min-h-10 flex-1 items-center justify-center whitespace-nowrap rounded-md border border-border bg-white px-3 py-2 text-xs font-semibold text-navy-deep transition-colors hover:border-brand/35 hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand sm:flex-none sm:px-4 sm:text-sm"
-            >
-              {language === "id"
-                ? "Jelajahi sebagai Pengunjung"
-                : "Explore as a Visitor"}
+              {t(uiText.navLecturerLogin, language)}
             </Link>
           </div>
         </div>

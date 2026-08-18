@@ -14,7 +14,7 @@ const lecturerLinks = [
   { to: "/review/riwayat", label: uiText.navHistory },
 ];
 
-export function useNavLinks() {
+export function useNavLinks(publicOnly = false) {
   const { isLecturer } = useLecturerAuth();
-  return isLecturer ? lecturerLinks : publicLinks;
+  return publicOnly || !isLecturer ? publicLinks : lecturerLinks;
 }
