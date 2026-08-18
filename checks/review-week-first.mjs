@@ -626,7 +626,7 @@ for (const heading of [
 assert.match(listSource, /<span>{questionColumnHeading}<\/span>/);
 assert.deepEqual(
   [...new Set(targetPageColorSource.match(/#[\da-f]{6}/gi)?.map((color) => color.toLowerCase()))].sort(),
-  ["#b09f85", "#ccbab0", "#fbfbfe"],
+  ["#b09f85", "#b6252a", "#ccbab0", "#fbfbfe"],
 );
 assert.doesNotMatch(
   targetPageColorSource,
@@ -784,6 +784,11 @@ assert.match(listSource, /onOpenQuestion\(question, "edit"\)/);
 assert.match(listSource, /<Eye/);
 assert.match(listSource, /<Pencil/);
 assert.match(listSource, /<Trash2/);
+assert.equal(
+  listSource.match(/text-\[#B6252A\]/g)?.length,
+  3,
+  "view, edit, and delete icons use the Progmiscon red",
+);
 assert.match(
   listSource,
   /\{questionStatus === "reviewed" && \([\s\S]*?<Pencil[\s\S]*?<Trash2[\s\S]*?\)\}/,

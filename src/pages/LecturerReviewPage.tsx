@@ -2638,8 +2638,9 @@ export function AnswerValidationWorkspace({
 
         </article>
 
-        <aside className="rounded-lg border border-border bg-white p-5 md:p-6">
-          <p className="text-sm font-bold uppercase tracking-[0.04em] text-navy-deep">
+        <aside className="relative rounded-xl border border-[#ccbab0] border-t-2 border-t-brand bg-white p-5 shadow-[0_18px_48px_rgba(176,159,133,0.12)] md:p-6">
+          <CircleCheckBig aria-hidden="true" strokeWidth={1.15} className="pointer-events-none absolute right-2 top-2 h-36 w-36 -rotate-6 text-brand/[0.045]" />
+          <p className="relative text-base font-semibold leading-6 tracking-[-0.01em] text-navy-deep">
             {mode === "view"
               ? language === "id"
                 ? "HASIL REVIEW JAWABAN"
@@ -2905,7 +2906,7 @@ export function AnswerValidationWorkspace({
               variant="primary"
               onClick={handleSubmit}
               disabled={submitting || deleting}
-              className="mt-4 w-full justify-center"
+              className="mt-4 w-full justify-center !font-medium"
             >
               {submitting
                 ? language === "id"
@@ -2930,7 +2931,7 @@ export function AnswerValidationWorkspace({
               variant="danger"
               onClick={handleDelete}
               disabled={deleting || submitting}
-              className="mt-2 w-full justify-center"
+              className="mt-2 w-full justify-center !font-medium"
             >
               <Trash2 size={15} strokeWidth={2} aria-hidden="true" />
               {deleting

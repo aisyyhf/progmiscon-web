@@ -717,7 +717,7 @@ function WeekQuestionList({
                             type="button"
                             aria-labelledby={viewTooltipId}
                             onClick={() => onOpenQuestion(question, "view")}
-                            className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
+                            className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
                           >
                             <Eye size={14} strokeWidth={1.9} aria-hidden="true" />
                             <ReviewActionTooltip id={viewTooltipId} label={viewActionLabel} />
@@ -728,7 +728,7 @@ function WeekQuestionList({
                                 type="button"
                                 aria-labelledby={editTooltipId}
                                 onClick={() => onOpenQuestion(question, "edit")}
-                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
+                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
                               >
                                 <Pencil size={14} strokeWidth={1.9} aria-hidden="true" />
                                 <ReviewActionTooltip id={editTooltipId} label="Edit" />
@@ -738,7 +738,7 @@ function WeekQuestionList({
                                 aria-labelledby={deleteTooltipId}
                                 disabled={withdrawingId === question.id}
                                 onClick={() => void handleWithdraw(question)}
-                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-primary-soft)] hover:text-brand disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
+                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-primary-soft)] disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
                               >
                                 <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
                                 <ReviewActionTooltip id={deleteTooltipId} label={deleteActionLabel} />

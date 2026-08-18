@@ -530,6 +530,8 @@ assert.doesNotMatch(answerWorkspace, /Belum Anda review|Not yet reviewed/);
 assert.doesNotMatch(answerWorkspace, /reviewerCountLabel|<Users size=\{14\}/);
 assert.match(answerWorkspace, /Jawaban yang sedang direview/);
 assert.match(answerWorkspace, /Lihat soal & pilihan jawaban/);
+assert.match(answerWorkspace, /rounded-xl border border-\[#ccbab0\] border-t-2 border-t-brand/);
+assert.match(answerWorkspace, /<CircleCheckBig/);
 assert.match(answerWorkspace, /<ReviewStepNavigation previous=\{previousStep\} next=\{nextStep\} \/>/);
 assert.doesNotMatch(answerWorkspace, /<SiblingNavigator/);
 assert.doesNotMatch(answerWorkspace, /parentReference|siblingAnswerIds|activeIndex/);

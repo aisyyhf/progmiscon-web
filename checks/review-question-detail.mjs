@@ -105,6 +105,12 @@ assert.match(
   /grid-cols-\[minmax\(0,1\.65fr\)_minmax\(22rem,1fr\)\]/,
 );
 assert.match(answerWorkspace, /<article className="min-w-0">/);
+assert.match(
+  answerWorkspace,
+  /<aside className="relative rounded-xl border border-\[#ccbab0\] border-t-2 border-t-brand/,
+);
+assert.match(answerWorkspace, /<CircleCheckBig[\s\S]*?right-2 top-2 h-36 w-36 -rotate-6/);
+assert.match(answerWorkspace, /relative text-base font-semibold leading-6 tracking-\[-0\.01em\]/);
 assert.doesNotMatch(questionWorkspace, /lg:sticky|lg:max-h-|lg:overflow-y-auto|thin-scroll/);
 assert.match(questionWorkspace, /REVIEW MISKONSEPSI SOAL/);
 assert.doesNotMatch(questionWorkspace, /Navigasi soal review|Sebelumnya|Berikutnya/);
