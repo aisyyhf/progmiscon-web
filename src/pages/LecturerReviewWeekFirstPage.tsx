@@ -78,6 +78,7 @@ import {
   getActionableAnswerReviewSequence,
   getCompositeReviewedQuestionIds,
   getNextUnreviewedAnswerId,
+  getReachableAnswerReviewSequence,
   resolveAnswerSelection,
   stripSelectedOptionPrefix,
 } from "../utils/reviewWorkspace";
@@ -1788,19 +1789,19 @@ export function LecturerReviewPage({
 
   const questionStepSequence =
     navigation.mode === "review"
-      ? questionAnswerReviewSequence
+      ? getReachableAnswerReviewSequence(
+          questionAnswerReviewSequence,
+          reviewedAnswerIds,
+          navigation.returnAnswer,
+        )
       : questionAnswerReviewSequence.filter(({ id }) =>
           reviewedAnswerIds.includes(id),
         );
-  const questionReturnAnswer = questionStepSequence.find(
-    ({ id }) => id === navigation.returnAnswer,
-  );
   const questionNextAnswer =
     activeQuestion?.type === "multiple_choice"
       ? navigation.mode === "review"
         ? activeQuestionReviewedByMe
-          ? questionReturnAnswer ??
-            questionStepSequence.find(({ id }) => reviewedAnswerIds.includes(id))
+          ? questionStepSequence[0]
           : undefined
         : questionStepSequence[0]
       : undefined;
@@ -1813,10 +1814,20 @@ export function LecturerReviewPage({
             questionStepSequence.findIndex(({ id }) => id === questionNextAnswer.id),
             language,
           ),
-          onClick: () => navigateToAnswerStep(questionNextAnswer),
+          onClick: () =>
+            navigateToAnswerStep(
+              questionNextAnswer,
+              navigation.mode === "review"
+                ? navigation.returnAnswer
+                : undefined,
+            ),
         }
       : undefined;
 
+  const returnAnswerForPreviousStep =
+    navigation.mode === "review"
+      ? navigation.returnAnswer ?? activeAnswer?.id
+      : undefined;
   const previousAnswer =
     answerSequenceIndex > 0
       ? displayedAnswerSequence[answerSequenceIndex - 1]
@@ -1833,27 +1844,25 @@ export function LecturerReviewPage({
               language,
             ),
             onClick: () =>
-              navigateToAnswerStep(
-                previousAnswer,
-                navigation.mode === "review" ? activeAnswer.id : undefined,
-              ),
+              navigateToAnswerStep(previousAnswer, returnAnswerForPreviousStep),
           }
         : {
             label: language === "id" ? "Kembali ke soal" : "Back to question",
             onClick: () =>
-              navigateToQuestionStep(
-                answerQuestion,
-                navigation.mode === "review" ? activeAnswer.id : undefined,
-              ),
+              navigateToQuestionStep(answerQuestion, returnAnswerForPreviousStep),
           }
       : undefined;
+  const reachableAnswerStepIds = new Set(
+    getReachableAnswerReviewSequence(
+      answerReviewSequence,
+      reviewedAnswerIds,
+      navigation.returnAnswer ?? activeAnswer?.id,
+    ).map(({ id }) => id),
+  );
   const answerNextIsReachable = Boolean(
     nextAnswer &&
       (navigation.mode !== "review" ||
-        (activeAnswer &&
-          reviewedAnswerIds.includes(activeAnswer.id) &&
-          (reviewedAnswerIds.includes(nextAnswer.id) ||
-            navigation.returnAnswer === nextAnswer.id))),
+        reachableAnswerStepIds.has(nextAnswer.id)),
   );
   const answerNextStep =
     activeAnswer && answerQuestion && nextAnswer && answerNextIsReachable

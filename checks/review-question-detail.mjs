@@ -65,6 +65,10 @@ const completionDialog = activePage.slice(
   activePage.indexOf("function ReviewCompletionDialog"),
   activePage.indexOf("function WeekOverview"),
 );
+const stepNavigation = workspacePage.slice(
+  workspacePage.indexOf("function ReviewStepNavigation"),
+  workspacePage.indexOf("function reviewValidationMessage"),
+);
 
 assert.ok(questionDetailStart >= 0 && questionDetailEnd > questionDetailStart);
 assert.match(questionDetail, /<ReviewBreadcrumb/);
@@ -87,8 +91,20 @@ assert.doesNotMatch(
   /<article className="[^"]*(?:review-folder-primary|rounded-lg border border-border bg-white)/,
 );
 assert.match(questionWorkspace, /<QuestionContent question=\{question\} \/>/);
-assert.match(questionWorkspace, /review-question-detail mt-6/);
+assert.match(questionWorkspace, /className="review-question-detail"/);
 assert.doesNotMatch(questionWorkspace, /review-question-detail mt-6 md:mt-10/);
+assert.match(
+  stepNavigation,
+  /h-\[22px\][\s\S]*?border border-border bg-white px-2 text-\[11px\] font-medium leading-4 text-navy-deep/,
+);
+assert.match(stepNavigation, /flex min-h-\[22px\] items-center justify-between/);
+assert.match(stepNavigation, /hover:border-navy\/25 hover:bg-neutral/);
+assert.doesNotMatch(stepNavigation, /text-brand|bg-brand|border-brand/);
+assert.match(
+  answerWorkspace,
+  /px-5 pb-5 pt-0 md:px-7 md:pb-7 md:pt-1\.5/,
+  "the compact step row must reuse the card's former top-padding space",
+);
 assert.doesNotMatch(questionWorkspace, /lg:sticky|lg:max-h-|lg:overflow-y-auto|thin-scroll/);
 assert.match(questionWorkspace, /REVIEW MISKONSEPSI SOAL/);
 assert.doesNotMatch(questionWorkspace, /Navigasi soal review|Sebelumnya|Berikutnya/);
@@ -231,6 +247,7 @@ assert.match(completionDialog, /mx-auto flex h-9 w-9/);
 assert.match(completionDialog, /className="mt-5 w-full justify-center"/);
 assert.match(activePage, /getActionableAnswerReviewSequence/);
 assert.match(activePage, /getNextUnreviewedAnswerId/);
+assert.match(activePage, /getReachableAnswerReviewSequence/);
 assert.match(activePage, /confirmedQuestionReviewIds/);
 assert.match(activePage, /confirmedAnswerReviewIds/);
 assert.match(activePage, /pendingNavigation \?\?/);
@@ -242,6 +259,21 @@ assert.match(
   "Review mode continues a prefilled partial MP while explicit Edit mode stays put",
 );
 assert.match(activePage, /returnAnswerId \?\?\s*getNextUnreviewedAnswerId/);
+assert.match(
+  activePage,
+  /returnAnswerForPreviousStep\s*=\s*navigation\.mode === "review"[\s\S]*?navigation\.returnAnswer \?\? activeAnswer\?\.id/,
+  "the active unfinished answer target survives B to A to Question navigation",
+);
+assert.match(
+  activePage,
+  /navigateToAnswerStep\(\s*questionNextAnswer,[\s\S]{0,160}navigation\.returnAnswer/,
+  "Question to A preserves the active return target needed to reach B again",
+);
+assert.match(
+  activePage,
+  /getReachableAnswerReviewSequence\([\s\S]{0,180}reviewedAnswerIds[\s\S]{0,180}navigation\.returnAnswer \?\? activeAnswer\?\.id/,
+  "Review navigation derives its reachable prefix from persisted answers plus the active unfinished target",
+);
 assert.match(activePage, /mode: navigation\.mode/);
 assert.match(activePage, /previousStep=\{answerPreviousStep\}/);
 assert.match(activePage, /nextStep=\{answerNextStep\}/);

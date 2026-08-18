@@ -104,6 +104,24 @@ export function getNextUnreviewedAnswerId(
   return ordered.find(({ id }) => !reviewed.has(id))?.id;
 }
 
+export function getReachableAnswerReviewSequence<
+  T extends Pick<StudentAnswer, "id">,
+>(
+  sequence: readonly T[],
+  reviewedAnswerIds: readonly string[],
+  activeAnswerId?: string,
+): T[] {
+  const reviewed = new Set(reviewedAnswerIds);
+  const reachable: T[] = [];
+
+  for (const answer of sequence) {
+    if (!reviewed.has(answer.id) && answer.id !== activeAnswerId) break;
+    reachable.push(answer);
+  }
+
+  return reachable;
+}
+
 export function isCompositeQuestionReviewComplete(
   question: Pick<Question, "id" | "type">,
   answers: readonly StudentAnswer[],
