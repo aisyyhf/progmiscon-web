@@ -81,6 +81,17 @@ assert.equal(
   weekSummaries.find(({ week }) => week === "W05-06")?.isComplete,
   true,
 );
+assert.deepEqual(
+  getReviewWeekSummaries(
+    [question("PARTIAL-MP", "multiple_choice", "W02")],
+    [],
+    new Map([["PARTIAL-MP", 3]]),
+    3,
+    ["PARTIAL-MP"],
+  )[0],
+  { week: "W02", total: 1, completed: 0, isComplete: false },
+  "a partial MP workflow remains incomplete even when the question cap is full",
+);
 
 const searchableQuestions = questions.map((item, index) => ({
   ...item,
@@ -111,6 +122,37 @@ assert.equal(getWeekReviewQuestionStatus("unreviewed-at-2", reviewedStatusIds, s
 assert.equal(getWeekReviewQuestionStatus("reviewed-at-1", reviewedStatusIds, statusCounts, 3), "reviewed");
 assert.equal(getWeekReviewQuestionStatus("reviewed-at-3", reviewedStatusIds, statusCounts, 3), "reviewed");
 assert.equal(getWeekReviewQuestionStatus("full-at-3", reviewedStatusIds, statusCounts, 3), "full");
+const primaryStatus = ({ completed = false, started = false, count }) =>
+  getWeekReviewQuestionStatus(
+    "target",
+    new Set(completed ? ["target"] : []),
+    new Map([["target", count]]),
+    3,
+    new Set(started ? ["target"] : []),
+  );
+assert.deepEqual(
+  {
+    noParticipationAt0: primaryStatus({ count: 0 }),
+    noParticipationAt2: primaryStatus({ count: 2 }),
+    noParticipationAt3: primaryStatus({ count: 3 }),
+    completedPsAt3: primaryStatus({ completed: true, count: 3 }),
+    completedMpAt3: primaryStatus({ completed: true, started: true, count: 3 }),
+    partialMpAt3: primaryStatus({ started: true, count: 3 }),
+    withdrawnAt3: primaryStatus({ count: 3 }),
+    withdrawnAt2: primaryStatus({ count: 2 }),
+  },
+  {
+    noParticipationAt0: "unreviewed",
+    noParticipationAt2: "unreviewed",
+    noParticipationAt3: "full",
+    completedPsAt3: "reviewed",
+    completedMpAt3: "reviewed",
+    partialMpAt3: "unreviewed",
+    withdrawnAt3: "full",
+    withdrawnAt2: "unreviewed",
+  },
+  "primary status keeps completion, ownership, and the reviewer cap distinct",
+);
 assert.equal(
   getWeekReviewQuestionStatus(
     "full-at-3",
@@ -186,6 +228,22 @@ assert.deepEqual(
   ["W02-MP-40"],
   "a started but composite-incomplete row stays in Belum direview even at question cap",
 );
+for (const status of ["reviewed", "full"]) {
+  assert.deepEqual(
+    filterWeekReviewQuestions(searchableQuestions, {
+      week: "W02",
+      query: "W02-MP-40",
+      type: "mp",
+      status,
+      reviewedQuestionIds: [],
+      startedQuestionIds: ["W02-MP-40"],
+      questionCounts: searchableQuestionCounts,
+      reviewerThreshold: 3,
+    }),
+    [],
+    `a partial MP task must not also appear under ${status}`,
+  );
+}
 
 assert.equal(REVIEW_NAVIGATION_SESSION_KEY.endsWith(".v2"), true);
 assert.equal(getDefaultReviewWeek(questions), "W02");
@@ -494,6 +552,21 @@ const app = await readFile(
 );
 assert.match(app, /LecturerReviewWeekFirstPage/);
 assert.match(activePage, /REVIEW_NAVIGATION_SESSION_KEY/);
+assert.doesNotMatch(
+  activePage,
+  /reviewedQuestionIds: reviewedQuestionStepIds/,
+  "Primary Review queues must use composite completion IDs",
+);
+assert.match(
+  activePage,
+  /reviewedQuestionIds=\{reviewedQuestionIds\}[\s\S]{0,120}startedQuestionIds=\{reviewedQuestionStepIds\}/,
+  "The Week list keeps completed and started question IDs separate",
+);
+assert.match(
+  activePage,
+  /const activeQuestionReviewedByMe = activeQuestion[\s\S]{0,100}reviewedQuestionStepIds\.includes\(activeQuestion\.id\)/,
+  "Cap bypass remains based on personal question ownership",
+);
 assert.match(activePage, /serializeReviewNavigationSearch\(navigation\)/);
 assert.match(activePage, /replace: true/);
 assert.match(activePage, /options: \{ replace\?: boolean \}/);
