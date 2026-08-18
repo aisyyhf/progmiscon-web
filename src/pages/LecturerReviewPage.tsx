@@ -62,7 +62,8 @@ import {
 import { QuestionContent } from "../components/review/QuestionContent";
 import { PsAnswerEvidenceWorkspace } from "../components/review/PsAnswerEvidenceWorkspace";
 import { QuestionContextAccordion } from "../components/review/AnswerWorkspaceNavigation";
-import { MisconceptionReasonCards } from "../components/review/MisconceptionReasonCards";
+import { StructuredEvidenceList } from "../components/review/StructuredEvidenceList";
+import { getMaterialQuestionIdentifier } from "../utils/materialQuestionFilters";
 import {
   classifyReviewItems,
   filterEligibleAnswerReviewCounts,
@@ -71,12 +72,12 @@ import {
   getReviewProgress,
   isAnswerReviewEligible,
   resolveAnswerSelection,
-  stripSelectedOptionPrefix,
   type ReviewWorkspace,
 } from "../utils/reviewWorkspace";
 import {
   REVIEW_SESSION_STORAGE_KEY,
   createDefaultReviewSessionState,
+  getEvidenceAnswersForQuestion,
   getAnswersForQuestion,
   getPairedWorkspace,
   normalizeReviewSessionState,
@@ -1523,7 +1524,6 @@ export function LegacyLecturerReviewPage({
                       : "answer-ps"
                   ]
                 }
-                answerTaskById={answerTaskById}
                 misconceptions={misconceptions}
                 locked={activeQuestionLocked}
                 progressUnavailable={
@@ -1646,6 +1646,7 @@ export function LegacyLecturerReviewPage({
                 task={answerTask}
                 question={answerQuestion}
                 answer={activeAnswer}
+                evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
                 siblingAnswerIds={(activeItems as StudentAnswer[]).map(
                   (item) => item.id,
                 )}
@@ -1811,7 +1812,6 @@ function ReviewProgressUnavailableNotice() {
 export function QuestionValidationWorkspace({
   question,
   answers,
-  answerTaskById,
   misconceptions,
   locked,
   progressUnavailable,
@@ -1827,7 +1827,6 @@ export function QuestionValidationWorkspace({
 }: {
   question: Question;
   answers: StudentAnswer[];
-  answerTaskById: Map<string, ReviewTask>;
   misconceptions: Misconception[];
   locked: boolean;
   progressUnavailable: boolean;
@@ -1845,7 +1844,7 @@ export function QuestionValidationWorkspace({
   const questionTitle =
     t(question.title, language).trim() ||
     `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
-  const questionCode = question.sourceCode?.trim() || question.id;
+  const questionCode = getMaterialQuestionIdentifier(question);
   const displayQuestionCode = `#${questionCode.replace(/^#/, "")}`;
   const questionRemovalProposalIds = getQuestionRemovalProposalIds(
     question.questionMisconceptionIds,
@@ -1865,8 +1864,7 @@ export function QuestionValidationWorkspace({
     addableMisconceptions,
     recommended.flatMap((item) => item.relatedMisconceptionIds),
   );
-  const relatedAnswers = getAnswersForQuestion(question.id, answers);
-  const answerReviewEligible = isAnswerReviewEligible(question);
+  const relatedEvidence = getEvidenceAnswersForQuestion(question.id, answers);
   const savedForm = useMemo(
     () => questionReviewFormState(submittedReview),
     [submittedReview],
@@ -2096,19 +2094,19 @@ export function QuestionValidationWorkspace({
             )}
           </section>
 
-          {!answerReviewEligible && (
+          {relatedEvidence.length > 0 && (
             <section
               className="mt-6 border-t border-border pt-5"
-              aria-labelledby="related-answers-title"
+              aria-labelledby="question-evidence-title"
             >
-            <details className="group/evidence">
-              <summary
-                  id="related-answers-title"
+              <details className="group/evidence">
+                <summary
+                  id="question-evidence-title"
                   className="flex min-h-9 w-fit cursor-pointer list-none items-center gap-2 rounded-md border border-[#ccbab0] bg-[var(--review-page)] px-3 py-2 text-xs font-medium leading-5 text-black transition-[background-color,border-color,color] duration-150 hover:border-[#b09f85] hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand [&::-webkit-details-marker]:hidden"
                 >
                   {language === "id" ? "Lihat evidence" : "View evidence"}
                   <span className="tabular-nums text-muted">
-                    ({relatedAnswers.length})
+                    ({relatedEvidence.length})
                   </span>
                   <ChevronDown
                     size={14}
@@ -2116,117 +2114,14 @@ export function QuestionValidationWorkspace({
                     aria-hidden="true"
                     className="transition-transform duration-150 group-open/evidence:rotate-180"
                   />
-              </summary>
-
-              <div className="review-evidence-disclosure">
-            {relatedAnswers.length > 0 ? (
-              <ul className="mt-3 grid min-w-0 gap-3">
-                {relatedAnswers.map((answer) => {
-                  const { option, fallbackText } = resolveAnswerSelection(
-                    question,
-                    answer,
-                  );
-                  const optionLabel = option?.label;
-                  const answerText = option
-                    ? t(option.text, language)
-                    : stripSelectedOptionPrefix(fallbackText, optionLabel);
-                  const answerReviewStatus = "Evidence";
-                  const task = answerTaskById.get(answer.id);
-                  const linkedMisconceptions = prioritizeMisconceptions(
-                    misconceptions,
-                    [
-                      ...(option
-                        ? getQuestionOptionMisconceptionIds(option)
-                        : []),
-                      ...(task?.suggestedMisconceptionId
-                        ? [task.suggestedMisconceptionId]
-                        : []),
-                      ...answer.studentMisconceptionIds,
-                    ],
-                  );
-                  const snippet =
-                    fallbackText.length > 240
-                      ? `${fallbackText.slice(0, 240)}...`
-                      : fallbackText;
-
-                  return (
-                    <li
-                      key={answer.id}
-                      className="flex min-w-0 flex-col rounded-r-lg border border-border border-l-2 border-l-brand/45 bg-white p-4"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="text-xs font-normal leading-[18px] text-muted">
-                          {optionLabel
-                            ? `${language === "id" ? "Opsi" : "Option"} ${optionLabel}`
-                            : language === "id"
-                              ? "Jawaban"
-                              : "Answer"}
-                        </p>
-                        <span
-                          className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium tracking-[0.04em] text-muted"
-                        >
-                          <span
-                            aria-hidden="true"
-                            className="h-1.5 w-1.5 rounded-full bg-muted/55"
-                          />
-                          {answerReviewStatus}
-                        </span>
-                      </div>
-
-                      {question.type === "multiple_choice" ? (
-                        <p className="mt-3 break-words rounded bg-neutral/70 px-3 py-2.5 text-xs font-normal leading-5 text-navy-deep">
-                          {answerText ||
-                              (language === "id"
-                                ? "Teks jawaban tidak tersedia."
-                                : "Answer text is unavailable.")}
-                        </p>
-                      ) : (
-                        <pre className="mt-3 max-h-32 overflow-auto whitespace-pre-wrap break-words rounded-md border border-[#ccbab0]/70 bg-[var(--review-secondary-soft)] p-3 font-mono text-xs leading-5 text-black">
-                          {snippet ||
-                            (language === "id"
-                              ? "Teks jawaban tidak tersedia."
-                              : "Answer text is unavailable.")}
-                        </pre>
-                      )}
-
-                      {linkedMisconceptions.length > 0 && (
-                        <div className="mt-4 border-t border-border pt-4">
-                          <MisconceptionReasonCards
-                            misconceptions={linkedMisconceptions}
-                            mappedReasons={[
-                              ...(answer.misconceptionReasons ?? []).map((item) => ({
-                                misconceptionId: item.misconceptionId,
-                                reasons: [item.reason],
-                              })),
-                              ...(answer.evidenceReasons ?? []).map((item) => ({
-                                misconceptionId: item.misconceptionId,
-                                reasons: [item.reason],
-                              })),
-                              ...(task?.suggestedMisconceptionId
-                                ? [{
-                                    misconceptionId: task.suggestedMisconceptionId,
-                                    reasons: [task.explanation],
-                                  }]
-                                : []),
-                            ]}
-                            generalReasons={answer.explanation ? [answer.explanation] : []}
-                          />
-                        </div>
-                      )}
-
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="mt-2 text-xs leading-5 text-muted">
-                {language === "id"
-                  ? "Belum ada jawaban terkait untuk soal ini"
-                  : "There are no related answers for this question"}
-              </p>
-            )}
-              </div>
-            </details>
+                </summary>
+                <div className="review-evidence-disclosure">
+                  <StructuredEvidenceList
+                    answers={relatedEvidence}
+                    misconceptions={misconceptions}
+                  />
+                </div>
+              </details>
             </section>
           )}
         </article>
@@ -2545,6 +2440,7 @@ export function AnswerValidationWorkspace({
   task,
   question,
   answer,
+  evidenceAnswers = [],
   siblingAnswerIds,
   activeIndex,
   misconceptions,
@@ -2563,6 +2459,7 @@ export function AnswerValidationWorkspace({
   task?: ReviewTask;
   question: Question;
   answer: StudentAnswer;
+  evidenceAnswers?: StudentAnswer[];
   siblingAnswerIds: string[];
   activeIndex: number;
   misconceptions: Misconception[];
@@ -2592,7 +2489,6 @@ export function AnswerValidationWorkspace({
       ? [task.suggestedMisconceptionId]
       : []),
     ...answer.studentMisconceptionIds,
-    ...(answer.evidenceReasons ?? []).map((item) => item.misconceptionId),
   ]);
   const addableMisconceptions = getAdditionalMisconceptionCandidates(
     misconceptions,
@@ -2628,25 +2524,7 @@ export function AnswerValidationWorkspace({
     ? getMisconceptionReviewFormErrors(form)
     : {};
   const formDirty = isMisconceptionReviewFormDirty(form, savedForm);
-  const parentReference = /^q/i.test(question.number)
-    ? question.number
-    : `Q${question.number || question.id}`;
-  const mappedReasons = [
-    ...(answer.misconceptionReasons ?? []).map((item) => ({
-      misconceptionId: item.misconceptionId,
-      reasons: [item.reason],
-    })),
-    ...(answer.evidenceReasons ?? []).map((item) => ({
-      misconceptionId: item.misconceptionId,
-      reasons: [item.reason],
-    })),
-    ...(task?.suggestedMisconceptionId
-      ? [{
-          misconceptionId: task.suggestedMisconceptionId,
-          reasons: [task.explanation],
-        }]
-      : []),
-  ];
+  const parentReference = `#${getMaterialQuestionIdentifier(question).replace(/^#/, "")}`;
   useEffect(() => {
     onDirtyChange(formDirty);
     return () => onDirtyChange(false);
@@ -2738,6 +2616,9 @@ export function AnswerValidationWorkspace({
             <h1 className="mt-1.5 text-lg font-semibold leading-7 text-navy-deep">
               {t(question.title, language)}
             </h1>
+            <p className="mt-0.5 font-mono text-[11px] font-normal text-muted">
+              {parentReference}
+            </p>
             <p className="mt-1 text-xs font-medium tabular-nums text-muted">
               {language === "id"
                 ? `Jawaban ${activeIndex + 1} dari ${siblingAnswerIds.length}`
@@ -2833,16 +2714,15 @@ export function AnswerValidationWorkspace({
             </QuestionContextAccordion>
           </div>
 
-          {(linkedMisconceptions.length > 0 || mappedReasons.length > 0 || answer.explanation) && (
+          {evidenceAnswers.length > 0 && (
             <div className="mt-3">
               <QuestionContextAccordion
                 id={`mp-answer-evidence-${answer.id}`}
-                label={language === "id" ? "Lihat evidence" : "View evidence"}
+                label={`${language === "id" ? "Lihat evidence" : "View evidence"} (${evidenceAnswers.length})`}
               >
-                <MisconceptionReasonCards
-                  misconceptions={linkedMisconceptions}
-                  mappedReasons={mappedReasons}
-                  generalReasons={answer.explanation ? [answer.explanation] : []}
+                <StructuredEvidenceList
+                  answers={evidenceAnswers}
+                  misconceptions={misconceptions}
                 />
               </QuestionContextAccordion>
             </div>

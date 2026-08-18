@@ -15,11 +15,11 @@ const emptyPsQuestion = { id: "Q-EMPTY", type: "short_answer", number: "2" };
 const mpQuestion = { id: "Q-MP", type: "multiple_choice", number: "3" };
 const questions = [psQuestion, emptyPsQuestion, mpQuestion];
 const answers = [
-  { id: "PS-1", questionId: "Q-PS", studentId: "student-1" },
-  { id: "MP-1", questionId: "Q-MP", studentId: "student-2" },
-  { id: "PS-2", questionId: "Q-PS", studentId: "student-3" },
-  { id: "PS-NON-EVIDENCE", questionId: "Q-PS", studentId: "student-5", isEvidence: false },
-  { id: "OTHER", questionId: "Q-OTHER", studentId: "student-4" },
+  { id: "PS-1", questionId: "Q-PS", studentId: "student-1", answerRole: "evidence" },
+  { id: "MP-1", questionId: "Q-MP", studentId: "student-2", answerRole: "mp_option" },
+  { id: "PS-2", questionId: "Q-PS", studentId: "student-3", answerRole: "evidence" },
+  { id: "PS-NON-EVIDENCE", questionId: "Q-PS", studentId: "student-5", answerRole: "ps_reference" },
+  { id: "OTHER", questionId: "Q-OTHER", studentId: "student-4", answerRole: "evidence" },
 ];
 
 assert.equal(getAnswerWorkspaceForQuestion(psQuestion), "answer-ps");
@@ -76,6 +76,13 @@ const evidence = await readFile(
   ),
   "utf8",
 );
+const structuredEvidence = await readFile(
+  new URL(
+    "../src/components/review/StructuredEvidenceList.tsx",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const persistence = await readFile(
   new URL("../src/services/reviewPersistenceRepository.ts", import.meta.url),
   "utf8",
@@ -104,8 +111,12 @@ assert.match(evidence, /answers\[activeIndex - 1\]\.id/);
 assert.match(evidence, /answers\[activeIndex \+ 1\]\.id/);
 assert.match(evidence, /<QuestionContextAccordion/);
 assert.match(evidence, /<QuestionContent question=\{question\}/);
-assert.match(evidence, /Evidence provenance/);
-assert.match(evidence, /<MisconceptionReasonCards/);
+assert.match(evidence, /<StructuredEvidenceList/);
+assert.match(structuredEvidence, /Nama siswa/);
+assert.match(structuredEvidence, /Jawaban siswa/);
+assert.match(structuredEvidence, /Miskonsepsi/);
+assert.match(structuredEvidence, /Penjelasan/);
+assert.doesNotMatch(evidence, /Evidence provenance|<MisconceptionReasonCards/);
 assert.doesNotMatch(evidence, /<select|Source key|Kunci sumber/);
 assert.doesNotMatch(evidence, /Form validasi jawaban|Save Review|Submit Review/);
 

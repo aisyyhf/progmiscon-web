@@ -15,6 +15,8 @@ import { loadCsv } from "./csvClient";
 import { isActiveValue, validateMasterData } from "../utils/masterDataValidation";
 import {
   buildQuestionOptions,
+  getQuestionDisplayCode,
+  normalizeAnswerRole,
   normalizeQuestionType,
   normalizeWeek,
   selectedOptionIdForAnswer,
@@ -27,11 +29,12 @@ import {
 import { createInvalidatablePromiseCache } from "../utils/invalidatablePromiseCache";
 import { getPublishedMasterOverrides } from "./publishedOverrideRepository";
 import {
-  buildLocalizedReasonMap,
   buildQuestionContentBlocks,
-  buildSampleCases,
+  buildQuestionSampleCases,
   isDummyData,
-  parseDelimitedIds,
+  parseQuestionOptions,
+  parseStringArray,
+  suppressDuplicateIoDescriptions,
 } from "../utils/masterDataContent";
 
 export const EFFECTIVE_MASTER_DATA_INVALIDATED =
@@ -134,14 +137,6 @@ export async function getSheetCategories(): Promise<Category[]> {
     .sort((a, b) => a.order - b.order);
 }
 
-function promptWithCode(questionText: string, questionCode: string): string {
-  const prompt = text(questionText);
-  const code = text(questionCode);
-  if (!code) return prompt;
-  if (!prompt) return code;
-  return `${prompt}\n\n${code}`;
-}
-
 export async function getSheetQuestions(): Promise<Question[]> {
   const data = await getMasterData();
   const categories = await getSheetCategories();
@@ -150,6 +145,7 @@ export async function getSheetQuestions(): Promise<Question[]> {
   const questionMisconceptionMap =
     buildEffectiveQuestionMisconceptionMap(data);
   const answersByQuestion = new Map<string, AnswerRow[]>();
+  const evidenceCountByQuestion = new Map<string, number>();
   const answerMisconceptionMap = new Map<string, string[]>();
 
   for (const relation of data.questionTopics) {
@@ -162,6 +158,14 @@ export async function getSheetQuestions(): Promise<Question[]> {
   for (const answer of data.answers) {
     if (!isActiveValue(answer.active)) continue;
     const questionId = text(answer.question_id);
+    const role = normalizeAnswerRole(answer.answer_role);
+    if (role === "evidence") {
+      evidenceCountByQuestion.set(
+        questionId,
+        (evidenceCountByQuestion.get(questionId) ?? 0) + 1,
+      );
+    }
+    if (role !== "mp_option") continue;
     const current = answersByQuestion.get(questionId) ?? [];
     current.push(answer);
     answersByQuestion.set(questionId, current);
@@ -213,7 +217,35 @@ export async function getSheetQuestions(): Promise<Question[]> {
         text(row.title_ind) || text(row.title_en)
           ? localized(row.title_ind, row.title_en)
           : codeExample(titleFallback);
-      const sampleCases = buildSampleCases(row.sample_inputs, row.sample_outputs);
+      const sampleCases = buildQuestionSampleCases(
+        row.test_cases_json,
+        row.sample_inputs,
+        row.sample_outputs,
+      );
+      const inputDescription = localized(
+        row.input_description_ind ?? "",
+        row.input_description_en ?? "",
+      );
+      const outputDescription = localized(
+        row.output_description_ind ?? "",
+        row.output_description_en ?? "",
+      );
+      const parsedOptions = parseQuestionOptions(
+        row.options_json,
+        row.correct_option_label,
+      );
+      const evidenceCount = evidenceCountByQuestion.get(questionId) ?? 0;
+      const contentBlocks = (language: "id" | "en") =>
+        suppressDuplicateIoDescriptions(
+          buildQuestionContentBlocks(
+            language === "id" ? row.content_blocks_ind : row.content_blocks_en,
+            language === "id" ? row.question_ind : row.question_en,
+            "",
+            sampleCases,
+          ),
+          language === "id" ? inputDescription.id : inputDescription.en,
+          language === "id" ? outputDescription.id : outputDescription.en,
+        );
 
       return {
         id: questionId,
@@ -229,25 +261,36 @@ export async function getSheetQuestions(): Promise<Question[]> {
         sourceSystem: text(row.source_system) || null,
         sourceKey: text(row.source_key) || null,
         sourceCode: text(row.source_code) || null,
+        displayCode: getQuestionDisplayCode(row),
+        lmsQuestionId: text(row.lms_question_id) || null,
+        probeNo: text(row.probe_no) || null,
+        targetMisconceptionId: text(row.target_misconception_id) || null,
         level: text(row.level) || null,
         type,
         questionInd: text(row.question_ind),
         questionEn: text(row.question_en),
         questionCode: text(row.question_code),
-        prompt: localized(
-          promptWithCode(row.question_ind, row.question_code),
-          promptWithCode(row.question_en, row.question_code),
-        ),
+        prompt: localized(row.question_ind, row.question_en),
         contentBlocks: {
-          id: buildQuestionContentBlocks(row.content_blocks_ind, row.question_ind, row.question_code, sampleCases),
-          en: buildQuestionContentBlocks(row.content_blocks_en, row.question_en, row.question_code, sampleCases),
+          id: contentBlocks("id"),
+          en: contentBlocks("en"),
         },
+        inputDescription:
+          inputDescription.id || inputDescription.en ? inputDescription : undefined,
+        outputDescription:
+          outputDescription.id || outputDescription.en ? outputDescription : undefined,
+        ioContentType: text(row.io_content_type) || null,
         sampleCases,
+        correctOptionLabel: text(row.correct_option_label) || null,
+        evidenceAvailable: evidenceCount > 0,
+        evidenceCount,
         expectedConcepts: expectedConcepts.length > 0 ? expectedConcepts : [categoryMap.get(categoryId)!.name],
         ...misconceptionProvenance,
         options:
           type === "multiple_choice"
-            ? buildQuestionOptions(answersByQuestion.get(questionId) ?? [], answerMisconceptionMap)
+            ? parsedOptions.options.length > 0
+              ? parsedOptions.options
+              : buildQuestionOptions(answersByQuestion.get(questionId) ?? [], answerMisconceptionMap)
             : undefined,
       };
     })
@@ -281,6 +324,7 @@ export async function getSheetMisconceptions(): Promise<Misconception[]> {
       const description = localized(usable(row.description_ind), usable(row.description_en));
       const correction = localized(usable(row.correction_ind), usable(row.correction_en));
       const commonCause = localized(usable(row.common_cause_ind), usable(row.common_cause_en));
+      const rationale = localized(usable(row.rationale_ind), "");
       const wrongExample = usable(row.wrong_example);
       const correctExample = usable(row.correct_example);
       const visibleDescription = description.id || description.en ? description : unavailable();
@@ -296,6 +340,8 @@ export async function getSheetMisconceptions(): Promise<Misconception[]> {
         hasCorrectExample: Boolean(correctExample),
         fix: correction.id || correction.en ? correction : unavailable(),
         cause: commonCause.id || commonCause.en ? commonCause : unavailable(),
+        rationale: rationale.id || rationale.en ? rationale : undefined,
+        rationaleSource: text(row.rationale_source) || null,
         pattern: [],
         value: visibleDescription,
         relatedMisconceptionIds: [...(relatedMisconceptionMap.get(misconceptionId) ?? [])],
@@ -342,9 +388,18 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
     string,
     { misconceptionIds: string[]; reasons: LocalizedText[]; mappedReasons: Array<{ misconceptionId: string; reason: LocalizedText }> }
   >();
+  const answerRoleById = new Map(
+    data.answers.map((row) => [
+      text(row.answer_id),
+      normalizeAnswerRole(row.answer_role),
+    ]),
+  );
 
   for (const relation of data.answerMisconceptions) {
-    if (!isActiveValue(relation.active)) continue;
+    if (
+      !isActiveValue(relation.active) ||
+      answerRoleById.get(text(relation.answer_id)) !== "mp_option"
+    ) continue;
 
     const answerId = text(relation.answer_id);
     const current = relationsByAnswer.get(answerId) ?? {
@@ -368,6 +423,7 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
     .filter(
       (row) =>
         isActiveValue(row.active) &&
+        normalizeAnswerRole(row.answer_role) !== null &&
         questionTypeMap.has(text(row.question_id)),
     )
     .sort((a, b) => {
@@ -386,13 +442,20 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
     .map((row) => {
       const answerId = text(row.answer_id);
       const questionId = text(row.question_id);
+      const answerRole = normalizeAnswerRole(row.answer_role)!;
       const relation = relationsByAnswer.get(answerId);
       const status = text(row.status).toLowerCase() as StudentAnswer["status"];
 
-      const fallbackExplanation = localized(
-        row.explanation_ind,
-        row.explanation_en,
-      );
+      const fallbackExplanation = answerRole === "evidence"
+        ? localized(
+            row.evidence_explanation_ind ?? row.explanation_ind,
+            row.evidence_explanation_en ?? row.explanation_en,
+          )
+        : localized(row.explanation_ind, row.explanation_en);
+      const evidenceMisconceptionId =
+        answerRole === "evidence"
+          ? text(row.evidence_misconception_id)
+          : "";
 
       const incorrectElements =
         status === "incorrect"
@@ -408,6 +471,8 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
       return {
         id: answerId,
         questionId,
+        answerRole,
+        optionLabel: text(row.option_label) || null,
         studentId: `anonymous-${answerId}`,
         studentName: text(row.student_name) || null,
         studentUserId: text(row.student_user_id) || null,
@@ -421,22 +486,56 @@ export async function getSheetAnswers(): Promise<StudentAnswer[]> {
         sourceKey: text(row.source_key) || null,
         order: text(row.order_no) ? numberValue(row.order_no) : null,
         status,
-        answerText: text(row.answer_text),
-        selectedOptionId: selectedOptionIdForAnswer(
-          questionTypeMap.get(questionId)!,
-          answerId,
-        ),
+        answerText:
+          answerRole === "evidence"
+            ? text(row.student_answer) || text(row.answer_text)
+            : text(row.answer_text),
+        selectedOptionId:
+          answerRole === "mp_option"
+            ? selectedOptionIdForAnswer(
+                questionTypeMap.get(questionId)!,
+                answerId,
+              )
+            : undefined,
         checks: [],
         masteredConcepts: [],
         incorrectElements,
-        studentMisconceptionIds: [
-          ...new Set(relation?.misconceptionIds ?? []),
-        ],
-        misconceptionReasons: relation?.mappedReasons ?? [],
-        isEvidence: isActiveValue(row.is_evidence ?? ""),
+        studentMisconceptionIds:
+          answerRole === "evidence" && evidenceMisconceptionId
+            ? [evidenceMisconceptionId]
+            : [...new Set(relation?.misconceptionIds ?? [])],
+        misconceptionReasons:
+          answerRole === "mp_option" ? relation?.mappedReasons ?? [] : [],
+        isEvidence: answerRole === "evidence",
         evidenceSource: text(row.evidence_source) || null,
-        evidenceMisconceptionIds: parseDelimitedIds(row.evidence_misconceptions),
-        evidenceReasons: buildLocalizedReasonMap(row.evidence_reason_ind, row.evidence_reason_en),
+        evidenceMisconceptionIds: evidenceMisconceptionId
+          ? [evidenceMisconceptionId]
+          : [],
+        evidenceReasons:
+          evidenceMisconceptionId &&
+          (fallbackExplanation.id || fallbackExplanation.en)
+            ? [{
+                misconceptionId: evidenceMisconceptionId,
+                reason: fallbackExplanation,
+              }]
+            : [],
+        studentAnswer:
+          answerRole === "evidence"
+            ? text(row.student_answer) || text(row.answer_text) || null
+            : null,
+        evidenceId: text(row.evidence_id) || null,
+        evidenceMisconceptionId: evidenceMisconceptionId || null,
+        evidenceExplanation:
+          answerRole === "evidence" &&
+          (fallbackExplanation.id || fallbackExplanation.en)
+            ? fallbackExplanation
+            : undefined,
+        evidenceTag: text(row.evidence_tag) || null,
+        evidenceSourceQuestionIds: parseStringArray(
+          row.evidence_source_question_ids,
+        ).values,
+        sourceSheet: text(row.source_sheet) || null,
+        sourceRow: text(row.source_row) || null,
       };
     });
 }
@@ -461,7 +560,11 @@ export async function getSheetReviewTasks(): Promise<ReviewTask[]> {
 
   const answerMap = new Map(
     data.answers
-      .filter((row) => isActiveValue(row.active))
+      .filter(
+        (row) =>
+          isActiveValue(row.active) &&
+          normalizeAnswerRole(row.answer_role) === "mp_option",
+      )
       .map((row) => [text(row.answer_id), row]),
   );
 

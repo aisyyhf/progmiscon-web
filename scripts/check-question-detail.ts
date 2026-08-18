@@ -31,6 +31,7 @@ const answer = (
   questionId,
   studentId: `student-${id}`,
   status: "incorrect",
+  answerRole: "evidence",
   checks: [],
   masteredConcepts: [],
   incorrectElements: [],

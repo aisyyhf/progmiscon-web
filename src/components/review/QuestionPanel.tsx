@@ -4,6 +4,7 @@ import { useMisconceptionsByIds } from "../../hooks/useMisconceptions";
 import { t, uiText } from "../../utils/translation";
 import { cn } from "../../utils/cn";
 import { getQuestionOptionMisconceptionIds } from "../../utils/questionMetadata";
+import { getMaterialQuestionIdentifier } from "../../utils/materialQuestionFilters";
 import { QuestionContent } from "./QuestionContent";
 import { ArrowRight, CheckCircle2, TriangleAlert } from "lucide-react";
 
@@ -27,7 +28,7 @@ export function QuestionPanel({
   const questionTitle =
     t(question.title, language).trim() ||
     `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
-  const questionCode = question.sourceCode?.trim() || question.id;
+  const questionCode = `#${getMaterialQuestionIdentifier(question).replace(/^#/, "")}`;
   const weekMatch = /^W(\d+)(?:-(\d+))?$/i.exec(question.week ?? "");
   const normalizedWeekNumber = weekMatch
     ? weekMatch[2]
@@ -40,16 +41,13 @@ export function QuestionPanel({
     <article className="min-w-0 bg-bg px-5 py-6 sm:px-7 lg:px-8 lg:py-8">
       <header className="border-b border-border pb-5">
         <QuestionHeading
-          aria-label={`${questionCode} / ${questionTitle}`}
-          className="text-2xl font-extrabold leading-[1.1] tracking-[-0.02em] text-navy-deep md:text-3xl"
+          aria-label={`${questionTitle}, ${questionCode}`}
+          className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-2xl font-extrabold leading-[1.1] tracking-[-0.02em] text-navy-deep md:text-3xl"
         >
-          <span className="font-mono font-extrabold leading-none tracking-[0.02em] tabular-nums text-brand">
+          <span>{questionTitle}</span>
+          <span className="font-mono text-xs font-normal leading-5 tracking-normal tabular-nums text-muted">
             {questionCode}
           </span>
-          <span className="mx-1.5 font-medium text-muted/70" aria-hidden="true">
-            /
-          </span>
-          <span>{questionTitle}</span>
         </QuestionHeading>
         <dl className="mt-2 flex flex-wrap items-baseline gap-x-1 gap-y-1 text-sm font-bold leading-5 text-muted">
           <div className="flex min-w-0 items-baseline gap-1">

@@ -49,10 +49,10 @@ const questions = [
   question("W11-12-PS-1", "short_answer", "W11-12"),
 ];
 const answers = [
-  { id: "PS-EVIDENCE", questionId: "W02-PS-1" },
-  { id: "MP-ANSWER-1", questionId: "W02-MP-1" },
-  { id: "MP-ANSWER-2", questionId: "W02-MP-2" },
-  { id: "MP-ANSWER-1", questionId: "W02-MP-1" },
+  { id: "PS-EVIDENCE", questionId: "W02-PS-1", answerRole: "evidence" },
+  { id: "MP-ANSWER-1", questionId: "W02-MP-1", answerRole: "mp_option" },
+  { id: "MP-ANSWER-2", questionId: "W02-MP-2", answerRole: "mp_option" },
+  { id: "MP-ANSWER-1", questionId: "W02-MP-1", answerRole: "mp_option" },
 ];
 
 assert.equal(normalizeQuestionType("PS"), "short_answer");

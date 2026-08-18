@@ -12,6 +12,18 @@ export function isAnswerReviewEligible(
   return question?.type === "multiple_choice";
 }
 
+export function isMpOptionAnswer(
+  answer: Pick<StudentAnswer, "answerRole"> | undefined,
+): boolean {
+  return answer?.answerRole === "mp_option";
+}
+
+export function isEvidenceAnswer(
+  answer: Pick<StudentAnswer, "answerRole"> | undefined,
+): boolean {
+  return answer?.answerRole === "evidence";
+}
+
 export function assertAnswerReviewEligible(
   question: Pick<Question, "type"> | undefined,
 ): void {
@@ -39,21 +51,23 @@ export function filterEligibleAnswerReviewTasks(
 
 export function filterEligibleAnswerReviewIds(
   answerIds: readonly string[],
-  answers: readonly Pick<StudentAnswer, "id" | "questionId">[],
+  answers: readonly Pick<StudentAnswer, "id" | "questionId" | "answerRole">[],
   questionById: ReadonlyMap<string, Pick<Question, "type">>,
 ): string[] {
   const answerById = new Map(answers.map((answer) => [answer.id, answer]));
   return answerIds.filter((answerId) => {
     const answer = answerById.get(answerId);
     return Boolean(
-      answer && isAnswerReviewEligible(questionById.get(answer.questionId)),
+      answer &&
+      isMpOptionAnswer(answer) &&
+      isAnswerReviewEligible(questionById.get(answer.questionId)),
     );
   });
 }
 
 export function filterEligibleAnswerReviewCounts(
   counts: ReadonlyMap<string, number>,
-  answers: readonly Pick<StudentAnswer, "id" | "questionId">[],
+  answers: readonly Pick<StudentAnswer, "id" | "questionId" | "answerRole">[],
   questionById: ReadonlyMap<string, Pick<Question, "type">>,
 ): Map<string, number> {
   const eligibleIds = new Set(
@@ -77,6 +91,7 @@ export function getActionableAnswerReviewSequence(
   return answers.filter((answer) => {
     if (
       answer.questionId !== question.id ||
+      !isMpOptionAnswer(answer) ||
       !answer.sourceVersion ||
       seen.has(answer.id)
     ) {
@@ -139,6 +154,7 @@ export function isCompositeQuestionReviewComplete(
   return answers.every((answer) => {
     if (
       answer.questionId !== question.id ||
+      !isMpOptionAnswer(answer) ||
       !answer.sourceVersion ||
       seen.has(answer.id)
     ) {
@@ -226,10 +242,11 @@ export function classifyReviewItems(
   for (const answer of answers) {
     const question = questionById.get(answer.questionId);
     if (!question) continue;
-    if (!isAnswerReviewEligible(question) && answer.isEvidence === false) continue;
-    items[getAnswerWorkspaceForQuestion(question)].push(
-      answer,
-    );
+    if (isAnswerReviewEligible(question) && isMpOptionAnswer(answer)) {
+      items["answer-mp"].push(answer);
+    } else if (!isAnswerReviewEligible(question) && isEvidenceAnswer(answer)) {
+      items["answer-ps"].push(answer);
+    }
   }
 
   return { items, questionById };

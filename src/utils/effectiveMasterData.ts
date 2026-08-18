@@ -6,6 +6,7 @@ import type {
 import type { PublishedMasterOverrides } from "../types/effectiveOverrides";
 import type { QuestionMisconceptionProvenance } from "../types/question";
 import { isActiveValue } from "./masterDataValidation.ts";
+import { normalizeAnswerRole } from "./questionMetadata.ts";
 
 export function normalizeEffectiveIds(ids: readonly string[]): string[] {
   return [...new Set(ids.map((id) => id.trim()).filter(Boolean))].sort(
@@ -48,7 +49,11 @@ export function buildEffectiveQuestionMisconceptionMap(
   const derivedByQuestion = new Map<string, string[]>();
   const questionIdByAnswerId = new Map(
     data.answers
-      .filter((row) => isActiveValue(row.active))
+      .filter(
+        (row) =>
+          isActiveValue(row.active) &&
+          normalizeAnswerRole(row.answer_role) === "mp_option",
+      )
       .map((row) => [row.answer_id.trim(), row.question_id.trim()]),
   );
 
@@ -114,7 +119,11 @@ export function buildMisconceptionQuestionBackReferences(
   );
   const questionIdByAnswerId = new Map(
     data.answers
-      .filter((row) => isActiveValue(row.active))
+      .filter(
+        (row) =>
+          isActiveValue(row.active) &&
+          normalizeAnswerRole(row.answer_role) === "mp_option",
+      )
       .map((row) => [row.answer_id.trim(), row.question_id.trim()]),
   );
   const references = new Map<string, Set<string>>();

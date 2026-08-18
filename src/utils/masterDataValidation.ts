@@ -1,10 +1,15 @@
 import type { MasterData } from "../types/masterData";
-import { normalizeQuestionType, normalizeWeek } from "./questionMetadata.ts";
+import {
+  getQuestionDisplayCode,
+  normalizeAnswerRole,
+  normalizeQuestionType,
+  normalizeWeek,
+} from "./questionMetadata.ts";
 import {
   parseContentBlocks,
-  parseDelimitedIds,
-  parseReasonMap,
+  parseQuestionOptions,
   parseStringArray,
+  parseTestCases,
 } from "./masterDataContent.ts";
 
 const TRUE_VALUES = new Set(["true", "1", "yes", "y"]);
@@ -32,7 +37,15 @@ export function validateMasterData(data: MasterData): string[] {
   const topicIds = new Set(data.topics.map((row) => row.topic_id.trim()));
   const misconceptionIds = new Set(data.misconceptions.map((row) => row.misconception_id.trim()));
   const questionIds = new Set(data.questions.map((row) => row.question_id.trim()));
-  const answerIds = new Set(data.answers.map((row) => row.answer_id.trim()));
+  const answerById = new Map(
+    data.answers.map((row) => [row.answer_id.trim(), row]),
+  );
+  const questionTypeById = new Map(
+    data.questions.map((row) => [
+      row.question_id.trim(),
+      normalizeQuestionType(row.question_type),
+    ]),
+  );
 
   for (const id of duplicates(data.topics.map((row) => row.topic_id))) errors.push(`topic_id ganda: ${id}`);
   for (const id of duplicates(data.misconceptions.map((row) => row.misconception_id))) errors.push(`misconception_id ganda: ${id}`);
@@ -68,6 +81,9 @@ export function validateMasterData(data: MasterData): string[] {
     if (row.week?.trim() && !normalizeWeek(row.week)) {
       errors.push(`questions ${row.question_id}: week tidak valid`);
     }
+    if (!getQuestionDisplayCode(row)) {
+      errors.push(`questions ${row.question_id}: kode tampilan tidak tersedia`);
+    }
     for (const [field, value] of [
       ["content_blocks_ind", row.content_blocks_ind],
       ["content_blocks_en", row.content_blocks_en],
@@ -81,6 +97,24 @@ export function validateMasterData(data: MasterData): string[] {
     if (outputs.error) errors.push(`questions ${row.question_id}: sample_outputs ${outputs.error}`);
     if (!inputs.error && !outputs.error && inputs.values.length !== outputs.values.length) {
       errors.push(`questions ${row.question_id}: jumlah sample_inputs dan sample_outputs berbeda`);
+    }
+    const testCases = parseTestCases(row.test_cases_json);
+    if (testCases.error) {
+      errors.push(`questions ${row.question_id}: test_cases_json ${testCases.error}`);
+    }
+    const options = parseQuestionOptions(
+      row.options_json,
+      row.correct_option_label,
+    );
+    if (options.error) {
+      errors.push(`questions ${row.question_id}: options_json ${options.error}`);
+    }
+    if (
+      normalizeQuestionType(row.question_type) === "multiple_choice" &&
+      options.options.length > 0 &&
+      options.options.filter((option) => option.isCorrect).length !== 1
+    ) {
+      errors.push(`questions ${row.question_id}: options_json harus memiliki satu jawaban benar`);
     }
   }
 
@@ -97,31 +131,43 @@ export function validateMasterData(data: MasterData): string[] {
   for (const row of data.questionMisconceptions) {
     if (!questionIds.has(row.question_id.trim())) errors.push(`question_misconceptions: question_id ${row.question_id} tidak ditemukan`);
     if (!misconceptionIds.has(row.misconception_id.trim())) errors.push(`question_misconceptions: misconception_id ${row.misconception_id} tidak ditemukan`);
+    if (row.evidence_level?.trim() && !["E", "R"].includes(row.evidence_level.trim().toUpperCase())) {
+      errors.push(`question_misconceptions ${row.question_id}/${row.misconception_id}: evidence_level tidak valid`);
+    }
   }
 
   for (const row of data.answers) {
     if (!questionIds.has(row.question_id.trim())) errors.push(`answers ${row.answer_id}: question_id ${row.question_id} tidak ditemukan`);
     if (!["correct", "incorrect"].includes(row.status.trim().toLowerCase())) errors.push(`answers ${row.answer_id}: status tidak valid`);
-    const evidenceIds = parseDelimitedIds(row.evidence_misconceptions);
-    const evidenceIdSet = new Set(evidenceIds);
-    for (const misconceptionId of evidenceIds) {
-      if (!misconceptionIds.has(misconceptionId)) errors.push(`answers ${row.answer_id}: evidence_misconceptions ${misconceptionId} tidak ditemukan`);
+    const role = normalizeAnswerRole(row.answer_role);
+    if (!role) {
+      errors.push(`answers ${row.answer_id}: answer_role tidak valid`);
+      continue;
     }
-    for (const [field, value] of [
-      ["evidence_reason_ind", row.evidence_reason_ind],
-      ["evidence_reason_en", row.evidence_reason_en],
-    ] as const) {
-      const parsed = parseReasonMap(value);
-      if (parsed.error) errors.push(`answers ${row.answer_id}: ${field} ${parsed.error}`);
-      for (const misconceptionId of parsed.reasons.keys()) {
-        if (!misconceptionIds.has(misconceptionId)) errors.push(`answers ${row.answer_id}: ${field} ${misconceptionId} tidak ditemukan`);
-        if (!evidenceIdSet.has(misconceptionId)) errors.push(`answers ${row.answer_id}: ${field} ${misconceptionId} tidak tercantum di evidence_misconceptions`);
+    const questionType = questionTypeById.get(row.question_id.trim());
+    if (role === "mp_option" && questionType !== "multiple_choice") {
+      errors.push(`answers ${row.answer_id}: mp_option harus terkait soal MP`);
+    }
+    if (role === "ps_reference" && questionType !== "short_answer") {
+      errors.push(`answers ${row.answer_id}: ps_reference harus terkait soal PS`);
+    }
+    if (role === "evidence") {
+      const misconceptionId = row.evidence_misconception_id?.trim() ?? "";
+      if (misconceptionId && !misconceptionIds.has(misconceptionId)) {
+        errors.push(`answers ${row.answer_id}: evidence_misconception_id ${misconceptionId} tidak ditemukan`);
+      }
+      const sourceQuestionIds = parseStringArray(row.evidence_source_question_ids);
+      if (sourceQuestionIds.error) {
+        errors.push(`answers ${row.answer_id}: evidence_source_question_ids ${sourceQuestionIds.error}`);
       }
     }
   }
 
   for (const row of data.answerMisconceptions) {
-    if (!answerIds.has(row.answer_id.trim())) errors.push(`answer_misconceptions: answer_id ${row.answer_id} tidak ditemukan`);
+    const answer = answerById.get(row.answer_id.trim());
+    if (answer && normalizeAnswerRole(answer.answer_role) !== "mp_option") {
+      errors.push(`answer_misconceptions: answer_id ${row.answer_id} bukan mp_option`);
+    }
     if (!misconceptionIds.has(row.misconception_id.trim())) errors.push(`answer_misconceptions: misconception_id ${row.misconception_id} tidak ditemukan`);
   }
 

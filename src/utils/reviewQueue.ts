@@ -6,7 +6,10 @@ import type {
   StudentAnswer,
 } from "../types";
 import { getMaterialWeekOptions } from "./materialQuestionFilters.ts";
-import { isAnswerReviewEligible } from "./reviewWorkspace.ts";
+import {
+  isAnswerReviewEligible,
+  isMpOptionAnswer,
+} from "./reviewWorkspace.ts";
 
 export type ReviewTaskKind = "question" | "answer";
 export type ReviewPersonalStatus = "unreviewed" | "reviewed";
@@ -177,6 +180,8 @@ export function filterWeekReviewQuestions(
       [
         question.id,
         question.number,
+        question.displayCode ?? "",
+        question.lmsQuestionId ?? "",
         question.sourceCode ?? "",
         question.sourceKey ?? "",
         question.questionCode ?? "",
@@ -238,6 +243,7 @@ export function buildReviewQueue({
     return (
       parent?.week === week &&
       isAnswerReviewEligible(parent) &&
+      isMpOptionAnswer(answer) &&
       matchesStatus(answer)
     );
   });
@@ -402,7 +408,12 @@ export function resolveAnswerDeepLink(
 ): ReviewNavigationState | undefined {
   const answer = answers.find(({ id }) => id === answerId);
   const question = questions.find(({ id }) => id === answer?.questionId);
-  if (!answer || !question?.week || !isAnswerReviewEligible(question)) {
+  if (
+    !answer ||
+    !question?.week ||
+    !isAnswerReviewEligible(question) ||
+    !isMpOptionAnswer(answer)
+  ) {
     return undefined;
   }
 

@@ -34,6 +34,7 @@ assert.equal(questionOptionLabel(27), "AA");
 
 const answers = [1, 2, 3, 4].map((order) => ({
   answer_id: `A${order}`,
+  answer_role: "mp_option",
   question_id: "Q1",
   answer_text: `Option ${order}`,
   status: order === 2 ? "correct" : "incorrect",

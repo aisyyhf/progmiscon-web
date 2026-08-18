@@ -4,6 +4,7 @@ import { useCategories } from "../hooks/useCategories";
 import { useQuestions, useQuestionsByCategories } from "../hooks/useQuestions";
 import { useAllStudentAnswers } from "../hooks/useStudentAnswers";
 import { MaterialBrowser } from "../components/browser/MaterialBrowser";
+import { isQuestionAnswerExample } from "../utils/misconceptionExploration";
 
 export function MateriPage() {
   const navigate = useNavigate();
@@ -19,11 +20,15 @@ export function MateriPage() {
   const { answers, loading: answersLoading } = useAllStudentAnswers();
   const answerCountByQuestionId = useMemo(() => {
     const counts = new Map<string, number>();
+    const questionById = new Map(
+      allQuestions.map((question) => [question.id, question]),
+    );
     answers.forEach((answer) => {
+      if (!isQuestionAnswerExample(answer, questionById.get(answer.questionId))) return;
       counts.set(answer.questionId, (counts.get(answer.questionId) ?? 0) + 1);
     });
     return counts;
-  }, [answers]);
+  }, [allQuestions, answers]);
 
   const updateSelectedCategories = (categoryIds: string[]) => {
     setSelectedCategoryIds(categoryIds);

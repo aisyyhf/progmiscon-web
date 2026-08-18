@@ -58,20 +58,22 @@ const questions = [
   nextMpQuestion,
 ];
 const answers = [
-  { id: "A-PS-1", questionId: "Q-PS-1" },
-  { id: "A-OTHER", questionId: "Q-OTHER" },
-  { id: "A-PS-2", questionId: "Q-PS-1" },
-  { id: "A-PS-1", questionId: "Q-PS-1" },
-  { id: "A-PS-3", questionId: "Q-PS-2" },
+  { id: "A-PS-1", questionId: "Q-PS-1", answerRole: "evidence" },
+  { id: "A-OTHER", questionId: "Q-OTHER", answerRole: "evidence" },
+  { id: "A-PS-2", questionId: "Q-PS-1", answerRole: "evidence" },
+  { id: "A-PS-1", questionId: "Q-PS-1", answerRole: "evidence" },
+  { id: "A-PS-3", questionId: "Q-PS-2", answerRole: "evidence" },
   {
     id: "A-MP-1",
     questionId: "Q-MP-1",
+    answerRole: "mp_option",
     selectedOptionId: "OPT-B",
     answerText: "9",
   },
   {
     id: "A-MP-MISSING",
     questionId: "Q-MP-1",
+    answerRole: "mp_option",
     selectedOptionId: "missing",
     answerText: "Fallback",
   },
@@ -325,12 +327,12 @@ assert.equal(
 );
 
 assert.equal(
-  selectLinkedAnswerId("Q-PS-1", answers, ["A-PS-1"]),
-  "A-PS-2",
+  selectLinkedAnswerId("Q-MP-1", answers, ["A-MP-1"]),
+  "A-MP-MISSING",
 );
 assert.equal(
-  selectLinkedAnswerId("Q-PS-1", answers, ["A-PS-1", "A-PS-2"]),
-  "A-PS-1",
+  selectLinkedAnswerId("Q-MP-1", answers, ["A-MP-1", "A-MP-MISSING"]),
+  "A-MP-1",
 );
 assert.equal(selectLinkedAnswerId("Q-MISSING", answers, []), undefined);
 

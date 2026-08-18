@@ -1,4 +1,4 @@
-import type { AnswerRow } from "../types/masterData";
+import type { AnswerRole, AnswerRow } from "../types/masterData";
 import type { QuestionOption, QuestionType } from "../types";
 
 const QUESTION_TYPES = new Map<string, QuestionType>([
@@ -41,6 +41,36 @@ export function questionOptionLabel(order: number): string {
   return label;
 }
 
+const ANSWER_ROLES = new Set<AnswerRole>([
+  "mp_option",
+  "ps_reference",
+  "evidence",
+]);
+
+export function normalizeAnswerRole(
+  value: string | null | undefined,
+): AnswerRole | null {
+  const normalized = (value ?? "").trim().toLowerCase() as AnswerRole;
+  return ANSWER_ROLES.has(normalized) ? normalized : null;
+}
+
+export function getQuestionDisplayCode({
+  display_question_code,
+  lms_question_id,
+  question_code,
+  question_id,
+}: Pick<
+  import("../types/masterData").QuestionRow,
+  "display_question_code" | "lms_question_id" | "question_code" | "question_id"
+>): string {
+  return (
+    display_question_code?.trim() ||
+    lms_question_id?.trim() ||
+    question_code?.trim() ||
+    question_id.trim()
+  );
+}
+
 export function getQuestionOptionMisconceptionIds(
   option: Pick<QuestionOption, "misconceptionIds">,
 ): string[] {
@@ -58,6 +88,7 @@ export function buildQuestionOptions(
   misconceptionIdsByAnswer: ReadonlyMap<string, string[]>,
 ): QuestionOption[] {
   return [...answers]
+    .filter((answer) => normalizeAnswerRole(answer.answer_role) === "mp_option")
     .sort((a, b) => Number.parseInt(a.order_no, 10) - Number.parseInt(b.order_no, 10))
     .map((answer, index) => {
       const order = Number.parseInt(answer.order_no, 10);
@@ -72,7 +103,9 @@ export function buildQuestionOptions(
 
       return {
         id: answer.answer_id.trim(),
-        label: questionOptionLabel(Number.isInteger(order) && order > 0 ? order : index + 1),
+        label:
+          answer.option_label?.trim() ||
+          questionOptionLabel(Number.isInteger(order) && order > 0 ? order : index + 1),
         text: { id: answerText, en: answerText },
         isCorrect: answer.status.trim().toLowerCase() === "correct",
         misconceptionId:

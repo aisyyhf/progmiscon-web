@@ -1,5 +1,9 @@
 import type { LocalizedText } from "../types/language";
-import type { QuestionContentBlock, QuestionSampleCase } from "../types/question";
+import type {
+  QuestionContentBlock,
+  QuestionOption,
+  QuestionSampleCase,
+} from "../types/question";
 
 export const DUMMY_DATA_PATTERN = /\bDATA\s+DUMMY\b/i;
 
@@ -164,6 +168,53 @@ export function suppressDuplicateSampleFragments(
   });
 }
 
+function comparableText(value: string): string {
+  return normalizedLine(value).replace(/[.:;,]+$/, "").toLocaleLowerCase();
+}
+
+function withoutMatchingIoLine(
+  content: string,
+  label: RegExp,
+  expected: string,
+): string {
+  const comparableExpected = comparableText(expected);
+  if (!comparableExpected) return content;
+
+  return content
+    .split("\n")
+    .filter((line) => {
+      const match = normalizedLine(line).match(label);
+      if (!match) return true;
+      return comparableText(normalizedLine(line).slice(match[0].length)) !== comparableExpected;
+    })
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+export function suppressDuplicateIoDescriptions(
+  blocks: QuestionContentBlock[],
+  inputDescription: string | undefined,
+  outputDescription: string | undefined,
+): QuestionContentBlock[] {
+  if (!inputDescription?.trim() && !outputDescription?.trim()) return blocks;
+
+  return blocks.flatMap((block) => {
+    if (block.type !== "text") return [block];
+    const withoutInput = withoutMatchingIoLine(
+      block.content,
+      INPUT_LABEL,
+      inputDescription ?? "",
+    );
+    const content = withoutMatchingIoLine(
+      withoutInput,
+      OUTPUT_LABEL,
+      outputDescription ?? "",
+    );
+    return content ? [{ ...block, content }] : [];
+  });
+}
+
 export function parseContentBlocks(raw: string | undefined): {
   blocks: QuestionContentBlock[];
   error?: string;
@@ -254,6 +305,108 @@ export function buildSampleCases(
       ? [{ input, output }]
       : [];
   });
+}
+
+export function parseTestCases(raw: string | undefined): {
+  cases: QuestionSampleCase[];
+  error?: string;
+} {
+  const value = raw?.trim();
+  if (!value) return { cases: [] };
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return { cases: [], error: "harus berupa array JSON" };
+
+    const cases: QuestionSampleCase[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") {
+        return { cases: [], error: "setiap test case harus berupa object" };
+      }
+      const candidate = item as Record<string, unknown>;
+      if (typeof candidate.input !== "string" || typeof candidate.output !== "string") {
+        return { cases: [], error: "input/output test case wajib berupa string" };
+      }
+      const input = candidate.input.trim();
+      const output = candidate.output.trim();
+      const caseNo = Number(candidate.case_no);
+      if (!input && !output) {
+        return { cases: [], error: "input/output test case tidak boleh sama-sama kosong" };
+      }
+      cases.push({
+        ...(Number.isFinite(caseNo) && caseNo > 0 ? { caseNo } : {}),
+        input,
+        output,
+      });
+    }
+    return { cases };
+  } catch {
+    return { cases: [], error: "JSON tidak valid" };
+  }
+}
+
+export function buildQuestionSampleCases(
+  testCasesRaw: string | undefined,
+  inputsRaw: string | undefined,
+  outputsRaw: string | undefined,
+): QuestionSampleCase[] {
+  const structured = parseTestCases(testCasesRaw);
+  return !structured.error && structured.cases.length > 0
+    ? structured.cases
+    : buildSampleCases(inputsRaw, outputsRaw);
+}
+
+export function parseQuestionOptions(
+  raw: string | undefined,
+  correctOptionLabel: string | undefined,
+): { options: QuestionOption[]; error?: string } {
+  const value = raw?.trim();
+  if (!value) return { options: [] };
+  const correctLabel = correctOptionLabel?.trim().toUpperCase() ?? "";
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) return { options: [], error: "harus berupa array JSON" };
+
+    const options: QuestionOption[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") {
+        return { options: [], error: "setiap opsi harus berupa object" };
+      }
+      const candidate = item as Record<string, unknown>;
+      const id = typeof candidate.answer_id === "string" ? candidate.answer_id.trim() : "";
+      const label = typeof candidate.label === "string" ? candidate.label.trim().toUpperCase() : "";
+      const optionText = typeof candidate.text === "string" ? candidate.text.trim() : "";
+      const rawMisconceptions = candidate.misconceptions;
+      if (!id || !label || !optionText || !Array.isArray(rawMisconceptions)) {
+        return { options: [], error: "answer_id/label/text/misconceptions opsi tidak valid" };
+      }
+      const misconceptionIds = [...new Set(
+        rawMisconceptions
+          .filter((misconception): misconception is string => typeof misconception === "string")
+          .map((misconception) => misconception.trim())
+          .filter(Boolean),
+      )];
+      if (misconceptionIds.length !== rawMisconceptions.length) {
+        return { options: [], error: "misconceptions opsi harus berupa array string" };
+      }
+      options.push({
+        id,
+        label,
+        text: { id: optionText, en: optionText },
+        isCorrect: correctLabel
+          ? label === correctLabel
+          : candidate.is_correct === true,
+        misconceptionIds,
+        ...(misconceptionIds.length === 1
+          ? { misconceptionId: misconceptionIds[0] }
+          : {}),
+      });
+    }
+    return { options };
+  } catch {
+    return { options: [], error: "JSON tidak valid" };
+  }
 }
 
 export function parseDelimitedIds(raw: string | undefined): string[] {

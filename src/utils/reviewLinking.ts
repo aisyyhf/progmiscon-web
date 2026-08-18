@@ -1,6 +1,8 @@
 import type { Question, StudentAnswer } from "../types";
 import {
   isAnswerReviewEligible,
+  isEvidenceAnswer,
+  isMpOptionAnswer,
   selectWorkspaceItemId,
   type ReviewWorkspaceItems,
   type ReviewWorkspace,
@@ -59,12 +61,26 @@ export function getAnswersForQuestion(
   });
 }
 
+export function getEvidenceAnswersForQuestion(
+  questionId: string,
+  answers: readonly StudentAnswer[],
+): StudentAnswer[] {
+  return getAnswersForQuestion(questionId, answers).filter(isEvidenceAnswer);
+}
+
+export function getMpOptionAnswersForQuestion(
+  questionId: string,
+  answers: readonly StudentAnswer[],
+): StudentAnswer[] {
+  return getAnswersForQuestion(questionId, answers).filter(isMpOptionAnswer);
+}
+
 export function selectEvidenceAnswerId(
   questionId: string,
   answers: readonly StudentAnswer[],
   preferredAnswerId?: string,
 ): string | undefined {
-  const evidence = getAnswersForQuestion(questionId, answers);
+  const evidence = getEvidenceAnswersForQuestion(questionId, answers);
   return evidence.some((answer) => answer.id === preferredAnswerId)
     ? preferredAnswerId
     : evidence[0]?.id;
@@ -76,7 +92,7 @@ export function selectAdjacentEvidenceAnswerId(
   currentAnswerId: string | undefined,
   offset: -1 | 1,
 ): string | undefined {
-  const evidence = getAnswersForQuestion(questionId, answers);
+  const evidence = getEvidenceAnswersForQuestion(questionId, answers);
   const currentIndex = evidence.findIndex(
     (answer) => answer.id === currentAnswerId,
   );
@@ -88,7 +104,7 @@ export function selectLinkedAnswerId(
   answers: readonly StudentAnswer[],
   reviewedAnswerIds: readonly string[],
 ): string | undefined {
-  const linkedAnswers = getAnswersForQuestion(questionId, answers);
+  const linkedAnswers = getMpOptionAnswersForQuestion(questionId, answers);
   const reviewed = new Set(reviewedAnswerIds);
 
   return (
@@ -103,7 +119,7 @@ export function selectUnreviewedLinkedAnswerId(
   reviewedAnswerIds: readonly string[],
 ): string | undefined {
   const reviewed = new Set(reviewedAnswerIds);
-  return getAnswersForQuestion(questionId, answers).find(
+  return getMpOptionAnswersForQuestion(questionId, answers).find(
     (answer) => !reviewed.has(answer.id),
   )?.id;
 }

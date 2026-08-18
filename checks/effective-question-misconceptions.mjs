@@ -50,6 +50,7 @@ const question = {
 };
 const answers = ["A-01", "A-02"].map((answer_id, index) => ({
   answer_id,
+  answer_role: "mp_option",
   question_id: "Q-01",
   answer_text: answer_id,
   status: "incorrect",

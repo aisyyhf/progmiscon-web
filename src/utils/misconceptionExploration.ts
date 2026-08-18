@@ -1,5 +1,15 @@
 import type { Question, StudentAnswer } from "../types";
 import { getQuestionOptionMisconceptionIds } from "./questionMetadata.ts";
+import { isEvidenceAnswer, isMpOptionAnswer } from "./reviewWorkspace.ts";
+
+export function isQuestionAnswerExample(
+  answer: StudentAnswer,
+  question: Question | undefined,
+): boolean {
+  return question?.type === "multiple_choice"
+    ? isMpOptionAnswer(answer)
+    : question?.type === "short_answer" && isEvidenceAnswer(answer);
+}
 
 function answerPatternKey(answer: StudentAnswer): string {
   const normalizedText = answer.answerText
@@ -32,13 +42,14 @@ export function getMatchingAnswers(
 ): StudentAnswer[] {
   const questionById = new Map(questions.map((question) => [question.id, question]));
   return answers.filter(
-    (answer) =>
-      (!questionId || answer.questionId === questionId) &&
-      answerHasMisconception(
-        answer,
-        misconceptionId,
-        questionById.get(answer.questionId),
-      ),
+    (answer) => {
+      const question = questionById.get(answer.questionId);
+      return (
+        (!questionId || answer.questionId === questionId) &&
+        (!question || isQuestionAnswerExample(answer, question)) &&
+        answerHasMisconception(answer, misconceptionId, question)
+      );
+    },
   );
 }
 

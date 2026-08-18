@@ -69,20 +69,22 @@ const questions = [
   { id: "Q-PS-2", type: "short_answer" },
 ];
 const answers = [
-  { id: "A-PS-1", questionId: "Q-PS-1" },
+  { id: "A-PS-1", questionId: "Q-PS-1", answerRole: "evidence" },
   {
     id: "A-MP-1",
     questionId: "Q-MP-1",
+    answerRole: "mp_option",
     selectedOptionId: "B",
     answerText: "9",
   },
   {
     id: "A-MP-MISSING",
     questionId: "Q-MP-1",
+    answerRole: "mp_option",
     selectedOptionId: "missing",
     answerText: "Fallback",
   },
-  { id: "A-ORPHAN", questionId: "missing" },
+  { id: "A-ORPHAN", questionId: "missing", answerRole: "evidence" },
 ];
 
 const { items } = classifyReviewItems(questions, answers);
@@ -155,12 +157,12 @@ assert.deepEqual(getReviewProgress(items["answer-mp"], ["A-MP-1"]), {
 });
 
 const sequenceAnswers = [
-  { id: "A-1", questionId: "Q-MP-1", sourceVersion: "v1" },
-  { id: "A-OTHER", questionId: "Q-MP-OTHER", sourceVersion: "v1" },
-  { id: "A-2", questionId: "Q-MP-1", sourceVersion: "v1" },
-  { id: "A-3", questionId: "Q-MP-1", sourceVersion: "v1" },
-  { id: "A-3", questionId: "Q-MP-1", sourceVersion: "v1" },
-  { id: "A-STALE", questionId: "Q-MP-1" },
+  { id: "A-1", questionId: "Q-MP-1", sourceVersion: "v1", answerRole: "mp_option" },
+  { id: "A-OTHER", questionId: "Q-MP-OTHER", sourceVersion: "v1", answerRole: "mp_option" },
+  { id: "A-2", questionId: "Q-MP-1", sourceVersion: "v1", answerRole: "mp_option" },
+  { id: "A-3", questionId: "Q-MP-1", sourceVersion: "v1", answerRole: "mp_option" },
+  { id: "A-3", questionId: "Q-MP-1", sourceVersion: "v1", answerRole: "mp_option" },
+  { id: "A-STALE", questionId: "Q-MP-1", answerRole: "mp_option" },
 ];
 const actionableSequence = getActionableAnswerReviewSequence(
   questions[1],
@@ -310,8 +312,8 @@ assert.doesNotThrow(() => assertAnswerReviewEligible(questions[1]));
 assert.deepEqual(
   filterEligibleAnswerReviewTasks(
     [
-      { id: "T-PS", questionId: "Q-PS-1" },
-      { id: "T-MP", questionId: "Q-MP-1" },
+      { id: "T-PS", questionId: "Q-PS-1", answerRole: "evidence" },
+      { id: "T-MP", questionId: "Q-MP-1", answerRole: "mp_option" },
     ],
     questionById,
   ).map(({ id }) => id),
@@ -367,9 +369,9 @@ const editor = await readFile(
   new URL("../src/components/review/AdminContentEditor.tsx", import.meta.url),
   "utf8",
 );
-const reasonCards = await readFile(
+const structuredEvidence = await readFile(
   new URL(
-    "../src/components/review/MisconceptionReasonCards.tsx",
+    "../src/components/review/StructuredEvidenceList.tsx",
     import.meta.url,
   ),
   "utf8",
@@ -429,8 +431,8 @@ assert.match(contextAccordion, /Sedang direview/);
 assert.doesNotMatch(answerWorkspace, /AdminAnswerContentEditor|Edit jawaban/);
 assert.doesNotMatch(answerWorkspace, /AdminQuestionContentEditor|Edit soal/);
 assert.doesNotMatch(questionWorkspace, /AdminQuestionContentEditor|Edit soal/);
-assert.match(answerWorkspace, /generalReasons=\{answer\.explanation/);
-assert.match(answerWorkspace, /mappedReasons=\{mappedReasons\}/);
+assert.match(answerWorkspace, /answers=\{evidenceAnswers\}/);
+assert.match(answerWorkspace, /<StructuredEvidenceList/);
 assert.doesNotMatch(
   answerWorkspace,
   /Nilai label berdasarkan pola yang terlihat|Evaluate labels based on the pattern visible/,
@@ -470,17 +472,12 @@ assert.doesNotMatch(
 assert.match(editor, />\s*Edit soal\s*</);
 assert.match(editor, /saveAnswerContentOverride\(answer\.id, answerText\)/);
 assert.doesNotMatch(editor, />\s*Edit jawaban\s*</);
-assert.match(reasonCards, /mappedReasons = \[\]/);
-assert.match(reasonCards, /presentation\.cards\.map/);
-assert.match(reasonCards, /Alasan belum tersedia/);
-assert.match(reasonCards, /Reason not yet available/);
-assert.match(reasonCards, /Catatan umum jawaban/);
-assert.match(reasonCards, /General answer note/);
-assert.doesNotMatch(
-  reasonCards,
-  /menunjukkan pola yang cocok|shows a pattern that matches/,
-  "Misconception cards must not fabricate reasons",
-);
+assert.match(structuredEvidence, /Nama siswa/);
+assert.match(structuredEvidence, /Jawaban siswa/);
+assert.match(structuredEvidence, /Miskonsepsi/);
+assert.match(structuredEvidence, /Penjelasan/);
+assert.match(structuredEvidence, /Tidak tersedia/);
+assert.doesNotMatch(structuredEvidence, /General answer note|Catatan umum jawaban/);
 assert.match(navigation, /aria-expanded=\{open\}/);
 assert.match(navigation, /aria-controls=\{id\}/);
 assert.match(navigation, /useState\(false\)/);

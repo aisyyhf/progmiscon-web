@@ -8,9 +8,11 @@ import {
   getAnswerVariations,
   getMatchingAnswers,
   getRelatedQuestions,
+  isQuestionAnswerExample,
 } from "../../utils/misconceptionExploration";
 import { misconceptionLabel } from "../../utils/misconceptionLabel";
 import { getQuestionOptionMisconceptionIds } from "../../utils/questionMetadata";
+import { getMaterialQuestionIdentifier } from "../../utils/materialQuestionFilters";
 import { QuestionPanel } from "./QuestionPanel";
 import { AnswerCasePanel } from "./AnswerCasePanel";
 import {
@@ -44,8 +46,12 @@ export function QuestionReview({ questionId }: { questionId: string }) {
   const requestedAnswerId = searchParams.get("case") ?? undefined;
   const question = allQuestions.find((item) => item.id === activeQuestionId);
   const answers = useMemo(
-    () => answerVariations.filter((answer) => answer.questionId === activeQuestionId),
-    [activeQuestionId, answerVariations],
+    () => answerVariations.filter(
+      (answer) =>
+        answer.questionId === activeQuestionId &&
+        isQuestionAnswerExample(answer, question),
+    ),
+    [activeQuestionId, answerVariations, question],
   );
   const selectedMisconception = misconceptions.find((item) => item.id === activeMisconceptionId);
 
@@ -96,7 +102,7 @@ export function QuestionReview({ questionId }: { questionId: string }) {
 
   if (!question) return null;
 
-  const questionCode = question.sourceCode?.trim() || question.id;
+  const questionCode = `#${getMaterialQuestionIdentifier(question).replace(/^#/, "")}`;
   const normalQuestionIndex = allQuestions.findIndex((item) => item.id === activeQuestionId);
   const relatedQuestionIndex = relatedQuestions.findIndex((item) => item.id === activeQuestionId);
   const navigationQuestions = selectedMisconception ? relatedQuestions : allQuestions;
@@ -149,8 +155,12 @@ export function QuestionReview({ questionId }: { questionId: string }) {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const previousCode = previousQuestion?.sourceCode?.trim() || previousQuestion?.id;
-  const nextCode = nextQuestion?.sourceCode?.trim() || nextQuestion?.id;
+  const previousCode = previousQuestion
+    ? `#${getMaterialQuestionIdentifier(previousQuestion).replace(/^#/, "")}`
+    : undefined;
+  const nextCode = nextQuestion
+    ? `#${getMaterialQuestionIdentifier(nextQuestion).replace(/^#/, "")}`
+    : undefined;
 
   return (
     <div className="scroll-reveal">
