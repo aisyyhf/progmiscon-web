@@ -1598,13 +1598,6 @@ export function LecturerReviewPage({
       return;
     }
     const alreadyReviewed = reviewedQuestionStepIds.includes(activeQuestion.id);
-    const answerSequence = getActionableAnswerReviewSequence(
-      activeQuestion,
-      orderedAnswers,
-      reviewedAnswerIds,
-      eligibleAnswerCounts,
-      QUESTION_REVIEWED_THRESHOLD,
-    );
     await saveQuestionReview(activeQuestion.id, activeQuestion.sourceVersion, values);
     if (!alreadyReviewed) {
       setConfirmedQuestionReviewIds((current) => [
@@ -1631,14 +1624,14 @@ export function LecturerReviewPage({
       return;
     }
 
-    const returnAnswerId = answerSequence.some(
+    const returnAnswerId = questionAnswerReviewSequence.some(
       ({ id }) => id === navigation.returnAnswer,
     )
       ? navigation.returnAnswer
       : undefined;
     const firstAnswerId =
       returnAnswerId ??
-      getNextUnreviewedAnswerId(answerSequence, reviewedAnswerIds);
+      getNextUnreviewedAnswerId(questionAnswerReviewSequence, reviewedAnswerIds);
     const target = firstAnswerId
       ? resolveAnswerDeepLink(
           firstAnswerId,

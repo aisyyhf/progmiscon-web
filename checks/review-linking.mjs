@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   createDefaultReviewSessionState,
   getAnswersForQuestion,
+  getMpOptionAnswersForQuestion,
   getPairedWorkspace,
   getReviewWorkspaceAvailability,
   normalizeReviewSessionState,
@@ -120,6 +121,19 @@ assert.deepEqual(
 );
 assert.equal(new Set(linked.map(({ id }) => id)).size, linked.length);
 assert.equal(linked.at(-1)?.questionId, psQuestion.id);
+
+assert.deepEqual(
+  getMpOptionAnswersForQuestion("Q-MP-1", [
+    { id: "OPT-C", questionId: "Q-MP-1", answerRole: "mp_option", optionLabel: "C", order: 3 },
+    { id: "E-1", questionId: "Q-MP-1", answerRole: "evidence", order: 1 },
+    { id: "OPT-A", questionId: "Q-MP-1", answerRole: "mp_option", optionLabel: "A", order: 1 },
+    { id: "R-1", questionId: "Q-MP-1", answerRole: "ps_reference", order: 2 },
+    { id: "OPT-D", questionId: "Q-MP-1", answerRole: "mp_option", optionLabel: "D", order: 4 },
+    { id: "OPT-B", questionId: "Q-MP-1", answerRole: "mp_option", optionLabel: "B", order: 2 },
+  ]).map(({ optionLabel }) => optionLabel),
+  ["A", "B", "C", "D"],
+  "linked MP navigation uses canonical option order and excludes non-option rows",
+);
 
 const afterFirstAnswer = selectAfterAnswerReview(
   psQuestion,

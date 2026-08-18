@@ -1,8 +1,8 @@
 import type { Question, StudentAnswer } from "../types";
 import {
+  getCanonicalMpAnswerSequence,
   isAnswerReviewEligible,
   isEvidenceAnswer,
-  isMpOptionAnswer,
   selectWorkspaceItemId,
   type ReviewWorkspaceItems,
   type ReviewWorkspace,
@@ -72,7 +72,17 @@ export function getMpOptionAnswersForQuestion(
   questionId: string,
   answers: readonly StudentAnswer[],
 ): StudentAnswer[] {
-  return getAnswersForQuestion(questionId, answers).filter(isMpOptionAnswer);
+  return getCanonicalMpAnswerSequence(questionId, answers);
+}
+
+function getWorkspaceAnswersForQuestion(
+  kind: "ps" | "mp",
+  questionId: string,
+  answers: readonly StudentAnswer[],
+): StudentAnswer[] {
+  return kind === "mp"
+    ? getMpOptionAnswersForQuestion(questionId, answers)
+    : getAnswersForQuestion(questionId, answers);
 }
 
 export function selectEvidenceAnswerId(
@@ -287,7 +297,7 @@ export function normalizeReviewSessionState(
       ? storedParentId
       : storedAnswer?.questionId;
     let linkedAnswers = parentQuestionId
-      ? getAnswersForQuestion(parentQuestionId, workspaceAnswers)
+      ? getWorkspaceAnswersForQuestion(kind, parentQuestionId, workspaceAnswers)
       : [];
     let activeAnswerId = selectStoredWorkspaceItemId(
       linkedAnswers,
@@ -303,7 +313,7 @@ export function normalizeReviewSessionState(
       );
       parentQuestionId = fallbackAnswer?.questionId;
       linkedAnswers = parentQuestionId
-        ? getAnswersForQuestion(parentQuestionId, workspaceAnswers)
+        ? getWorkspaceAnswersForQuestion(kind, parentQuestionId, workspaceAnswers)
         : [];
       activeAnswerId = selectStoredWorkspaceItemId(
         linkedAnswers,
@@ -323,7 +333,11 @@ export function normalizeReviewSessionState(
     activeParentQuestionIds[kind] = parentQuestionId;
     activeItemIds[answerWorkspace] = parentQuestionId
       ? selectStoredWorkspaceItemId(
-          getAnswersForQuestion(parentQuestionId, items[answerWorkspace]),
+          getWorkspaceAnswersForQuestion(
+            kind,
+            parentQuestionId,
+            items[answerWorkspace],
+          ),
           state.activeItemIds[answerWorkspace],
           kind === "mp" ? reviewedAnswerIds : [],
         )

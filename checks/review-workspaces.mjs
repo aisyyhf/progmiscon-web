@@ -8,6 +8,7 @@ import {
   filterEligibleAnswerReviewIds,
   filterEligibleAnswerReviewTasks,
   getActionableAnswerReviewSequence,
+  getCanonicalMpAnswerSequence,
   getCompositeReviewedQuestionIds,
   getNextUnreviewedAnswerId,
   getReachableAnswerReviewSequence,
@@ -86,6 +87,72 @@ const answers = [
   },
   { id: "A-ORPHAN", questionId: "missing", answerRole: "evidence" },
 ];
+
+const shuffledMpOptions = [
+  { id: "OPT-C", questionId: "Q-MP-1", answerRole: "mp_option", optionLabel: "C", order: 3, sourceVersion: "v1" },
+  { id: "EVIDENCE", questionId: "Q-MP-1", answerRole: "evidence", optionLabel: null, order: 1, sourceVersion: "v1" },
+  { id: "OPT-A", questionId: "Q-MP-1", answerRole: "mp_option", optionLabel: "A", order: 1, sourceVersion: "v1" },
+  { id: "REFERENCE", questionId: "Q-MP-1", answerRole: "ps_reference", optionLabel: null, order: 2, sourceVersion: "v1" },
+  { id: "OPT-D", questionId: "Q-MP-1", answerRole: "mp_option", optionLabel: "D", order: 4, sourceVersion: "v1" },
+  { id: "OPT-B", questionId: "Q-MP-1", answerRole: "mp_option", optionLabel: "B", order: 2, sourceVersion: "v1" },
+  { id: "OTHER-A", questionId: "Q-MP-OTHER", answerRole: "mp_option", optionLabel: "A", order: 1, sourceVersion: "v1" },
+];
+const canonicalMpOptions = getCanonicalMpAnswerSequence(
+  "Q-MP-1",
+  shuffledMpOptions,
+);
+assert.deepEqual(
+  canonicalMpOptions.map(({ optionLabel }) => optionLabel),
+  ["A", "B", "C", "D"],
+  "physical/task order and non-option rows must not affect canonical MP order",
+);
+assert.deepEqual(
+  getActionableAnswerReviewSequence(
+    questions[1],
+    shuffledMpOptions,
+    [],
+    new Map(),
+    3,
+  ).map(({ optionLabel }) => optionLabel),
+  ["A", "B", "C", "D"],
+  "the actionable Review Jawaban sequence uses canonical MP order",
+);
+assert.deepEqual(
+  getCanonicalMpAnswerSequence(
+    "Q-MP-1",
+    shuffledMpOptions.map((answer) =>
+      answer.answerRole === "mp_option" && answer.questionId === "Q-MP-1"
+        ? { ...answer, order: answer.optionLabel === "B" ? 1 : null }
+        : answer,
+    ),
+  ).map(({ optionLabel }) => optionLabel),
+  ["A", "B", "C", "D"],
+  "missing, invalid, or tied order values fall back to semantic option labels",
+);
+for (const [label, position, previous, next] of [
+  ["A", 1, undefined, "B"],
+  ["B", 2, "A", "C"],
+  ["C", 3, "B", "D"],
+]) {
+  const index = canonicalMpOptions.findIndex((answer) => answer.optionLabel === label);
+  assert.equal(index + 1, position);
+  assert.equal(canonicalMpOptions[index - 1]?.optionLabel, previous);
+  assert.equal(canonicalMpOptions[index + 1]?.optionLabel, next);
+}
+assert.equal(
+  getNextUnreviewedAnswerId(canonicalMpOptions, ["OPT-A", "OPT-B"]),
+  "OPT-C",
+  "partial MP progression resumes at the first unfinished canonical option",
+);
+assert.deepEqual(
+  getReachableAnswerReviewSequence(
+    canonicalMpOptions,
+    ["OPT-A", "OPT-B"],
+    "OPT-C",
+  ).map(({ optionLabel }) => optionLabel),
+  ["A", "B", "C"],
+  "reachability is applied after canonical ordering",
+);
 
 const { items } = classifyReviewItems(questions, answers);
 const questionById = new Map(questions.map((question) => [question.id, question]));

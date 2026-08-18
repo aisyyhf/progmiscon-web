@@ -24,6 +24,44 @@ export function isEvidenceAnswer(
   return answer?.answerRole === "evidence";
 }
 
+function optionLabelOrder(label: string | null | undefined): number {
+  const normalized = label?.trim().toUpperCase() ?? "";
+  if (!/^[A-Z]+$/.test(normalized)) return Number.MAX_SAFE_INTEGER;
+
+  return [...normalized].reduce(
+    (order, character) => order * 26 + character.charCodeAt(0) - 64,
+    0,
+  );
+}
+
+export function getCanonicalMpAnswerSequence(
+  questionId: string,
+  answers: readonly StudentAnswer[],
+): StudentAnswer[] {
+  const seen = new Set<string>();
+  const options = answers.filter((answer) => {
+    if (
+      answer.questionId !== questionId ||
+      !isMpOptionAnswer(answer) ||
+      seen.has(answer.id)
+    ) {
+      return false;
+    }
+    seen.add(answer.id);
+    return true;
+  });
+  const orders = options.map(({ order }) => order);
+  const hasCanonicalOrders =
+    orders.every((order) => Number.isInteger(order) && Number(order) > 0) &&
+    new Set(orders).size === orders.length;
+
+  return [...options].sort((left, right) =>
+    hasCanonicalOrders
+      ? Number(left.order) - Number(right.order)
+      : optionLabelOrder(left.optionLabel) - optionLabelOrder(right.optionLabel),
+  );
+}
+
 export function assertAnswerReviewEligible(
   question: Pick<Question, "type"> | undefined,
 ): void {
@@ -86,23 +124,12 @@ export function getActionableAnswerReviewSequence(
   if (!question || !isAnswerReviewEligible(question)) return [];
 
   const reviewed = new Set(reviewedAnswerIds);
-  const seen = new Set<string>();
-
-  return answers.filter((answer) => {
-    if (
-      answer.questionId !== question.id ||
-      !isMpOptionAnswer(answer) ||
-      !answer.sourceVersion ||
-      seen.has(answer.id)
-    ) {
-      return false;
-    }
-    seen.add(answer.id);
-    return (
-      reviewed.has(answer.id) ||
-      (answerReviewCounts.get(answer.id) ?? 0) < reviewerThreshold
-    );
-  });
+  return getCanonicalMpAnswerSequence(question.id, answers).filter(
+    (answer) =>
+      Boolean(answer.sourceVersion) &&
+      (reviewed.has(answer.id) ||
+        (answerReviewCounts.get(answer.id) ?? 0) < reviewerThreshold),
+  );
 }
 
 export function getNextUnreviewedAnswerId(

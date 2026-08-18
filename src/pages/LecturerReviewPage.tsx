@@ -79,6 +79,7 @@ import {
   createDefaultReviewSessionState,
   getEvidenceAnswersForQuestion,
   getAnswersForQuestion,
+  getMpOptionAnswersForQuestion,
   getPairedWorkspace,
   normalizeReviewSessionState,
   parseReviewSessionState,
@@ -783,10 +784,15 @@ export function LegacyLecturerReviewPage({
     : undefined;
   const activeItems =
     workspace.startsWith("answer") && activeParentQuestion
-      ? getAnswersForQuestion(
-          activeParentQuestion.id,
-          navigableWorkspaceItems[workspace] as StudentAnswer[],
-        )
+      ? workspace === "answer-mp"
+        ? getMpOptionAnswersForQuestion(
+            activeParentQuestion.id,
+            navigableWorkspaceItems[workspace] as StudentAnswer[],
+          )
+        : getAnswersForQuestion(
+            activeParentQuestion.id,
+            navigableWorkspaceItems[workspace] as StudentAnswer[],
+          )
       : navigableWorkspaceItems[workspace];
   const activeReviewedIds = workspace.startsWith("question")
     ? reviewedQuestionIds
