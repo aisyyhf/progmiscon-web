@@ -31,6 +31,15 @@ export type MisconceptionReviewFormAction =
   | { type: "replace"; value: MisconceptionReviewFormState }
   | { type: "reset" };
 
+export type MisconceptionReviewValidationError =
+  | "choice"
+  | "selection"
+  | "reason";
+
+export type MisconceptionReviewFormErrors = Partial<
+  Record<"removal" | "addition", MisconceptionReviewValidationError>
+>;
+
 export const initialMisconceptionReviewFormState: MisconceptionReviewFormState =
   {
     removalChoice: null,
@@ -190,6 +199,28 @@ export function canSubmitMisconceptionReview(
       (state.additionalMisconceptionIds.length > 0 &&
         state.additionReason.trim().length > 0))
   );
+}
+
+export function getMisconceptionReviewFormErrors(
+  state: MisconceptionReviewFormState,
+): MisconceptionReviewFormErrors {
+  const errors: MisconceptionReviewFormErrors = {};
+
+  if (state.removalChoice === null) errors.removal = "choice";
+  else if (state.removalChoice && state.removedMisconceptionIds.length === 0) {
+    errors.removal = "selection";
+  } else if (state.removalChoice && !state.removalReason.trim()) {
+    errors.removal = "reason";
+  }
+
+  if (state.additionChoice === null) errors.addition = "choice";
+  else if (state.additionChoice && state.additionalMisconceptionIds.length === 0) {
+    errors.addition = "selection";
+  } else if (state.additionChoice && !state.additionReason.trim()) {
+    errors.addition = "reason";
+  }
+
+  return errors;
 }
 
 function commonPayload(state: MisconceptionReviewFormState) {

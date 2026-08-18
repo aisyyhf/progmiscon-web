@@ -104,8 +104,13 @@ assert.match(layout, /sticky top-0 z-30[\s\S]*?overflow-visible/);
 assert.match(layout, /collapsed \? "w-\[72px\]" : "w-52"/);
 assert.match(
   layout,
-  /reviewSearch\.has\("week"\) && !reviewSearch\.has\("item"\)[\s\S]*?px-4 py-6 sm:px-6 md:pb-9 md:pt-4 lg:px-8/,
+  /reviewSearch\.has\("week"\) && !reviewSearch\.has\("item"\)[\s\S]*?px-4 py-6 sm:px-6 md:pb-9 md:pt-6 lg:px-8/,
   "the weekly question list must align with the desktop sidebar header without changing mobile top spacing",
+);
+assert.match(
+  layout,
+  /reviewSearch\.has\("item"\)[\s\S]*?px-4 pb-9 pt-3 sm:px-6 md:pt-6 lg:px-8/,
+  "the review detail breadcrumb must align with the sidebar header row",
 );
 assert.match(
   layout,

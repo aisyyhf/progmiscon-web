@@ -407,10 +407,7 @@ assert.match(
   page,
   /"answer-mp": allWorkspaceItems\["answer-mp"\]/,
 );
-assert.match(
-  page,
-  /questionReviewCount=\{\s*questionCountsLoaded\s*\? \(questionReviewCounts\.get\(activeQuestion\.id\) \?\? 0\)/,
-);
+assert.doesNotMatch(page, /questionReviewCount=\{/);
 assert.match(page, /alreadyReviewed/);
 assert.match(
   page,
@@ -420,17 +417,10 @@ assert.match(page, /statusAvailable=\{questionCountsLoaded\}/);
 assert.match(page, /statusLoading=\{questionCountsLoading\}/);
 assert.match(page, /statusError=\{questionCountsError\}/);
 assert.match(page, /Status agregat review belum dapat dimuat\./);
-assert.match(
-  page,
-  /telah selesai oleh \$\{QUESTION_REVIEWED_THRESHOLD\} reviewer/,
-);
-assert.match(
-  page,
-  /has been completed by \$\{QUESTION_REVIEWED_THRESHOLD\} reviewers/,
-);
+assert.doesNotMatch(page, /ReviewLockNotice/);
 assert.match(page, /selectAfterQuestionReview/);
 assert.match(page, /selectAfterAnswerReview/);
-assert.match(page, /onReviewAnswer=/);
+assert.doesNotMatch(page, /onReviewAnswer=/);
 assert.match(
   page,
   /useState<ReviewQuestionFilterSessionState>\(readStoredQuestionFilters\)/,
@@ -497,33 +487,41 @@ assert.match(
 assert.equal(
   page.match(/const formUnavailable = locked \|\| progressUnavailable;/g)
     ?.length,
-  1,
+  undefined,
 );
 assert.equal(
   page.match(
-    /const formUnavailable = readOnly \|\| locked \|\| progressUnavailable;/g,
+    /const formUnavailable = mode === "view" \|\| locked \|\| progressUnavailable;/g,
   )?.length,
-  1,
+  2,
 );
 assert.equal(page.match(/\sdisabled=\{formUnavailable\}/g)?.length, 2);
 assert.equal(
-  page.match(/progressUnavailable \? \(\s*<ReviewProgressUnavailableNotice \/>/g)
+  page.match(/progressUnavailable && <ReviewProgressUnavailableNotice \/>/g)
     ?.length,
   2,
 );
-assert.match(page, /if \(\s*formUnavailable \|\|\s*!canSubmit/);
+assert.equal(
+  page.match(/if \(formUnavailable \|\| submitting\) return;/g)?.length,
+  2,
+);
+assert.equal(
+  page.match(/const errors = getMisconceptionReviewFormErrors\(form\);/g)?.length,
+  2,
+);
+assert.doesNotMatch(page, /!canSubmitMisconceptionReviewForm/);
 assert.match(
   page,
   /Status review Anda belum dapat dimuat\. Muat ulang halaman sebelum melanjutkan review\./,
 );
 assert.match(page, /onClick=\{\(\) => window\.location\.reload\(\)\}/);
 assert.match(page, /Muat ulang/);
-assert.match(page, /Anda sudah mereview soal ini\./);
+assert.doesNotMatch(page, /Anda sudah mereview soal ini\./);
 assert.match(page, /Hapus review jawaban ini\?/);
-assert.match(page, /Lihat review saya/);
+assert.doesNotMatch(page, /Lihat review saya/);
 assert.match(page, /navigate\("\/review\/riwayat"\)/);
-assert.match(page, /onPrevious=\{\(\) => selectOffset\(-1\)\}/);
-assert.match(page, /onNext=\{\(\) => selectOffset\(1\)\}/);
+assert.doesNotMatch(page, /onPrevious=\{\(\) => selectOffset\(-1\)\}/);
+assert.doesNotMatch(page, /onNext=\{\(\) => selectOffset\(1\)\}/);
 assert.match(
   filterComponent,
   /const statusDisabled = statusLoading \|\| !statusAvailable/,

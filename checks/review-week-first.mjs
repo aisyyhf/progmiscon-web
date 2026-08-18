@@ -95,6 +95,7 @@ const searchableQuestions = questions.map((item, index) => ({
 const searchableQuestionCounts = new Map([
   ["W02-PS-1", 3],
   ["W02-PS-2", 3],
+  ["W02-MP-40", 3],
 ]);
 const reviewedStatusIds = new Set(["reviewed-at-1", "reviewed-at-3"]);
 const statusCounts = new Map([
@@ -110,6 +111,17 @@ assert.equal(getWeekReviewQuestionStatus("unreviewed-at-2", reviewedStatusIds, s
 assert.equal(getWeekReviewQuestionStatus("reviewed-at-1", reviewedStatusIds, statusCounts, 3), "reviewed");
 assert.equal(getWeekReviewQuestionStatus("reviewed-at-3", reviewedStatusIds, statusCounts, 3), "reviewed");
 assert.equal(getWeekReviewQuestionStatus("full-at-3", reviewedStatusIds, statusCounts, 3), "full");
+assert.equal(
+  getWeekReviewQuestionStatus(
+    "full-at-3",
+    reviewedStatusIds,
+    statusCounts,
+    3,
+    new Set(["full-at-3"]),
+  ),
+  "unreviewed",
+  "a cap-full MP question step remains unreviewed while its composite task is partial",
+);
 assert.deepEqual(
   filterWeekReviewQuestions(searchableQuestions, {
     week: "W02",
@@ -159,6 +171,20 @@ assert.deepEqual(
   }),
   [],
   "quota-full questions are excluded from ordinary personal unreviewed status",
+);
+assert.deepEqual(
+  filterWeekReviewQuestions(searchableQuestions, {
+    week: "W02",
+    query: "W02-MP-40",
+    type: "mp",
+    status: "unreviewed",
+    reviewedQuestionIds: [],
+    startedQuestionIds: ["W02-MP-40"],
+    questionCounts: searchableQuestionCounts,
+    reviewerThreshold: 3,
+  }).map(({ id }) => id),
+  ["W02-MP-40"],
+  "a started but composite-incomplete row stays in Belum direview even at question cap",
 );
 
 assert.equal(REVIEW_NAVIGATION_SESSION_KEY.endsWith(".v2"), true);
@@ -271,7 +297,9 @@ const normalized = normalizeReviewNavigationState(
     task: "answer",
     status: "unreviewed",
     type: "ps",
+    mode: "view",
     item: "PS-EVIDENCE",
+    returnAnswer: "MP-ANSWER-2",
   },
   {
     questions,
@@ -284,8 +312,10 @@ assert.deepEqual(normalized, {
   week: "W02",
   task: "answer",
   status: "unreviewed",
-  type: "all",
+  type: "ps",
+  mode: "view",
   item: "MP-ANSWER-1",
+  returnAnswer: "MP-ANSWER-2",
 });
 assert.equal(getNextQueueItemId(queue(), "W02-PS-1"), "W02-PS-2");
 assert.equal(getNextQueueItemId([{ id: "only" }], "only"), undefined);
@@ -294,6 +324,7 @@ const questionNavigation = {
   task: "question",
   status: "unreviewed",
   type: "all",
+  mode: "review",
   item: "W02-PS-1",
 };
 assert.deepEqual(
@@ -321,7 +352,7 @@ assert.deepEqual(
     { ...questionNavigation, status: "reviewed" },
     "W02-PS-1",
   ),
-  questionNavigation,
+  { ...questionNavigation, returnAnswer: undefined },
   "withdraw returns the item to personal unreviewed semantics",
 );
 
@@ -336,15 +367,78 @@ assert.deepEqual(deepLink, {
   task: "answer",
   status: "reviewed",
   type: "all",
+  mode: "review",
   item: "MP-ANSWER-2",
 });
 assert.equal(resolveAnswerDeepLink("PS-EVIDENCE", questions, answers, []), undefined);
+
+const staleMpQuestionNavigation = {
+  week: "W02",
+  task: "question",
+  status: "unreviewed",
+  type: "all",
+  mode: "review",
+  item: "W02-MP-1",
+};
+const staleNormalizedAfterSave = normalizeReviewNavigationState(
+  staleMpQuestionNavigation,
+  {
+    questions,
+    answers,
+    reviewedQuestionIds: ["W02-MP-1"],
+    reviewedAnswerIds: [],
+  },
+);
+assert.equal(staleNormalizedAfterSave.task, "question");
+assert.notEqual(
+  staleNormalizedAfterSave.item,
+  "W02-MP-1",
+  "a stale unreviewed-question URL falls through to the next question after save",
+);
+const mpContinuation = resolveAnswerDeepLink(
+  "MP-ANSWER-1",
+  questions,
+  answers,
+  [],
+);
+assert.ok(mpContinuation);
+const normalizedMpContinuation = normalizeReviewNavigationState(
+  mpContinuation,
+  {
+    questions,
+    answers,
+    reviewedQuestionIds: ["W02-MP-1"],
+    reviewedAnswerIds: [],
+  },
+);
+assert.equal(normalizedMpContinuation.task, "answer");
+assert.equal(normalizedMpContinuation.item, "MP-ANSWER-1");
+assert.equal(
+  answers.find(({ id }) => id === normalizedMpContinuation.item)?.questionId,
+  "W02-MP-1",
+  "the explicit MP continuation stays on an answer owned by the saved question",
+);
 
 const search = serializeReviewNavigationSearch(deepLink);
 assert.deepEqual(parseReviewNavigationSearch(search), {
   hasParameters: true,
   state: deepLink,
 });
+const reviewedMpListContext = {
+  week: "W02",
+  task: "question",
+  status: "reviewed",
+  type: "mp",
+  mode: "edit",
+  returnAnswer: "MP-ANSWER-1",
+};
+assert.deepEqual(
+  parseReviewNavigationSearch(
+    serializeReviewNavigationSearch(reviewedMpListContext),
+  ).state,
+  reviewedMpListContext,
+  "the canonical URL preserves reviewed status and MP type for list return/history",
+);
 assert.equal(parseReviewNavigationSearch("").hasParameters, false);
 assert.deepEqual(
   parseReviewNavigationSession(serializeReviewNavigationSession(deepLink)),
@@ -402,7 +496,32 @@ assert.match(app, /LecturerReviewWeekFirstPage/);
 assert.match(activePage, /REVIEW_NAVIGATION_SESSION_KEY/);
 assert.match(activePage, /serializeReviewNavigationSearch\(navigation\)/);
 assert.match(activePage, /replace: true/);
-assert.match(activePage, /getNavigationAfterReviewSave/);
+assert.match(activePage, /options: \{ replace\?: boolean \}/);
+assert.match(activePage, /replace: options\.replace \?\? true/);
+assert.match(
+  activePage,
+  /const openQuestion[\s\S]*?task: "question"[\s\S]*?mode,[\s\S]*?returnAnswer: undefined,[\s\S]*?\{ replace: false \},/,
+  "opening a question from its week list must preserve the list in browser history",
+);
+assert.doesNotMatch(
+  activePage.slice(activePage.indexOf("const openQuestion"), activePage.indexOf("const withdrawQuestionReview")),
+  /resolveAnswerDeepLink|getNextUnreviewedAnswerId/,
+  "partial MP rows must reopen on the question instead of jumping to an answer",
+);
+assert.match(listSource, /onOpenQuestion\(question, "review"\)/);
+assert.match(listSource, /onOpenQuestion\(question, "view"\)/);
+assert.match(listSource, /onOpenQuestion\(question, "edit"\)/);
+assert.match(activePage, /mode=\{navigation\.mode\}/);
+assert.match(
+  activePage,
+  /navigateToQuestionStep\([\s\S]{0,100}navigation\.mode === "review" \? activeAnswer\.id : undefined/,
+);
+assert.match(activePage, /questionReturnAnswer \?\?[\s\S]*?reviewedAnswerIds\.includes/);
+assert.match(activePage, /navigation\.mode !== "review" \|\|[\s\S]*?reviewedAnswerIds\.includes\(activeAnswer\.id\)/);
+assert.match(activePage, /function getAnswerStepLabel[\s\S]*?option\?\.label/);
+assert.doesNotMatch(activePage, /getNavigationAfterReviewSave/);
+assert.match(activePage, /getActionableAnswerReviewSequence/);
+assert.match(activePage, /getNextUnreviewedAnswerId/);
 assert.match(activePage, /getNavigationAfterWithdraw/);
 assert.match(activePage, /resolveAnswerDeepLink/);
 assert.match(activePage, /ReviewBreadcrumb/);
@@ -512,8 +631,10 @@ assert.doesNotMatch(
   /Kuota penuh|Quota full|Reviewer penuh|Reviewers full/,
 );
 assert.match(activePage, /getWeekReviewQuestionStatus/);
-assert.match(listSource, /useState<ReviewWeekListStatus>\("unreviewed"\)/);
-assert.match(listSource, /useState<ReviewQuestionType>\("all"\)/);
+assert.doesNotMatch(listSource, /useState<ReviewWeekListStatus>/);
+assert.doesNotMatch(listSource, /useState<ReviewQuestionType>/);
+assert.match(listSource, /onStatusChange\(value\)/);
+assert.match(listSource, /onTypeChange\(option\.value\)/);
 assert.doesNotMatch(listSource, /\["all", language === "id" \? "Semua"/);
 assert.match(activePage, /rounded-full/);
 assert.match(activePage, /Tipe soal/);
@@ -571,8 +692,9 @@ assert.match(activePage, /deleteQuestionReview\(/);
 assert.match(activePage, /deleteAnswerReview\(/);
 assert.match(listSource, /questionStatus === "unreviewed"/);
 assert.match(listSource, /questionStatus === "reviewed"/);
-assert.match(listSource, /onOpenQuestion\(question, true\)/);
-assert.match(listSource, /onOpenQuestion\(question, false\)/);
+assert.match(listSource, /onOpenQuestion\(question, "review"\)/);
+assert.match(listSource, /onOpenQuestion\(question, "view"\)/);
+assert.match(listSource, /onOpenQuestion\(question, "edit"\)/);
 assert.match(listSource, /<Eye/);
 assert.match(listSource, /<Pencil/);
 assert.match(listSource, /<Trash2/);
@@ -597,12 +719,24 @@ assert.equal(
 );
 assert.match(activePage, /withdrawQuestionReview/);
 assert.match(activePage, /deleteQuestionReview\(question\.id, question\.sourceVersion\)/);
-assert.match(activePage, /mode=view/);
-assert.match(activePage, /readOnly=\{reviewReadOnly\}/);
-assert.match(validationWorkspace, /formUnavailable = readOnly \|\| locked \|\| progressUnavailable/);
-assert.match(validationWorkspace, /Mode lihat\. Review Anda ditampilkan hanya-baca\./);
-assert.match(validationWorkspace, /Batas 3 reviewer telah tercapai\. Soal ditampilkan hanya-baca\./);
-assert.match(validationWorkspace, /!readOnly && answerReviewEligible && onReviewAnswer/);
+assert.match(activePage, /mode=\{navigation\.mode\}/);
+assert.doesNotMatch(activePage, /reviewReadOnly|readOnly=/);
+assert.match(validationWorkspace, /formUnavailable = mode === "view" \|\| locked \|\| progressUnavailable/);
+assert.doesNotMatch(validationWorkspace, /Mode lihat\. Review Anda ditampilkan hanya-baca\./);
+assert.doesNotMatch(validationWorkspace, /onReviewAnswer/);
+assert.match(validationWorkspace, /EDIT REVIEW SOAL/);
+assert.match(validationWorkspace, /HASIL REVIEW SOAL/);
+assert.match(validationWorkspace, /EDIT REVIEW JAWABAN/);
+assert.match(validationWorkspace, /HASIL REVIEW JAWABAN/);
+assert.match(activePage, /getCompositeReviewedQuestionIds/);
+assert.match(activePage, /reviewedQuestionStepIds/);
+assert.match(
+  activePage,
+  /reviewStage === "detail" && navigation\.mode !== "review"[\s\S]{0,100}\? navigation\.status[\s\S]{0,50}: "unreviewed"/,
+  "breadcrumb list return keeps active Review sessions in Belum direview",
+);
+assert.match(activePage, /navigateToWeekList\(navigation\.week, "unreviewed", navigation\.type, true\)/);
+assert.match(activePage, /\.\.\.target,[\s\S]{0,100}type: navigation\.type,[\s\S]{0,100}mode: "review"/);
 assert.doesNotMatch(activePage, /question-ps|answer-ps|question-mp|answer-mp/);
 assert.doesNotMatch(
   activePage,

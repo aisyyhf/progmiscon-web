@@ -22,15 +22,15 @@ export function QuestionContent({ question }: { question: Question }) {
   const sampleCases = question.sampleCases ?? [];
 
   return (
-    <div className="min-w-0">
-      <div className="space-y-4">
+    <div className="review-question-content min-w-0">
+      <div className="space-y-3">
         {blocks.map((block, index) =>
           block.type === "code" ? (
             <div key={`${block.type}-${index}`} className="min-w-0 overflow-hidden rounded-md border border-navy-deep/15">
               <PseudocodeBlock code={block.content} />
             </div>
           ) : (
-            <p key={`${block.type}-${index}`} className="max-w-4xl whitespace-pre-wrap text-sm leading-7 text-navy-deep">
+            <p key={`${block.type}-${index}`} className="max-w-4xl whitespace-pre-wrap text-xs font-normal leading-5 text-navy-deep">
               {block.content}
             </p>
           ),
@@ -38,17 +38,35 @@ export function QuestionContent({ question }: { question: Question }) {
       </div>
 
       {sampleCases.length > 0 && (
-        <section className="mt-6 border-t border-border pt-5" aria-label={language === "id" ? "Contoh masukan dan keluaran" : "Sample input and output"}>
-          <h3 className="academic-label">{language === "id" ? "Contoh kasus" : "Sample cases"}</h3>
-          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-            {sampleCases.map((sample, index) => (
-              <article key={`${sample.input}\u0000${sample.output}-${index}`} className="min-w-0 rounded-md border border-border bg-white p-3">
-                <p className="text-xs font-bold text-muted">{language === "id" ? "Masukan" : "Input"}</p>
-                <pre className="mt-1 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-navy-deep">{sample.input}</pre>
-                <p className="mt-3 text-xs font-bold text-muted">{language === "id" ? "Keluaran" : "Output"}</p>
-                <pre className="mt-1 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-navy-deep">{sample.output}</pre>
-              </article>
-            ))}
+        <section className="mt-3 border-t border-border pt-3" aria-label="Contoh masukan dan keluaran">
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed border-collapse text-left text-xs leading-4 text-navy-deep">
+              <caption className="mb-1.5 text-left text-xs font-semibold leading-5 text-navy-deep">
+                Contoh kasus
+              </caption>
+              <thead className="bg-[var(--review-secondary-soft)]">
+                <tr>
+                  <th scope="col" className="border border-[#ccbab0]/80 px-2.5 py-1.5 font-semibold">
+                    Masukan
+                  </th>
+                  <th scope="col" className="border border-[#ccbab0]/80 px-2.5 py-1.5 font-semibold">
+                    Keluaran
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sampleCases.map((sample, index) => (
+                  <tr key={`${sample.input}\u0000${sample.output}-${index}`} className="odd:bg-white even:bg-[var(--review-secondary-soft)]">
+                    <td className="border border-[#ccbab0]/70 px-2.5 py-1.5 align-top">
+                      <pre className="overflow-auto whitespace-pre-wrap break-words font-mono font-normal leading-4">{sample.input}</pre>
+                    </td>
+                    <td className="border border-[#ccbab0]/70 px-2.5 py-1.5 align-top">
+                      <pre className="overflow-auto whitespace-pre-wrap break-words font-mono font-normal leading-4">{sample.output}</pre>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
       )}

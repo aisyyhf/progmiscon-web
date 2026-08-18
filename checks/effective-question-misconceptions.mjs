@@ -5,6 +5,7 @@ import {
   buildEffectiveQuestionMisconceptionMap,
 } from "../src/utils/effectiveMasterData.ts";
 import {
+  buildAnswerReviewValues,
   buildQuestionReviewValues,
   getAdditionalMisconceptionCandidates,
   getQuestionRemovalProposalIds,
@@ -178,6 +179,15 @@ assert.deepEqual(buildQuestionReviewValues(questionReviewForm), {
   additionReason: null,
   note: null,
 });
+assert.deepEqual(buildAnswerReviewValues(questionReviewForm), {
+  hasMismatchedMisconceptions: true,
+  removedMisconceptionIds: ["M-03"],
+  removalReason: "Relasi jawaban perlu ditinjau",
+  hasAdditionalMisconceptions: false,
+  additionalMisconceptionIds: [],
+  additionReason: null,
+  note: null,
+});
 
 const baseline = masterData(
   [questionRelation("M-01")],
@@ -308,8 +318,13 @@ assert.match(
 );
 assert.match(
   removalProposalSection,
-  /\{recommended\.map\(\(item\) => \([\s\S]+misconceptionSourceLabel\(item\.id\)/,
-  "every effective misconception must appear in the removal list with provenance",
+  /\{recommended\.map\(\(item\) => \([\s\S]+\{item\.id\}[\s\S]+t\(item\.title, language\)/,
+  "every effective misconception must appear in the compact removal list",
+);
+assert.doesNotMatch(
+  removalProposalSection,
+  /misconceptionSourceLabel|Terkait langsung ke soal|—/,
+  "the compact removal list must omit redundant provenance copy and separators",
 );
 assert.doesNotMatch(
   removalProposalSection,
