@@ -598,10 +598,7 @@ assert.match(activePage, /navigation\.mode !== "review" \|\|[\s\S]*?reachableAns
 assert.match(activePage, /answerStepSequence\.findIndex\(\(\{ id \}\) => id === activeAnswer\?\.id\)/);
 assert.match(activePage, /previousAnswer\s*=\s*answerSequenceIndex > 0[\s\S]*?displayedAnswerSequence\[answerSequenceIndex - 1\]/);
 assert.match(activePage, /nextAnswer\s*=\s*displayedAnswerSequence\[answerSequenceIndex \+ 1\]/);
-assert.match(
-  activePage,
-  /optionAnswers=\{getMpOptionAnswersForQuestion\(answerQuestion\.id, answers\)\}/,
-);
+assert.doesNotMatch(activePage, /optionAnswers=|getMpOptionAnswersForQuestion/);
 assert.doesNotMatch(activePage, /siblingAnswerIds=|activeIndex=\{/);
 assert.match(activePage, /getNextUnreviewedAnswerId\(questionAnswerReviewSequence, reviewedAnswerIds\)/);
 assert.match(activePage, /function getAnswerStepLabel[\s\S]*?option\?\.label/);
@@ -708,6 +705,7 @@ assert.match(activePage, /reviewStage === "overview"/);
 assert.match(activePage, /reviewStage === "list"/);
 assert.doesNotMatch(listSource, /Status pribadi|Personal status/);
 assert.match(activePage, /REVIEW SOAL PER MINGGU/);
+assert.match(activePage, /<div className="pb-2 text-center">/);
 assert.match(activePage, /formatWeekLabel\(week\)\.toLocaleUpperCase/);
 assert.match(activePage, /aria-pressed=\{status === value\}/);
 assert.match(listSource, /Jumlah reviewer terpenuhi/);

@@ -72,10 +72,7 @@ import {
   type ReviewWeekSummary,
 } from "../utils/reviewQueue";
 import { QUESTION_REVIEWED_THRESHOLD } from "../utils/reviewQuestionFilters";
-import {
-  getEvidenceAnswersForQuestion,
-  getMpOptionAnswersForQuestion,
-} from "../utils/reviewLinking";
+import { getEvidenceAnswersForQuestion } from "../utils/reviewLinking";
 import {
   filterEligibleAnswerReviewCounts,
   filterEligibleAnswerReviewIds,
@@ -276,7 +273,7 @@ function WeekOverview({
 }) {
   return (
     <>
-      <div className="pb-2">
+      <div className="pb-2 text-center">
         <h1 className="text-[1.75rem] font-semibold leading-9 tracking-[-0.02em] text-black">
           {language === "id" ? "REVIEW SOAL PER MINGGU" : "REVIEW QUESTIONS BY WEEK"}
         </h1>
@@ -2040,7 +2037,6 @@ export function LecturerReviewPage({
             question={answerQuestion}
             answer={activeAnswer}
             evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
-            optionAnswers={getMpOptionAnswersForQuestion(answerQuestion.id, answers)}
             misconceptions={misconceptions}
             locked={activeAnswerLocked}
             progressUnavailable={!navigationReady || !activeAnswer.sourceVersion}
@@ -2239,7 +2235,6 @@ export function LecturerReviewPage({
                 question={answerQuestion}
                 answer={activeAnswer}
                 evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
-                optionAnswers={getMpOptionAnswersForQuestion(answerQuestion.id, answers)}
                 misconceptions={misconceptions}
                 locked={activeAnswerLocked}
                 progressUnavailable={!navigationReady || !activeAnswer.sourceVersion}

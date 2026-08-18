@@ -112,7 +112,7 @@ assert.match(evidence, /answers\[activeIndex \+ 1\]\.id/);
 assert.match(evidence, /<QuestionContextAccordion/);
 assert.match(evidence, /<QuestionContent question=\{question\}/);
 assert.match(evidence, /<StructuredEvidenceList/);
-assert.match(structuredEvidence, /"Nama"/);
+assert.doesNotMatch(structuredEvidence, /"Nama"|"Name"|Tidak tersedia|Unavailable/);
 assert.match(structuredEvidence, /"Jawaban"/);
 assert.match(structuredEvidence, /Miskonsepsi/);
 assert.match(structuredEvidence, /Penjelasan/);

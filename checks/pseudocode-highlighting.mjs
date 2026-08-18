@@ -1,5 +1,15 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { tokenizePseudocode } from "../src/utils/pseudocodeHighlight.ts";
+
+const component = await readFile(
+  new URL("../src/components/review/PseudocodeBlock.tsx", import.meta.url),
+  "utf8",
+);
+const answerCasePanel = await readFile(
+  new URL("../src/components/review/AnswerCasePanel.tsx", import.meta.url),
+  "utf8",
+);
 
 const source = 'IF total >= 10 THEN\n  PRINT "Valid" // hasil\nEND IF';
 const tokens = tokenizePseudocode(source);
@@ -10,3 +20,8 @@ assert(tokens.some((token) => token.text === "total" && token.kind === "variable
 assert(tokens.some((token) => token.text === "10" && token.kind === "number"));
 assert(tokens.some((token) => token.text === '"Valid"' && token.kind === "string"));
 assert(tokens.some((token) => token.text === "// hasil" && token.kind === "comment"));
+assert.match(component, /bg-navy-deep/);
+assert.match(component, /max-w-full overflow-x-auto whitespace-pre/);
+assert.doesNotMatch(component, /FCF2E5|whitespace-pre-wrap|break-words/);
+assert.match(answerCasePanel, /min-w-0 space-y-6/);
+assert.match(answerCasePanel, /min-w-0 overflow-hidden rounded-lg/);

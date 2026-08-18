@@ -1,20 +1,20 @@
 import { tokenizePseudocode, type PseudocodeTokenKind } from "../../utils/pseudocodeHighlight";
 
 const tokenClasses: Record<PseudocodeTokenKind, string> = {
-  plain: "text-[#524646]",
-  keyword: "font-semibold text-[#EC5B38]",
-  type: "font-medium text-[#6F625F]",
-  literal: "text-[#7B594F]",
-  number: "text-[#7B594F]",
-  string: "text-[#7B594F]",
-  operator: "font-medium text-[#EC5B38]",
-  comment: "italic text-[#777466]",
-  variable: "text-[#524646]",
+  plain: "text-[#d8dee9]",
+  keyword: "font-semibold text-[#f08a9b]",
+  type: "font-medium text-[#c5a7f2]",
+  literal: "text-[#c5a7f2]",
+  number: "text-[#9fc0ff]",
+  string: "text-[#8ecf9d]",
+  operator: "font-medium text-[#9fc0ff]",
+  comment: "italic text-[#8f969e]",
+  variable: "text-[#b8d7ea]",
 };
 
 export function PseudocodeBlock({ code }: { code: string }) {
   return (
-    <pre className="overflow-x-auto whitespace-pre-wrap break-words bg-[#FCF2E5] p-4 font-mono text-[13px] leading-6 selection:bg-[#A8A492]/35">
+    <pre className="max-w-full overflow-x-auto whitespace-pre bg-navy-deep p-4 font-mono text-[13px] leading-6 text-[#d8dee9] selection:bg-white/20 sm:p-5">
       <code>
         {tokenizePseudocode(code).map((token, index) => (
           <span key={`${index}-${token.text}`} className={tokenClasses[token.kind]}>

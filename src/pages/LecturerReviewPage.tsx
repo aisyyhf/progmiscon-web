@@ -45,7 +45,6 @@ import { cn } from "../utils/cn";
 import { getQuestionOptionMisconceptionIds } from "../utils/questionMetadata";
 import { prioritizeMisconceptions, sortReviewTasks } from "../utils/reviewPriority";
 import { t, uiText } from "../utils/translation";
-import { misconceptionLabel } from "../utils/misconceptionLabel";
 import {
   getQuestionReviewCounts,
   getAnswerReviewCounts,
@@ -1614,7 +1613,6 @@ export function LegacyLecturerReviewPage({
                 question={answerQuestion}
                 answer={activeAnswer}
                 evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
-                optionAnswers={getMpOptionAnswersForQuestion(answerQuestion.id, answers)}
                 misconceptions={misconceptions}
                 locked={activeAnswerLocked}
                 progressUnavailable={
@@ -1985,14 +1983,15 @@ export function QuestionValidationWorkspace({
                   return (
                     <article
                       key={item.id}
-                      className="relative overflow-hidden rounded-md border border-brand/20 bg-brand-soft/35 p-2.5"
+                      className="group/misconception relative min-h-[4.5rem] overflow-hidden rounded-md border border-brand/20 bg-brand-soft/35 px-3 py-2.5 transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-brand/40 hover:bg-brand-soft/55 motion-reduce:transform-none"
                     >
+                      <span aria-hidden="true" className="pointer-events-none absolute -bottom-5 -right-3 h-12 w-12 rounded-full bg-brand/[0.055]" />
                       <button
                         type="button"
                         onClick={() => onSelectMisconception(item.id)}
-                        className="group/misconception block min-h-[3.25rem] w-full rounded-sm pr-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+                        className="relative block min-h-[3.25rem] w-full rounded-sm pr-5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                       >
-                        <ArrowRight size={13} strokeWidth={1.8} aria-hidden="true" className="absolute right-2.5 top-2.5 text-brand transition-transform duration-150 group-hover/misconception:translate-x-0.5 motion-reduce:translate-x-0" />
+                        <ArrowRight size={13} strokeWidth={1.8} aria-hidden="true" className="absolute right-0 top-0 text-brand transition-transform duration-150 group-hover/misconception:translate-x-0.5 motion-reduce:translate-x-0" />
                         <span className="block font-mono text-[11px] font-normal leading-4 text-brand">
                           {item.id}
                         </span>
@@ -2001,7 +2000,7 @@ export function QuestionValidationWorkspace({
                         </span>
                       </button>
                       {itemEvidence.length > 0 && (
-                        <div className="mt-2 border-t border-brand/15 pt-2">
+                        <div className="relative mt-2 border-t border-brand/15 pt-2">
                           <MisconceptionEvidenceDialog
                             answers={itemEvidence}
                             misconception={item}
@@ -2323,7 +2322,6 @@ export function AnswerValidationWorkspace({
   question,
   answer,
   evidenceAnswers = [],
-  optionAnswers = [],
   misconceptions,
   locked,
   progressUnavailable,
@@ -2341,7 +2339,6 @@ export function AnswerValidationWorkspace({
   question: Question;
   answer: StudentAnswer;
   evidenceAnswers?: StudentAnswer[];
-  optionAnswers?: StudentAnswer[];
   misconceptions: Misconception[];
   locked: boolean;
   progressUnavailable: boolean;
@@ -2373,13 +2370,17 @@ export function AnswerValidationWorkspace({
   const misconceptionById = new Map(
     misconceptions.map((item) => [item.id, item]),
   );
-  const optionAnswerById = new Map(
-    optionAnswers.flatMap((item) => {
-      const optionId =
-        item.selectedOptionId ??
-        question.options?.find((option) => option.label === item.optionLabel)?.id;
-      return optionId ? [[optionId, item] as const] : [];
-    }),
+  const activeOptionMisconceptions = (selectedOption
+    ? getQuestionOptionMisconceptionIds(selectedOption)
+    : []
+  )
+    .map((id) => misconceptionById.get(id))
+    .filter((item): item is Misconception => item !== undefined);
+  const activeReasonByMisconceptionId = new Map(
+    (answer.misconceptionReasons ?? []).map((item) => [
+      item.misconceptionId,
+      item.reason,
+    ]),
   );
   const addableMisconceptions = getAdditionalMisconceptionCandidates(
     misconceptions,
@@ -2548,16 +2549,6 @@ export function AnswerValidationWorkspace({
                 <ul className="mt-4 space-y-2">
                   {question.options.map((option) => {
                     const isCurrent = option.id === selectedOption?.id;
-                    const optionAnswer = optionAnswerById.get(option.id);
-                    const optionMisconceptions = getQuestionOptionMisconceptionIds(option)
-                      .map((id) => misconceptionById.get(id))
-                      .filter((item) => item !== undefined);
-                    const reasonByMisconceptionId = new Map(
-                      (optionAnswer?.misconceptionReasons ?? []).map((item) => [
-                        item.misconceptionId,
-                        item.reason,
-                      ]),
-                    );
                     return (
                       <li
                         key={option.id}
@@ -2591,43 +2582,6 @@ export function AnswerValidationWorkspace({
                             )}
                           </span>
                         </div>
-                        {optionMisconceptions.length > 0 && (
-                          <div className={cn(
-                            "mt-2 space-y-2 border-t pt-2",
-                            option.isCorrect ? "border-white/25" : "border-brand/15",
-                          )}>
-                            {optionMisconceptions.map((misconception) => {
-                              const reason = reasonByMisconceptionId.get(misconception.id);
-                              const misconceptionEvidence = evidenceAnswers.filter(
-                                (evidence) =>
-                                  evidence.evidenceMisconceptionId?.trim() === misconception.id,
-                              );
-                              return (
-                                <div key={misconception.id} className="min-w-0">
-                                  <p className="font-medium">
-                                    {misconceptionLabel(misconception, language)}
-                                  </p>
-                                  {reason && (
-                                    <p className={cn(
-                                      "mt-0.5 font-normal",
-                                      option.isCorrect ? "text-white/80" : "text-muted",
-                                    )}>
-                                      {t(reason, language)}
-                                    </p>
-                                  )}
-                                  {misconceptionEvidence.length > 0 && (
-                                    <div className="mt-2">
-                                      <MisconceptionEvidenceDialog
-                                        answers={misconceptionEvidence}
-                                        misconception={misconception}
-                                      />
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
                       </li>
                     );
                   })}
@@ -2635,6 +2589,64 @@ export function AnswerValidationWorkspace({
               )}
             </QuestionContextAccordion>
           </div>
+
+          <section className="mt-4 border-t border-border pt-4">
+            <h3 className="flex items-center gap-1.5 text-base font-semibold leading-6 tracking-[-0.01em] text-navy-deep">
+              <span className="flex h-6 w-5 shrink-0 items-center justify-center" aria-hidden="true">
+                <TriangleAlert size={16} strokeWidth={1.9} className="text-brand" />
+              </span>
+              {language === "id" ? "Miskonsepsi terkait" : "Related misconceptions"}
+            </h3>
+            {activeOptionMisconceptions.length > 0 ? (
+              <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
+                {activeOptionMisconceptions.map((misconception) => {
+                  const reason = activeReasonByMisconceptionId.get(misconception.id);
+                  const misconceptionEvidence = evidenceAnswers.filter(
+                    (evidence) =>
+                      evidence.evidenceMisconceptionId?.trim() === misconception.id,
+                  );
+                  return (
+                    <article
+                      key={misconception.id}
+                      className="relative min-h-[4.5rem] overflow-hidden rounded-md border border-brand/20 bg-brand-soft/35 px-3 py-2.5"
+                    >
+                      <span aria-hidden="true" className="pointer-events-none absolute -bottom-5 -right-3 h-12 w-12 rounded-full bg-brand/[0.055]" />
+                      <p className="relative font-mono text-[11px] font-normal leading-4 text-brand">
+                        {misconception.id}
+                      </p>
+                      <p className="relative mt-0.5 text-xs font-normal leading-[18px] text-navy-deep">
+                        {t(misconception.title, language)}
+                      </p>
+                      {reason && (
+                        <div className="relative mt-2 border-t border-brand/15 pt-2">
+                          <p className="text-[10px] font-medium leading-4 text-muted">
+                            {language === "id" ? "Penjelasan" : "Rationale"}
+                          </p>
+                          <p className="mt-0.5 text-xs font-normal leading-5 text-navy-deep">
+                            {t(reason, language)}
+                          </p>
+                        </div>
+                      )}
+                      {misconceptionEvidence.length > 0 && (
+                        <div className="relative mt-2 border-t border-brand/15 pt-2">
+                          <MisconceptionEvidenceDialog
+                            answers={misconceptionEvidence}
+                            misconception={misconception}
+                          />
+                        </div>
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="mt-3 text-xs leading-5 text-muted">
+                {language === "id"
+                  ? "Tidak ada miskonsepsi yang dipetakan ke opsi ini."
+                  : "No misconceptions are mapped to this option."}
+              </p>
+            )}
+          </section>
 
         </article>
 

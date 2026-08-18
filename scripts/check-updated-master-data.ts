@@ -183,7 +183,10 @@ assert.match(evidenceSource, /identity\?\.secondary/);
 assert.doesNotMatch(evidenceSource, /anonymous-/);
 assert.match(lecturerSource, /getEvidenceAnswersForQuestion/);
 assert.match(reviewLinkingSource, /getMpOptionAnswersForQuestion/);
-assert.match(structuredEvidenceSource, /"Nama"/);
+assert.doesNotMatch(
+  structuredEvidenceSource,
+  /"Nama"|"Name"|Tidak tersedia|Unavailable/,
+);
 assert.match(structuredEvidenceSource, /"Jawaban"/);
 assert.match(structuredEvidenceSource, /evidenceMisconceptionId/);
 assert.match(structuredEvidenceSource, /evidenceExplanation/);

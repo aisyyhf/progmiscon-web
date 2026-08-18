@@ -484,7 +484,7 @@ assert.match(
   /`\$\{progress\.reviewed\} dari \$\{progress\.total\} jawaban sudah Anda review`/,
   "MP toolbar progress must use the global eligible-answer progress source",
 );
-assert.match(page, /optionAnswers=\{getMpOptionAnswersForQuestion\(answerQuestion\.id, answers\)\}/);
+assert.doesNotMatch(page, /optionAnswers=/);
 assert.doesNotMatch(page, /siblingAnswerIds=|activeIndex=\{/);
 assert.doesNotMatch(page, /answerReviewCount=/);
 assert.match(page, /onDirtyChange=\{setMpAnswerReviewDirty\}/);
@@ -507,10 +507,14 @@ assert.match(contextAccordion, /<QuestionContent question=\{question\}/);
 assert.match(contextAccordion, /option\.isCorrect/);
 assert.match(contextAccordion, /Jawaban benar/);
 assert.match(contextAccordion, /Sedang direview/);
+assert.doesNotMatch(contextAccordion, /Miskonsepsi terkait|Related misconceptions/);
+assert.doesNotMatch(contextAccordion, /MisconceptionEvidenceDialog|misconceptionReasons/);
 assert.doesNotMatch(answerWorkspace, /AdminAnswerContentEditor|Edit jawaban/);
 assert.doesNotMatch(answerWorkspace, /AdminQuestionContentEditor|Edit soal/);
 assert.doesNotMatch(questionWorkspace, /AdminQuestionContentEditor|Edit soal/);
-assert.match(answerWorkspace, /optionAnswer\?\.misconceptionReasons/);
+assert.match(answerWorkspace, /activeOptionMisconceptions/);
+assert.match(answerWorkspace, /activeReasonByMisconceptionId/);
+assert.match(answerWorkspace, /answer\.misconceptionReasons/);
 assert.match(answerWorkspace, /evidence\.evidenceMisconceptionId\?\.trim\(\) === misconception\.id/);
 assert.match(answerWorkspace, /<MisconceptionEvidenceDialog/);
 assert.doesNotMatch(answerWorkspace, /<StructuredEvidenceList|mp-answer-evidence/);
@@ -554,11 +558,11 @@ assert.doesNotMatch(
 assert.match(editor, />\s*Edit soal\s*</);
 assert.match(editor, /saveAnswerContentOverride\(answer\.id, answerText\)/);
 assert.doesNotMatch(editor, />\s*Edit jawaban\s*</);
-assert.match(structuredEvidence, /"Nama"/);
+assert.doesNotMatch(structuredEvidence, /"Nama"|"Name"/);
 assert.match(structuredEvidence, /"Jawaban"/);
 assert.match(structuredEvidence, /Miskonsepsi/);
 assert.match(structuredEvidence, /Penjelasan/);
-assert.match(structuredEvidence, /Tidak tersedia/);
+assert.doesNotMatch(structuredEvidence, /Tidak tersedia|Unavailable/);
 assert.match(structuredEvidence, /showModal\(\)/);
 assert.match(structuredEvidence, /<PseudocodeBlock code=\{answerText\} \/>/);
 assert.doesNotMatch(structuredEvidence, /answer\.evidenceId/);

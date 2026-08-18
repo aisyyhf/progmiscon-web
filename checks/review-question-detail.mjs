@@ -152,9 +152,10 @@ assert.doesNotMatch(questionWorkspace, /handleDelete|variant="danger"|Hapus revi
 assert.match(structuredEvidence, /showModal\(\)/);
 assert.match(structuredEvidence, /Evidence \(\{answers\.length\}\)/);
 assert.doesNotMatch(structuredEvidence, /answer\.evidenceId/);
-for (const label of ["Nama", "Jawaban", "Miskonsepsi", "Penjelasan"]) {
+for (const label of ["Jawaban", "Miskonsepsi", "Penjelasan"]) {
   assert.match(structuredEvidence, new RegExp(`"${label}"`));
 }
+assert.doesNotMatch(structuredEvidence, /"Nama"|"Name"|Tidak tersedia|Unavailable/);
 assert.match(structuredEvidence, /<PseudocodeBlock code=\{answerText\} \/>/);
 assert.match(questionWorkspace, /rounded-xl border border-\[#ccbab0\] border-t-2 border-t-brand/);
 assert.doesNotMatch(questionWorkspace, /absolute inset-x-0 top-0 h-0\.5 bg-brand/);
@@ -215,8 +216,10 @@ assert.doesNotMatch(answerWorkspace, /\? "REVIEW JAWABAN" : "ANSWER REVIEW"/);
 assert.match(answerWorkspace, /Lihat soal & pilihan jawaban/);
 assert.match(answerWorkspace, /Jawaban benar/);
 assert.match(answerWorkspace, /Sedang direview/);
-assert.match(answerWorkspace, /optionAnswers = \[\]/);
-assert.match(answerWorkspace, /optionAnswer\?\.misconceptionReasons/);
+assert.doesNotMatch(answerWorkspace, /optionAnswers|optionAnswerById/);
+assert.match(answerWorkspace, /activeOptionMisconceptions/);
+assert.match(answerWorkspace, /answer\.misconceptionReasons/);
+assert.match(answerWorkspace, /Tidak ada miskonsepsi yang dipetakan ke opsi ini/);
 assert.match(answerWorkspace, /evidence\.evidenceMisconceptionId\?\.trim\(\) === misconception\.id/);
 assert.match(answerWorkspace, /<MisconceptionEvidenceDialog/);
 assert.doesNotMatch(answerWorkspace, /mp-answer-evidence|<StructuredEvidenceList/);

@@ -124,13 +124,13 @@ export function AnswerCasePanel({
       ) : (
         <div className="p-5 sm:p-7 lg:p-8">
           <div className="grid gap-6">
-            <div className="space-y-6">
+            <div className="min-w-0 space-y-6">
               <div>
                 {question.type === "multiple_choice" && (
                   <p className="academic-label mb-2">{t(uiText.selectedOptionLabel, language)}</p>
                 )}
-                <div className="space-y-0.5">
-                  <div className="overflow-hidden rounded-lg border border-navy-deep/15 shadow-sm">
+                <div className="min-w-0 space-y-0.5">
+                  <div className="min-w-0 overflow-hidden rounded-lg border border-navy-deep/15 shadow-sm">
                     {question.type === "multiple_choice" ? (
                       <div className="bg-bg p-5">
                         {selectedOption ? (

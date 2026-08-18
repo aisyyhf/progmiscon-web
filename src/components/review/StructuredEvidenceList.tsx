@@ -23,7 +23,6 @@ export function StructuredEvidenceList({
   misconceptions: readonly Misconception[];
 }) {
   const { language } = useLanguage();
-  const unavailable = language === "id" ? "Tidak tersedia" : "Unavailable";
   const misconceptionById = new Map(
     misconceptions.map((misconception) => [misconception.id, misconception]),
   );
@@ -45,48 +44,42 @@ export function StructuredEvidenceList({
             className="min-w-0 rounded-md border border-border bg-white px-4 py-3 text-xs leading-5 text-navy-deep"
           >
             <dl className="grid gap-3">
-              <div>
-                <dt className="font-medium text-muted">
-                  {language === "id" ? "Nama" : "Name"}
-                </dt>
-                <dd className="mt-0.5">{answer.studentName?.trim() || unavailable}</dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted">
-                  {language === "id" ? "Jawaban" : "Answer"}
-                </dt>
-                <dd className="mt-1 min-w-0">
-                  {answerText ? (
-                    looksLikePseudocode(answerText) ? (
-                      <div className="overflow-hidden rounded-md border border-[#ead9cc]">
+              {answerText && (
+                <div>
+                  <dt className="font-medium text-muted">
+                    {language === "id" ? "Jawaban" : "Answer"}
+                  </dt>
+                  <dd className="mt-1 min-w-0">
+                    {looksLikePseudocode(answerText) ? (
+                      <div className="min-w-0 overflow-hidden rounded-md border border-navy-deep/20">
                         <PseudocodeBlock code={answerText} />
                       </div>
                     ) : (
                       <p className="whitespace-pre-wrap break-words">{answerText}</p>
-                    )
-                  ) : (
-                    unavailable
-                  )}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted">
-                  {language === "id" ? "Miskonsepsi" : "Misconception"}
-                </dt>
-                <dd className="mt-0.5">
-                  {misconceptionId ? (
-                    misconception
+                    )}
+                  </dd>
+                </div>
+              )}
+              {misconceptionId && (
+                <div>
+                  <dt className="font-medium text-muted">
+                    {language === "id" ? "Miskonsepsi" : "Misconception"}
+                  </dt>
+                  <dd className="mt-0.5">
+                    {misconception
                       ? misconceptionLabel(misconception, language)
-                      : misconceptionId
-                  ) : unavailable}
-                </dd>
-              </div>
-              <div>
-                <dt className="font-medium text-muted">
-                  {language === "id" ? "Penjelasan" : "Explanation"}
-                </dt>
-                <dd className="mt-0.5 font-normal">{explanation || unavailable}</dd>
-              </div>
+                      : misconceptionId}
+                  </dd>
+                </div>
+              )}
+              {explanation && (
+                <div>
+                  <dt className="font-medium text-muted">
+                    {language === "id" ? "Penjelasan" : "Explanation"}
+                  </dt>
+                  <dd className="mt-0.5 font-normal">{explanation}</dd>
+                </div>
+              )}
             </dl>
           </li>
         );
