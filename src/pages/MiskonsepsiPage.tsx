@@ -19,6 +19,7 @@ import { MisconceptionCompare } from "../components/misconception/MisconceptionC
 import { useAllStudentAnswers } from "../hooks/useStudentAnswers";
 import { useCategories } from "../hooks/useCategories";
 import { useLanguage } from "../hooks/useLanguage";
+import { getMaterialQuestionIdentifier } from "../utils/materialQuestionFilters";
 import { useMisconceptions } from "../hooks/useMisconceptions";
 import { useQuestions, useQuestionsByIds } from "../hooks/useQuestions";
 import type { LocalizedText, Question } from "../types";
@@ -55,7 +56,7 @@ function SectionTitle({ icon: Icon, children }: { icon: LucideIcon; children: st
 
 function RelatedQuestionLink({ question }: { question: Question }) {
   const { language } = useLanguage();
-  const identifier = question.sourceCode?.trim() || question.id;
+  const identifier = getMaterialQuestionIdentifier(question);
   const title = t(question.title, language).trim();
 
   return (

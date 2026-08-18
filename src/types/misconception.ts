@@ -11,6 +11,8 @@ export type Misconception = {
   hasCorrectExample?: boolean;
   fix: LocalizedText;
   cause: LocalizedText;
+  rationale?: LocalizedText;
+  rationaleSource?: string | null;
   pattern: LocalizedText[];
   value: LocalizedText;
   relatedMisconceptionIds: string[];

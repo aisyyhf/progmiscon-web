@@ -23,6 +23,8 @@ export type MisconceptionRow = {
   common_cause_en: string;
   order_no: string;
   active: string;
+  rationale_ind?: string;
+  rationale_source?: string;
 };
 
 export type QuestionRow = {
@@ -43,6 +45,19 @@ export type QuestionRow = {
   content_blocks_en?: string;
   sample_inputs?: string;
   sample_outputs?: string;
+  probe_no?: string;
+  target_misconception_id?: string;
+  input_description_ind?: string;
+  input_description_en?: string;
+  output_description_ind?: string;
+  output_description_en?: string;
+  io_content_type?: string;
+  test_cases_json?: string;
+  options_json?: string;
+  correct_option_label?: string;
+  evidence_available?: string;
+  lms_question_id?: string;
+  display_question_code?: string;
   reference_solution: string;
   expected_output: string;
   week: string;
@@ -63,7 +78,12 @@ export type QuestionMisconceptionRow = {
   misconception_id: string;
   source: string;
   active: string;
+  evidence_level?: string;
+  rationale_ind?: string;
+  source_question_id?: string;
 };
+
+export type AnswerRole = "mp_option" | "ps_reference" | "evidence";
 
 export type AnswerRow = {
   answer_id: string;
@@ -77,6 +97,17 @@ export type AnswerRow = {
   evidence_misconceptions?: string;
   evidence_reason_ind?: string;
   evidence_reason_en?: string;
+  option_label?: string;
+  answer_role?: string;
+  student_answer?: string;
+  evidence_misconception_id?: string;
+  evidence_explanation_ind?: string;
+  evidence_explanation_en?: string;
+  evidence_tag?: string;
+  evidence_source_question_ids?: string;
+  source_sheet?: string;
+  source_row?: string;
+  evidence_id?: string;
   answer_text: string;
   status: string;
   explanation_ind: string;

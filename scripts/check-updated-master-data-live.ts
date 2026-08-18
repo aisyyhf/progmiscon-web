@@ -5,13 +5,18 @@ import type { MasterData } from "../src/types/masterData.ts";
 import { isActiveValue, validateMasterData } from "../src/utils/masterDataValidation.ts";
 import {
   buildQuestionContentBlocks,
-  buildSampleCases,
+  buildQuestionSampleCases,
   isDummyData,
   parseContentBlocks,
-  parseDelimitedIds,
-  parseReasonMap,
+  parseQuestionOptions,
+  parseTestCases,
+  suppressDuplicateIoDescriptions,
 } from "../src/utils/masterDataContent.ts";
-import { normalizeQuestionType, normalizeWeek } from "../src/utils/questionMetadata.ts";
+import {
+  getQuestionDisplayCode,
+  normalizeAnswerRole,
+  normalizeQuestionType,
+} from "../src/utils/questionMetadata.ts";
 
 const env = Object.fromEntries(
   readFileSync(".env.local", "utf8")
@@ -59,80 +64,133 @@ const activeQuestions = data.questions.filter((row) => isActiveValue(row.active)
 const ps = activeQuestions.filter((row) => normalizeQuestionType(row.question_type) === "short_answer");
 const mp = activeQuestions.filter((row) => normalizeQuestionType(row.question_type) === "multiple_choice");
 assert.equal(ps.length + mp.length, activeQuestions.length, "every active question has an authoritative PS/MP type");
-const w02 = activeQuestions.filter((row) => normalizeWeek(row.week) === "W02");
-assert.equal(w02.length, 59, "W02 has 59 active questions");
+assert.equal(activeQuestions.length, 296, "published source has 296 active questions");
+assert.equal(ps.length, 110, "published source has 110 PS questions");
+assert.equal(mp.length, 186, "published source has 186 MP questions");
+
+const psLmsIds = ps.map((row) => row.lms_question_id?.trim() ?? "");
+assert.equal(psLmsIds.every(Boolean), true, "every PS question has an LMS question ID");
+assert.equal(new Set(psLmsIds).size, ps.length, "PS LMS question IDs are unique");
+for (const question of ps) {
+  assert.equal(
+    getQuestionDisplayCode(question),
+    question.lms_question_id?.trim(),
+    `${question.question_id} displays its LMS question ID`,
+  );
+}
+for (const question of mp) {
+  assert.equal(question.lms_question_id?.trim() ?? "", "", `${question.question_id} must not invent an LMS ID`);
+  assert.match(getQuestionDisplayCode(question), /^MP-/, `${question.question_id} uses the canonical MP display code`);
+  assert.doesNotMatch(question.title_ind.trim(), /\s+\([12]\)$/i, `${question.question_id} Indonesian title is clean`);
+  assert.doesNotMatch(question.title_en.trim(), /\s+\([12]\)$/i, `${question.question_id} English title is clean`);
+}
+
+const activeAnswers = data.answers.filter((row) => isActiveValue(row.active));
+const mpOptionAnswers = activeAnswers.filter((row) => normalizeAnswerRole(row.answer_role) === "mp_option");
+const psReferenceAnswers = activeAnswers.filter((row) => normalizeAnswerRole(row.answer_role) === "ps_reference");
+const evidenceAnswers = activeAnswers.filter((row) => normalizeAnswerRole(row.answer_role) === "evidence");
+assert.equal(mpOptionAnswers.length, 744, "published source has 744 MP option rows");
+assert.equal(psReferenceAnswers.length, 58, "published source has 58 PS reference rows");
+assert.equal(evidenceAnswers.length, 239, "published source has 239 evidence rows");
 assert.equal(
-  w02.filter((row) => normalizeQuestionType(row.question_type) === "short_answer").length,
-  19,
-  "W02 has 19 active PS questions",
+  mpOptionAnswers.length + psReferenceAnswers.length + evidenceAnswers.length,
+  activeAnswers.length,
+  "every active answer has a recognized semantic role",
+);
+
+const questionById = new Map(activeQuestions.map((row) => [row.question_id.trim(), row]));
+const answerById = new Map(activeAnswers.map((row) => [row.answer_id.trim(), row]));
+let parsedOptionCount = 0;
+for (const question of mp) {
+  const parsed = parseQuestionOptions(question.options_json, question.correct_option_label);
+  assert.equal(parsed.error, undefined, `${question.question_id} options_json parses`);
+  assert.equal(parsed.options.length, 4, `${question.question_id} has four canonical choices`);
+  assert.equal(parsed.options.filter((option) => option.isCorrect).length, 1, `${question.question_id} has one correct choice`);
+  assert.equal(
+    parsed.options.find((option) => option.isCorrect)?.label,
+    question.correct_option_label?.trim().toUpperCase(),
+    `${question.question_id} correct option label is authoritative`,
+  );
+  for (const option of parsed.options) {
+    const answer = answerById.get(option.id);
+    assert.ok(answer, `${question.question_id} option ${option.id} resolves to an answer row`);
+    assert.equal(normalizeAnswerRole(answer.answer_role), "mp_option", `${option.id} is an MP option row`);
+    assert.equal(answer.question_id.trim(), question.question_id.trim(), `${option.id} belongs to its parent question`);
+    assert.equal(answer.option_label?.trim(), option.label, `${option.id} preserves its option label`);
+  }
+  parsedOptionCount += parsed.options.length;
+}
+assert.equal(parsedOptionCount, 744, "options_json contains all 744 MP choices");
+
+const evidenceCountsByQuestion = new Map<string, number>();
+for (const answer of evidenceAnswers) {
+  assert.ok(questionById.has(answer.question_id.trim()), `${answer.answer_id} evidence parent exists`);
+  assert.ok(answer.evidence_misconception_id?.trim(), `${answer.answer_id} has a direct evidence misconception`);
+  evidenceCountsByQuestion.set(
+    answer.question_id.trim(),
+    (evidenceCountsByQuestion.get(answer.question_id.trim()) ?? 0) + 1,
+  );
+}
+assert.equal(
+  evidenceAnswers.filter((answer) => normalizeQuestionType(questionById.get(answer.question_id.trim())?.question_type) === "short_answer").length,
+  133,
+  "133 evidence rows belong to PS questions",
 );
 assert.equal(
-  w02.filter((row) => normalizeQuestionType(row.question_type) === "multiple_choice").length,
-  40,
-  "W02 has 40 active MP questions",
+  evidenceAnswers.filter((answer) => normalizeQuestionType(questionById.get(answer.question_id.trim())?.question_type) === "multiple_choice").length,
+  106,
+  "106 evidence rows belong to MP questions",
 );
+for (const question of activeQuestions) {
+  const declared = isActiveValue(question.evidence_available ?? "");
+  assert.equal(
+    declared,
+    (evidenceCountsByQuestion.get(question.question_id.trim()) ?? 0) > 0,
+    `${question.question_id} evidence_available matches E rows`,
+  );
+}
+
+const mpOptionIds = new Set(mpOptionAnswers.map((row) => row.answer_id.trim()));
+let orphanAnswerRelations = 0;
+for (const relation of data.answerMisconceptions.filter((row) => isActiveValue(row.active))) {
+  const answerId = relation.answer_id.trim();
+  if (!answerById.has(answerId)) {
+    orphanAnswerRelations += 1;
+    continue;
+  }
+  assert.ok(mpOptionIds.has(answerId), `${answerId} relation targets only an MP option row`);
+}
 
 let structuredQuestionLocales = 0;
 let sampleQuestionCount = 0;
-let duplicateLegacyCodeCount = 0;
 let suppressedSampleLocales = 0;
+let suppressedIoLocales = 0;
 for (const question of activeQuestions) {
-  const sampleCases = buildSampleCases(question.sample_inputs, question.sample_outputs);
-  for (const [raw, legacyText] of [
-    [question.content_blocks_ind, question.question_ind],
-    [question.content_blocks_en, question.question_en],
+  const parsedTests = parseTestCases(question.test_cases_json);
+  assert.equal(parsedTests.error, undefined, `${question.question_id} test_cases_json parses`);
+  const sampleCases = buildQuestionSampleCases(
+    question.test_cases_json,
+    question.sample_inputs,
+    question.sample_outputs,
+  );
+  for (const [raw, legacyText, inputDescription, outputDescription] of [
+    [question.content_blocks_ind, question.question_ind, question.input_description_ind, question.output_description_ind],
+    [question.content_blocks_en, question.question_en, question.input_description_en, question.output_description_en],
   ] as const) {
     if (parseContentBlocks(raw).blocks.length > 0) structuredQuestionLocales += 1;
-    const originalBlocks = buildQuestionContentBlocks(raw, legacyText, question.question_code);
-    const deduplicatedBlocks = buildQuestionContentBlocks(raw, legacyText, question.question_code, sampleCases);
+    const originalBlocks = buildQuestionContentBlocks(raw, legacyText, "");
+    const deduplicatedBlocks = buildQuestionContentBlocks(raw, legacyText, "", sampleCases);
     if (JSON.stringify(originalBlocks) !== JSON.stringify(deduplicatedBlocks)) suppressedSampleLocales += 1;
-    const code = question.question_code.trim().replace(/\r\n/g, "\n");
-    if (code) {
-      const blocks = deduplicatedBlocks;
-      const occurrences = blocks.filter((block) => block.content.replace(/\r\n/g, "\n").includes(code)).length;
-      if (occurrences > 1) duplicateLegacyCodeCount += 1;
-    }
+    const withoutDuplicateIo = suppressDuplicateIoDescriptions(
+      deduplicatedBlocks,
+      inputDescription,
+      outputDescription,
+    );
+    if (JSON.stringify(withoutDuplicateIo) !== JSON.stringify(deduplicatedBlocks)) suppressedIoLocales += 1;
   }
   if (sampleCases.length > 0) sampleQuestionCount += 1;
 }
-assert.equal(duplicateLegacyCodeCount, 0, "legacy code is not duplicated by the structured fallback");
-assert.equal(suppressedSampleLocales, 0, "live question content has no duplicate sample fragments");
-
-const circleAreaQuestion = activeQuestions.find((row) => row.source_key.trim() === "LMS-PS-10413316");
-assert.ok(circleAreaQuestion, "LMS circle-area question remains available");
-const circleAreaCases = buildSampleCases(circleAreaQuestion.sample_inputs, circleAreaQuestion.sample_outputs);
-for (const [raw, legacyText] of [[circleAreaQuestion.content_blocks_ind, circleAreaQuestion.question_ind], [circleAreaQuestion.content_blocks_en, circleAreaQuestion.question_en]] as const) {
-  const content = buildQuestionContentBlocks(raw, legacyText, circleAreaQuestion.question_code, circleAreaCases)
-    .filter((block) => block.type === "text")
-    .map((block) => block.content)
-    .join("\n");
-  for (const sample of circleAreaCases) {
-    assert.equal(content.includes(sample.output), false, "circle-area sample output is rendered only by sample cards");
-  }
-  assert.match(content, /pi.*3\.14/i, "circle-area instructional prose remains");
-}
-
-const q062 = activeQuestions.find((row) => row.question_id.trim() === "Q062")!;
-const q062Original = buildQuestionContentBlocks(q062.content_blocks_ind, q062.question_ind, q062.question_code);
-const q062Deduplicated = buildQuestionContentBlocks(q062.content_blocks_ind, q062.question_ind, q062.question_code, buildSampleCases(q062.sample_inputs, q062.sample_outputs));
-assert.deepEqual(q062Deduplicated, q062Original, "incomplete structured output does not remove the fuller legacy sample");
-
-const mpWithoutSamples = mp.find((row) => buildSampleCases(row.sample_inputs, row.sample_outputs).length === 0)!;
-assert.deepEqual(
-  buildQuestionContentBlocks(mpWithoutSamples.content_blocks_ind, mpWithoutSamples.question_ind, mpWithoutSamples.question_code, []),
-  buildQuestionContentBlocks(mpWithoutSamples.content_blocks_ind, mpWithoutSamples.question_ind, mpWithoutSamples.question_code),
-  "MP content without dedicated samples is preserved",
-);
-
-const activeAnswers = data.answers.filter((row) => isActiveValue(row.active));
-const evidenceAnswers = activeAnswers.filter((row) => isActiveValue(row.is_evidence ?? ""));
 const namedEvidenceAnswers = evidenceAnswers.filter((row) => row.student_name?.trim());
-for (const answer of evidenceAnswers) {
-  const ids = new Set(parseDelimitedIds(answer.evidence_misconceptions));
-  for (const raw of [answer.evidence_reason_ind, answer.evidence_reason_en]) {
-    for (const id of parseReasonMap(raw).reasons.keys()) assert.ok(ids.has(id), `${answer.answer_id} evidence reason key ${id} is declared`);
-  }
-}
 
 const dummyMisconceptionDetails = data.misconceptions.filter((row) =>
   [row.description_ind, row.description_en, row.wrong_example, row.correct_example, row.correction_ind, row.correction_en, row.common_cause_ind, row.common_cause_en].some(isDummyData),
@@ -147,9 +205,13 @@ console.log("live updated master-data checks passed", {
   structuredQuestionLocales,
   sampleQuestionCount,
   suppressedSampleLocales,
+  suppressedIoLocales,
   activeAnswers: activeAnswers.length,
+  mpOptionAnswers: mpOptionAnswers.length,
+  psReferenceAnswers: psReferenceAnswers.length,
   evidenceAnswers: evidenceAnswers.length,
   namedEvidenceAnswers: namedEvidenceAnswers.length,
   answerMisconceptionRelations: data.answerMisconceptions.length,
+  orphanAnswerRelations,
   dummyMisconceptionDetails,
 });

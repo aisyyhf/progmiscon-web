@@ -23,6 +23,7 @@ export type QuestionContentBlock = {
 };
 
 export type QuestionSampleCase = {
+  caseNo?: number;
   input: string;
   output: string;
 };
@@ -39,6 +40,10 @@ export type Question = {
   sourceSystem: string | null;
   sourceKey: string | null;
   sourceCode: string | null;
+  displayCode?: string;
+  lmsQuestionId?: string | null;
+  probeNo?: string | null;
+  targetMisconceptionId?: string | null;
   level: string | null;
   type: QuestionType;
   questionInd?: string;
@@ -46,7 +51,13 @@ export type Question = {
   questionCode?: string;
   prompt: LocalizedText;
   contentBlocks?: { id: QuestionContentBlock[]; en: QuestionContentBlock[] };
+  inputDescription?: LocalizedText;
+  outputDescription?: LocalizedText;
+  ioContentType?: string | null;
   sampleCases?: QuestionSampleCase[];
+  correctOptionLabel?: string | null;
+  evidenceAvailable?: boolean;
+  evidenceCount?: number;
   expectedConcepts: LocalizedText[];
   directQuestionMisconceptionIds: string[];
   answerDerivedMisconceptionIds: string[];

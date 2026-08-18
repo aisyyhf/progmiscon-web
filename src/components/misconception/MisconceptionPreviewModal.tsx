@@ -5,6 +5,7 @@ import { useLanguage } from "../../hooks/useLanguage";
 import { useMisconception } from "../../hooks/useMisconceptions";
 import { useQuestionsByIds } from "../../hooks/useQuestions";
 import { t, uiText } from "../../utils/translation";
+import { getMaterialQuestionIdentifier } from "../../utils/materialQuestionFilters";
 import { Button } from "../common/Button";
 import { MisconceptionCompare } from "./MisconceptionCompare";
 
@@ -122,7 +123,7 @@ export function MisconceptionPreviewModal({
                           <p className="text-xs font-medium uppercase tracking-wide text-muted">
                             {[
                               assessment ? t(assessment.title, language) : "",
-                              question.number,
+                              getMaterialQuestionIdentifier(question),
                               questionCategory ? t(questionCategory.name, language) : "",
                               typeLabel,
                             ]

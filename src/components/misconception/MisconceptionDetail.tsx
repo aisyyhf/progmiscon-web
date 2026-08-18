@@ -4,6 +4,7 @@ import { useQuestionsByIds } from "../../hooks/useQuestions";
 import { useCategories } from "../../hooks/useCategories";
 import { useVerificationCheckForMisconception } from "../../hooks/useVerificationChecks";
 import { t, uiText } from "../../utils/translation";
+import { getMaterialQuestionIdentifier } from "../../utils/materialQuestionFilters";
 import { Button } from "../common/Button";
 import { Chip } from "../common/Chip";
 import { ConceptChip } from "../concept/ConceptChip";
@@ -181,7 +182,7 @@ export function MisconceptionDetail({
                     onClick={() => onSelectRelatedQuestion(question.id)}
                     className="w-full cursor-pointer text-left text-sm hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
                   >
-                    <span className="font-medium text-navy-deep">{question.number}</span>
+                    <span className="font-medium text-navy-deep">{getMaterialQuestionIdentifier(question)}</span>
                     <span className="ml-2 text-muted">
                       {question.type === "short_answer"
                         ? t(uiText.filterShortAnswer, language)

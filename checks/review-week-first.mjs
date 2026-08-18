@@ -49,10 +49,10 @@ const questions = [
   question("W11-12-PS-1", "short_answer", "W11-12"),
 ];
 const answers = [
-  { id: "PS-EVIDENCE", questionId: "W02-PS-1" },
-  { id: "MP-ANSWER-1", questionId: "W02-MP-1" },
-  { id: "MP-ANSWER-2", questionId: "W02-MP-2" },
-  { id: "MP-ANSWER-1", questionId: "W02-MP-1" },
+  { id: "PS-EVIDENCE", questionId: "W02-PS-1", answerRole: "evidence" },
+  { id: "MP-ANSWER-1", questionId: "W02-MP-1", answerRole: "mp_option" },
+  { id: "MP-ANSWER-2", questionId: "W02-MP-2", answerRole: "mp_option" },
+  { id: "MP-ANSWER-1", questionId: "W02-MP-1", answerRole: "mp_option" },
 ];
 
 assert.equal(normalizeQuestionType("PS"), "short_answer");
@@ -522,6 +522,12 @@ assert.match(
 );
 assert.match(activePage, /getReachableAnswerReviewSequence/);
 assert.match(activePage, /navigation\.mode !== "review" \|\|[\s\S]*?reachableAnswerStepIds\.has\(nextAnswer\.id\)/);
+assert.match(activePage, /answerStepSequence\.findIndex\(\(\{ id \}\) => id === activeAnswer\?\.id\)/);
+assert.match(activePage, /previousAnswer\s*=\s*answerSequenceIndex > 0[\s\S]*?displayedAnswerSequence\[answerSequenceIndex - 1\]/);
+assert.match(activePage, /nextAnswer\s*=\s*displayedAnswerSequence\[answerSequenceIndex \+ 1\]/);
+assert.match(activePage, /siblingAnswerIds=\{displayedAnswerSequence\.map/);
+assert.match(activePage, /activeIndex=\{answerSequenceIndex\}/);
+assert.match(activePage, /getNextUnreviewedAnswerId\(questionAnswerReviewSequence, reviewedAnswerIds\)/);
 assert.match(activePage, /function getAnswerStepLabel[\s\S]*?option\?\.label/);
 assert.doesNotMatch(activePage, /getNavigationAfterReviewSave/);
 assert.match(activePage, /getActionableAnswerReviewSequence/);

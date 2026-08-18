@@ -6,7 +6,7 @@ import { getQuestionReference } from "../../utils/questionReference";
 
 function fallbackBlocks(question: Question, language: "id" | "en"): QuestionContentBlock[] {
   const prompt = t(question.prompt, language).trim();
-  const code = question.questionCode?.trim() || getQuestionReference(question).pseudocode;
+  const code = getQuestionReference(question).pseudocode;
   const text = code && prompt.endsWith(code) ? prompt.slice(0, -code.length).trimEnd() : prompt;
   return [
     ...(text ? [{ type: "text" as const, content: text }] : []),
@@ -20,6 +20,14 @@ export function QuestionContent({ question }: { question: Question }) {
     ? question.contentBlocks[language]
     : fallbackBlocks(question, language);
   const sampleCases = question.sampleCases ?? [];
+  const inputDescription = question.inputDescription
+    ? t(question.inputDescription, language).trim()
+    : "";
+  const outputDescription = question.outputDescription
+    ? t(question.outputDescription, language).trim()
+    : "";
+  const inputLabel = language === "id" ? "Masukan" : "Input";
+  const outputLabel = language === "id" ? "Keluaran" : "Output";
 
   return (
     <div className="review-question-content min-w-0">
@@ -37,20 +45,37 @@ export function QuestionContent({ question }: { question: Question }) {
         )}
       </div>
 
+      {(inputDescription || outputDescription) && (
+        <dl className="mt-3 space-y-1.5 text-xs font-normal leading-5 text-navy-deep">
+          {inputDescription && (
+            <div>
+              <dt className="inline font-semibold">{inputLabel}:</dt>{" "}
+              <dd className="inline">{inputDescription}</dd>
+            </div>
+          )}
+          {outputDescription && (
+            <div>
+              <dt className="inline font-semibold">{outputLabel}:</dt>{" "}
+              <dd className="inline">{outputDescription}</dd>
+            </div>
+          )}
+        </dl>
+      )}
+
       {sampleCases.length > 0 && (
-        <section className="mt-3 border-t border-border pt-3" aria-label="Contoh masukan dan keluaran">
+        <section className="mt-3 border-t border-border pt-3" aria-label={language === "id" ? "Contoh masukan dan keluaran" : "Input and output examples"}>
           <div className="overflow-x-auto">
             <table className="w-full table-fixed border-collapse text-left text-xs leading-4 text-navy-deep">
               <caption className="mb-1.5 text-left text-xs font-semibold leading-5 text-navy-deep">
-                Contoh kasus
+                {language === "id" ? "Contoh kasus" : "Test cases"}
               </caption>
               <thead className="bg-[var(--review-secondary-soft)]">
                 <tr>
                   <th scope="col" className="border border-[#ccbab0]/80 px-2.5 py-1.5 font-semibold">
-                    Masukan
+                    {inputLabel}
                   </th>
                   <th scope="col" className="border border-[#ccbab0]/80 px-2.5 py-1.5 font-semibold">
-                    Keluaran
+                    {outputLabel}
                   </th>
                 </tr>
               </thead>

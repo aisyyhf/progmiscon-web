@@ -5,11 +5,11 @@ import {
   getRelatedQuestions,
 } from "../src/utils/misconceptionExploration.ts";
 
-const questions = [{ id: "q1" }, { id: "q2" }, { id: "q3" }];
+const questions = ["q1", "q2", "q3"].map((id) => ({ id, type: "short_answer" }));
 const answers = [
-  { id: "a1", questionId: "q1", studentMisconceptionIds: ["m1"] },
-  { id: "a2", questionId: "q2", studentMisconceptionIds: ["m1"] },
-  { id: "a3", questionId: "q3", studentMisconceptionIds: ["m1"] },
+  { id: "a1", questionId: "q1", answerRole: "evidence", studentMisconceptionIds: ["m1"] },
+  { id: "a2", questionId: "q2", answerRole: "evidence", studentMisconceptionIds: ["m1"] },
+  { id: "a3", questionId: "q3", answerRole: "evidence", studentMisconceptionIds: ["m1"] },
 ];
 
 assert.deepEqual(
@@ -17,7 +17,7 @@ assert.deepEqual(
   ["q1", "q2"],
 );
 assert.deepEqual(
-  getMatchingAnswers(answers, "m1", "q2").map((answer) => answer.id),
+  getMatchingAnswers(answers, "m1", "q2", questions).map((answer) => answer.id),
   ["a2"],
 );
 

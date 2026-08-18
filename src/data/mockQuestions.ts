@@ -14,6 +14,10 @@ const unknownMetadata = {
   sourceSystem: null,
   sourceKey: null,
   sourceCode: null,
+  displayCode: "",
+  lmsQuestionId: null,
+  probeNo: null,
+  targetMisconceptionId: null,
   level: null,
 };
 

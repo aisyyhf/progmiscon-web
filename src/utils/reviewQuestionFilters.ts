@@ -58,7 +58,15 @@ export function filterReviewQuestions(
     const reviewCount = reviewCounts.get(question.id) ?? 0;
     const matchesQuery =
       !query ||
-      [question.id, question.number].some((value) =>
+      [
+        question.id,
+        question.number,
+        question.displayCode ?? "",
+        question.lmsQuestionId ?? "",
+        question.questionCode ?? "",
+        question.title.id,
+        question.title.en,
+      ].some((value) =>
         value.toLocaleLowerCase().includes(query),
       );
     const matchesStatus =

@@ -132,6 +132,7 @@ const baseline: MasterData = {
       answer_id: "A022-A",
       question_id: "Q022",
       answer_text: "Opsi baseline",
+      answer_role: "mp_option",
       status: "incorrect",
       explanation_ind: "",
       explanation_en: "",

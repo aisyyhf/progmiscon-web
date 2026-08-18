@@ -31,6 +31,7 @@ function buildAnswers(questionId: string, patterns: Pattern[]): StudentAnswer[] 
     return {
       id: `ans-${questionId}-${student.id}`,
       questionId,
+      answerRole: pattern.selectedOptionId ? "mp_option" : "evidence",
       studentId: student.id,
       ...pattern,
     };

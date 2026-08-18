@@ -6,16 +6,15 @@ import type {
   StudentAnswer,
 } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
-import { t } from "../../utils/translation";
 import { EmptyState } from "../common/EmptyState";
 import {
   ParentQuestionBackAction,
   QuestionContextAccordion,
   SiblingNavigator,
 } from "./AnswerWorkspaceNavigation";
-import { MisconceptionReasonCards } from "./MisconceptionReasonCards";
 import { QuestionContent } from "./QuestionContent";
 import { resolveEvidenceIdentity } from "../../utils/evidenceIdentity";
+import { StructuredEvidenceList } from "./StructuredEvidenceList";
 
 function unavailable(language: Language, indonesian: string, english: string) {
   return language === "id" ? indonesian : english;
@@ -54,21 +53,6 @@ export function PsAnswerEvidenceWorkspace({
     activeAnswer?.studentUserId,
     student?.displayName,
   );
-  const linkedMisconceptions = activeAnswer
-    ? activeAnswer.studentMisconceptionIds
-        .map((id) => misconceptions.find((item) => item.id === id))
-        .filter((item): item is Misconception => Boolean(item))
-    : [];
-  const mappedReasons = (activeAnswer?.misconceptionReasons ?? []).map((item) => ({
-    misconceptionId: item.misconceptionId,
-    reasons: [item.reason],
-  }));
-  const generalReasons = activeAnswer?.explanation &&
-    t(activeAnswer.explanation, language).trim()
-    ? [activeAnswer.explanation]
-    : linkedMisconceptions.length === 0
-      ? (activeAnswer?.incorrectElements ?? [])
-      : [];
 
   return (
     <div className="scroll-reveal review-folder-content">
@@ -157,54 +141,11 @@ export function PsAnswerEvidenceWorkspace({
             />
           </div>
         ) : (
-          <div className="grid gap-6 border-t border-border p-5 md:p-7">
-            <section aria-labelledby="evidence-answer-title">
-              <h3 id="evidence-answer-title" className="academic-label">
-                {language === "id" ? "Jawaban mahasiswa" : "Student answer"}
-              </h3>
-              <pre className="mt-3 max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-md bg-navy-deep p-4 font-mono text-xs leading-6 text-white">
-                {activeAnswer.answerText ||
-                  unavailable(
-                    language,
-                    "Jawaban mahasiswa belum tersedia",
-                    "Student answer is not available yet",
-                  )}
-              </pre>
-            </section>
-
-            {(activeAnswer.evidenceSource ||
-              (activeAnswer.evidenceMisconceptionIds?.length ?? 0) > 0 ||
-              (activeAnswer.evidenceReasons?.length ?? 0) > 0) && (
-              <section className="rounded-md border border-border bg-neutral px-4 py-3 text-xs text-muted" aria-label={language === "id" ? "Provenans evidence" : "Evidence provenance"}>
-                <p className="font-bold text-navy-deep">{language === "id" ? "Provenans evidence" : "Evidence provenance"}</p>
-                {activeAnswer.evidenceSource && <p className="mt-1">{activeAnswer.evidenceSource}</p>}
-                {(activeAnswer.evidenceMisconceptionIds?.length ?? 0) > 0 && (
-                  <p className="mt-1 font-mono">{activeAnswer.evidenceMisconceptionIds?.join(", ")}</p>
-                )}
-                {(activeAnswer.evidenceReasons?.length ?? 0) > 0 && (
-                  <div className="mt-3 border-t border-border pt-2">
-                    <p className="font-semibold text-navy-deep">
-                      {language === "id" ? "Catatan sumber (bukan pemetaan kanonis)" : "Source notes (not canonical mappings)"}
-                    </p>
-                    <ul className="mt-1 space-y-1">
-                      {activeAnswer.evidenceReasons?.map((item) => (
-                        <li key={item.misconceptionId}>
-                          <span className="font-mono font-semibold">{item.misconceptionId}</span>: {t(item.reason, language)}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </section>
-            )}
-
-            <div className="border-t border-border pt-5">
-              <MisconceptionReasonCards
-                misconceptions={linkedMisconceptions}
-                mappedReasons={mappedReasons}
-                generalReasons={generalReasons}
-              />
-            </div>
+          <div className="border-t border-border p-5 md:p-7">
+            <StructuredEvidenceList
+              answers={[activeAnswer]}
+              misconceptions={misconceptions}
+            />
           </div>
         )}
       </section>

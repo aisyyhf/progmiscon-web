@@ -11,6 +11,7 @@ import {
 } from "../../utils/filters";
 import { QuestionRow } from "./QuestionRow";
 import { EmptyState } from "../common/EmptyState";
+import { getMaterialQuestionIdentifier } from "../../utils/materialQuestionFilters";
 
 const kindFilters: { value: AssessmentKindFilter; label: { id: string; en: string } }[] = [
   { value: "all", label: uiText.filterAll },
@@ -110,8 +111,8 @@ export function QuestionList({
 
             const metaItems =
               primaryMetaMode === "assessment"
-                ? [assessment ? t(assessment.title, language) : "", question.number, typeLabel]
-                : [question.number, category ? t(category.name, language) : "", typeLabel];
+                ? [assessment ? t(assessment.title, language) : "", getMaterialQuestionIdentifier(question), typeLabel]
+                : [getMaterialQuestionIdentifier(question), category ? t(category.name, language) : "", typeLabel];
 
             return (
               <QuestionRow

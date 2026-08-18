@@ -72,6 +72,7 @@ import {
   type ReviewWeekSummary,
 } from "../utils/reviewQueue";
 import { QUESTION_REVIEWED_THRESHOLD } from "../utils/reviewQuestionFilters";
+import { getEvidenceAnswersForQuestion } from "../utils/reviewLinking";
 import {
   filterEligibleAnswerReviewCounts,
   filterEligibleAnswerReviewIds,
@@ -661,6 +662,9 @@ function WeekQuestionList({
                     <span className="hidden text-center text-xs font-normal tabular-nums text-black/60 lg:block">{index + 1}</span>
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-normal leading-4 text-black">{title}</span>
+                      <span className="mt-0.5 block truncate font-mono text-[10px] font-normal leading-4 text-black/55">
+                        #{identifier.replace(/^#/, "")}
+                      </span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
                         <QuestionTypeTooltipLabel
                           label={questionType.label}
@@ -1594,13 +1598,6 @@ export function LecturerReviewPage({
       return;
     }
     const alreadyReviewed = reviewedQuestionStepIds.includes(activeQuestion.id);
-    const answerSequence = getActionableAnswerReviewSequence(
-      activeQuestion,
-      orderedAnswers,
-      reviewedAnswerIds,
-      eligibleAnswerCounts,
-      QUESTION_REVIEWED_THRESHOLD,
-    );
     await saveQuestionReview(activeQuestion.id, activeQuestion.sourceVersion, values);
     if (!alreadyReviewed) {
       setConfirmedQuestionReviewIds((current) => [
@@ -1627,14 +1624,14 @@ export function LecturerReviewPage({
       return;
     }
 
-    const returnAnswerId = answerSequence.some(
+    const returnAnswerId = questionAnswerReviewSequence.some(
       ({ id }) => id === navigation.returnAnswer,
     )
       ? navigation.returnAnswer
       : undefined;
     const firstAnswerId =
       returnAnswerId ??
-      getNextUnreviewedAnswerId(answerSequence, reviewedAnswerIds);
+      getNextUnreviewedAnswerId(questionAnswerReviewSequence, reviewedAnswerIds);
     const target = firstAnswerId
       ? resolveAnswerDeepLink(
           firstAnswerId,
@@ -1983,7 +1980,6 @@ export function LecturerReviewPage({
             key={activeQuestion.id}
             question={activeQuestion}
             answers={answers}
-            answerTaskById={answerTaskById}
             misconceptions={misconceptions}
             locked={activeQuestionLocked}
             progressUnavailable={!navigationReady || !activeQuestion.sourceVersion}
@@ -2053,6 +2049,7 @@ export function LecturerReviewPage({
             task={answerTaskById.get(activeAnswer.id)}
             question={answerQuestion}
             answer={activeAnswer}
+            evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
             siblingAnswerIds={displayedAnswerSequence.map(({ id }) => id)}
             activeIndex={answerSequenceIndex}
             misconceptions={misconceptions}
@@ -2234,7 +2231,6 @@ export function LecturerReviewPage({
                 key={activeQuestion.id}
                 question={activeQuestion}
                 answers={answers}
-                answerTaskById={answerTaskById}
                 misconceptions={misconceptions}
                 locked={activeQuestionLocked}
                 progressUnavailable={!navigationReady || !activeQuestion.sourceVersion}
@@ -2255,6 +2251,7 @@ export function LecturerReviewPage({
                 task={answerTaskById.get(activeAnswer.id)}
                 question={answerQuestion}
                 answer={activeAnswer}
+                evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
                 siblingAnswerIds={displayedAnswerSequence.map(({ id }) => id)}
                 activeIndex={answerSequenceIndex}
                 misconceptions={misconceptions}

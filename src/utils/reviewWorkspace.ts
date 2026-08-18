@@ -12,6 +12,56 @@ export function isAnswerReviewEligible(
   return question?.type === "multiple_choice";
 }
 
+export function isMpOptionAnswer(
+  answer: Pick<StudentAnswer, "answerRole"> | undefined,
+): boolean {
+  return answer?.answerRole === "mp_option";
+}
+
+export function isEvidenceAnswer(
+  answer: Pick<StudentAnswer, "answerRole"> | undefined,
+): boolean {
+  return answer?.answerRole === "evidence";
+}
+
+function optionLabelOrder(label: string | null | undefined): number {
+  const normalized = label?.trim().toUpperCase() ?? "";
+  if (!/^[A-Z]+$/.test(normalized)) return Number.MAX_SAFE_INTEGER;
+
+  return [...normalized].reduce(
+    (order, character) => order * 26 + character.charCodeAt(0) - 64,
+    0,
+  );
+}
+
+export function getCanonicalMpAnswerSequence(
+  questionId: string,
+  answers: readonly StudentAnswer[],
+): StudentAnswer[] {
+  const seen = new Set<string>();
+  const options = answers.filter((answer) => {
+    if (
+      answer.questionId !== questionId ||
+      !isMpOptionAnswer(answer) ||
+      seen.has(answer.id)
+    ) {
+      return false;
+    }
+    seen.add(answer.id);
+    return true;
+  });
+  const orders = options.map(({ order }) => order);
+  const hasCanonicalOrders =
+    orders.every((order) => Number.isInteger(order) && Number(order) > 0) &&
+    new Set(orders).size === orders.length;
+
+  return [...options].sort((left, right) =>
+    hasCanonicalOrders
+      ? Number(left.order) - Number(right.order)
+      : optionLabelOrder(left.optionLabel) - optionLabelOrder(right.optionLabel),
+  );
+}
+
 export function assertAnswerReviewEligible(
   question: Pick<Question, "type"> | undefined,
 ): void {
@@ -39,21 +89,23 @@ export function filterEligibleAnswerReviewTasks(
 
 export function filterEligibleAnswerReviewIds(
   answerIds: readonly string[],
-  answers: readonly Pick<StudentAnswer, "id" | "questionId">[],
+  answers: readonly Pick<StudentAnswer, "id" | "questionId" | "answerRole">[],
   questionById: ReadonlyMap<string, Pick<Question, "type">>,
 ): string[] {
   const answerById = new Map(answers.map((answer) => [answer.id, answer]));
   return answerIds.filter((answerId) => {
     const answer = answerById.get(answerId);
     return Boolean(
-      answer && isAnswerReviewEligible(questionById.get(answer.questionId)),
+      answer &&
+      isMpOptionAnswer(answer) &&
+      isAnswerReviewEligible(questionById.get(answer.questionId)),
     );
   });
 }
 
 export function filterEligibleAnswerReviewCounts(
   counts: ReadonlyMap<string, number>,
-  answers: readonly Pick<StudentAnswer, "id" | "questionId">[],
+  answers: readonly Pick<StudentAnswer, "id" | "questionId" | "answerRole">[],
   questionById: ReadonlyMap<string, Pick<Question, "type">>,
 ): Map<string, number> {
   const eligibleIds = new Set(
@@ -72,22 +124,12 @@ export function getActionableAnswerReviewSequence(
   if (!question || !isAnswerReviewEligible(question)) return [];
 
   const reviewed = new Set(reviewedAnswerIds);
-  const seen = new Set<string>();
-
-  return answers.filter((answer) => {
-    if (
-      answer.questionId !== question.id ||
-      !answer.sourceVersion ||
-      seen.has(answer.id)
-    ) {
-      return false;
-    }
-    seen.add(answer.id);
-    return (
-      reviewed.has(answer.id) ||
-      (answerReviewCounts.get(answer.id) ?? 0) < reviewerThreshold
-    );
-  });
+  return getCanonicalMpAnswerSequence(question.id, answers).filter(
+    (answer) =>
+      Boolean(answer.sourceVersion) &&
+      (reviewed.has(answer.id) ||
+        (answerReviewCounts.get(answer.id) ?? 0) < reviewerThreshold),
+  );
 }
 
 export function getNextUnreviewedAnswerId(
@@ -139,6 +181,7 @@ export function isCompositeQuestionReviewComplete(
   return answers.every((answer) => {
     if (
       answer.questionId !== question.id ||
+      !isMpOptionAnswer(answer) ||
       !answer.sourceVersion ||
       seen.has(answer.id)
     ) {
@@ -226,10 +269,11 @@ export function classifyReviewItems(
   for (const answer of answers) {
     const question = questionById.get(answer.questionId);
     if (!question) continue;
-    if (!isAnswerReviewEligible(question) && answer.isEvidence === false) continue;
-    items[getAnswerWorkspaceForQuestion(question)].push(
-      answer,
-    );
+    if (isAnswerReviewEligible(question) && isMpOptionAnswer(answer)) {
+      items["answer-mp"].push(answer);
+    } else if (!isAnswerReviewEligible(question) && isEvidenceAnswer(answer)) {
+      items["answer-ps"].push(answer);
+    }
   }
 
   return { items, questionById };

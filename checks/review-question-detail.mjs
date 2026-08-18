@@ -21,10 +21,6 @@ const layout = await readFile(
   new URL("../src/components/layout/LecturerLayout.tsx", import.meta.url),
   "utf8",
 );
-const reasonCards = await readFile(
-  new URL("../src/components/review/MisconceptionReasonCards.tsx", import.meta.url),
-  "utf8",
-);
 const questionContent = await readFile(
   new URL("../src/components/review/QuestionContent.tsx", import.meta.url),
   "utf8",
@@ -134,10 +130,10 @@ assert.match(questionWorkspace, /min-h-\[4\.5rem\][\s\S]*?px-3 py-2\.5/);
 assert.match(questionWorkspace, /h-12 w-12 rounded-full bg-brand\/\[0\.055\]/);
 assert.match(questionWorkspace, /text-\[11px\] font-normal leading-4 text-brand/);
 assert.match(questionWorkspace, /text-xs font-normal leading-\[18px\] text-navy-deep/);
-assert.match(questionWorkspace, /<MisconceptionReasonCards/);
-assert.match(reasonCards, /<BrainCircuit/);
-assert.match(reasonCards, /border-l-2 border-l-brand\/55/);
-assert.match(reasonCards, /Alasan/);
+assert.match(questionWorkspace, /getEvidenceAnswersForQuestion\(question\.id, answers\)/);
+assert.match(questionWorkspace, /relatedEvidence\.length > 0/);
+assert.match(questionWorkspace, /<StructuredEvidenceList/);
+assert.doesNotMatch(questionWorkspace, /answer\.evidenceReasons|answer\.misconceptionReasons/);
 assert.match(questionWorkspace, /rounded-xl border border-\[#ccbab0\] border-t-2 border-t-brand/);
 assert.doesNotMatch(questionWorkspace, /absolute inset-x-0 top-0 h-0\.5 bg-brand/);
 assert.match(questionWorkspace, /<CircleCheckBig/);
@@ -153,8 +149,12 @@ assert.doesNotMatch(presenceToggle, /min-h-9|w-full|py-2 text-xs/);
 assert.match(activePage, /text-\[10px\] leading-4 text-muted/);
 assert.match(questionContent, /space-y-3/);
 assert.match(questionContent, /whitespace-pre-wrap text-xs font-normal leading-5/);
-assert.match(questionContent, /<table[\s\S]*?<caption[\s\S]*?Contoh kasus/);
-assert.match(questionContent, /<th[\s\S]*?Masukan[\s\S]*?<th[\s\S]*?Keluaran/);
+assert.match(questionContent, /const inputLabel = language === "id" \? "Masukan" : "Input"/);
+assert.match(questionContent, /const outputLabel = language === "id" \? "Keluaran" : "Output"/);
+assert.match(questionContent, /<dt className="inline font-semibold">\{inputLabel\}/);
+assert.match(questionContent, /<dt className="inline font-semibold">\{outputLabel\}/);
+assert.match(questionContent, /<table[\s\S]*?<caption[\s\S]*?Test cases/);
+assert.match(questionContent, /<th[\s\S]*?\{inputLabel\}[\s\S]*?<th[\s\S]*?\{outputLabel\}/);
 assert.match(questionContent, /odd:bg-white even:bg-\[var\(--review-secondary-soft\)\]/);
 assert.match(questionContent, /border border-\[#ccbab0\]\/70 px-2\.5 py-1\.5/);
 assert.doesNotMatch(questionContent, /sm:grid-cols-2|<article key=|blue|green|gray|slate/);
@@ -193,6 +193,8 @@ assert.match(answerWorkspace, /Lihat soal & pilihan jawaban/);
 assert.match(answerWorkspace, /Jawaban benar/);
 assert.match(answerWorkspace, /Sedang direview/);
 assert.match(answerWorkspace, /Lihat evidence/);
+assert.match(answerWorkspace, /evidenceAnswers\.length > 0/);
+assert.match(answerWorkspace, /<StructuredEvidenceList/);
 assert.match(answerWorkspace, /isFinalAnswer[\s\S]*?Simpan & Selesai[\s\S]*?Simpan & Lanjut/);
 assert.match(answerWorkspace, /Simpan Perubahan/);
 assert.doesNotMatch(answerWorkspace, /<SiblingNavigator/);
@@ -202,7 +204,7 @@ assert.match(answerWorkspace, /formUnavailable = mode === "view" \|\| locked \|\
 assert.match(answerWorkspace, /<ReviewStepNavigation previous=\{previousStep\} next=\{nextStep\} \/>/);
 
 assert.match(questionWorkspace, /Lihat evidence/);
-assert.match(questionWorkspace, /!answerReviewEligible && \([\s\S]*?<details className="group\/evidence"/);
+assert.match(questionWorkspace, /relatedEvidence\.length > 0 && \([\s\S]*?<details className="group\/evidence"/);
 assert.match(questionWorkspace, /review-evidence-disclosure/);
 assert.doesNotMatch(questionWorkspace, /Jawaban terkait|Review jawaban|onReviewAnswer/);
 assert.doesNotMatch(questionDetail, /onReviewAnswer=/);

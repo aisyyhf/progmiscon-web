@@ -16,7 +16,7 @@ export function getMaterialQuestionType(
 }
 
 export function getMaterialQuestionIdentifier(question: Question): string {
-  return question.sourceCode?.trim() || question.id;
+  return question.displayCode?.trim() || question.id;
 }
 
 export function getMaterialWeekLabel(week: string): string {
@@ -95,6 +95,9 @@ export function filterMaterialQuestions(
       [
         question.id,
         question.number,
+        question.displayCode ?? "",
+        question.lmsQuestionId ?? "",
+        question.questionCode ?? "",
         question.title.id,
         question.title.en,
         question.shortDescription?.id ?? "",

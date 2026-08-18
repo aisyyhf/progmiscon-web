@@ -1,4 +1,5 @@
 import type { LocalizedText } from "./language";
+import type { AnswerRole } from "./masterData";
 
 export type AnswerStatus = "correct" | "incorrect";
 
@@ -13,6 +14,8 @@ export type StudentAnswer = {
   id: string;
   sourceVersion?: string;
   questionId: string;
+  answerRole?: AnswerRole;
+  optionLabel?: string | null;
   studentId: string;
   studentName?: string | null;
   studentUserId?: string | null;
@@ -38,4 +41,12 @@ export type StudentAnswer = {
     misconceptionId: string;
     reason: LocalizedText;
   }>;
+  studentAnswer?: string | null;
+  evidenceId?: string | null;
+  evidenceMisconceptionId?: string | null;
+  evidenceExplanation?: LocalizedText;
+  evidenceTag?: string | null;
+  evidenceSourceQuestionIds?: string[];
+  sourceSheet?: string | null;
+  sourceRow?: string | null;
 };

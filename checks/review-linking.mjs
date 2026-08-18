@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   createDefaultReviewSessionState,
   getAnswersForQuestion,
+  getMpOptionAnswersForQuestion,
   getPairedWorkspace,
   getReviewWorkspaceAvailability,
   normalizeReviewSessionState,
@@ -58,20 +59,22 @@ const questions = [
   nextMpQuestion,
 ];
 const answers = [
-  { id: "A-PS-1", questionId: "Q-PS-1" },
-  { id: "A-OTHER", questionId: "Q-OTHER" },
-  { id: "A-PS-2", questionId: "Q-PS-1" },
-  { id: "A-PS-1", questionId: "Q-PS-1" },
-  { id: "A-PS-3", questionId: "Q-PS-2" },
+  { id: "A-PS-1", questionId: "Q-PS-1", answerRole: "evidence" },
+  { id: "A-OTHER", questionId: "Q-OTHER", answerRole: "evidence" },
+  { id: "A-PS-2", questionId: "Q-PS-1", answerRole: "evidence" },
+  { id: "A-PS-1", questionId: "Q-PS-1", answerRole: "evidence" },
+  { id: "A-PS-3", questionId: "Q-PS-2", answerRole: "evidence" },
   {
     id: "A-MP-1",
     questionId: "Q-MP-1",
+    answerRole: "mp_option",
     selectedOptionId: "OPT-B",
     answerText: "9",
   },
   {
     id: "A-MP-MISSING",
     questionId: "Q-MP-1",
+    answerRole: "mp_option",
     selectedOptionId: "missing",
     answerText: "Fallback",
   },
@@ -118,6 +121,19 @@ assert.deepEqual(
 );
 assert.equal(new Set(linked.map(({ id }) => id)).size, linked.length);
 assert.equal(linked.at(-1)?.questionId, psQuestion.id);
+
+assert.deepEqual(
+  getMpOptionAnswersForQuestion("Q-MP-1", [
+    { id: "OPT-C", questionId: "Q-MP-1", answerRole: "mp_option", optionLabel: "C", order: 3 },
+    { id: "E-1", questionId: "Q-MP-1", answerRole: "evidence", order: 1 },
+    { id: "OPT-A", questionId: "Q-MP-1", answerRole: "mp_option", optionLabel: "A", order: 1 },
+    { id: "R-1", questionId: "Q-MP-1", answerRole: "ps_reference", order: 2 },
+    { id: "OPT-D", questionId: "Q-MP-1", answerRole: "mp_option", optionLabel: "D", order: 4 },
+    { id: "OPT-B", questionId: "Q-MP-1", answerRole: "mp_option", optionLabel: "B", order: 2 },
+  ]).map(({ optionLabel }) => optionLabel),
+  ["A", "B", "C", "D"],
+  "linked MP navigation uses canonical option order and excludes non-option rows",
+);
 
 const afterFirstAnswer = selectAfterAnswerReview(
   psQuestion,
@@ -325,12 +341,12 @@ assert.equal(
 );
 
 assert.equal(
-  selectLinkedAnswerId("Q-PS-1", answers, ["A-PS-1"]),
-  "A-PS-2",
+  selectLinkedAnswerId("Q-MP-1", answers, ["A-MP-1"]),
+  "A-MP-MISSING",
 );
 assert.equal(
-  selectLinkedAnswerId("Q-PS-1", answers, ["A-PS-1", "A-PS-2"]),
-  "A-PS-1",
+  selectLinkedAnswerId("Q-MP-1", answers, ["A-MP-1", "A-MP-MISSING"]),
+  "A-MP-1",
 );
 assert.equal(selectLinkedAnswerId("Q-MISSING", answers, []), undefined);
 
