@@ -4,10 +4,11 @@ import { readFile } from "node:fs/promises";
 const readSource = (path) =>
   readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-const [app, topNav, navLinks, login, signup, dashboard] = await Promise.all([
+const [app, topNav, navLinks, translation, login, signup, dashboard] = await Promise.all([
   readSource("src/app/App.tsx"),
   readSource("src/components/layout/TopNav.tsx"),
   readSource("src/components/navigation/useNavLinks.ts"),
+  readSource("src/utils/translation.ts"),
   readSource("src/pages/LecturerLoginPage.tsx"),
   readSource("src/pages/LecturerSignupPage.tsx"),
   readSource("src/pages/LecturerDashboardPage.tsx"),
@@ -19,24 +20,33 @@ assert.match(
   /<Route path="\/home" element={<Navigate to="\/" replace \/>} \/>/,
 );
 
-const landingStart = topNav.indexOf('if (location.pathname === "/")');
-const publicShellStart = topNav.indexOf("\n  return (", landingStart);
-assert.notEqual(landingStart, -1, "landing header branch is missing");
-assert.notEqual(publicShellStart, -1, "public and lecturer header branch is missing");
-
-const landingHeader = topNav.slice(landingStart, publicShellStart);
-const publicAndLecturerHeader = topNav.slice(publicShellStart);
-assert.match(landingHeader, /Masuk sebagai Dosen/);
-assert.match(landingHeader, /Jelajahi sebagai Pengunjung/);
-assert.match(landingHeader, /to="\/dosen\/login"/);
-assert.match(landingHeader, /to="\/materi"/);
 assert.doesNotMatch(
-  landingHeader,
-  /<NavTabs|to="\/(?:home|konsep|miskonsepsi|review|dashboard)"/,
-  "landing header must not expose public or lecturer navigation",
+  topNav,
+  /if \(location\.pathname === "\/"\)/,
+  "landing and public pages must share one navbar",
 );
 assert.doesNotMatch(topNav, />[^<{]*Guest[^<{]*</, "visible UI must not say Guest");
 assert.match(topNav, /const brandLink[\s\S]*?to="\/"/);
+assert.match(topNav, /<NavTabs publicOnly \/>/);
+assert.match(topNav, /to="\/dosen\/login"/);
+assert.match(topNav, /uiText\.navLecturerLogin/);
+assert.doesNotMatch(topNav, /Masuk sebagai Dosen|Jelajahi sebagai Pengunjung/);
+const publicHeaderStart = topNav.indexOf("if (!isAdminRoute)");
+const adminHeaderStart = topNav.indexOf("\n  return (", publicHeaderStart);
+assert.notEqual(publicHeaderStart, -1, "public navbar branch is missing");
+assert.notEqual(adminHeaderStart, -1, "admin navbar branch is missing");
+const publicHeader = topNav.slice(publicHeaderStart, adminHeaderStart);
+assert.doesNotMatch(
+  publicHeader,
+  /absolute left-1\/2|-translate-x-1\/2/,
+  "public navigation must stay grouped with the logo instead of being independently centered",
+);
+assert.match(topNav, /const isAdminRoute = location\.pathname === "\/admin"/);
+assert.match(topNav, /<NavTabs \/>/);
+assert.match(
+  translation,
+  /navLecturerLogin: { id: "Masuk Dosen", en: "Lecturer Sign In" }/,
+);
 
 const publicLinksStart = navLinks.indexOf("const publicLinks");
 const lecturerLinksStart = navLinks.indexOf("const lecturerLinks");
@@ -51,15 +61,13 @@ assert.doesNotMatch(
   /home|dashboard|review|riwayat|dosen/i,
   "anonymous navigation must not expose landing or lecturer links",
 );
-assert.doesNotMatch(
-  publicAndLecturerHeader,
-  /to="\/dosen\/login"|Masuk sebagai Dosen|Akun Dosen|Lecturer Account/,
-  "anonymous public header must not contain the lecturer login CTA",
-);
-
 assert.match(navLinks, /to: "\/dashboard"/);
 assert.match(navLinks, /to: "\/review"/);
 assert.match(navLinks, /to: "\/review\/riwayat"/);
+assert.match(
+  navLinks,
+  /return publicOnly \|\| !isLecturer \? publicLinks : lecturerLinks/,
+);
 
 for (const authPage of [login, signup]) {
   assert.match(authPage, /navigate\("\/dashboard", { replace: true }\)/);

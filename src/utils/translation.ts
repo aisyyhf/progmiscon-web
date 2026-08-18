@@ -13,6 +13,7 @@ export const uiText = {
   navReview: { id: "Review", en: "Review" },
   navDashboard: { id: "Dashboard", en: "Dashboard" },
   navHistory: { id: "Riwayat", en: "History" },
+  navLecturerLogin: { id: "Masuk Dosen", en: "Lecturer Sign In" },
 
   homeTitle: { id: "Progmiscon", en: "Progmiscon" },
   homeSubtitle: {
