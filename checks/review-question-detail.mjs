@@ -167,7 +167,8 @@ assert.match(
   structuredEvidence,
   /thin-scroll max-h-64 min-w-0 overflow-x-hidden overflow-y-auto[^\n]+sm:max-h-80/,
 );
-assert.match(structuredEvidence, /<PseudocodeBlock code=\{answerText\} \/>/);
+assert.match(structuredEvidence, /splitEvidenceAnswerBlocks\(answerText\)/);
+assert.match(structuredEvidence, /<PseudocodeBlock code=\{block\.text\} \/>/);
 assert.match(questionWorkspace, /rounded-xl border border-\[#ccbab0\] border-t-2 border-t-brand/);
 assert.doesNotMatch(questionWorkspace, /absolute inset-x-0 top-0 h-0\.5 bg-brand/);
 assert.match(questionWorkspace, /<CircleCheckBig/);

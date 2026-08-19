@@ -2,18 +2,10 @@ import { useId, useRef } from "react";
 import { X } from "lucide-react";
 import type { Misconception, StudentAnswer } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
+import { splitEvidenceAnswerBlocks } from "../../utils/evidenceAnswerBlocks";
 import { t } from "../../utils/translation";
 import { misconceptionLabel } from "../../utils/misconceptionLabel";
 import { PseudocodeBlock } from "./PseudocodeBlock";
-
-function looksLikePseudocode(value: string) {
-  return (
-    value.includes("\n") ||
-    /(?:←|<-|:=|\b(?:algoritma|begin|end|for|if|jika|print|read|return|while)\b)/i.test(
-      value,
-    )
-  );
-}
 
 export function StructuredEvidenceList({
   answers,
@@ -37,6 +29,7 @@ export function StructuredEvidenceList({
           : "";
         const answerText =
           answer.studentAnswer?.trim() || answer.answerText?.trim() || "";
+        const answerBlocks = splitEvidenceAnswerBlocks(answerText);
 
         return (
           <li
@@ -50,13 +43,25 @@ export function StructuredEvidenceList({
                     {language === "id" ? "Jawaban" : "Answer"}
                   </dt>
                   <dd className="mt-1 min-w-0">
-                    {looksLikePseudocode(answerText) ? (
-                      <div className="thin-scroll max-h-64 min-w-0 overflow-x-hidden overflow-y-auto rounded-md border border-navy-deep/20 sm:max-h-80">
-                        <PseudocodeBlock code={answerText} />
-                      </div>
-                    ) : (
-                      <p className="whitespace-pre-wrap break-words">{answerText}</p>
-                    )}
+                    <div className="grid gap-3">
+                      {answerBlocks.map((block, blockIndex) =>
+                        block.kind === "code" ? (
+                          <div
+                            key={`${block.kind}-${blockIndex}`}
+                            className="thin-scroll max-h-64 min-w-0 overflow-x-hidden overflow-y-auto rounded-md border border-navy-deep/20 sm:max-h-80"
+                          >
+                            <PseudocodeBlock code={block.text} />
+                          </div>
+                        ) : (
+                          <p
+                            key={`${block.kind}-${blockIndex}`}
+                            className="whitespace-pre-wrap break-words"
+                          >
+                            {block.text}
+                          </p>
+                        ),
+                      )}
+                    </div>
                   </dd>
                 </div>
               )}
