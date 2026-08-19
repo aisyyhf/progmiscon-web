@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ListPlus, Search, X } from "lucide-react";
 import type { Misconception } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
@@ -196,8 +197,9 @@ export function MisconceptionPicker({
         )}
       </div>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-3 py-4 sm:px-4">
+      {open &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex h-dvh w-screen items-center justify-center overflow-hidden px-3 py-4 sm:px-4">
           <button
             type="button"
             aria-label={language === "id" ? "Tutup pemilih miskonsepsi" : "Close misconception picker"}
@@ -208,9 +210,9 @@ export function MisconceptionPicker({
             role="dialog"
             aria-modal="true"
             aria-labelledby="misconception-picker-title"
-            className="academic-panel route-frame relative flex max-h-[80dvh] min-h-0 w-full max-w-[52rem] flex-col overflow-hidden shadow-[0_30px_80px_rgba(23,32,51,0.22)]"
+            className="academic-panel route-frame relative m-0 flex max-h-[80dvh] min-h-0 w-full max-w-[52rem] flex-col overflow-hidden shadow-[0_30px_80px_rgba(23,32,51,0.22)]"
           >
-            <header className="flex items-start justify-between gap-4 border-b border-border px-4 py-3">
+            <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-3">
               <div>
                 <p className="academic-label text-brand">
                   {language === "id" ? "Validasi dosen" : "Lecturer validation"}
@@ -356,14 +358,15 @@ export function MisconceptionPicker({
               </div>
             </div>
 
-            <footer className="flex justify-end border-t border-border px-4 py-2.5">
+            <footer className="flex shrink-0 justify-end border-t border-border px-4 py-2.5">
               <Button type="button" variant="primary" onClick={() => setOpen(false)}>
                 {language === "id" ? "Selesai memilih" : "Finish selecting"}
               </Button>
             </footer>
           </section>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

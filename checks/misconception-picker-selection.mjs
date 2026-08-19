@@ -59,10 +59,16 @@ assert.match(pickerSource, /document\.body\.style\.overflow = previousBodyOverfl
 assert.match(pickerSource, /document\.documentElement\.style\.overflow = previousDocumentOverflow/);
 assert.match(
   pickerSource,
-  /max-h-\[80dvh\][^\n]+max-w-\[52rem\][^\n]+overflow-hidden/,
+  /createPortal\([\s\S]+?fixed inset-0[^\n]+h-dvh w-screen[^\n]+overflow-hidden[\s\S]+?document\.body,\s*\)/,
 );
+assert.match(
+  pickerSource,
+  /m-0[^\n]+max-h-\[80dvh\][^\n]+max-w-\[52rem\][^\n]+overflow-hidden/,
+);
+assert.match(pickerSource, /<header className="flex shrink-0/);
 assert.match(pickerSource, /min-h-0 flex-1 overflow-y-auto/);
 assert.match(pickerSource, /thin-scroll min-h-0 overflow-y-auto/);
+assert.match(pickerSource, /<footer className="flex shrink-0/);
 assert.match(
   pickerSource,
   /<Button type="button" variant="primary" onClick=\{\(\) => setOpen\(false\)\}>[\s\S]+?Finish selecting/,
