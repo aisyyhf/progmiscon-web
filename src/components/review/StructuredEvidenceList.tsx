@@ -51,7 +51,7 @@ export function StructuredEvidenceList({
                   </dt>
                   <dd className="mt-1 min-w-0">
                     {looksLikePseudocode(answerText) ? (
-                      <div className="min-w-0 overflow-hidden rounded-md border border-navy-deep/20">
+                      <div className="thin-scroll max-h-64 min-w-0 overflow-x-hidden overflow-y-auto rounded-md border border-navy-deep/20 sm:max-h-80">
                         <PseudocodeBlock code={answerText} />
                       </div>
                     ) : (
