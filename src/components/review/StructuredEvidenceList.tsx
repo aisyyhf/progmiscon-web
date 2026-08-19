@@ -116,7 +116,7 @@ export function MisconceptionEvidenceDialog({
         className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-[52rem] overflow-hidden rounded-xl border border-[#ccbab0] bg-white p-0 text-black shadow-2xl backdrop:bg-black/35"
       >
         <div className="flex max-h-[85dvh] min-w-0 flex-col overflow-hidden">
-          <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
             <div className="min-w-0">
               <h2 id={titleId} className="text-base font-semibold leading-6 text-navy-deep">
                 {language === "id" ? "Evidence miskonsepsi" : "Misconception evidence"}
@@ -134,7 +134,7 @@ export function MisconceptionEvidenceDialog({
               <X size={17} aria-hidden="true" />
             </button>
           </div>
-          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-5 sm:px-5">
+          <div className="min-h-0 min-w-0 max-h-[calc(85dvh-5rem)] flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pb-5 sm:px-5">
             <StructuredEvidenceList
               answers={answers}
               misconceptions={[misconception]}

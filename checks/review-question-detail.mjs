@@ -152,7 +152,11 @@ assert.doesNotMatch(questionWorkspace, /handleDelete|variant="danger"|Hapus revi
 assert.match(structuredEvidence, /showModal\(\)/);
 assert.match(structuredEvidence, /Evidence \(\{answers\.length\}\)/);
 assert.match(structuredEvidence, /max-h-\[85dvh\][^\n]+max-w-\[52rem\][^\n]+overflow-hidden/);
-assert.match(structuredEvidence, /min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto/);
+assert.match(structuredEvidence, /flex shrink-0 items-start/);
+assert.match(
+  structuredEvidence,
+  /max-h-\[calc\(85dvh-5rem\)\][^\n]+overflow-x-hidden overflow-y-auto overscroll-contain/,
+);
 assert.match(structuredEvidence, /\[overflow-wrap:anywhere\]/);
 assert.doesNotMatch(structuredEvidence, /answer\.evidenceId/);
 for (const label of ["Jawaban", "Miskonsepsi", "Penjelasan"]) {
