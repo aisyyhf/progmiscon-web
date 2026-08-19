@@ -3,11 +3,11 @@ import { tokenizePseudocode, type PseudocodeTokenKind } from "../../utils/pseudo
 const tokenClasses: Record<PseudocodeTokenKind, string> = {
   plain: "text-[#d8dee9]",
   keyword: "font-semibold text-[#f08a9b]",
-  type: "font-medium text-[#c5a7f2]",
+  type: "text-[#e7b66d]",
   literal: "text-[#c5a7f2]",
   number: "text-[#9fc0ff]",
   string: "text-[#8ecf9d]",
-  operator: "font-medium text-[#9fc0ff]",
+  operator: "text-[#e7b66d]",
   comment: "italic text-[#8f969e]",
   variable: "text-[#b8d7ea]",
 };

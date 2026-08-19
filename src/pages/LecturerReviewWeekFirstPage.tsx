@@ -1526,7 +1526,7 @@ export function LecturerReviewPage({
         QUESTION_REVIEWED_THRESHOLD,
         new Set(reviewedQuestionStepIds),
       );
-      changeNavigation(
+      const opened = changeNavigation(
         {
           week: question.week ?? navigation.week,
           task: "question",
@@ -1538,6 +1538,7 @@ export function LecturerReviewPage({
         },
         { replace: false },
       );
+      if (opened) window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     },
     [
       changeNavigation,

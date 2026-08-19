@@ -36,6 +36,7 @@ import {
   parseStringArray,
   suppressDuplicateIoDescriptions,
 } from "../utils/masterDataContent";
+import { buildRelatedMisconceptionMap } from "../utils/similarMisconceptions";
 
 export const EFFECTIVE_MASTER_DATA_INVALIDATED =
   "progmiscon:effective-master-data-invalidated";
@@ -301,19 +302,9 @@ export async function getSheetMisconceptions(): Promise<Misconception[]> {
   const data = await getMasterData();
   const relatedQuestionMap =
     buildMisconceptionQuestionBackReferences(data);
-  const relatedMisconceptionMap = new Map<string, Set<string>>();
-
-  for (const relation of data.similarMisconceptions) {
-    if (text(relation.status).toLowerCase() !== "approved") continue;
-    const left = text(relation.misconception_id);
-    const right = text(relation.similar_id);
-    const leftSet = relatedMisconceptionMap.get(left) ?? new Set<string>();
-    leftSet.add(right);
-    relatedMisconceptionMap.set(left, leftSet);
-    const rightSet = relatedMisconceptionMap.get(right) ?? new Set<string>();
-    rightSet.add(left);
-    relatedMisconceptionMap.set(right, rightSet);
-  }
+  const relatedMisconceptionMap = buildRelatedMisconceptionMap(
+    data.similarMisconceptions,
+  );
 
   return data.misconceptions
     .filter((row) => isActiveValue(row.active))

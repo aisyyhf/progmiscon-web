@@ -576,6 +576,11 @@ assert.match(
   /const openQuestion[\s\S]*?task: "question"[\s\S]*?mode,[\s\S]*?returnAnswer: undefined,[\s\S]*?\{ replace: false \},/,
   "opening a question from its week list must preserve the list in browser history",
 );
+assert.match(
+  activePage.slice(activePage.indexOf("const openQuestion"), activePage.indexOf("const withdrawQuestionReview")),
+  /if \(opened\) window\.scrollTo\(\{ top: 0, left: 0, behavior: "auto" \}\)/,
+  "opening a question from the week list must reset the detail viewport immediately",
+);
 assert.doesNotMatch(
   activePage.slice(activePage.indexOf("const openQuestion"), activePage.indexOf("const withdrawQuestionReview")),
   /resolveAnswerDeepLink|getNextUnreviewedAnswerId/,

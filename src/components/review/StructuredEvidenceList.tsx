@@ -41,7 +41,7 @@ export function StructuredEvidenceList({
         return (
           <li
             key={answer.id}
-            className="min-w-0 rounded-md border border-border bg-white px-4 py-3 text-xs leading-5 text-navy-deep"
+            className="min-w-0 rounded-md border border-border bg-white px-4 py-3 text-xs leading-5 text-navy-deep [overflow-wrap:anywhere]"
           >
             <dl className="grid gap-3">
               {answerText && (
@@ -113,31 +113,33 @@ export function MisconceptionEvidenceDialog({
       <dialog
         ref={dialogRef}
         aria-labelledby={titleId}
-        className="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-2xl overflow-hidden rounded-xl border border-[#ccbab0] bg-white p-0 text-black shadow-2xl backdrop:bg-black/35"
+        className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-[52rem] overflow-hidden rounded-xl border border-[#ccbab0] bg-white p-0 text-black shadow-2xl backdrop:bg-black/35"
       >
-        <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
-          <div className="min-w-0">
-            <h2 id={titleId} className="text-base font-semibold leading-6 text-navy-deep">
-              {language === "id" ? "Evidence miskonsepsi" : "Misconception evidence"}
-            </h2>
-            <p className="mt-0.5 text-xs leading-5 text-muted">
-              {misconceptionLabel(misconception, language)}
-            </p>
+        <div className="flex max-h-[85dvh] min-w-0 flex-col overflow-hidden">
+          <div className="flex items-start justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
+            <div className="min-w-0">
+              <h2 id={titleId} className="text-base font-semibold leading-6 text-navy-deep">
+                {language === "id" ? "Evidence miskonsepsi" : "Misconception evidence"}
+              </h2>
+              <p className="mt-0.5 break-words text-xs leading-5 text-muted">
+                {misconceptionLabel(misconception, language)}
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label={language === "id" ? "Tutup modal" : "Close dialog"}
+              onClick={() => dialogRef.current?.close()}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-neutral hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <X size={17} aria-hidden="true" />
+            </button>
           </div>
-          <button
-            type="button"
-            aria-label={language === "id" ? "Tutup modal" : "Close dialog"}
-            onClick={() => dialogRef.current?.close()}
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-neutral hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
-          >
-            <X size={17} aria-hidden="true" />
-          </button>
-        </div>
-        <div className="max-h-[calc(100dvh-7rem)] overflow-y-auto px-4 pb-5 sm:px-5">
-          <StructuredEvidenceList
-            answers={answers}
-            misconceptions={[misconception]}
-          />
+          <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-4 pb-5 sm:px-5">
+            <StructuredEvidenceList
+              answers={answers}
+              misconceptions={[misconception]}
+            />
+          </div>
         </div>
       </dialog>
     </>

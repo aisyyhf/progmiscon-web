@@ -151,6 +151,9 @@ assert.doesNotMatch(questionWorkspace, /answer\.evidenceReasons|answer\.misconce
 assert.doesNotMatch(questionWorkspace, /handleDelete|variant="danger"|Hapus review/);
 assert.match(structuredEvidence, /showModal\(\)/);
 assert.match(structuredEvidence, /Evidence \(\{answers\.length\}\)/);
+assert.match(structuredEvidence, /max-h-\[85dvh\][^\n]+max-w-\[52rem\][^\n]+overflow-hidden/);
+assert.match(structuredEvidence, /min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto/);
+assert.match(structuredEvidence, /\[overflow-wrap:anywhere\]/);
 assert.doesNotMatch(structuredEvidence, /answer\.evidenceId/);
 for (const label of ["Jawaban", "Miskonsepsi", "Penjelasan"]) {
   assert.match(structuredEvidence, new RegExp(`"${label}"`));
