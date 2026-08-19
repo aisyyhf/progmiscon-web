@@ -1,6 +1,11 @@
+import { useId, useRef } from "react";
+import { X } from "lucide-react";
 import type { Misconception, StudentAnswer } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
+import { splitEvidenceAnswerBlocks } from "../../utils/evidenceAnswerBlocks";
 import { t } from "../../utils/translation";
+import { misconceptionLabel } from "../../utils/misconceptionLabel";
+import { PseudocodeBlock } from "./PseudocodeBlock";
 
 export function StructuredEvidenceList({
   answers,
@@ -10,7 +15,6 @@ export function StructuredEvidenceList({
   misconceptions: readonly Misconception[];
 }) {
   const { language } = useLanguage();
-  const unavailable = language === "id" ? "Tidak tersedia" : "Unavailable";
   const misconceptionById = new Map(
     misconceptions.map((misconception) => [misconception.id, misconception]),
   );
@@ -23,59 +27,126 @@ export function StructuredEvidenceList({
         const explanation = answer.evidenceExplanation
           ? t(answer.evidenceExplanation, language).trim()
           : "";
+        const answerText =
+          answer.studentAnswer?.trim() || answer.answerText?.trim() || "";
+        const answerBlocks = splitEvidenceAnswerBlocks(answerText);
 
         return (
           <li
             key={answer.id}
-            className="min-w-0 rounded-md border border-border bg-white px-4 py-3 text-xs leading-5 text-navy-deep"
+            className="min-w-0 rounded-md border border-border bg-white px-4 py-3 text-xs leading-5 text-navy-deep [overflow-wrap:anywhere]"
           >
-            {answer.evidenceId && (
-              <p className="mb-2 font-mono text-[10px] font-medium text-muted">
-                #{answer.evidenceId.replace(/^#/, "")}
-              </p>
-            )}
-            <dl className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <dt className="font-semibold text-muted">
-                  {language === "id" ? "Nama siswa" : "Student name"}
-                </dt>
-                <dd className="mt-0.5">{answer.studentName?.trim() || unavailable}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-muted">
-                  {language === "id" ? "Miskonsepsi" : "Misconception"}
-                </dt>
-                <dd className="mt-0.5">
-                  {misconceptionId ? (
-                    <>
-                      <span className="font-mono font-medium">{misconceptionId}</span>
-                      {misconception ? ` - ${t(misconception.title, language)}` : ""}
-                    </>
-                  ) : unavailable}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="font-semibold text-muted">
-                  {language === "id" ? "Jawaban siswa" : "Student answer"}
-                </dt>
-                <dd className="mt-1">
-                  {answer.studentAnswer?.trim() || answer.answerText?.trim() ? (
-                    <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-words rounded-md bg-[var(--review-secondary-soft)] px-3 py-2 font-mono font-normal leading-5 text-black">
-                      {answer.studentAnswer?.trim() || answer.answerText?.trim()}
-                    </pre>
-                  ) : unavailable}
-                </dd>
-              </div>
-              <div className="sm:col-span-2">
-                <dt className="font-semibold text-muted">
-                  {language === "id" ? "Penjelasan" : "Explanation"}
-                </dt>
-                <dd className="mt-0.5 font-normal">{explanation || unavailable}</dd>
-              </div>
+            <dl className="grid gap-3">
+              {answerText && (
+                <div>
+                  <dt className="font-medium text-muted">
+                    {language === "id" ? "Jawaban" : "Answer"}
+                  </dt>
+                  <dd className="mt-1 min-w-0">
+                    <div className="grid gap-3">
+                      {answerBlocks.map((block, blockIndex) =>
+                        block.kind === "code" ? (
+                          <div
+                            key={`${block.kind}-${blockIndex}`}
+                            className="thin-scroll max-h-64 min-w-0 overflow-x-hidden overflow-y-auto rounded-md border border-navy-deep/20 sm:max-h-80"
+                          >
+                            <PseudocodeBlock code={block.text} />
+                          </div>
+                        ) : (
+                          <p
+                            key={`${block.kind}-${blockIndex}`}
+                            className="whitespace-pre-wrap break-words"
+                          >
+                            {block.text}
+                          </p>
+                        ),
+                      )}
+                    </div>
+                  </dd>
+                </div>
+              )}
+              {misconceptionId && (
+                <div>
+                  <dt className="font-medium text-muted">
+                    {language === "id" ? "Miskonsepsi" : "Misconception"}
+                  </dt>
+                  <dd className="mt-0.5">
+                    {misconception
+                      ? misconceptionLabel(misconception, language)
+                      : misconceptionId}
+                  </dd>
+                </div>
+              )}
+              {explanation && (
+                <div>
+                  <dt className="font-medium text-muted">
+                    {language === "id" ? "Penjelasan" : "Explanation"}
+                  </dt>
+                  <dd className="mt-0.5 font-normal">{explanation}</dd>
+                </div>
+              )}
             </dl>
           </li>
         );
       })}
     </ul>
+  );
+}
+
+export function MisconceptionEvidenceDialog({
+  answers,
+  misconception,
+}: {
+  answers: readonly StudentAnswer[];
+  misconception: Misconception;
+}) {
+  const { language } = useLanguage();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+
+  if (answers.length === 0) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => dialogRef.current?.showModal()}
+        className="inline-flex min-h-8 items-center rounded-md border border-brand/25 bg-white px-2.5 py-1 text-[11px] font-medium leading-4 text-brand transition-colors hover:border-brand/45 hover:bg-brand-soft/35 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+      >
+        Evidence ({answers.length})
+      </button>
+      <dialog
+        ref={dialogRef}
+        aria-labelledby={titleId}
+        className="m-auto max-h-[85dvh] w-[calc(100%-2rem)] max-w-[52rem] overflow-hidden rounded-xl border border-[#ccbab0] bg-white p-0 text-black shadow-2xl backdrop:bg-black/35"
+      >
+        <div className="flex max-h-[85dvh] min-w-0 flex-col overflow-hidden">
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
+            <div className="min-w-0">
+              <h2 id={titleId} className="text-base font-semibold leading-6 text-navy-deep">
+                {language === "id" ? "Evidence miskonsepsi" : "Misconception evidence"}
+              </h2>
+              <p className="mt-0.5 break-words text-xs leading-5 text-muted">
+                {misconceptionLabel(misconception, language)}
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label={language === "id" ? "Tutup modal" : "Close dialog"}
+              onClick={() => dialogRef.current?.close()}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-neutral hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+            >
+              <X size={17} aria-hidden="true" />
+            </button>
+          </div>
+          <div className="min-h-0 min-w-0 max-h-[calc(85dvh-5rem)] flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-4 pb-5 sm:px-5">
+            <StructuredEvidenceList
+              answers={answers}
+              misconceptions={[misconception]}
+            />
+          </div>
+        </div>
+      </dialog>
+    </>
   );
 }

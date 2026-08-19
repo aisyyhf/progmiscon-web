@@ -91,16 +91,26 @@ assert.match(questionWorkspace, /className="review-question-detail"/);
 assert.doesNotMatch(questionWorkspace, /review-question-detail mt-6 md:mt-10/);
 assert.match(
   stepNavigation,
-  /h-\[22px\][\s\S]*?border border-border bg-white px-2 text-\[11px\] font-medium leading-4 text-navy-deep/,
+  /min-h-9[\s\S]*?border border-border bg-white px-3 py-1\.5 text-\[13px\] font-medium leading-5 text-navy-deep/,
 );
-assert.match(stepNavigation, /flex min-h-\[22px\] items-center justify-between/);
-assert.match(stepNavigation, /hover:border-navy\/25 hover:bg-neutral/);
-assert.doesNotMatch(stepNavigation, /text-brand|bg-brand|border-brand/);
+const structuredEvidence = await readFile(
+  new URL("../src/components/review/StructuredEvidenceList.tsx", import.meta.url),
+  "utf8",
+);
+assert.match(stepNavigation, /flex min-h-9 items-center justify-between/);
+assert.match(stepNavigation, /hover:border-brand\/30 hover:bg-neutral/);
+assert.doesNotMatch(stepNavigation, /(?:text|bg|border)-brand(?:\s|")/);
 assert.match(
   answerWorkspace,
-  /px-5 pb-5 pt-0 md:px-7 md:pb-7 md:pt-1\.5/,
-  "the compact step row must reuse the card's former top-padding space",
+  /grid-cols-\[minmax\(0,1\.65fr\)_minmax\(22rem,1fr\)\]/,
 );
+assert.match(answerWorkspace, /<article className="min-w-0">/);
+assert.match(
+  answerWorkspace,
+  /<aside className="relative rounded-xl border border-\[#ccbab0\] border-t-2 border-t-brand/,
+);
+assert.match(answerWorkspace, /<CircleCheckBig[\s\S]*?right-2 top-2 h-36 w-36 -rotate-6/);
+assert.match(answerWorkspace, /relative text-base font-semibold leading-6 tracking-\[-0\.01em\]/);
 assert.doesNotMatch(questionWorkspace, /lg:sticky|lg:max-h-|lg:overflow-y-auto|thin-scroll/);
 assert.match(questionWorkspace, /REVIEW MISKONSEPSI SOAL/);
 assert.doesNotMatch(questionWorkspace, /Navigasi soal review|Sebelumnya|Berikutnya/);
@@ -122,18 +132,43 @@ assert.match(questionWorkspace, /Simpan & Selesai/);
 assert.match(questionWorkspace, /Simpan & Lanjut ke Review Jawaban/);
 assert.match(questionWorkspace, /Simpan Perubahan/);
 assert.match(questionWorkspace, /Jawaban yang benar/);
+assert.match(questionWorkspace, /border-\[#2F6B4F\] bg-\[#2F6B4F\] text-white/);
+assert.match(questionWorkspace, /text-\[11px\] font-normal leading-5/);
+assert.doesNotMatch(questionWorkspace, /<h3[^>]*>\{language === "id" \? "Pilihan jawaban"/);
+assert.doesNotMatch(questionWorkspace, /optionMisconceptions/);
 assert.doesNotMatch(questionWorkspace, /Jawaban acuan|Reference answer/);
 assert.match(questionWorkspace, /Miskonsepsi terkait/);
 assert.match(questionWorkspace, /flex items-center gap-1\.5 text-base[\s\S]*?h-6 w-5[\s\S]*?<TriangleAlert size=\{16\}/);
 assert.match(questionWorkspace, /sm:grid-cols-2/);
-assert.match(questionWorkspace, /min-h-\[4\.5rem\][\s\S]*?px-3 py-2\.5/);
-assert.match(questionWorkspace, /h-12 w-12 rounded-full bg-brand\/\[0\.055\]/);
+assert.match(questionWorkspace, /min-h-\[3\.25rem\][\s\S]*?w-full/);
 assert.match(questionWorkspace, /text-\[11px\] font-normal leading-4 text-brand/);
 assert.match(questionWorkspace, /text-xs font-normal leading-\[18px\] text-navy-deep/);
 assert.match(questionWorkspace, /getEvidenceAnswersForQuestion\(question\.id, answers\)/);
-assert.match(questionWorkspace, /relatedEvidence\.length > 0/);
-assert.match(questionWorkspace, /<StructuredEvidenceList/);
+assert.match(questionWorkspace, /evidence\.evidenceMisconceptionId\?\.trim\(\) === item\.id/);
+assert.match(questionWorkspace, /<MisconceptionEvidenceDialog/);
+assert.doesNotMatch(questionWorkspace, /<details className="group\/evidence"|review-evidence-disclosure/);
 assert.doesNotMatch(questionWorkspace, /answer\.evidenceReasons|answer\.misconceptionReasons/);
+assert.doesNotMatch(questionWorkspace, /handleDelete|variant="danger"|Hapus review/);
+assert.match(structuredEvidence, /showModal\(\)/);
+assert.match(structuredEvidence, /Evidence \(\{answers\.length\}\)/);
+assert.match(structuredEvidence, /max-h-\[85dvh\][^\n]+max-w-\[52rem\][^\n]+overflow-hidden/);
+assert.match(structuredEvidence, /flex shrink-0 items-start/);
+assert.match(
+  structuredEvidence,
+  /max-h-\[calc\(85dvh-5rem\)\][^\n]+overflow-x-hidden overflow-y-auto overscroll-contain/,
+);
+assert.match(structuredEvidence, /\[overflow-wrap:anywhere\]/);
+assert.doesNotMatch(structuredEvidence, /answer\.evidenceId/);
+for (const label of ["Jawaban", "Miskonsepsi", "Penjelasan"]) {
+  assert.match(structuredEvidence, new RegExp(`"${label}"`));
+}
+assert.doesNotMatch(structuredEvidence, /"Nama"|"Name"|Tidak tersedia|Unavailable/);
+assert.match(
+  structuredEvidence,
+  /thin-scroll max-h-64 min-w-0 overflow-x-hidden overflow-y-auto[^\n]+sm:max-h-80/,
+);
+assert.match(structuredEvidence, /splitEvidenceAnswerBlocks\(answerText\)/);
+assert.match(structuredEvidence, /<PseudocodeBlock code=\{block\.text\} \/>/);
 assert.match(questionWorkspace, /rounded-xl border border-\[#ccbab0\] border-t-2 border-t-brand/);
 assert.doesNotMatch(questionWorkspace, /absolute inset-x-0 top-0 h-0\.5 bg-brand/);
 assert.match(questionWorkspace, /<CircleCheckBig/);
@@ -154,6 +189,7 @@ assert.match(questionContent, /const outputLabel = language === "id" \? "Keluara
 assert.match(questionContent, /<dt className="inline font-semibold">\{inputLabel\}/);
 assert.match(questionContent, /<dt className="inline font-semibold">\{outputLabel\}/);
 assert.match(questionContent, /<table[\s\S]*?<caption[\s\S]*?Test cases/);
+assert.match(questionContent, /sm:w-fit sm:min-w-\[52%\] sm:max-w-full/);
 assert.match(questionContent, /<th[\s\S]*?\{inputLabel\}[\s\S]*?<th[\s\S]*?\{outputLabel\}/);
 assert.match(questionContent, /odd:bg-white even:bg-\[var\(--review-secondary-soft\)\]/);
 assert.match(questionContent, /border border-\[#ccbab0\]\/70 px-2\.5 py-1\.5/);
@@ -186,15 +222,19 @@ assert.match(answerWorkspace, /add-answer-misconception-question[\s\S]*?yesDisab
 assert.match(answerWorkspace, /await onSubmit\(buildAnswerReviewValues\(form\)\)/);
 assert.doesNotMatch(answerWorkspace, /reviewerCountLabel|Math\.min\(answerReviewCount/);
 assert.match(answerWorkspace, /answer-validation-note[\s\S]*?placeholder=\{language === "id" \? "Komentar\.\." : "Comment\.\."\}[\s\S]*?min-h-16 resize-y/);
-assert.match(answerWorkspace, /REVIEW JAWABAN/);
 assert.match(answerWorkspace, /Jawaban yang sedang direview/);
-assert.match(answerWorkspace, /`Jawaban \$\{activeIndex \+ 1\} dari \$\{siblingAnswerIds\.length\}`/);
+assert.doesNotMatch(answerWorkspace, /parentReference|siblingAnswerIds|activeIndex/);
+assert.doesNotMatch(answerWorkspace, /\? "REVIEW JAWABAN" : "ANSWER REVIEW"/);
 assert.match(answerWorkspace, /Lihat soal & pilihan jawaban/);
 assert.match(answerWorkspace, /Jawaban benar/);
 assert.match(answerWorkspace, /Sedang direview/);
-assert.match(answerWorkspace, /Lihat evidence/);
-assert.match(answerWorkspace, /evidenceAnswers\.length > 0/);
-assert.match(answerWorkspace, /<StructuredEvidenceList/);
+assert.doesNotMatch(answerWorkspace, /optionAnswers|optionAnswerById/);
+assert.match(answerWorkspace, /activeOptionMisconceptions/);
+assert.match(answerWorkspace, /answer\.misconceptionReasons/);
+assert.match(answerWorkspace, /Tidak ada miskonsepsi yang dipetakan ke opsi ini/);
+assert.match(answerWorkspace, /evidence\.evidenceMisconceptionId\?\.trim\(\) === misconception\.id/);
+assert.match(answerWorkspace, /<MisconceptionEvidenceDialog/);
+assert.doesNotMatch(answerWorkspace, /mp-answer-evidence|<StructuredEvidenceList/);
 assert.match(answerWorkspace, /isFinalAnswer[\s\S]*?Simpan & Selesai[\s\S]*?Simpan & Lanjut/);
 assert.match(answerWorkspace, /Simpan Perubahan/);
 assert.doesNotMatch(answerWorkspace, /<SiblingNavigator/);
@@ -203,9 +243,7 @@ assert.match(answerWorkspace, /HASIL REVIEW JAWABAN/);
 assert.match(answerWorkspace, /formUnavailable = mode === "view" \|\| locked \|\| progressUnavailable/);
 assert.match(answerWorkspace, /<ReviewStepNavigation previous=\{previousStep\} next=\{nextStep\} \/>/);
 
-assert.match(questionWorkspace, /Lihat evidence/);
-assert.match(questionWorkspace, /relatedEvidence\.length > 0 && \([\s\S]*?<details className="group\/evidence"/);
-assert.match(questionWorkspace, /review-evidence-disclosure/);
+assert.match(questionWorkspace, /Evidence/);
 assert.doesNotMatch(questionWorkspace, /Jawaban terkait|Review jawaban|onReviewAnswer/);
 assert.doesNotMatch(questionDetail, /onReviewAnswer=/);
 assert.doesNotMatch(questionWorkspace, /<SubmittedQuestionReview|Mode lihat/);
@@ -224,7 +262,7 @@ assert.match(
 assert.match(questionWorkspace, /formUnavailable = mode === "view" \|\| locked \|\| progressUnavailable/);
 assert.match(questionWorkspace, /<ReviewStepNavigation previous=\{previousStep\} next=\{nextStep\} \/>/);
 assert.match(questionWorkspace, /await onSubmit\(buildQuestionReviewValues\(form\)\)/);
-assert.match(questionWorkspace, /await onDelete\(\)/);
+assert.doesNotMatch(questionWorkspace, /await onDelete\(\)/);
 
 for (const call of [
   "save_question_review_v3",

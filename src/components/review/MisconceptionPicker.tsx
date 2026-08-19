@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ListPlus, Search, X } from "lucide-react";
 import type { Misconception } from "../../types";
 import { useLanguage } from "../../hooks/useLanguage";
@@ -56,11 +57,19 @@ export function MisconceptionPicker({
 
   useEffect(() => {
     if (!open) return;
+    const previousBodyOverflow = document.body.style.overflow;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.style.overflow = previousDocumentOverflow;
+    };
   }, [open]);
 
   const toggle = (misconceptionId: string) => {
@@ -188,8 +197,9 @@ export function MisconceptionPicker({
         )}
       </div>
 
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+      {open &&
+        createPortal(
+          <div className="fixed inset-0 z-50 flex h-dvh w-screen items-center justify-center overflow-hidden px-3 py-4 sm:px-4">
           <button
             type="button"
             aria-label={language === "id" ? "Tutup pemilih miskonsepsi" : "Close misconception picker"}
@@ -200,14 +210,14 @@ export function MisconceptionPicker({
             role="dialog"
             aria-modal="true"
             aria-labelledby="misconception-picker-title"
-            className="academic-panel route-frame relative flex max-h-[90vh] min-h-0 w-full max-w-4xl flex-col overflow-hidden shadow-[0_30px_80px_rgba(23,32,51,0.22)]"
+            className="academic-panel route-frame relative m-0 flex max-h-[80dvh] min-h-0 w-full max-w-[52rem] flex-col overflow-hidden shadow-[0_30px_80px_rgba(23,32,51,0.22)]"
           >
-            <header className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
+            <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-3">
               <div>
                 <p className="academic-label text-brand">
                   {language === "id" ? "Validasi dosen" : "Lecturer validation"}
                 </p>
-                <h2 id="misconception-picker-title" className="mt-1 text-xl font-bold text-navy-deep">
+                <h2 id="misconception-picker-title" className="mt-1 text-lg font-semibold text-navy-deep">
                   {language === "id" ? "Pilih miskonsepsi" : "Choose misconceptions"}
                 </h2>
               </div>
@@ -223,7 +233,7 @@ export function MisconceptionPicker({
 
             <div className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.1fr)] md:overflow-hidden">
               <div className="flex min-h-0 flex-col border-b border-border md:border-b-0 md:border-r">
-                <div className="border-b border-border p-4">
+                <div className="border-b border-border p-3">
                   <label htmlFor="misconception-search" className="sr-only">
                     {language === "id" ? "Cari miskonsepsi" : "Search misconceptions"}
                   </label>
@@ -234,7 +244,7 @@ export function MisconceptionPicker({
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder={language === "id" ? "Cari miskonsepsi..." : "Search misconceptions..."}
-                    className="academic-input px-3 py-2.5 text-sm placeholder:text-muted/65"
+                    className="academic-input px-3 py-2 text-sm placeholder:text-muted/65"
                   />
                   <div className="mt-3 grid grid-cols-2 rounded-md border border-border bg-bg p-0.5" role="tablist">
                     <button
@@ -279,7 +289,7 @@ export function MisconceptionPicker({
                             <label
                               onClick={() => setPreviewId(item.id)}
                               className={cn(
-                                "flex w-full cursor-pointer items-start gap-3 border-l-2 px-3 py-2.5 text-left text-sm leading-5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
+                                "flex w-full cursor-pointer items-start gap-3 border-l-2 px-3 py-2 text-left text-sm leading-5 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand",
                                 active
                                   ? "border-brand bg-brand-soft/70 text-navy-deep"
                                   : "border-transparent text-muted hover:bg-bg hover:text-navy-deep",
@@ -301,14 +311,14 @@ export function MisconceptionPicker({
                 </div>
               </div>
 
-              <div className="thin-scroll min-h-0 overflow-y-auto p-5 md:p-6">
+              <div className="thin-scroll min-h-0 overflow-y-auto p-4 md:p-5">
                 {preview ? (
                   <div>
                     <p className="academic-label">
                       {language === "id" ? "Ringkasan miskonsepsi" : "Misconception summary"}
                     </p>
                     <h3 className="mt-1 text-lg font-bold text-navy-deep">{misconceptionLabel(preview, language)}</h3>
-                    <div className="mt-5 space-y-5">
+                    <div className="mt-4 space-y-4">
                       <section>
                         <p className="academic-label">{language === "id" ? "Pola yang keliru" : "Incorrect pattern"}</p>
                         <p className="mt-1 whitespace-pre-line text-sm leading-6 text-navy-deep">{t(preview.wrong, language)}</p>
@@ -325,7 +335,7 @@ export function MisconceptionPicker({
                     <Button
                       type="button"
                       variant={selectedIds.has(preview.id) ? "secondary" : "primary"}
-                      className="mt-6 justify-center"
+                      className="mt-5 justify-center"
                       onClick={() => toggle(preview.id)}
                     >
                       {selectedIds.has(preview.id) ? (
@@ -348,14 +358,15 @@ export function MisconceptionPicker({
               </div>
             </div>
 
-            <footer className="flex justify-end border-t border-border px-5 py-3">
+            <footer className="flex shrink-0 justify-end border-t border-border px-4 py-2.5">
               <Button type="button" variant="primary" onClick={() => setOpen(false)}>
                 {language === "id" ? "Selesai memilih" : "Finish selecting"}
               </Button>
             </footer>
           </section>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

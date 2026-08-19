@@ -273,7 +273,7 @@ function WeekOverview({
 }) {
   return (
     <>
-      <div className="pb-2">
+      <div className="pb-2 text-center">
         <h1 className="text-[1.75rem] font-semibold leading-9 tracking-[-0.02em] text-black">
           {language === "id" ? "REVIEW SOAL PER MINGGU" : "REVIEW QUESTIONS BY WEEK"}
         </h1>
@@ -662,9 +662,6 @@ function WeekQuestionList({
                     <span className="hidden text-center text-xs font-normal tabular-nums text-black/60 lg:block">{index + 1}</span>
                     <span className="min-w-0">
                       <span className="block truncate text-xs font-normal leading-4 text-black">{title}</span>
-                      <span className="mt-0.5 block truncate font-mono text-[10px] font-normal leading-4 text-black/55">
-                        #{identifier.replace(/^#/, "")}
-                      </span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
                         <QuestionTypeTooltipLabel
                           label={questionType.label}
@@ -717,7 +714,7 @@ function WeekQuestionList({
                             type="button"
                             aria-labelledby={viewTooltipId}
                             onClick={() => onOpenQuestion(question, "view")}
-                            className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
+                            className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
                           >
                             <Eye size={14} strokeWidth={1.9} aria-hidden="true" />
                             <ReviewActionTooltip id={viewTooltipId} label={viewActionLabel} />
@@ -728,7 +725,7 @@ function WeekQuestionList({
                                 type="button"
                                 aria-labelledby={editTooltipId}
                                 onClick={() => onOpenQuestion(question, "edit")}
-                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] hover:text-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
+                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
                               >
                                 <Pencil size={14} strokeWidth={1.9} aria-hidden="true" />
                                 <ReviewActionTooltip id={editTooltipId} label="Edit" />
@@ -738,7 +735,7 @@ function WeekQuestionList({
                                 aria-labelledby={deleteTooltipId}
                                 disabled={withdrawingId === question.id}
                                 onClick={() => void handleWithdraw(question)}
-                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#b09f85] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-primary-soft)] hover:text-brand disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
+                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-primary-soft)] disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
                               >
                                 <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
                                 <ReviewActionTooltip id={deleteTooltipId} label={deleteActionLabel} />
@@ -1529,7 +1526,7 @@ export function LecturerReviewPage({
         QUESTION_REVIEWED_THRESHOLD,
         new Set(reviewedQuestionStepIds),
       );
-      changeNavigation(
+      const opened = changeNavigation(
         {
           week: question.week ?? navigation.week,
           task: "question",
@@ -1541,6 +1538,7 @@ export function LecturerReviewPage({
         },
         { replace: false },
       );
+      if (opened) window.scrollTo({ top: 0, left: 0, behavior: "auto" });
     },
     [
       changeNavigation,
@@ -1580,14 +1578,6 @@ export function LecturerReviewPage({
     );
     setReviewDataRevision((current) => current + 1);
   }, []);
-
-  const handleQuestionDelete = async () => {
-    if (!activeQuestion) return;
-    await withdrawQuestionReview(activeQuestion);
-    commitNavigation(
-      getNavigationAfterWithdraw(navigation, activeQuestion.id),
-    );
-  };
 
   const handleQuestionSubmit = async (values: QuestionReviewValues) => {
     if (
@@ -1983,7 +1973,6 @@ export function LecturerReviewPage({
             misconceptions={misconceptions}
             locked={activeQuestionLocked}
             progressUnavailable={!navigationReady || !activeQuestion.sourceVersion}
-            reviewedByMe={activeQuestionReviewedByMe}
             submittedReview={activeQuestionReview}
             mode={navigation.mode}
             nextStep={questionNextStep}
@@ -1991,7 +1980,6 @@ export function LecturerReviewPage({
             onSelectMisconception={(misconceptionId) =>
               navigate(`/miskonsepsi/${misconceptionId}`)
             }
-            onDelete={handleQuestionDelete}
             onSubmit={handleQuestionSubmit}
           />
         ) : (
@@ -2050,8 +2038,6 @@ export function LecturerReviewPage({
             question={answerQuestion}
             answer={activeAnswer}
             evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
-            siblingAnswerIds={displayedAnswerSequence.map(({ id }) => id)}
-            activeIndex={answerSequenceIndex}
             misconceptions={misconceptions}
             locked={activeAnswerLocked}
             progressUnavailable={!navigationReady || !activeAnswer.sourceVersion}
@@ -2234,7 +2220,6 @@ export function LecturerReviewPage({
                 misconceptions={misconceptions}
                 locked={activeQuestionLocked}
                 progressUnavailable={!navigationReady || !activeQuestion.sourceVersion}
-                reviewedByMe={activeQuestionReviewedByMe}
                 submittedReview={activeQuestionReview}
                 mode={navigation.mode}
                 nextStep={questionNextStep}
@@ -2242,7 +2227,6 @@ export function LecturerReviewPage({
                 onSelectMisconception={(misconceptionId) =>
                   navigate(`/miskonsepsi/${misconceptionId}`)
                 }
-                onDelete={handleQuestionDelete}
                 onSubmit={handleQuestionSubmit}
               />
             ) : activeAnswer && answerQuestion ? (
@@ -2252,8 +2236,6 @@ export function LecturerReviewPage({
                 question={answerQuestion}
                 answer={activeAnswer}
                 evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
-                siblingAnswerIds={displayedAnswerSequence.map(({ id }) => id)}
-                activeIndex={answerSequenceIndex}
                 misconceptions={misconceptions}
                 locked={activeAnswerLocked}
                 progressUnavailable={!navigationReady || !activeAnswer.sourceVersion}

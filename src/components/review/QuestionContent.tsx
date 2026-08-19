@@ -65,7 +65,8 @@ export function QuestionContent({ question }: { question: Question }) {
       {sampleCases.length > 0 && (
         <section className="mt-3 border-t border-border pt-3" aria-label={language === "id" ? "Contoh masukan dan keluaran" : "Input and output examples"}>
           <div className="overflow-x-auto">
-            <table className="w-full table-fixed border-collapse text-left text-xs leading-4 text-navy-deep">
+            <div className="min-w-full sm:w-fit sm:min-w-[52%] sm:max-w-full">
+              <table className="w-full table-auto border-collapse text-left text-xs leading-4 text-navy-deep">
               <caption className="mb-1.5 text-left text-xs font-semibold leading-5 text-navy-deep">
                 {language === "id" ? "Contoh kasus" : "Test cases"}
               </caption>
@@ -91,7 +92,8 @@ export function QuestionContent({ question }: { question: Question }) {
                   </tr>
                 ))}
               </tbody>
-            </table>
+              </table>
+            </div>
           </div>
         </section>
       )}

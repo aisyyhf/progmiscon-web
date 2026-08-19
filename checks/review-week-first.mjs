@@ -576,6 +576,11 @@ assert.match(
   /const openQuestion[\s\S]*?task: "question"[\s\S]*?mode,[\s\S]*?returnAnswer: undefined,[\s\S]*?\{ replace: false \},/,
   "opening a question from its week list must preserve the list in browser history",
 );
+assert.match(
+  activePage.slice(activePage.indexOf("const openQuestion"), activePage.indexOf("const withdrawQuestionReview")),
+  /if \(opened\) window\.scrollTo\(\{ top: 0, left: 0, behavior: "auto" \}\)/,
+  "opening a question from the week list must reset the detail viewport immediately",
+);
 assert.doesNotMatch(
   activePage.slice(activePage.indexOf("const openQuestion"), activePage.indexOf("const withdrawQuestionReview")),
   /resolveAnswerDeepLink|getNextUnreviewedAnswerId/,
@@ -598,8 +603,8 @@ assert.match(activePage, /navigation\.mode !== "review" \|\|[\s\S]*?reachableAns
 assert.match(activePage, /answerStepSequence\.findIndex\(\(\{ id \}\) => id === activeAnswer\?\.id\)/);
 assert.match(activePage, /previousAnswer\s*=\s*answerSequenceIndex > 0[\s\S]*?displayedAnswerSequence\[answerSequenceIndex - 1\]/);
 assert.match(activePage, /nextAnswer\s*=\s*displayedAnswerSequence\[answerSequenceIndex \+ 1\]/);
-assert.match(activePage, /siblingAnswerIds=\{displayedAnswerSequence\.map/);
-assert.match(activePage, /activeIndex=\{answerSequenceIndex\}/);
+assert.doesNotMatch(activePage, /optionAnswers=|getMpOptionAnswersForQuestion/);
+assert.doesNotMatch(activePage, /siblingAnswerIds=|activeIndex=\{/);
 assert.match(activePage, /getNextUnreviewedAnswerId\(questionAnswerReviewSequence, reviewedAnswerIds\)/);
 assert.match(activePage, /function getAnswerStepLabel[\s\S]*?option\?\.label/);
 assert.doesNotMatch(activePage, /getNavigationAfterReviewSave/);
@@ -623,7 +628,7 @@ for (const heading of [
 assert.match(listSource, /<span>{questionColumnHeading}<\/span>/);
 assert.deepEqual(
   [...new Set(targetPageColorSource.match(/#[\da-f]{6}/gi)?.map((color) => color.toLowerCase()))].sort(),
-  ["#b09f85", "#ccbab0", "#fbfbfe"],
+  ["#b09f85", "#b6252a", "#ccbab0", "#fbfbfe"],
 );
 assert.doesNotMatch(
   targetPageColorSource,
@@ -705,6 +710,7 @@ assert.match(activePage, /reviewStage === "overview"/);
 assert.match(activePage, /reviewStage === "list"/);
 assert.doesNotMatch(listSource, /Status pribadi|Personal status/);
 assert.match(activePage, /REVIEW SOAL PER MINGGU/);
+assert.match(activePage, /<div className="pb-2 text-center">/);
 assert.match(activePage, /formatWeekLabel\(week\)\.toLocaleUpperCase/);
 assert.match(activePage, /aria-pressed=\{status === value\}/);
 assert.match(listSource, /Jumlah reviewer terpenuhi/);
@@ -781,6 +787,11 @@ assert.match(listSource, /onOpenQuestion\(question, "edit"\)/);
 assert.match(listSource, /<Eye/);
 assert.match(listSource, /<Pencil/);
 assert.match(listSource, /<Trash2/);
+assert.equal(
+  listSource.match(/text-\[#B6252A\]/g)?.length,
+  3,
+  "view, edit, and delete icons use the Progmiscon red",
+);
 assert.match(
   listSource,
   /\{questionStatus === "reviewed" && \([\s\S]*?<Pencil[\s\S]*?<Trash2[\s\S]*?\)\}/,
