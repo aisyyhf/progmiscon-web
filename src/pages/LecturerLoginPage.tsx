@@ -122,7 +122,7 @@ export function LecturerLoginPage() {
               aria-invalid={Boolean(error)}
               aria-describedby={error ? "login-error" : undefined}
               placeholder={
-                language === "id" ? "nama@kampus.ac.id" : "name@university.edu"
+                language === "id" ? "nama@telkomuniversity.ac.id" : "name@university.edu"
               }
               className="academic-input h-11 bg-white pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-incorrect aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-incorrect/15"
             />
