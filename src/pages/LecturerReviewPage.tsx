@@ -138,12 +138,12 @@ function ReviewStepNavigation({
   if (!previous && !next) return null;
 
   const actionClass =
-    "inline-flex min-h-9 items-center gap-1.5 rounded-md border border-border bg-white px-3 py-1.5 text-[13px] font-medium leading-5 text-navy-deep transition-colors hover:border-brand/30 hover:bg-neutral focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand";
+    "inline-flex min-h-12 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-md border border-border bg-white px-2 py-1.5 text-center text-xs font-medium leading-4 text-navy-deep transition-colors hover:border-brand/30 hover:bg-neutral focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand sm:min-h-9 sm:flex-none sm:px-3 sm:text-[13px] sm:leading-5";
 
   return (
     <nav
       aria-label="Navigasi langkah review"
-      className="flex min-h-9 items-center justify-between gap-3"
+      className="flex min-h-12 items-center justify-between gap-2 sm:min-h-9 sm:gap-3"
     >
       {previous ? (
         <button type="button" onClick={previous.onClick} className={actionClass}>
