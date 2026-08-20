@@ -84,7 +84,7 @@ export function AdminExportsPage() {
   const similarRelations = buildCurrentSimilarMisconceptionsCsv(data);
 
   return (
-    <section className="mx-auto w-full max-w-[980px]" aria-labelledby="admin-exports-title">
+    <section className="mx-auto w-full max-w-[1180px]" aria-labelledby="admin-exports-title">
       <header className="border-b border-border pb-5">
         <h1 id="admin-exports-title" className="text-2xl font-semibold tracking-tight text-navy-deep">
           {isIndonesian ? "Export Data" : "Export Data"}
