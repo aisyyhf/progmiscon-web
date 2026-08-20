@@ -96,6 +96,15 @@ const baseline: MasterData = {
       question_ind: "Tanpa override",
       question_en: "No override",
       question_code: "",
+      content_blocks_ind:
+        '[{"type":"text","content":"Baca input"},{"type":"code","content":"read(x)"}]',
+      content_blocks_en:
+        '[{"type":"text","content":"Read input"},{"type":"code","content":"read(x)"}]',
+      input_description_ind: "Bilangan bulat x",
+      input_description_en: "Integer x",
+      output_description_ind: "Nilai x",
+      output_description_en: "Value x",
+      test_cases: '[{"case_no":1,"input":"7","output":"7"}]',
       reference_solution: "",
       expected_output: "",
       week: "3",
@@ -221,6 +230,45 @@ assert.equal(
   effective.questions.find((row) => row.question_id === "Q023")?.question_ind,
   "Tanpa override",
 );
+
+const wordingOnlyEffective = applyPublishedMasterOverrides(baseline, {
+  questionContentOverrides: [
+    {
+      question_id: "Q023",
+      question_ind: "Wording baru",
+      question_en: "New wording",
+      question_code: null,
+      updated_at: "2026-08-21T00:00:00Z",
+    },
+  ],
+  answerContentOverrides: [],
+  questionMisconceptionOverrides: [],
+  answerMisconceptionOverrides: [],
+});
+const baselineStructuredQuestion = baseline.questions.find(
+  (row) => row.question_id === "Q023",
+)!;
+const wordingOnlyQuestion = wordingOnlyEffective.questions.find(
+  (row) => row.question_id === "Q023",
+)!;
+assert.equal(wordingOnlyQuestion.question_ind, "Wording baru");
+assert.equal(wordingOnlyQuestion.question_en, "New wording");
+for (const field of [
+  "question_code",
+  "content_blocks_ind",
+  "content_blocks_en",
+  "input_description_ind",
+  "input_description_en",
+  "output_description_ind",
+  "output_description_en",
+  "test_cases",
+] as const) {
+  assert.equal(
+    wordingOnlyQuestion[field],
+    baselineStructuredQuestion[field],
+    `${field} must survive a wording-only override unchanged`,
+  );
+}
 assert.equal(effective.answers[0].answer_text, "Opsi efektif");
 assert.equal(effective.answers[0].status, "incorrect");
 assert.deepEqual(
