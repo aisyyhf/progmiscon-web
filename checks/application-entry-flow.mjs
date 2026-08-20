@@ -26,23 +26,18 @@ assert.doesNotMatch(
   "landing and public pages must share one navbar",
 );
 assert.doesNotMatch(topNav, />[^<{]*Guest[^<{]*</, "visible UI must not say Guest");
-assert.match(topNav, /const brandLink[\s\S]*?to="\/"/);
+assert.match(topNav, /<Link[\s\S]*?to="\/"[\s\S]*?aria-label="Progmiscon"/);
 assert.match(topNav, /<NavTabs publicOnly \/>/);
 assert.match(topNav, /to="\/dosen\/login"/);
 assert.match(topNav, /uiText\.navLecturerLogin/);
 assert.doesNotMatch(topNav, /Masuk sebagai Dosen|Jelajahi sebagai Pengunjung/);
-const publicHeaderStart = topNav.indexOf("if (!isAdminRoute)");
-const adminHeaderStart = topNav.indexOf("\n  return (", publicHeaderStart);
-assert.notEqual(publicHeaderStart, -1, "public navbar branch is missing");
-assert.notEqual(adminHeaderStart, -1, "admin navbar branch is missing");
-const publicHeader = topNav.slice(publicHeaderStart, adminHeaderStart);
 assert.doesNotMatch(
-  publicHeader,
+  topNav,
   /absolute left-1\/2|-translate-x-1\/2/,
   "public navigation must stay grouped with the logo instead of being independently centered",
 );
-assert.match(topNav, /const isAdminRoute = location\.pathname === "\/admin"/);
-assert.match(topNav, /<NavTabs \/>/);
+assert.doesNotMatch(topNav, /isAdminRoute|Admin Progmiscon|ShieldCheck/);
+assert.match(topNav, /const links = useNavLinks\(true\)/);
 assert.match(
   translation,
   /navLecturerLogin: { id: "Masuk Dosen", en: "Lecturer Sign In" }/,

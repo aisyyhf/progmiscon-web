@@ -48,6 +48,9 @@ for (const route of [
   'to="/konsep"',
   'to="/miskonsepsi"',
   'to="/review/riwayat"',
+  'to="/admin/questions"',
+  'to="/admin/reviews"',
+  'to="/admin/exports"',
 ]) {
   assert.match(sidebar, new RegExp(route.replace(/[?]/g, "\\?")));
 }
@@ -60,12 +63,17 @@ for (const label of [
   "Konsep",
   "Miskonsepsi",
   "Riwayat Review",
+  "Kelola Soal",
+  "Hasil Review Dosen",
+  "Export Data",
 ]) {
   assert.match(sidebar, new RegExp(label));
 }
 
 assert.match(sidebar, /isReviewHistory = location\.pathname === "\/review\/riwayat"/);
 assert.match(sidebar, /!isReviewHistory &&/);
+assert.match(sidebar, /const \{ isAdmin \} = useLecturerAuth\(\)/);
+assert.match(sidebar, /isAdmin && \(showAdminQuestions/);
 assert.match(sidebar, /effectiveCollapsed \? "w-\[72px\]" : "w-52"/);
 assert.match(
   sidebar,
