@@ -17,7 +17,9 @@ function isLecturerWorkspacePath(pathname: string): boolean {
     pathname === "/miskonsepsi" ||
     pathname.startsWith("/miskonsepsi/") ||
     pathname === "/review" ||
-    pathname.startsWith("/review/")
+    pathname.startsWith("/review/") ||
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/")
   );
 }
 

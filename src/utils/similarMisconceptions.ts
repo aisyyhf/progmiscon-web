@@ -1,13 +1,17 @@
 import type { SimilarMisconceptionRow } from "../types/masterData";
 
+export function isVisibleSimilarMisconceptionStatus(status: string): boolean {
+  const normalized = status.trim().toLowerCase();
+  return normalized === "approved" || normalized === "pending";
+}
+
 export function buildRelatedMisconceptionMap(
   relations: readonly SimilarMisconceptionRow[],
 ): Map<string, Set<string>> {
   const related = new Map<string, Set<string>>();
 
   for (const relation of relations) {
-    const status = relation.status.trim().toLowerCase();
-    if (status !== "approved" && status !== "pending") continue;
+    if (!isVisibleSimilarMisconceptionStatus(relation.status)) continue;
     const left = relation.misconception_id.trim();
     const right = relation.similar_id.trim();
     if (!left || !right || left === right) continue;
