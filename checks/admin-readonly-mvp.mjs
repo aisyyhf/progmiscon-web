@@ -298,12 +298,22 @@ assert.equal(buildCurrentQuestionMisconceptionsCsv(masterData).rows.length, 1);
 assert.equal(buildCurrentAnswerMisconceptionsCsv(masterData).rows.length, 1);
 assert.equal(buildCurrentSimilarMisconceptionsCsv(masterData).rows.length, 1);
 
-const [app, shell, sidebar, topNav, questionsPage, reviewsPage, exportsPage] =
+const [
+  app,
+  shell,
+  sidebar,
+  topNav,
+  filterSelect,
+  questionsPage,
+  reviewsPage,
+  exportsPage,
+] =
   await Promise.all([
     readSource("src/app/App.tsx"),
     readSource("src/components/layout/AppShell.tsx"),
     readSource("src/components/layout/LecturerSidebar.tsx"),
     readSource("src/components/layout/TopNav.tsx"),
+    readSource("src/components/admin/AdminFilterSelect.tsx"),
     readSource("src/pages/AdminQuestionsPage.tsx"),
     readSource("src/pages/AdminReviewsPage.tsx"),
     readSource("src/pages/AdminExportsPage.tsx"),
@@ -320,6 +330,31 @@ assert.doesNotMatch(topNav, /Admin Progmiscon|to="\/admin"/);
 assert.match(questionsPage, /getQuestions\(\)/);
 assert.match(reviewsPage, /buildCurrentReviewsCsv\(filteredGroups\)/);
 assert.match(exportsPage, /getMasterData/);
+
+for (const page of [questionsPage, reviewsPage, exportsPage]) {
+  assert.doesNotMatch(page, /uppercase tracking-\[0\.16em\][^>]*>Admin</);
+}
+assert.match(
+  questionsPage,
+  /Lihat data soal yang sedang digunakan di Progmiscon\./,
+);
+assert.match(
+  questionsPage,
+  /View the question data currently used in Progmiscon\./,
+);
+assert.match(reviewsPage, /return `\$\{count\} item review`/);
+assert.match(
+  reviewsPage,
+  /return `\$\{count\} review \$\{count === 1 \? "item" : "items"\}`/,
+);
+assert.equal((questionsPage.match(/<AdminFilterSelect/g) ?? []).length, 2);
+assert.equal((reviewsPage.match(/<AdminFilterSelect/g) ?? []).length, 3);
+assert.match(filterSelect, /ComponentPropsWithoutRef<"select">/);
+assert.match(filterSelect, /appearance-none/);
+assert.match(filterSelect, /h-10 w-full/);
+assert.match(filterSelect, /py-2 pl-3 pr-10/);
+assert.match(filterSelect, /pointer-events-none absolute right-3 top-1\/2/);
+assert.match(filterSelect, /<ChevronDown/);
 
 const mountedAdminSources = [questionsPage, reviewsPage, exportsPage].join("\n");
 assert.doesNotMatch(

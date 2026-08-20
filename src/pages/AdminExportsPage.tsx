@@ -86,8 +86,7 @@ export function AdminExportsPage() {
   return (
     <section className="mx-auto w-full max-w-[980px]" aria-labelledby="admin-exports-title">
       <header className="border-b border-border pb-5">
-        <p className="text-[11px] uppercase tracking-[0.16em] text-brand">Admin</p>
-        <h1 id="admin-exports-title" className="mt-1 text-2xl font-semibold tracking-tight text-navy-deep">
+        <h1 id="admin-exports-title" className="text-2xl font-semibold tracking-tight text-navy-deep">
           {isIndonesian ? "Export Data" : "Export Data"}
         </h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">

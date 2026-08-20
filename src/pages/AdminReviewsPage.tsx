@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Download, Search } from "lucide-react";
+import { AdminFilterSelect } from "../components/admin/AdminFilterSelect";
 import { EmptyState } from "../components/common/EmptyState";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { useLanguage } from "../hooks/useLanguage";
@@ -50,6 +51,11 @@ function formatDate(value: string, language: Language): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function formatReviewItemCount(count: number, language: Language): string {
+  if (language === "id") return `${count} item review`;
+  return `${count} review ${count === 1 ? "item" : "items"}`;
 }
 
 function ReviewDetails({
@@ -239,8 +245,7 @@ export function AdminReviewsPage() {
     <section className="mx-auto w-full max-w-[1180px]" aria-labelledby="admin-reviews-title">
       <header className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[11px] uppercase tracking-[0.16em] text-brand">Admin</p>
-          <h1 id="admin-reviews-title" className="mt-1 text-2xl font-semibold tracking-tight text-navy-deep">
+          <h1 id="admin-reviews-title" className="text-2xl font-semibold tracking-tight text-navy-deep">
             {isIndonesian ? "Hasil Review Dosen" : "Lecturer Review Results"}
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
@@ -280,29 +285,32 @@ export function AdminReviewsPage() {
             className="h-10 w-full rounded-lg border border-border bg-white py-2 pl-9 pr-3 text-sm text-navy-deep outline-none placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/15"
           />
         </label>
-        <label>
-          <span className="sr-only">{isIndonesian ? "Filter minggu" : "Filter by week"}</span>
-          <select value={week} onChange={(event) => setWeek(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-navy-deep outline-none focus:border-brand focus:ring-2 focus:ring-brand/15">
-            <option value="all">{isIndonesian ? "Semua minggu" : "All weeks"}</option>
-            <option value="unassigned">{isIndonesian ? "Tanpa minggu" : "Unassigned"}</option>
-            {weekOptions.map((item) => <option key={item} value={item}>{getMaterialWeekLabel(item)}</option>)}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">{isIndonesian ? "Filter tipe" : "Filter by type"}</span>
-          <select value={type} onChange={(event) => setType(event.target.value as MaterialQuestionTypeFilter)} className="h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-navy-deep outline-none focus:border-brand focus:ring-2 focus:ring-brand/15">
-            <option value="all">{isIndonesian ? "Semua tipe" : "All types"}</option>
-            <option value="ps">PS</option>
-            <option value="mp">MP</option>
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">{isIndonesian ? "Filter reviewer" : "Filter by reviewer"}</span>
-          <select value={reviewerId} onChange={(event) => setReviewerId(event.target.value)} className="h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-navy-deep outline-none focus:border-brand focus:ring-2 focus:ring-brand/15">
-            <option value="all">{isIndonesian ? "Semua reviewer" : "All reviewers"}</option>
-            {reviewerOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
-          </select>
-        </label>
+        <AdminFilterSelect
+          label={isIndonesian ? "Filter minggu" : "Filter by week"}
+          value={week}
+          onChange={(event) => setWeek(event.target.value)}
+        >
+          <option value="all">{isIndonesian ? "Semua minggu" : "All weeks"}</option>
+          <option value="unassigned">{isIndonesian ? "Tanpa minggu" : "Unassigned"}</option>
+          {weekOptions.map((item) => <option key={item} value={item}>{getMaterialWeekLabel(item)}</option>)}
+        </AdminFilterSelect>
+        <AdminFilterSelect
+          label={isIndonesian ? "Filter tipe" : "Filter by type"}
+          value={type}
+          onChange={(event) => setType(event.target.value as MaterialQuestionTypeFilter)}
+        >
+          <option value="all">{isIndonesian ? "Semua tipe" : "All types"}</option>
+          <option value="ps">PS</option>
+          <option value="mp">MP</option>
+        </AdminFilterSelect>
+        <AdminFilterSelect
+          label={isIndonesian ? "Filter reviewer" : "Filter by reviewer"}
+          value={reviewerId}
+          onChange={(event) => setReviewerId(event.target.value)}
+        >
+          <option value="all">{isIndonesian ? "Semua reviewer" : "All reviewers"}</option>
+          {reviewerOptions.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}
+        </AdminFilterSelect>
       </div>
 
       <div className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-4">
@@ -345,7 +353,10 @@ export function AdminReviewsPage() {
                         <span className="shrink-0 text-right text-xs text-muted">
                           <span className="block text-brand">{isIndonesian ? "Lihat Review" : "View Review"}</span>
                           <span className="mt-0.5 block">
-                            {(reviewerGroup.questionReview ? 1 : 0) + reviewerGroup.answerReviews.length} {isIndonesian ? "review" : "reviews"}
+                            {formatReviewItemCount(
+                              (reviewerGroup.questionReview ? 1 : 0) + reviewerGroup.answerReviews.length,
+                              language,
+                            )}
                           </span>
                         </span>
                       </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { AdminFilterSelect } from "../components/admin/AdminFilterSelect";
 import { EmptyState } from "../components/common/EmptyState";
 import { QuestionContent } from "../components/review/QuestionContent";
 import { useAsyncData } from "../hooks/useAsyncData";
@@ -83,14 +84,13 @@ export function AdminQuestionsPage() {
   return (
     <section className="mx-auto w-full max-w-[1180px]" aria-labelledby="admin-questions-title">
       <header className="border-b border-border pb-5">
-        <p className="text-[11px] uppercase tracking-[0.16em] text-brand">Admin</p>
-        <h1 id="admin-questions-title" className="mt-1 text-2xl font-semibold tracking-tight text-navy-deep">
+        <h1 id="admin-questions-title" className="text-2xl font-semibold tracking-tight text-navy-deep">
           {isIndonesian ? "Kelola Soal" : "Manage Questions"}
         </h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
           {isIndonesian
-            ? "Tampilan baca-saja dari data efektif yang saat ini digunakan Progmiscon."
-            : "A read-only view of the effective data currently used by Progmiscon."}
+            ? "Lihat data soal yang sedang digunakan di Progmiscon."
+            : "View the question data currently used in Progmiscon."}
         </p>
       </header>
 
@@ -106,32 +106,26 @@ export function AdminQuestionsPage() {
             className="h-10 w-full rounded-lg border border-border bg-white py-2 pl-9 pr-3 text-sm text-navy-deep outline-none placeholder:text-muted focus:border-brand focus:ring-2 focus:ring-brand/15"
           />
         </label>
-        <label>
-          <span className="sr-only">{isIndonesian ? "Filter minggu" : "Filter by week"}</span>
-          <select
-            value={week}
-            onChange={(event) => setWeek(event.target.value)}
-            className="h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-navy-deep outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
-          >
-            <option value="all">{isIndonesian ? "Semua minggu" : "All weeks"}</option>
-            <option value="unassigned">{isIndonesian ? "Tanpa minggu" : "Unassigned"}</option>
-            {weekOptions.map((item) => (
-              <option key={item} value={item}>{getMaterialWeekLabel(item)}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span className="sr-only">{isIndonesian ? "Filter tipe" : "Filter by type"}</span>
-          <select
-            value={type}
-            onChange={(event) => setType(event.target.value as MaterialQuestionTypeFilter)}
-            className="h-10 w-full rounded-lg border border-border bg-white px-3 text-sm text-navy-deep outline-none focus:border-brand focus:ring-2 focus:ring-brand/15"
-          >
-            <option value="all">{isIndonesian ? "Semua tipe" : "All types"}</option>
-            <option value="ps">PS</option>
-            <option value="mp">MP</option>
-          </select>
-        </label>
+        <AdminFilterSelect
+          label={isIndonesian ? "Filter minggu" : "Filter by week"}
+          value={week}
+          onChange={(event) => setWeek(event.target.value)}
+        >
+          <option value="all">{isIndonesian ? "Semua minggu" : "All weeks"}</option>
+          <option value="unassigned">{isIndonesian ? "Tanpa minggu" : "Unassigned"}</option>
+          {weekOptions.map((item) => (
+            <option key={item} value={item}>{getMaterialWeekLabel(item)}</option>
+          ))}
+        </AdminFilterSelect>
+        <AdminFilterSelect
+          label={isIndonesian ? "Filter tipe" : "Filter by type"}
+          value={type}
+          onChange={(event) => setType(event.target.value as MaterialQuestionTypeFilter)}
+        >
+          <option value="all">{isIndonesian ? "Semua tipe" : "All types"}</option>
+          <option value="ps">PS</option>
+          <option value="mp">MP</option>
+        </AdminFilterSelect>
       </div>
 
       <div className="mb-3 flex items-center justify-between gap-3 text-xs text-muted">
