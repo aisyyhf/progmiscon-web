@@ -210,7 +210,7 @@ export function MisconceptionPicker({
             role="dialog"
             aria-modal="true"
             aria-labelledby="misconception-picker-title"
-            className="academic-panel route-frame relative m-0 flex max-h-[80dvh] min-h-0 w-full max-w-[52rem] flex-col overflow-hidden shadow-[0_30px_80px_rgba(23,32,51,0.22)]"
+            className="academic-panel route-frame relative m-0 flex max-h-[88dvh] min-h-0 w-full max-w-[52rem] flex-col overflow-hidden shadow-[0_30px_80px_rgba(23,32,51,0.22)] md:max-h-[80dvh]"
           >
             <header className="flex shrink-0 items-start justify-between gap-4 border-b border-border px-4 py-3">
               <div>
@@ -231,8 +231,8 @@ export function MisconceptionPicker({
               </button>
             </header>
 
-            <div className="grid min-h-0 flex-1 overflow-y-auto md:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.1fr)] md:overflow-hidden">
-              <div className="flex min-h-0 flex-col border-b border-border md:border-b-0 md:border-r">
+            <div className="min-h-0 flex-1 overflow-y-auto md:grid md:grid-cols-[minmax(280px,0.9fr)_minmax(0,1.1fr)] md:overflow-hidden">
+              <div className="border-b border-border md:flex md:min-h-0 md:flex-col md:border-b-0 md:border-r">
                 <div className="border-b border-border p-3">
                   <label htmlFor="misconception-search" className="sr-only">
                     {language === "id" ? "Cari miskonsepsi" : "Search misconceptions"}
@@ -274,7 +274,7 @@ export function MisconceptionPicker({
                   </div>
                 </div>
 
-                <div className="thin-scroll max-h-64 overflow-y-auto p-2 md:max-h-none md:flex-1">
+                <div className="thin-scroll p-2 md:min-h-0 md:flex-1 md:overflow-y-auto">
                   {visibleItems.length === 0 ? (
                     <p className="px-3 py-6 text-center text-sm text-muted">
                       {language === "id" ? "Miskonsepsi tidak ditemukan." : "No misconceptions found."}
@@ -311,7 +311,7 @@ export function MisconceptionPicker({
                 </div>
               </div>
 
-              <div className="thin-scroll min-h-0 overflow-y-auto p-4 md:p-5">
+              <div className="thin-scroll p-4 md:min-h-0 md:overflow-y-auto md:p-5">
                 {preview ? (
                   <div>
                     <p className="academic-label">
