@@ -1,125 +1,235 @@
 # Trusted master sync foundation
 
-`sync-review-master-data` is the only repository-owned path that may eventually
-submit authoritative Google Sheets relation snapshots to the service-role-only
-`sync_master_relation_baselines_v2` RPC. It is intentionally isolated from the
-Vite application: browser code supplies only the caller's access token and a
-safe operational mode, never source URLs or privileged credentials.
+`sync-review-master-data` is the repository-owned server boundary that may
+eventually submit authoritative Google Sheets relation snapshots to the
+service-role-only `sync_master_relation_baselines_v2` RPC. The Vite application
+can supply only an authenticated caller token and `preview`/`sync` mode. Source
+URLs, allowed browser origins, privileged credentials, and the RPC name remain
+server-controlled.
 
-This PR adds source and checks only. It does not deploy the Edge Function, set
-remote secrets, apply a migration, call the production RPC, or write production
-data.
+This PR does not deploy the function, set remote secrets, enable sync, call the
+production RPC, or write production data. Relationship-fingerprint parity with
+production is still unproven, so sync remains blocked.
 
-## Trust boundary
+## Authorization and browser boundary
 
-The function creates two Supabase clients in a strict order:
+The function performs these steps in order:
 
-1. A user-scoped client uses `SUPABASE_URL`, a server-side publishable/anon key,
-   and the caller's bearer token. It validates the token, verifies that the
-   caller's `lecturer_profiles` row is active, and requires
-   `current_user_is_admin()` to return `true`.
-2. A service-role client is created only after authorization, trusted source
-   loading, full validation, payload construction, preview bypass, and the sync
-   feature gate. That client can call only
-   `sync_master_relation_baselines_v2`, once, with the complete snapshot.
+1. An allowed browser origin is checked without reflecting arbitrary origins.
+2. A user-scoped client validates the bearer token, the caller's active
+   `lecturer_profiles` row, and `current_user_is_admin()`.
+3. The request, five trusted CSVs, and complete snapshot are validated.
+4. Preview returns before privileged configuration is accessed.
+5. Sync checks its fail-closed feature flag, then creates one service-role
+   client and makes one complete `sync_master_relation_baselines_v2` call.
 
-`SUPABASE_SERVICE_ROLE_KEY` belongs only in the Edge runtime. It must never be
-placed in `src/`, a `VITE_*` variable, browser configuration, logs, or responses.
+Browser callers require `ADMIN_APP_ORIGINS`, a comma-separated list of exact
+HTTP(S) origins such as `https://admin.example.edu`. Values must be origins
+only: no paths, query strings, fragments, credentials, or `*`. An allowed
+origin receives:
 
-## Required Edge environment
+```text
+Access-Control-Allow-Origin: <exact configured origin>
+Vary: Origin
+Access-Control-Allow-Methods: POST, OPTIONS
+Access-Control-Allow-Headers: authorization, apikey, content-type
+```
 
-Configure these server-runtime variables at deployment time; do not commit
-values:
+`OPTIONS` returns 204 for an allowed origin. Missing/disallowed preflight
+origins fail closed. POST still requires bearer authentication. Non-browser
+operators may call POST without an `Origin` header.
+
+Supabase gateway JWT verification is explicit in `supabase/config.toml`:
+
+```toml
+[functions.sync-review-master-data]
+verify_jwt = true
+```
+
+Never deploy this function with `--no-verify-jwt`.
+
+## Server configuration
+
+Do not commit values. No variable below belongs in `src/` or a `VITE_*` name.
 
 | Variable | Purpose |
 | --- | --- |
 | `SUPABASE_URL` | Project API URL |
 | `SUPABASE_PUBLISHABLE_KEY` or `SUPABASE_ANON_KEY` | User-scoped authorization client |
-| `SUPABASE_SERVICE_ROLE_KEY` | Service-only RPC client; read only on enabled sync |
-| `MASTER_QUESTIONS_CSV_URL` | Authoritative questions CSV |
-| `MASTER_ANSWERS_CSV_URL` | Authoritative answers CSV |
-| `MASTER_QUESTION_MISCONCEPTIONS_CSV_URL` | Authoritative question relationships CSV |
-| `MASTER_ANSWER_MISCONCEPTIONS_CSV_URL` | Authoritative answer relationships CSV |
-| `MASTER_MISCONCEPTIONS_CSV_URL` | Authoritative active misconception IDs CSV |
-| `TRUSTED_MASTER_SYNC_ENABLED` | Must equal `true` to permit sync; unset/false is fail-closed |
+| `SUPABASE_SERVICE_ROLE_KEY` | Read only after enabled sync; never used by preview |
+| `ADMIN_APP_ORIGINS` | Exact comma-separated browser origin allowlist |
+| `MASTER_QUESTIONS_CSV_URL` | Frozen-authority questions export |
+| `MASTER_ANSWERS_CSV_URL` | Frozen-authority answers export |
+| `MASTER_QUESTION_MISCONCEPTIONS_CSV_URL` | Question relationship export |
+| `MASTER_ANSWER_MISCONCEPTIONS_CSV_URL` | Answer relationship export |
+| `MASTER_MISCONCEPTIONS_CSV_URL` | Active misconception catalog export |
+| `TRUSTED_MASTER_SYNC_ENABLED` | Must equal trimmed, case-insensitive `true` to permit sync |
 
-All source URLs must be HTTPS and are read from server configuration. The
-request contract cannot override them.
+Unset, empty, false, `0`, and misspelled sync flags fail closed.
 
-## Request modes
+## Bounded request and source handling
 
-Use `POST /sync-review-master-data` with an empty body or exactly one of:
+POST accepts an empty body or `application/json`/`application/*+json` containing
+exactly:
 
 ```json
 { "mode": "preview" }
 ```
 
+or:
+
 ```json
 { "mode": "sync" }
 ```
 
-Unknown fields, URLs, service keys, table names, and RPC names are rejected.
-Both modes perform the same Admin authorization, five-source fetch, CSV parsing,
-cross-source validation, and canonical snapshot build.
+Unknown fields and modes are rejected. Nonempty bodies with other MIME types
+return 415. The body is read through a byte-counted stream and canceled above
+1 KiB; it is never passed through unrestricted `request.text()`.
 
-Preview returns only aggregate counts and SHA-256 snapshot fingerprints. It
-does not read the service-role key, create a privileged client, or call a
-mutation RPC.
+Each CSV is limited to 5 MiB by a byte-counted stream even when no
+`Content-Length` is present. Parsing is also limited to 20,000 rows and 128 KiB
+characters per field. At most 100 validation issues are retained and at most 20
+are returned. Five sources fetch concurrently under one 15-second timeout per
+source.
 
-Sync is implemented but disabled by default. Even with a valid Admin caller it
-returns `SYNC_DISABLED` unless `TRUSTED_MASTER_SYNC_ENABLED=true`. Before an
-operator enables that flag, a controlled read-only rollout must compare preview
-output with the deployed v2 relationship-fingerprint representation. This gate
-exists because the deployed v2 migration and its original builder are not in
-source control; an unverified first write could otherwise rotate live Review
-source versions.
+Automatic redirects are disabled. Every hop is validated before fetching:
 
-## Canonical payload rules
+- HTTPS only, default HTTPS port, and no URL credentials;
+- exact `docs.google.com`, exact `googleusercontent.com`, or a true
+  `*.googleusercontent.com` subdomain;
+- at most three redirect hops.
 
-Every active question appears once with exactly `question_id`,
-`source_fingerprint`, and sorted unique `misconception_ids`. The relationship
-fingerprint is SHA-256 over deterministic, sorted canonical relationship
-context. Question context includes relationship source/evidence/rationale
-fields; answer context includes relationship reasons. It deliberately excludes
-question wording and content blocks.
+Suffix tricks such as `googleusercontent.com.attacker.example` are rejected.
+The final response must use an accepted CSV/text MIME type. The reviewed public
+Google chain (`docs.google.com` to `*.googleusercontent.com`) returns
+`text/csv; charset=utf-8` and is accepted.
 
-Answer baselines are derived only from parsed, active
-`answer_role === "mp_option"` rows whose canonical parent type is MP.
-`ps_reference` and `evidence` rows are excluded. Type comes directly from the
-master `question_type` field using the same accepted PS/MP aliases as the
-frontend parser; answer existence is never a type heuristic.
+## Canonical validation decisions
 
-The future content-context representation keeps canonical PS/MP type, normalized
-Indonesian and English wording, parsed `text`/`code` content blocks,
-`hasStructuredContent`, and a separate content fingerprint. Structured content
-is true only when either parsed content-block array contains an effective block.
-The content fingerprint is SHA-256 over deterministic serialization of:
+The trusted parser deliberately fails closed where the browser historically
+treated malformed data as inactive:
 
-- scheme version;
-- canonical question type;
-- normalized `question_ind` and `question_en`;
-- canonical `content_blocks_ind` and `content_blocks_en`.
+| Difference | Decision |
+| --- | --- |
+| Unknown question/answer/relation `active` values | Intentional trusted strictness; reject |
+| CR/CRLF handling | Intentional deterministic LF normalization; production fingerprint parity remains to be measured |
+| Duplicate relationship pairs | Intentional trusted strictness; reject rather than deduplicate |
+| `evidence_level` | Parity bug fixed: blank, E, or R only; fingerprint still uppercases E/R |
+| Answer active handling | Intentional trusted strictness; unknown values reject |
+| Misconception-ID ordering | Not part of the relation hash input; deterministic trusted ordering retained and IDs compared separately by the parity checker |
 
-Relationship changes do not affect the content fingerprint, and content changes
-do not replace relation `source_fingerprint` semantics.
+These decisions do not prove the relationship fingerprint compatible with
+production. The production oracle remains authoritative.
 
-## Failure and atomicity expectations
+## Review-visible content context
 
-Missing/invalid tokens return 401. Inactive or ordinary lecturers return 403.
-Authorization backend failure returns 503 without account details. Network,
-HTTP, timeout, size, CSV header/parser, duplicate-ID, invalid role/type/content,
-and broken-relationship failures abort before any database mutation. Validation
-responses contain bounded safe diagnostics, not raw CSV rows or credentials.
+`hasReviewStructuredContent` is false for plain PS/MP wording alone. It is true
+when any Review-visible non-plain-prompt context exists in either language:
 
-The Edge Function is not a transaction boundary. Enabled sync makes one call
-with the complete validated question, answer, and misconception snapshot; the
-deployed PostgreSQL RPC supplies atomicity. There are no per-row writes or
-partial client-side retries.
+- an explicit nonempty text or code content block;
+- pseudocode from `question_code`;
+- an input or output description;
+- a canonical sample case, whether sourced from `test_cases_json` or the
+  `sample_inputs`/`sample_outputs` fallback.
 
-## Relationship to Draft PR #48
+Malformed content, test-case, or sample JSON rejects the snapshot. Canonical
+test cases take precedence over fallback sample arrays, matching the frontend
+display model.
 
-This foundation supplies the trusted server authority that PR #48 needs before
-historical wording or canonical question type can be sourced safely. PR #48
-remains blocked and untouched. A later reviewed change can add a separate
-service-role-only content-context RPC and call it from this same boundary after
-relation fingerprint parity and controlled deployment validation are complete.
+The future content fingerprint uses scheme `review-question-content-v2` and
+deterministically serializes:
+
+- canonical PS/MP type;
+- Indonesian and English wording;
+- Indonesian and English explicit content blocks;
+- pseudocode;
+- Indonesian and English input/output descriptions;
+- the ordered canonical sample-case input/output list.
+
+It excludes timestamps, reviewer data, relationship data, and unstable
+metadata. Relationship changes therefore do not change this content hash. This
+future content hash remains completely separate from relation
+`source_fingerprint`.
+
+## Relationship fingerprint status
+
+The trusted relation algorithm has not been changed speculatively. The original
+deployed v2 builder is not in this repository, so byte-for-byte parity remains
+**UNKNOWN**. `TRUSTED_MASTER_SYNC_ENABLED` must remain disabled until the local
+checker reports a 100% exact match against a production baseline export made
+from the same frozen master snapshot.
+
+## Read-only production export
+
+Run this manually in an authorized production SQL console. It reads only target
+IDs, baseline fingerprints, and master misconception IDs—never lecturer
+profiles or Review decisions:
+
+```sql
+begin;
+set transaction read only;
+
+select
+  'question'::text as target_type,
+  question_id as target_id,
+  source_fingerprint,
+  misconception_ids
+from public.question_misconception_baselines
+
+union all
+
+select
+  'answer'::text as target_type,
+  answer_id as target_id,
+  source_fingerprint,
+  misconception_ids
+from public.answer_misconception_baselines;
+
+rollback;
+```
+
+Export the result locally as JSON or CSV. JSON must be an array whose
+`misconception_ids` values are string arrays. CSV may use JSON arrays or simple
+PostgreSQL arrays such as `{M-1,M-2}`. No DB password, service-role secret, or
+management token is used by the local checker.
+
+## Frozen master parity workflow
+
+Capture the five public exports into one local directory without editing them:
+
+```text
+questions.csv
+answers.csv
+question_misconceptions.csv
+answer_misconceptions.csv
+misconceptions.csv
+```
+
+The files must represent the same master snapshot as the production baseline
+export. Comparing production fingerprints with changing live URLs is diagnostic
+only and is not parity proof. The checker intentionally has no live or database
+connection mode.
+
+Run:
+
+```powershell
+npm run check:trusted-master-parity -- --oracle C:\secure\production-baselines.json --master-dir C:\secure\frozen-master
+```
+
+It prints only totals and target IDs for fingerprint, relation-ID,
+stored-only, and trusted-only mismatches. It never prints raw question content,
+fingerprint values, lecturer data, or Review decisions. Exit status is nonzero
+unless all four mismatch categories are empty. Sync requires a 100% exact
+match.
+
+## Preview and sync status
+
+Preview returns aggregate counts plus relation/content snapshot hashes. It does
+not read the service-role key, instantiate a privileged client, or mutate any
+system. This PR still does not perform a preview deployment.
+
+Sync remains implemented but unavailable by default. Even after a successful
+preview rollout, it must not be enabled until frozen-snapshot production parity
+is separately demonstrated and reviewed.
+
+PR #48 remains independent, blocked, and untouched.
