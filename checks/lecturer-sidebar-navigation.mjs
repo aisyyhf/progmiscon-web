@@ -74,6 +74,59 @@ assert.match(sidebar, /isReviewHistory = location\.pathname === "\/review\/riway
 assert.match(sidebar, /!isReviewHistory &&/);
 assert.match(sidebar, /const \{ isAdmin \} = useLecturerAuth\(\)/);
 assert.match(sidebar, /isAdmin && \(showAdminQuestions/);
+assert.match(sidebar, /const \[adminOpen, setAdminOpen\] = useState\(true\)/);
+assert.match(
+  sidebar,
+  /const isAdminActive = location\.pathname\.startsWith\("\/admin\/"\)/,
+);
+assert.match(
+  sidebar,
+  /const adminExpanded = adminOpen \|\| Boolean\(normalizedQuery\)/,
+);
+assert.match(
+  sidebar,
+  /setAdminOpen\(\(current\) => current \|\| isAdminActive\)/,
+);
+
+const adminNavigationStart = sidebar.indexOf("{showAdmin && (");
+const adminNavigationEnd = sidebar.indexOf(
+  "{!hasResults",
+  adminNavigationStart,
+);
+assert.notEqual(adminNavigationStart, -1);
+assert.notEqual(adminNavigationEnd, -1);
+const adminNavigation = sidebar.slice(adminNavigationStart, adminNavigationEnd);
+
+assert.match(
+  adminNavigation,
+  /effectiveCollapsed \? \([\s\S]*?<details className="group relative">[\s\S]*?lecturer-bank-flyout/,
+  "collapsed Admin navigation must reuse the Bank Soal flyout pattern",
+);
+assert.match(adminNavigation, /aria-label=\{labels\.admin\}/);
+assert.match(adminNavigation, /<ShieldCheck/);
+assert.match(
+  adminNavigation,
+  /isAdminActive && "lecturer-nav-item-active"/,
+);
+assert.match(
+  adminNavigation,
+  /onClick=\{\(\) => setAdminOpen\(\(current\) => !current\)\}/,
+);
+assert.match(adminNavigation, /aria-expanded=\{adminExpanded\}/);
+assert.match(
+  adminNavigation,
+  /isAdminActive && "lecturer-nav-parent-current"/,
+);
+assert.match(adminNavigation, /inert=\{!adminExpanded\}/);
+assert.match(
+  adminNavigation,
+  /lecturer-bank-submenu[\s\S]*?lecturer-bank-submenu-open/,
+  "expanded and mobile Admin navigation must reuse the Bank Soal submenu pattern",
+);
+assert.match(adminNavigation, /adminExpanded && "rotate-180"/);
+assert.match(adminNavigation, /pl-6/);
+assert.match(adminNavigation, /subItem/);
+assert.doesNotMatch(adminNavigation, /uppercase|tracking-\[|border-t border-border/);
 assert.match(sidebar, /effectiveCollapsed \? "w-\[72px\]" : "w-52"/);
 assert.match(
   sidebar,

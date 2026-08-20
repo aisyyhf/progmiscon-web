@@ -18,6 +18,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Search,
+  ShieldCheck,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -249,6 +250,7 @@ export function LecturerSidebar({
   const isIndonesian = language === "id";
   const [query, setQuery] = useState("");
   const [bankOpen, setBankOpen] = useState(true);
+  const [adminOpen, setAdminOpen] = useState(true);
   const [focusSearchWhenExpanded, setFocusSearchWhenExpanded] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const sidebarRef = useRef<HTMLElement>(null);
@@ -272,6 +274,7 @@ export function LecturerSidebar({
   const isAdminReviews = location.pathname === "/admin/reviews";
   const isAdminExports = location.pathname === "/admin/exports";
   const isBankActive = isQuestionCatalog || isReview;
+  const isAdminActive = location.pathname.startsWith("/admin/");
 
   const labels = useMemo(
     () => ({
@@ -314,6 +317,7 @@ export function LecturerSidebar({
     showHistory ||
     showAdmin;
   const bankExpanded = bankOpen || Boolean(normalizedQuery);
+  const adminExpanded = adminOpen || Boolean(normalizedQuery);
   const searchLabel = isIndonesian ? "Pencarian" : "Search";
   const sidebarToggleLabel = effectiveCollapsed
     ? isIndonesian
@@ -325,10 +329,11 @@ export function LecturerSidebar({
 
   useEffect(() => {
     setBankOpen((current) => current || isBankActive);
+    setAdminOpen((current) => current || isAdminActive);
     sidebarRef.current
       ?.querySelectorAll<HTMLDetailsElement>("details[open]")
       .forEach((details) => details.removeAttribute("open"));
-  }, [isBankActive, location.pathname, location.search]);
+  }, [isAdminActive, isBankActive, location.pathname, location.search]);
 
   useEffect(() => {
     if (!effectiveCollapsed && focusSearchWhenExpanded) {
@@ -600,43 +605,141 @@ export function LecturerSidebar({
           )}
 
           {showAdmin && (
-            <div className="mt-3 space-y-1 border-t border-border pt-3">
-              {!effectiveCollapsed && (
-                <p className="px-3 pb-1 text-[10px] uppercase tracking-[0.16em] text-muted">
-                  {labels.admin}
-                </p>
+            <>
+              {effectiveCollapsed ? (
+                <details className="group relative">
+                  <summary
+                    aria-label={labels.admin}
+                    data-tooltip={labels.admin}
+                    className={cn(
+                      "lecturer-nav-item lecturer-tooltip list-none justify-center px-0 [&::-webkit-details-marker]:hidden",
+                      isAdminActive && "lecturer-nav-item-active",
+                    )}
+                  >
+                    <ShieldCheck
+                      size={16}
+                      strokeWidth={1.9}
+                      aria-hidden="true"
+                    />
+                  </summary>
+                  <div className="lecturer-bank-flyout absolute left-[calc(100%+12px)] top-0 z-50 w-48 rounded-[10px] border border-border bg-white p-2 shadow-[0_16px_36px_rgba(55,44,39,0.14)]">
+                    <p className="px-2 pb-2 pt-1 text-[13px] font-normal leading-[18px] text-navy-deep">
+                      {labels.admin}
+                    </p>
+                    <div className="space-y-1">
+                      {showAdminQuestions && (
+                        <SidebarLink
+                          to="/admin/questions"
+                          label={labels.adminQuestions}
+                          icon={FileQuestion}
+                          active={isAdminQuestions}
+                          collapsed={false}
+                          onNavigate={onNavigate}
+                          subItem
+                        />
+                      )}
+                      {showAdminReviews && (
+                        <SidebarLink
+                          to="/admin/reviews"
+                          label={labels.adminReviews}
+                          icon={ClipboardList}
+                          active={isAdminReviews}
+                          collapsed={false}
+                          onNavigate={onNavigate}
+                          subItem
+                        />
+                      )}
+                      {showAdminExports && (
+                        <SidebarLink
+                          to="/admin/exports"
+                          label={labels.adminExports}
+                          icon={Download}
+                          active={isAdminExports}
+                          collapsed={false}
+                          onNavigate={onNavigate}
+                          subItem
+                        />
+                      )}
+                    </div>
+                  </div>
+                </details>
+              ) : (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setAdminOpen((current) => !current)}
+                    aria-expanded={adminExpanded}
+                    className={cn(
+                      "lecturer-nav-item w-full cursor-pointer",
+                      isAdminActive && "lecturer-nav-parent-current",
+                    )}
+                  >
+                    <ShieldCheck
+                      size={16}
+                      strokeWidth={1.9}
+                      aria-hidden="true"
+                    />
+                    <span className="min-w-0 flex-1 truncate text-left">
+                      {labels.admin}
+                    </span>
+                    <ChevronDown
+                      size={16}
+                      strokeWidth={1.9}
+                      aria-hidden="true"
+                      className={cn(
+                        "lecturer-bank-chevron shrink-0",
+                        adminExpanded && "rotate-180",
+                      )}
+                    />
+                  </button>
+                  <div
+                    inert={!adminExpanded}
+                    className={cn(
+                      "lecturer-bank-submenu",
+                      adminExpanded && "lecturer-bank-submenu-open",
+                    )}
+                  >
+                    <div className="lecturer-bank-submenu-inner">
+                      <div className="mt-1 space-y-1 pl-6">
+                        {showAdminQuestions && (
+                          <SidebarLink
+                            to="/admin/questions"
+                            label={labels.adminQuestions}
+                            icon={FileQuestion}
+                            active={isAdminQuestions}
+                            collapsed={false}
+                            onNavigate={onNavigate}
+                            subItem
+                          />
+                        )}
+                        {showAdminReviews && (
+                          <SidebarLink
+                            to="/admin/reviews"
+                            label={labels.adminReviews}
+                            icon={ClipboardList}
+                            active={isAdminReviews}
+                            collapsed={false}
+                            onNavigate={onNavigate}
+                            subItem
+                          />
+                        )}
+                        {showAdminExports && (
+                          <SidebarLink
+                            to="/admin/exports"
+                            label={labels.adminExports}
+                            icon={Download}
+                            active={isAdminExports}
+                            collapsed={false}
+                            onNavigate={onNavigate}
+                            subItem
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               )}
-              {showAdminQuestions && (
-                <SidebarLink
-                  to="/admin/questions"
-                  label={labels.adminQuestions}
-                  icon={FileQuestion}
-                  active={isAdminQuestions}
-                  collapsed={effectiveCollapsed}
-                  onNavigate={onNavigate}
-                />
-              )}
-              {showAdminReviews && (
-                <SidebarLink
-                  to="/admin/reviews"
-                  label={labels.adminReviews}
-                  icon={ClipboardList}
-                  active={isAdminReviews}
-                  collapsed={effectiveCollapsed}
-                  onNavigate={onNavigate}
-                />
-              )}
-              {showAdminExports && (
-                <SidebarLink
-                  to="/admin/exports"
-                  label={labels.adminExports}
-                  icon={Download}
-                  active={isAdminExports}
-                  collapsed={effectiveCollapsed}
-                  onNavigate={onNavigate}
-                />
-              )}
-            </div>
+            </>
           )}
 
           {!hasResults && !effectiveCollapsed && (
