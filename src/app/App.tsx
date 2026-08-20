@@ -23,7 +23,9 @@ import { LecturerSignupPage } from "../pages/LecturerSignupPage";
 import { LecturerReviewPage } from "../pages/LecturerReviewWeekFirstPage";
 import { LecturerReviewHistoryPage } from "../pages/LecturerReviewHistoryPage";
 import { LecturerDashboardPage } from "../pages/LecturerDashboardPage";
-import { AdminPage } from "../pages/AdminPage";
+import { AdminQuestionsPage } from "../pages/AdminQuestionsPage";
+import { AdminReviewsPage } from "../pages/AdminReviewsPage";
+import { AdminExportsPage } from "../pages/AdminExportsPage";
 
 function LecturerOnly({ children }: { children: ReactNode }) {
   const { isLecturer, loading } = useLecturerAuth();
@@ -150,7 +152,31 @@ export default function App() {
                 path="/admin"
                 element={
                   <AdminOnly>
-                    <AdminPage />
+                    <Navigate to="/admin/questions" replace />
+                  </AdminOnly>
+                }
+              />
+              <Route
+                path="/admin/questions"
+                element={
+                  <AdminOnly>
+                    <AdminQuestionsPage />
+                  </AdminOnly>
+                }
+              />
+              <Route
+                path="/admin/reviews"
+                element={
+                  <AdminOnly>
+                    <AdminReviewsPage />
+                  </AdminOnly>
+                }
+              />
+              <Route
+                path="/admin/exports"
+                element={
+                  <AdminOnly>
+                    <AdminExportsPage />
                   </AdminOnly>
                 }
               />

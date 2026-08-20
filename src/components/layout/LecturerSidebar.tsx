@@ -3,9 +3,12 @@ import {
   BrainCircuit,
   ChevronDown,
   ClipboardCheck,
+  ClipboardList,
   Check,
+  Download,
   EllipsisVertical,
   Eye,
+  FileQuestion,
   Globe2,
   History,
   Languages,
@@ -241,6 +244,7 @@ export function LecturerSidebar({
   onClose,
 }: LecturerSidebarProps) {
   const { language } = useLanguage();
+  const { isAdmin } = useLecturerAuth();
   const location = useLocation();
   const isIndonesian = language === "id";
   const [query, setQuery] = useState("");
@@ -264,6 +268,9 @@ export function LecturerSidebar({
       location.pathname.startsWith("/review/answer/"));
   const isConcept = location.pathname.startsWith("/konsep");
   const isMisconception = location.pathname.startsWith("/miskonsepsi");
+  const isAdminQuestions = location.pathname === "/admin/questions";
+  const isAdminReviews = location.pathname === "/admin/reviews";
+  const isAdminExports = location.pathname === "/admin/exports";
   const isBankActive = isQuestionCatalog || isReview;
 
   const labels = useMemo(
@@ -275,6 +282,10 @@ export function LecturerSidebar({
       concept: isIndonesian ? "Konsep" : "Concepts",
       misconception: isIndonesian ? "Miskonsepsi" : "Misconceptions",
       history: isIndonesian ? "Riwayat Review" : "Review History",
+      admin: "Admin",
+      adminQuestions: isIndonesian ? "Kelola Soal" : "Manage Questions",
+      adminReviews: isIndonesian ? "Hasil Review Dosen" : "Lecturer Review Results",
+      adminExports: isIndonesian ? "Export Data" : "Export Data",
     }),
     [isIndonesian],
   );
@@ -289,8 +300,19 @@ export function LecturerSidebar({
   const showConcept = matches(labels.concept);
   const showMisconception = matches(labels.misconception);
   const showHistory = matches(labels.history);
+  const adminLabelMatches = matches(labels.admin);
+  const showAdminQuestions = adminLabelMatches || matches(labels.adminQuestions);
+  const showAdminReviews = adminLabelMatches || matches(labels.adminReviews);
+  const showAdminExports = adminLabelMatches || matches(labels.adminExports);
+  const showAdmin =
+    isAdmin && (showAdminQuestions || showAdminReviews || showAdminExports);
   const hasResults =
-    showDashboard || showBank || showConcept || showMisconception || showHistory;
+    showDashboard ||
+    showBank ||
+    showConcept ||
+    showMisconception ||
+    showHistory ||
+    showAdmin;
   const bankExpanded = bankOpen || Boolean(normalizedQuery);
   const searchLabel = isIndonesian ? "Pencarian" : "Search";
   const sidebarToggleLabel = effectiveCollapsed
@@ -575,6 +597,46 @@ export function LecturerSidebar({
               collapsed={effectiveCollapsed}
               onNavigate={onNavigate}
             />
+          )}
+
+          {showAdmin && (
+            <div className="mt-3 space-y-1 border-t border-border pt-3">
+              {!effectiveCollapsed && (
+                <p className="px-3 pb-1 text-[10px] uppercase tracking-[0.16em] text-muted">
+                  {labels.admin}
+                </p>
+              )}
+              {showAdminQuestions && (
+                <SidebarLink
+                  to="/admin/questions"
+                  label={labels.adminQuestions}
+                  icon={FileQuestion}
+                  active={isAdminQuestions}
+                  collapsed={effectiveCollapsed}
+                  onNavigate={onNavigate}
+                />
+              )}
+              {showAdminReviews && (
+                <SidebarLink
+                  to="/admin/reviews"
+                  label={labels.adminReviews}
+                  icon={ClipboardList}
+                  active={isAdminReviews}
+                  collapsed={effectiveCollapsed}
+                  onNavigate={onNavigate}
+                />
+              )}
+              {showAdminExports && (
+                <SidebarLink
+                  to="/admin/exports"
+                  label={labels.adminExports}
+                  icon={Download}
+                  active={isAdminExports}
+                  collapsed={effectiveCollapsed}
+                  onNavigate={onNavigate}
+                />
+              )}
+            </div>
           )}
 
           {!hasResults && !effectiveCollapsed && (
