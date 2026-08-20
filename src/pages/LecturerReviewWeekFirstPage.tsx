@@ -274,7 +274,7 @@ function WeekOverview({
   return (
     <>
       <div className="pb-2 text-center">
-        <h1 className="text-[1.75rem] font-semibold leading-9 tracking-[-0.02em] text-black">
+        <h1 className="text-2xl font-semibold leading-8 tracking-[-0.02em] text-black sm:text-[1.75rem] sm:leading-9">
           {language === "id" ? "REVIEW SOAL PER MINGGU" : "REVIEW QUESTIONS BY WEEK"}
         </h1>
       </div>
@@ -296,7 +296,7 @@ function WeekOverview({
               key={summary.week}
               type="button"
               onClick={() => onSelectWeek(summary.week)}
-              className="group relative min-h-36 cursor-pointer rounded-xl border border-border bg-[var(--review-card)] p-5 text-left transition-[border-color,background-color,transform,box-shadow] duration-150 ease-out hover:-translate-y-px hover:border-[#b09f85] hover:bg-[var(--review-row-hover)] hover:shadow-[0_10px_28px_rgba(176,159,133,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 active:shadow-none motion-reduce:translate-none"
+              className="group relative min-h-32 cursor-pointer rounded-xl border border-border bg-[var(--review-card)] p-4 text-left transition-[border-color,background-color,transform,box-shadow] duration-150 ease-out hover:-translate-y-px hover:border-[#b09f85] hover:bg-[var(--review-row-hover)] hover:shadow-[0_10px_28px_rgba(176,159,133,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand active:translate-y-0 active:shadow-none motion-reduce:translate-none sm:min-h-36 sm:p-5"
             >
               <div className="flex items-start justify-between gap-4">
                 <div>
@@ -497,7 +497,7 @@ function WeekQuestionList({
     <>
       <ReviewBreadcrumb week={week} language={language} onOverview={onBack} />
       <div className="py-1">
-        <h1 className="text-[1.75rem] font-semibold leading-9 tracking-[-0.02em] text-black">
+        <h1 className="text-2xl font-semibold leading-8 tracking-[-0.02em] text-black sm:text-[1.75rem] sm:leading-9">
           {formatWeekLabel(week).toLocaleUpperCase(language)}
         </h1>
       </div>
@@ -520,7 +520,7 @@ function WeekQuestionList({
                 aria-pressed={status === value}
                 onClick={() => onStatusChange(value)}
                 className={cn(
-                  "min-h-6 cursor-pointer rounded-full border px-2 py-0.5 text-[10px] font-medium leading-4 transition-[background-color,border-color,color,transform] duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.99] motion-reduce:scale-none",
+                  "min-h-9 cursor-pointer rounded-full border px-2.5 py-1 text-[10px] font-medium leading-4 transition-[background-color,border-color,color,transform] duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.99] motion-reduce:scale-none lg:min-h-6 lg:px-2 lg:py-0.5",
                   status === value
                     ? "border-brand bg-brand text-white"
                     : "border-[#ccbab0] bg-[var(--review-page)] text-black hover:border-[#b09f85] hover:bg-[var(--review-secondary-soft)]",
@@ -545,7 +545,7 @@ function WeekQuestionList({
             >
               <summary
                 aria-label={`${language === "id" ? "Tipe soal" : "Question type"}: ${selectedType.label}`}
-                className="flex min-h-7 w-[9.75rem] cursor-pointer list-none items-center gap-1.5 rounded-md border border-[#ccbab0] bg-[var(--review-page)] py-1 pl-2.5 pr-2 text-[11px] leading-4 text-black outline-none transition-[border-color,background-color,box-shadow] duration-150 ease-out marker:hidden hover:border-[#b09f85] focus-visible:border-brand/55 focus-visible:ring-2 focus-visible:ring-brand/10 group-open/type:border-brand/55 group-open/type:ring-2 group-open/type:ring-brand/10 active:bg-[var(--review-secondary-soft)] [&::-webkit-details-marker]:hidden"
+                className="flex min-h-9 w-[9.75rem] cursor-pointer list-none items-center gap-1.5 rounded-md border border-[#ccbab0] bg-[var(--review-page)] py-1 pl-2.5 pr-2 text-[11px] leading-4 text-black outline-none transition-[border-color,background-color,box-shadow] duration-150 ease-out marker:hidden hover:border-[#b09f85] focus-visible:border-brand/55 focus-visible:ring-2 focus-visible:ring-brand/10 group-open/type:border-brand/55 group-open/type:ring-2 group-open/type:ring-brand/10 active:bg-[var(--review-secondary-soft)] lg:min-h-7 [&::-webkit-details-marker]:hidden"
               >
                 <span className="min-w-0 truncate font-medium">{selectedType.label}</span>
                 {selectedType.explanation && (
@@ -592,7 +592,7 @@ function WeekQuestionList({
                       event.currentTarget.closest("details")?.removeAttribute("open");
                     }}
                     className={cn(
-                      "flex min-h-7 w-full cursor-pointer items-center gap-2 rounded px-2 py-1 text-left text-[11px] leading-4 transition-colors duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand",
+                      "flex min-h-9 w-full cursor-pointer items-center gap-2 rounded px-2 py-1 text-left text-[11px] leading-4 transition-colors duration-150 ease-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand lg:min-h-7",
                       type === option.value
                         ? "bg-[var(--review-filter-option-selected)] text-black active:bg-[var(--review-filter-option-selected)]"
                         : "bg-white text-black hover:bg-[var(--review-filter-option-hover)] active:bg-[var(--review-filter-option-hover)]",
@@ -612,7 +612,7 @@ function WeekQuestionList({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Search"
-                className="min-h-7 w-full rounded-md border border-[#ccbab0] bg-[var(--review-page)] py-1 pl-7 pr-2.5 text-[11px] font-normal leading-4 text-black outline-none transition-[border-color,box-shadow] duration-150 ease-out placeholder:text-muted/75 hover:border-[#b09f85] focus:border-[#b09f85] focus:ring-2 focus:ring-brand/10"
+                className="min-h-9 w-full rounded-md border border-[#ccbab0] bg-[var(--review-page)] py-1 pl-7 pr-2.5 text-[11px] font-normal leading-4 text-black outline-none transition-[border-color,box-shadow] duration-150 ease-out placeholder:text-muted/75 hover:border-[#b09f85] focus:border-[#b09f85] focus:ring-2 focus:ring-brand/10 lg:min-h-7"
               />
             </label>
           </div>
@@ -661,7 +661,7 @@ function WeekQuestionList({
                   <>
                     <span className="hidden text-center text-xs font-normal tabular-nums text-black/60 lg:block">{index + 1}</span>
                     <span className="min-w-0">
-                      <span className="block truncate text-xs font-normal leading-4 text-black">{title}</span>
+                      <span className="block line-clamp-2 break-words text-xs font-normal leading-4 text-black lg:line-clamp-1">{title}</span>
                       <span className="mt-1.5 flex flex-wrap items-center gap-1.5 lg:hidden">
                         <QuestionTypeTooltipLabel
                           label={questionType.label}
@@ -714,7 +714,7 @@ function WeekQuestionList({
                             type="button"
                             aria-labelledby={viewTooltipId}
                             onClick={() => onOpenQuestion(question, "view")}
-                            className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
+                            className="group/action relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none lg:h-7 lg:w-7"
                           >
                             <Eye size={14} strokeWidth={1.9} aria-hidden="true" />
                             <ReviewActionTooltip id={viewTooltipId} label={viewActionLabel} />
@@ -725,7 +725,7 @@ function WeekQuestionList({
                                 type="button"
                                 aria-labelledby={editTooltipId}
                                 onClick={() => onOpenQuestion(question, "edit")}
-                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
+                                className="group/action relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-secondary-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none lg:h-7 lg:w-7"
                               >
                                 <Pencil size={14} strokeWidth={1.9} aria-hidden="true" />
                                 <ReviewActionTooltip id={editTooltipId} label="Edit" />
@@ -735,7 +735,7 @@ function WeekQuestionList({
                                 aria-labelledby={deleteTooltipId}
                                 disabled={withdrawingId === question.id}
                                 onClick={() => void handleWithdraw(question)}
-                                className="group/action relative inline-flex h-7 w-7 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-primary-soft)] disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none"
+                                className="group/action relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-primary-soft)] disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none lg:h-7 lg:w-7"
                               >
                                 <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
                                 <ReviewActionTooltip id={deleteTooltipId} label={deleteActionLabel} />
