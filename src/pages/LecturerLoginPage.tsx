@@ -48,11 +48,6 @@ export function LecturerLoginPage() {
   return (
     <AuthPageLayout
       title={language === "id" ? "Masuk ke Progmiscon" : "Sign in to Progmiscon"}
-      subtitle={
-        language === "id"
-          ? "Masuk untuk meninjau soal, jawaban, dan miskonsepsi"
-          : "Sign in to review questions, answers, and misconceptions"
-      }
       accountPrompt={
         language === "id" ? "Belum punya akun?" : "Don't have an account?"
       }

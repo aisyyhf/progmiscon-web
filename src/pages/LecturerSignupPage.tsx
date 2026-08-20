@@ -80,11 +80,6 @@ export function LecturerSignupPage() {
       title={
         language === "id" ? "Daftar akun dosen" : "Create a lecturer account"
       }
-      subtitle={
-        language === "id"
-          ? "Gunakan email Telkom University untuk mengakses ruang review"
-          : "Use your Telkom University email to access the review workspace"
-      }
       accountPrompt={
         language === "id" ? "Sudah punya akun?" : "Already have an account?"
       }
