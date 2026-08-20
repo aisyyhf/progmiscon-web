@@ -108,7 +108,9 @@ export function TopNav() {
           inert={!menuOpen}
           className={cn(
             "overflow-hidden border-t border-border bg-[var(--progmiscon-background)] transition-[max-height] duration-300 ease-out lg:hidden",
-            menuOpen ? "max-h-[85vh] overflow-y-auto" : "max-h-0",
+            menuOpen
+              ? "max-h-[calc(100dvh-4rem)] overflow-y-auto"
+              : "max-h-0",
           )}
         >
           <nav
@@ -244,7 +246,9 @@ export function TopNav() {
         inert={!menuOpen}
         className={cn(
           "overflow-hidden border-t border-border bg-white transition-[max-height] duration-300 ease-out lg:hidden",
-          menuOpen ? "max-h-[85vh] overflow-y-auto" : "max-h-0",
+          menuOpen
+            ? "max-h-[calc(100dvh-4rem)] overflow-y-auto"
+            : "max-h-0",
         )}
       >
         <nav className="flex flex-col px-4 py-2" aria-label={language === "id" ? "Navigasi utama" : "Main navigation"}>

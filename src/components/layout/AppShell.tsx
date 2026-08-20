@@ -82,7 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </main>
       {!isAuthRoute && <Footer compact={isQuestionDetail} />}
-      <LanguageToggle />
+      <LanguageToggle placement={isAuthRoute ? "top" : "bottom"} />
     </div>
   );
 }

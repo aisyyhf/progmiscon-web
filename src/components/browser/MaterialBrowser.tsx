@@ -398,12 +398,12 @@ export function MaterialBrowser({
                         {viewMode === "grid" ? (
                           <>
                             <div className="flex items-center justify-between gap-3">
-                              <span className="max-w-[65%] truncate font-mono text-[10px] font-medium tabular-nums text-muted">
+                              <span className="max-w-[65%] truncate font-mono text-[11px] font-medium tabular-nums text-muted md:text-[10px]">
                                 {questionIdentifier}
                               </span>
                               <span
                                 className={cn(
-                                  "shrink-0 rounded px-2 py-0.5 text-[9px] font-medium",
+                                  "shrink-0 rounded px-2 py-0.5 text-[10px] font-medium md:text-[9px]",
                                   questionType === "ps"
                                     ? "bg-brand-soft text-brand-deep"
                                     : "bg-[#f2eee7] text-[#76502f]",
@@ -426,26 +426,26 @@ export function MaterialBrowser({
 
                             <div className="flex flex-wrap gap-1">
                               {question.week && (
-                                <span className="rounded border border-border bg-neutral/70 px-1.5 py-0.5 text-[9px] font-medium text-muted">
+                                <span className="rounded border border-border bg-neutral/70 px-1.5 py-0.5 text-[10px] font-medium text-muted md:text-[9px]">
                                   {getMaterialWeekLabel(question.week)}
                                 </span>
                               )}
                               {visibleConcepts.map((concept, conceptIndex) => (
                                 <span
                                   key={`${t(concept, language)}-${conceptIndex}`}
-                                  className="rounded border border-border bg-neutral/70 px-1.5 py-0.5 text-[9px] font-medium text-muted"
+                                  className="rounded border border-border bg-neutral/70 px-1.5 py-0.5 text-[10px] font-medium text-muted md:text-[9px]"
                                 >
                                   {t(concept, language)}
                                 </span>
                               ))}
                               {hiddenConceptCount > 0 && (
-                                <span className="px-1 py-0.5 text-[9px] text-muted">
+                                <span className="px-1 py-0.5 text-[10px] text-muted md:text-[9px]">
                                   +{hiddenConceptCount}
                                 </span>
                               )}
                             </div>
 
-                            <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-2.5 text-[10px]">
+                            <div className="mt-auto flex items-center justify-between gap-3 border-t border-border pt-2.5 text-[11px] md:text-[10px]">
                               <span className="inline-flex items-center gap-3 text-muted">
                                 <span className="tabular-nums">
                                   {misconceptionCount} {language === "id" ? "miskonsepsi" : "misconceptions"}
@@ -465,12 +465,12 @@ export function MaterialBrowser({
                         ) : (
                           <div className="grid w-full min-w-0 gap-3 sm:grid-cols-[5rem_minmax(0,1fr)] sm:items-center md:grid-cols-[5rem_minmax(0,1fr)_auto] md:gap-4">
                             <div className="flex min-w-0 items-center gap-2 sm:flex-col sm:items-start sm:gap-1">
-                              <span className="max-w-full truncate font-mono text-[10px] font-medium tabular-nums text-muted">
+                              <span className="max-w-full truncate font-mono text-[11px] font-medium tabular-nums text-muted md:text-[10px]">
                                 {questionIdentifier}
                               </span>
                               <span
                                 className={cn(
-                                  "max-w-full truncate rounded px-2 py-0.5 text-[9px] font-medium",
+                                  "max-w-full truncate rounded px-2 py-0.5 text-[10px] font-medium md:text-[9px]",
                                   questionType === "ps"
                                     ? "bg-brand-soft text-brand-deep"
                                     : "bg-[#f2eee7] text-[#76502f]",
@@ -484,7 +484,7 @@ export function MaterialBrowser({
                               <h2 className="line-clamp-1 text-[13px] font-semibold leading-5 text-navy-deep transition-colors group-hover:text-brand">
                                 {title}
                               </h2>
-                              <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1 text-[9px] font-medium text-muted">
+                              <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-1 text-[10px] font-medium text-muted md:text-[9px]">
                                 {question.week && (
                                   <span className="rounded border border-border bg-neutral/70 px-1.5 py-0.5">
                                     {getMaterialWeekLabel(question.week)}
@@ -506,12 +506,12 @@ export function MaterialBrowser({
                             </div>
 
                             <div className="flex items-center justify-between gap-4 sm:col-span-2 md:col-span-1 md:min-w-[16.5rem] md:justify-end">
-                              <span className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-normal tabular-nums text-muted">
+                              <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-normal tabular-nums text-muted md:text-[10px]">
                                 <MessageSquareText size={13} strokeWidth={2} aria-hidden="true" />
                                 {answersLoading ? "..." : answerCount}{" "}
                                 {language === "id" ? "jawaban" : "answers"}
                               </span>
-                              <span className="inline-flex shrink-0 items-center gap-1.5 text-[10px] font-medium text-brand">
+                              <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-brand md:text-[10px]">
                                 {language === "id" ? "Lihat" : "View"}
                                 <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
                               </span>

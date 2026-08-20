@@ -57,7 +57,7 @@ export function AnswerCasePanel({
 
   return (
     <section className="relative min-w-0">
-      <div className="flex min-h-16 items-center justify-between gap-4 border-b border-brand/10 px-5 py-3 sm:px-7 lg:px-8">
+      <div className="flex min-h-16 flex-col items-start justify-between gap-3 border-b border-brand/10 px-5 py-3 sm:flex-row sm:items-center sm:gap-4 sm:px-7 lg:px-8">
         <h2 className="text-xl font-extrabold leading-none tracking-[-0.02em] text-navy-deep sm:text-2xl">
           {language === "id" ? "Jawaban" : "Answer"}
         </h2>
