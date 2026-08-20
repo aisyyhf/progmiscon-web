@@ -5,6 +5,8 @@ import { join } from "node:path";
 import {
   buildTrustedMasterSnapshot,
   canonicalQuestionType,
+  hasReviewStructuredContent,
+  MAX_RETAINED_VALIDATION_ISSUES,
   parseSyncIntent,
   summarizeTrustedMasterSnapshot,
 } from "../supabase/functions/_shared/trustedMasterSync.ts";
@@ -114,7 +116,11 @@ function fixture() {
 
 async function validSnapshot(input = fixture()) {
   const result = await buildTrustedMasterSnapshot(input);
-  assert.equal(result.ok, true, result.ok ? undefined : JSON.stringify(result.issues));
+  assert.equal(
+    result.ok,
+    true,
+    result.ok ? undefined : JSON.stringify(result.issues),
+  );
   return result.snapshot;
 }
 
@@ -177,6 +183,57 @@ assert.equal(contextById.get("Q-PS")?.hasStructuredContent, false);
 assert.equal(contextById.get("Q-STRUCTURED")?.hasStructuredContent, true);
 assert.equal(contextById.get("Q-MP")?.hasStructuredContent, false);
 
+const emptyStructuredInput = {
+  contentBlocksInd: [],
+  contentBlocksEn: [],
+  pseudocode: "",
+  inputDescriptionInd: "",
+  inputDescriptionEn: "",
+  outputDescriptionInd: "",
+  outputDescriptionEn: "",
+  sampleCases: [],
+};
+assert.equal(hasReviewStructuredContent(emptyStructuredInput), false);
+assert.equal(
+  hasReviewStructuredContent({
+    ...emptyStructuredInput,
+    contentBlocksInd: [{ type: "text", content: "Explicit text" }],
+  }),
+  true,
+);
+assert.equal(
+  hasReviewStructuredContent({
+    ...emptyStructuredInput,
+    contentBlocksEn: [{ type: "code", content: "READ x" }],
+  }),
+  true,
+);
+assert.equal(
+  hasReviewStructuredContent({ ...emptyStructuredInput, pseudocode: "READ x" }),
+  true,
+);
+assert.equal(
+  hasReviewStructuredContent({
+    ...emptyStructuredInput,
+    inputDescriptionInd: "Satu bilangan",
+  }),
+  true,
+);
+assert.equal(
+  hasReviewStructuredContent({
+    ...emptyStructuredInput,
+    outputDescriptionEn: "One number",
+  }),
+  true,
+);
+assert.equal(
+  hasReviewStructuredContent({
+    ...emptyStructuredInput,
+    sampleCases: [{ input: "1", output: "2" }],
+  }),
+  true,
+);
+
 const noAnswers = fixture();
 noAnswers.answers = [];
 noAnswers.answerMisconceptions = [];
@@ -194,6 +251,20 @@ assert.equal(
   sameSnapshot.questionContexts.find((item) => item.questionId === "Q-PS")
     ?.contentFingerprint,
   "same canonical content must produce the same fingerprint",
+);
+
+const canonicallyEquivalent = fixture();
+canonicallyEquivalent.questions[0].question_ind =
+  "  \r\nJelaskan hasilnya.\r\n  ";
+const canonicallyEquivalentSnapshot = await validSnapshot(
+  canonicallyEquivalent,
+);
+assert.equal(
+  contextById.get("Q-PS")?.contentFingerprint,
+  canonicallyEquivalentSnapshot.questionContexts.find(
+    (item) => item.questionId === "Q-PS",
+  )?.contentFingerprint,
+  "equivalent rendered wording must produce the same fingerprint",
 );
 
 const wordingChanged = fixture();
@@ -214,9 +285,87 @@ blocksChanged.questions[1].content_blocks_ind = JSON.stringify([
 const blocksSnapshot = await validSnapshot(blocksChanged);
 assert.notEqual(
   contextById.get("Q-STRUCTURED")?.contentFingerprint,
-  blocksSnapshot.questionContexts.find((item) => item.questionId === "Q-STRUCTURED")
+  blocksSnapshot.questionContexts.find((item) =>
+    item.questionId === "Q-STRUCTURED"
+  )
     ?.contentFingerprint,
   "structured block changes must change the content fingerprint",
+);
+
+const ioChanged = fixture();
+ioChanged.questions[0].input_description_ind = "Masukkan satu bilangan.";
+const ioSnapshot = await validSnapshot(ioChanged);
+assert.notEqual(
+  contextById.get("Q-PS")?.contentFingerprint,
+  ioSnapshot.questionContexts.find((item) => item.questionId === "Q-PS")
+    ?.contentFingerprint,
+  "I/O description changes must change the content fingerprint",
+);
+assert.equal(
+  ioSnapshot.questionContexts.find((item) => item.questionId === "Q-PS")
+    ?.hasStructuredContent,
+  true,
+);
+
+const pseudocodeChanged = fixture();
+pseudocodeChanged.questions[0].question_code = "READ x\nPRINT x";
+const pseudocodeSnapshot = await validSnapshot(pseudocodeChanged);
+assert.notEqual(
+  contextById.get("Q-PS")?.contentFingerprint,
+  pseudocodeSnapshot.questionContexts.find((item) => item.questionId === "Q-PS")
+    ?.contentFingerprint,
+  "pseudocode changes must change the content fingerprint",
+);
+assert.equal(
+  pseudocodeSnapshot.questionContexts.find((item) => item.questionId === "Q-PS")
+    ?.hasStructuredContent,
+  true,
+);
+
+const sampleChanged = fixture();
+sampleChanged.questions[0].sample_inputs = JSON.stringify(["1"]);
+sampleChanged.questions[0].sample_outputs = JSON.stringify(["2"]);
+const sampleSnapshot = await validSnapshot(sampleChanged);
+assert.notEqual(
+  contextById.get("Q-PS")?.contentFingerprint,
+  sampleSnapshot.questionContexts.find((item) => item.questionId === "Q-PS")
+    ?.contentFingerprint,
+  "sample changes must change the content fingerprint",
+);
+assert.equal(
+  sampleSnapshot.questionContexts.find((item) => item.questionId === "Q-PS")
+    ?.hasStructuredContent,
+  true,
+);
+
+const testCaseChanged = fixture();
+testCaseChanged.questions[0].test_cases_json = JSON.stringify([
+  { case_no: 1, input: "3", output: "4" },
+]);
+const testCaseSnapshot = await validSnapshot(testCaseChanged);
+assert.notEqual(
+  contextById.get("Q-PS")?.contentFingerprint,
+  testCaseSnapshot.questionContexts.find((item) => item.questionId === "Q-PS")
+    ?.contentFingerprint,
+  "test-case changes must change the content fingerprint",
+);
+assert.equal(
+  testCaseSnapshot.questionContexts.find((item) => item.questionId === "Q-PS")
+    ?.hasStructuredContent,
+  true,
+);
+
+const sameRenderedTestCase = structuredClone(testCaseChanged);
+sameRenderedTestCase.questions[0].sample_inputs = JSON.stringify(["ignored"]);
+sameRenderedTestCase.questions[0].sample_outputs = JSON.stringify(["ignored"]);
+const sameRenderedTestCaseSnapshot = await validSnapshot(sameRenderedTestCase);
+assert.equal(
+  testCaseSnapshot.questionContexts.find((item) => item.questionId === "Q-PS")
+    ?.contentFingerprint,
+  sameRenderedTestCaseSnapshot.questionContexts.find(
+    (item) => item.questionId === "Q-PS",
+  )?.contentFingerprint,
+  "fallback samples must not change the hash when rendered test cases take precedence",
 );
 
 const relationshipChanged = fixture();
@@ -224,14 +373,18 @@ relationshipChanged.questionMisconceptions[0].misconception_id = "M-2";
 const relationshipSnapshot = await validSnapshot(relationshipChanged);
 assert.equal(
   contextById.get("Q-PS")?.contentFingerprint,
-  relationshipSnapshot.questionContexts.find((item) => item.questionId === "Q-PS")
+  relationshipSnapshot.questionContexts.find((item) =>
+    item.questionId === "Q-PS"
+  )
     ?.contentFingerprint,
   "relationship-only changes must not change the content fingerprint",
 );
 assert.notEqual(
   snapshot.questionBaselines.find((item) => item.question_id === "Q-PS")
     ?.source_fingerprint,
-  relationshipSnapshot.questionBaselines.find((item) => item.question_id === "Q-PS")
+  relationshipSnapshot.questionBaselines.find((item) =>
+    item.question_id === "Q-PS"
+  )
     ?.source_fingerprint,
   "relationship changes must change the relationship fingerprint",
 );
@@ -253,13 +406,42 @@ brokenParent.answers[0].question_id = "Q-MISSING";
 const brokenParentResult = await buildTrustedMasterSnapshot(brokenParent);
 assert.equal(brokenParentResult.ok, false);
 assert.equal(
-  brokenParentResult.ok
-    ? false
-    : brokenParentResult.issues.some(
-        (issue) => issue.code === "BROKEN_ANSWER_PARENT",
-      ),
+  brokenParentResult.ok ? false : brokenParentResult.issues.some(
+    (issue) => issue.code === "BROKEN_ANSWER_PARENT",
+  ),
   true,
   "answer parent questions must exist",
+);
+
+const invalidEvidenceLevel = fixture();
+invalidEvidenceLevel.questionMisconceptions[0].evidence_level = "UNKNOWN";
+const invalidEvidenceResult = await buildTrustedMasterSnapshot(
+  invalidEvidenceLevel,
+);
+assert.equal(invalidEvidenceResult.ok, false);
+assert.equal(
+  invalidEvidenceResult.ok ? false : invalidEvidenceResult.issues.some(
+    (issue) => issue.code === "INVALID_EVIDENCE_LEVEL",
+  ),
+  true,
+  "unknown evidence levels must reject the snapshot",
+);
+
+const manyInvalidRows = fixture();
+manyInvalidRows.questions = Array.from(
+  { length: MAX_RETAINED_VALIDATION_ISSUES + 50 },
+  (_, index) => ({
+    ...manyInvalidRows.questions[0],
+    question_id: `Q-INVALID-${index}`,
+    active: "maybe",
+  }),
+);
+const cappedIssues = await buildTrustedMasterSnapshot(manyInvalidRows);
+assert.equal(cappedIssues.ok, false);
+assert.equal(
+  cappedIssues.ok ? 0 : cappedIssues.issues.length,
+  MAX_RETAINED_VALIDATION_ISSUES,
+  "retained validation issues must remain bounded",
 );
 
 assert.deepEqual(parseSyncIntent(undefined), { ok: true, mode: "preview" });
@@ -302,7 +484,11 @@ for (const path of filesUnder("src")) {
 const edgePath = "supabase/functions/sync-review-master-data/index.ts";
 const edgeSource = readFileSync(edgePath, "utf8");
 assert.equal(edgeSource.includes("VITE_"), false);
-assert.equal(/console\s*\./.test(edgeSource), false, "Edge Function must not log secrets/errors");
+assert.equal(
+  /console\s*\./.test(edgeSource),
+  false,
+  "Edge Function must not log secrets/errors",
+);
 assert.equal(
   (edgeSource.match(/SUPABASE_SERVICE_ROLE_KEY/g) ?? []).length,
   1,
@@ -321,13 +507,16 @@ assert.equal(
 
 const handlerIndex = edgeSource.indexOf("async function handleRequest");
 const authorizationIndex = edgeSource.indexOf(
-  "await authorizeActiveAdmin(request)",
+  "await authorizeActiveAdmin(request, dependencies)",
   handlerIndex,
 );
-const loadIndex = edgeSource.indexOf("await loadTrustedMasterRows()", handlerIndex);
+const loadIndex = edgeSource.indexOf(
+  "await loadTrustedMasterRows(dependencies)",
+  handlerIndex,
+);
 const previewIndex = edgeSource.indexOf('mode === "preview"', handlerIndex);
 const serviceKeyIndex = edgeSource.indexOf(
-  'requiredEnvironment("SUPABASE_SERVICE_ROLE_KEY")',
+  '"SUPABASE_SERVICE_ROLE_KEY"',
   handlerIndex,
 );
 const mutationIndex = edgeSource.indexOf(
@@ -336,14 +525,47 @@ const mutationIndex = edgeSource.indexOf(
 );
 assert.ok(handlerIndex >= 0);
 assert.ok(authorizationIndex > handlerIndex);
-assert.ok(loadIndex > authorizationIndex, "master sources load only after Admin authorization");
-assert.ok(previewIndex > loadIndex, "preview must validate the complete trusted snapshot");
-assert.ok(serviceKeyIndex > previewIndex, "preview must return before service-role access");
-assert.ok(mutationIndex > serviceKeyIndex, "mutation is unreachable before service-role setup");
-assert.ok(edgeSource.includes('profile?.active !== true'));
+assert.ok(
+  loadIndex > authorizationIndex,
+  "master sources load only after Admin authorization",
+);
+assert.ok(
+  previewIndex > loadIndex,
+  "preview must validate the complete trusted snapshot",
+);
+assert.ok(
+  serviceKeyIndex > previewIndex,
+  "preview must return before service-role access",
+);
+assert.ok(
+  mutationIndex > serviceKeyIndex,
+  "mutation is unreachable before service-role setup",
+);
+assert.ok(edgeSource.includes("profile?.active !== true"));
 assert.ok(edgeSource.includes('"current_user_is_admin"'));
-assert.ok(edgeSource.includes("input_question_baselines: built.snapshot.questionBaselines"));
-assert.ok(edgeSource.includes("input_answer_baselines: built.snapshot.answerBaselines"));
-assert.ok(edgeSource.includes("input_misconception_ids: built.snapshot.misconceptionIds"));
+assert.ok(
+  edgeSource.includes(
+    "input_question_baselines: built.snapshot.questionBaselines",
+  ),
+);
+assert.ok(
+  edgeSource.includes("input_answer_baselines: built.snapshot.answerBaselines"),
+);
+assert.ok(
+  edgeSource.includes(
+    "input_misconception_ids: built.snapshot.misconceptionIds",
+  ),
+);
+assert.ok(edgeSource.includes('request.method === "OPTIONS"'));
+assert.ok(edgeSource.includes('requiredEnvironment("ADMIN_APP_ORIGINS"'));
+assert.ok(edgeSource.includes('redirect: "manual"'));
+assert.equal(edgeSource.includes("request.text()"), false);
+assert.equal(edgeSource.includes("response.text()"), false);
+
+const functionConfig = readFileSync("supabase/config.toml", "utf8");
+assert.match(
+  functionConfig,
+  /\[functions\.sync-review-master-data\][\s\S]*verify_jwt\s*=\s*true/,
+);
 
 console.log("trusted master sync checks passed");

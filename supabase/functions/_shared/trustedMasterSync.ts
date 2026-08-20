@@ -30,6 +30,11 @@ export type CanonicalContentBlock = {
   content: string;
 };
 
+export type CanonicalSampleCase = {
+  input: string;
+  output: string;
+};
+
 export type TrustedQuestionContext = {
   questionId: string;
   questionType: CanonicalQuestionType;
@@ -37,6 +42,12 @@ export type TrustedQuestionContext = {
   questionEn: string;
   contentBlocksInd: CanonicalContentBlock[];
   contentBlocksEn: CanonicalContentBlock[];
+  pseudocode: string;
+  inputDescriptionInd: string;
+  inputDescriptionEn: string;
+  outputDescriptionInd: string;
+  outputDescriptionEn: string;
+  sampleCases: CanonicalSampleCase[];
   hasStructuredContent: boolean;
   contentFingerprint: string;
 };
@@ -89,6 +100,9 @@ const ANSWER_ROLES = new Set<CanonicalAnswerRole>([
 
 const TRUE_VALUES = new Set(["true", "1", "yes", "y"]);
 const FALSE_VALUES = new Set(["", "false", "0", "no", "n"]);
+const DUMMY_DATA_PATTERN = /\bDATA\s+DUMMY\b/i;
+export const MAX_RETAINED_VALIDATION_ISSUES = 100;
+const MAX_VALIDATION_ISSUE_DETAIL_CHARACTERS = 512;
 
 function normalizeText(value: string | undefined): string {
   return (value ?? "").replace(/\r\n?/g, "\n").trim();
@@ -159,6 +173,112 @@ export function parseCanonicalContentBlocks(raw: string | undefined): {
   }
 }
 
+function parseCanonicalScalarArray(raw: string | undefined): {
+  values: string[];
+  error?: string;
+} {
+  const value = normalizeText(raw);
+  if (!value) return { values: [] };
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (
+      !Array.isArray(parsed) ||
+      parsed.some((item) => item !== null && typeof item === "object")
+    ) {
+      return { values: [], error: "must be a JSON array of scalar values" };
+    }
+    return {
+      values: parsed.map((item) =>
+        normalizeText(item === null ? "" : String(item))
+      ),
+    };
+  } catch {
+    return { values: [], error: "contains invalid JSON" };
+  }
+}
+
+function parseCanonicalTestCases(raw: string | undefined): {
+  cases: CanonicalSampleCase[];
+  error?: string;
+} {
+  const value = normalizeText(raw);
+  if (!value) return { cases: [] };
+
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!Array.isArray(parsed)) {
+      return { cases: [], error: "must be a JSON array" };
+    }
+
+    const cases: CanonicalSampleCase[] = [];
+    for (const item of parsed) {
+      if (!item || typeof item !== "object") {
+        return { cases: [], error: "each test case must be an object" };
+      }
+      const candidate = item as Record<string, unknown>;
+      if (
+        typeof candidate.input !== "string" ||
+        typeof candidate.output !== "string"
+      ) {
+        return {
+          cases: [],
+          error: "test-case input/output must be strings",
+        };
+      }
+      const input = normalizeText(candidate.input);
+      const output = normalizeText(candidate.output);
+      if (!input && !output) {
+        return {
+          cases: [],
+          error: "test-case input/output must not both be blank",
+        };
+      }
+      cases.push({
+        input,
+        output,
+      });
+    }
+    return { cases };
+  } catch {
+    return { cases: [], error: "contains invalid JSON" };
+  }
+}
+
+function fallbackSampleCases(
+  inputs: string[],
+  outputs: string[],
+): CanonicalSampleCase[] {
+  if (inputs.length !== outputs.length) return [];
+  return inputs.flatMap((input, index) => {
+    const output = outputs[index] ?? "";
+    return input && output && !DUMMY_DATA_PATTERN.test(input) &&
+        !DUMMY_DATA_PATTERN.test(output)
+      ? [{ input, output }]
+      : [];
+  });
+}
+
+export function hasReviewStructuredContent(input: {
+  contentBlocksInd: CanonicalContentBlock[];
+  contentBlocksEn: CanonicalContentBlock[];
+  pseudocode: string;
+  inputDescriptionInd: string;
+  inputDescriptionEn: string;
+  outputDescriptionInd: string;
+  outputDescriptionEn: string;
+  sampleCases: CanonicalSampleCase[];
+}): boolean {
+  return input.contentBlocksInd.length > 0 ||
+    input.contentBlocksEn.length > 0 ||
+    Boolean(normalizeText(input.pseudocode)) ||
+    Boolean(normalizeText(input.inputDescriptionInd)) ||
+    Boolean(normalizeText(input.inputDescriptionEn)) ||
+    Boolean(normalizeText(input.outputDescriptionInd)) ||
+    Boolean(normalizeText(input.outputDescriptionEn)) ||
+    input.sampleCases.length > 0;
+}
+
 export function stableSerialize(value: unknown): string {
   if (
     value === null || typeof value === "string" || typeof value === "boolean"
@@ -203,14 +323,26 @@ export function contentFingerprint(input: {
   questionEn: string;
   contentBlocksInd: CanonicalContentBlock[];
   contentBlocksEn: CanonicalContentBlock[];
+  pseudocode: string;
+  inputDescriptionInd: string;
+  inputDescriptionEn: string;
+  outputDescriptionInd: string;
+  outputDescriptionEn: string;
+  sampleCases: CanonicalSampleCase[];
 }): Promise<string> {
   return deterministicFingerprint({
-    scheme: "review-question-content-v1",
+    scheme: "review-question-content-v2",
     question_type: input.questionType,
     question_ind: normalizeText(input.questionInd),
     question_en: normalizeText(input.questionEn),
     content_blocks_ind: input.contentBlocksInd,
     content_blocks_en: input.contentBlocksEn,
+    pseudocode: normalizeText(input.pseudocode),
+    input_description_ind: normalizeText(input.inputDescriptionInd),
+    input_description_en: normalizeText(input.inputDescriptionEn),
+    output_description_ind: normalizeText(input.outputDescriptionInd),
+    output_description_en: normalizeText(input.outputDescriptionEn),
+    sample_cases: input.sampleCases,
   });
 }
 
@@ -253,7 +385,14 @@ function addIssue(
   code: string,
   detail: string,
 ): void {
-  issues.push({ code, detail });
+  if (issues.length < MAX_RETAINED_VALIDATION_ISSUES) {
+    issues.push({
+      code,
+      detail: detail.length <= MAX_VALIDATION_ISSUE_DETAIL_CHARACTERS
+        ? detail
+        : `${detail.slice(0, MAX_VALIDATION_ISSUE_DETAIL_CHARACTERS - 3)}...`,
+    });
+  }
 }
 
 function validateRows(
@@ -292,8 +431,9 @@ function validateRelationRows(
   leftField: string,
   rightField: string,
   issues: TrustedMasterIssue[],
-): void {
+): Map<string, MasterCsvRow[]> {
   const seen = new Set<string>();
+  const activeByLeft = new Map<string, MasterCsvRow[]>();
   for (const [index, row] of rows.entries()) {
     const left = normalizeText(row[leftField]);
     const right = normalizeText(row[rightField]);
@@ -314,14 +454,20 @@ function validateRelationRows(
       }
       seen.add(key);
     }
-    if (parseActive(row.active) === null) {
+    const active = parseActive(row.active);
+    if (active === null) {
       addIssue(
         issues,
         "INVALID_ACTIVE",
         `${source} ${left}/${right}: active is invalid`,
       );
+    } else if (active && left && right) {
+      const grouped = activeByLeft.get(left) ?? [];
+      grouped.push(row);
+      activeByLeft.set(left, grouped);
     }
   }
+  return activeByLeft;
 }
 
 export async function buildTrustedMasterSnapshot(
@@ -341,14 +487,14 @@ export async function buildTrustedMasterSnapshot(
     "misconception_id",
     issues,
   );
-  validateRelationRows(
+  const questionRelationsByQuestion = validateRelationRows(
     rows.questionMisconceptions,
     "question_misconceptions",
     "question_id",
     "misconception_id",
     issues,
   );
-  validateRelationRows(
+  const answerRelationsByAnswer = validateRelationRows(
     rows.answerMisconceptions,
     "answer_misconceptions",
     "answer_id",
@@ -363,6 +509,12 @@ export async function buildTrustedMasterSnapshot(
     questionEn: string;
     blocksInd: CanonicalContentBlock[];
     blocksEn: CanonicalContentBlock[];
+    pseudocode: string;
+    inputDescriptionInd: string;
+    inputDescriptionEn: string;
+    outputDescriptionInd: string;
+    outputDescriptionEn: string;
+    sampleCases: CanonicalSampleCase[];
   }>();
 
   for (const [questionId, row] of questionById) {
@@ -402,12 +554,57 @@ export async function buildTrustedMasterSnapshot(
 
     const questionInd = normalizeText(row.question_ind);
     const questionEn = normalizeText(row.question_en);
+    const pseudocode = normalizeText(row.question_code);
+    const inputDescriptionInd = normalizeText(row.input_description_ind);
+    const inputDescriptionEn = normalizeText(row.input_description_en);
+    const outputDescriptionInd = normalizeText(row.output_description_ind);
+    const outputDescriptionEn = normalizeText(row.output_description_en);
+    const testCases = parseCanonicalTestCases(row.test_cases_json);
+    const sampleInputs = parseCanonicalScalarArray(row.sample_inputs);
+    const sampleOutputs = parseCanonicalScalarArray(row.sample_outputs);
+    if (testCases.error) {
+      addIssue(
+        issues,
+        "INVALID_TEST_CASES",
+        `questions ${questionId}: test_cases_json ${testCases.error}`,
+      );
+    }
+    if (sampleInputs.error) {
+      addIssue(
+        issues,
+        "INVALID_SAMPLE_CASES",
+        `questions ${questionId}: sample_inputs ${sampleInputs.error}`,
+      );
+    }
+    if (sampleOutputs.error) {
+      addIssue(
+        issues,
+        "INVALID_SAMPLE_CASES",
+        `questions ${questionId}: sample_outputs ${sampleOutputs.error}`,
+      );
+    }
+    if (sampleInputs.values.length !== sampleOutputs.values.length) {
+      addIssue(
+        issues,
+        "INVALID_SAMPLE_CASES",
+        `questions ${questionId}: sample input/output counts differ`,
+      );
+    }
+    const sampleCases = testCases.cases.length > 0
+      ? testCases.cases
+      : fallbackSampleCases(sampleInputs.values, sampleOutputs.values);
     if (
       active &&
       !questionInd &&
       !questionEn &&
       blocksInd.blocks.length === 0 &&
-      blocksEn.blocks.length === 0
+      blocksEn.blocks.length === 0 &&
+      !pseudocode &&
+      !inputDescriptionInd &&
+      !inputDescriptionEn &&
+      !outputDescriptionInd &&
+      !outputDescriptionEn &&
+      sampleCases.length === 0
     ) {
       addIssue(
         issues,
@@ -423,6 +620,12 @@ export async function buildTrustedMasterSnapshot(
       questionEn,
       blocksInd: blocksInd.blocks,
       blocksEn: blocksEn.blocks,
+      pseudocode,
+      inputDescriptionInd,
+      inputDescriptionEn,
+      outputDescriptionInd,
+      outputDescriptionEn,
+      sampleCases,
     });
   }
 
@@ -476,6 +679,7 @@ export async function buildTrustedMasterSnapshot(
     const misconceptionId = normalizeText(row.misconception_id);
     const question = questionState.get(questionId);
     const misconception = misconceptionById.get(misconceptionId);
+    const evidenceLevel = normalizeText(row.evidence_level).toUpperCase();
     if (!question) {
       addIssue(
         issues,
@@ -488,6 +692,13 @@ export async function buildTrustedMasterSnapshot(
         issues,
         "BROKEN_MISCONCEPTION_RELATION",
         `question_misconceptions ${questionId}/${misconceptionId}: misconception does not exist`,
+      );
+    }
+    if (evidenceLevel && evidenceLevel !== "E" && evidenceLevel !== "R") {
+      addIssue(
+        issues,
+        "INVALID_EVIDENCE_LEVEL",
+        `question_misconceptions ${questionId}/${misconceptionId}: evidence_level is invalid`,
       );
     }
     if (parseActive(row.active) === true) {
@@ -567,14 +778,34 @@ export async function buildTrustedMasterSnapshot(
           questionEn: question.questionEn,
           contentBlocksInd: question.blocksInd,
           contentBlocksEn: question.blocksEn,
-          hasStructuredContent: question.blocksInd.length > 0 ||
-            question.blocksEn.length > 0,
+          pseudocode: question.pseudocode,
+          inputDescriptionInd: question.inputDescriptionInd,
+          inputDescriptionEn: question.inputDescriptionEn,
+          outputDescriptionInd: question.outputDescriptionInd,
+          outputDescriptionEn: question.outputDescriptionEn,
+          sampleCases: question.sampleCases,
+          hasStructuredContent: hasReviewStructuredContent({
+            contentBlocksInd: question.blocksInd,
+            contentBlocksEn: question.blocksEn,
+            pseudocode: question.pseudocode,
+            inputDescriptionInd: question.inputDescriptionInd,
+            inputDescriptionEn: question.inputDescriptionEn,
+            outputDescriptionInd: question.outputDescriptionInd,
+            outputDescriptionEn: question.outputDescriptionEn,
+            sampleCases: question.sampleCases,
+          }),
           contentFingerprint: await contentFingerprint({
             questionType,
             questionInd: question.questionInd,
             questionEn: question.questionEn,
             contentBlocksInd: question.blocksInd,
             contentBlocksEn: question.blocksEn,
+            pseudocode: question.pseudocode,
+            inputDescriptionInd: question.inputDescriptionInd,
+            inputDescriptionEn: question.inputDescriptionEn,
+            outputDescriptionInd: question.outputDescriptionInd,
+            outputDescriptionEn: question.outputDescriptionEn,
+            sampleCases: question.sampleCases,
           }),
         };
       },
@@ -584,12 +815,7 @@ export async function buildTrustedMasterSnapshot(
   const questionBaselines = await Promise.all(
     activeQuestions.map(
       async ([questionId]): Promise<QuestionBaselinePayload> => {
-        const relations = rows.questionMisconceptions
-          .filter(
-            (row) =>
-              parseActive(row.active) === true &&
-              normalizeText(row.question_id) === questionId,
-          )
+        const relations = (questionRelationsByQuestion.get(questionId) ?? [])
           .map((row) => ({
             misconception_id: normalizeText(row.misconception_id),
             source: normalizeText(row.source),
@@ -617,12 +843,7 @@ export async function buildTrustedMasterSnapshot(
   const answerBaselines = await Promise.all(
     activeReviewableAnswers.map(
       async ([answerId, answer]): Promise<AnswerBaselinePayload> => {
-        const relations = rows.answerMisconceptions
-          .filter(
-            (row) =>
-              parseActive(row.active) === true &&
-              normalizeText(row.answer_id) === answerId,
-          )
+        const relations = (answerRelationsByAnswer.get(answerId) ?? [])
           .map((row) => ({
             misconception_id: normalizeText(row.misconception_id),
             reason_ind: normalizeText(row.reason_ind),
@@ -655,7 +876,7 @@ export async function buildTrustedMasterSnapshot(
     misconception_ids: misconceptionIds,
   });
   const contentSnapshotFingerprint = await deterministicFingerprint({
-    scheme: "review-question-content-snapshot-v1",
+    scheme: "review-question-content-snapshot-v2",
     question_contexts: questionContexts,
   });
 

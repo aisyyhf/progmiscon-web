@@ -1,0 +1,2 @@
+[functions.sync-review-master-data]
+verify_jwt = true
