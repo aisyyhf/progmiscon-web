@@ -83,6 +83,52 @@ export function MisconceptionPicker({
     setOpen(true);
   };
 
+  const previewContent = preview ? (
+    <div>
+      <p className="academic-label">
+        {language === "id" ? "Ringkasan miskonsepsi" : "Misconception summary"}
+      </p>
+      <h3 className="mt-1 text-base font-bold text-navy-deep md:text-lg">
+        {misconceptionLabel(preview, language)}
+      </h3>
+      <div className="mt-3 space-y-3 md:mt-4 md:space-y-4">
+        <section>
+          <p className="academic-label">{language === "id" ? "Pola yang keliru" : "Incorrect pattern"}</p>
+          <p className="mt-1 whitespace-pre-line text-sm leading-5 text-navy-deep md:leading-6">{t(preview.wrong, language)}</p>
+        </section>
+        <section>
+          <p className="academic-label">{language === "id" ? "Penyebab umum" : "Common cause"}</p>
+          <p className="mt-1 text-sm leading-5 text-muted md:leading-6">{t(preview.cause, language)}</p>
+        </section>
+        <section>
+          <p className="academic-label">{language === "id" ? "Perbaikan" : "Correction"}</p>
+          <p className="mt-1 text-sm leading-5 text-muted md:leading-6">{t(preview.fix, language)}</p>
+        </section>
+      </div>
+      <Button
+        type="button"
+        variant={selectedIds.has(preview.id) ? "secondary" : "primary"}
+        className="mt-4 justify-center md:mt-5"
+        onClick={() => toggle(preview.id)}
+      >
+        {selectedIds.has(preview.id) ? (
+          language === "id" ? "Hapus dari pilihan" : "Remove from selection"
+        ) : (
+          <>
+            <Check size={15} strokeWidth={2} aria-hidden="true" />
+            {language === "id" ? "Tambahkan ke pilihan" : "Add to selection"}
+          </>
+        )}
+      </Button>
+    </div>
+  ) : (
+    <p className="text-sm text-muted">
+      {language === "id"
+        ? "Pilih miskonsepsi untuk melihat penjelasan."
+        : "Select a misconception to view its explanation."}
+    </p>
+  );
+
   return (
     <>
       <div>
@@ -303,6 +349,11 @@ export function MisconceptionPicker({
                               />
                               <span className="font-medium">{misconceptionLabel(item, language)}</span>
                             </label>
+                            {active && (
+                              <div className="border-l-2 border-brand bg-brand-soft/25 px-3 pb-4 pt-3 md:hidden">
+                                {previewContent}
+                              </div>
+                            )}
                           </li>
                         );
                       })}
@@ -311,50 +362,8 @@ export function MisconceptionPicker({
                 </div>
               </div>
 
-              <div className="thin-scroll p-4 md:min-h-0 md:overflow-y-auto md:p-5">
-                {preview ? (
-                  <div>
-                    <p className="academic-label">
-                      {language === "id" ? "Ringkasan miskonsepsi" : "Misconception summary"}
-                    </p>
-                    <h3 className="mt-1 text-lg font-bold text-navy-deep">{misconceptionLabel(preview, language)}</h3>
-                    <div className="mt-4 space-y-4">
-                      <section>
-                        <p className="academic-label">{language === "id" ? "Pola yang keliru" : "Incorrect pattern"}</p>
-                        <p className="mt-1 whitespace-pre-line text-sm leading-6 text-navy-deep">{t(preview.wrong, language)}</p>
-                      </section>
-                      <section>
-                        <p className="academic-label">{language === "id" ? "Penyebab umum" : "Common cause"}</p>
-                        <p className="mt-1 text-sm leading-6 text-muted">{t(preview.cause, language)}</p>
-                      </section>
-                      <section>
-                        <p className="academic-label">{language === "id" ? "Perbaikan" : "Correction"}</p>
-                        <p className="mt-1 text-sm leading-6 text-muted">{t(preview.fix, language)}</p>
-                      </section>
-                    </div>
-                    <Button
-                      type="button"
-                      variant={selectedIds.has(preview.id) ? "secondary" : "primary"}
-                      className="mt-5 justify-center"
-                      onClick={() => toggle(preview.id)}
-                    >
-                      {selectedIds.has(preview.id) ? (
-                        language === "id" ? "Hapus dari pilihan" : "Remove from selection"
-                      ) : (
-                        <>
-                          <Check size={15} strokeWidth={2} aria-hidden="true" />
-                          {language === "id" ? "Tambahkan ke pilihan" : "Add to selection"}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted">
-                    {language === "id"
-                      ? "Pilih miskonsepsi untuk melihat penjelasan."
-                      : "Select a misconception to view its explanation."}
-                  </p>
-                )}
+              <div className="hidden thin-scroll md:block md:min-h-0 md:overflow-y-auto md:p-5">
+                {previewContent}
               </div>
             </div>
 
