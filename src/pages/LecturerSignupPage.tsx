@@ -3,6 +3,8 @@ import {
   ArrowRight,
   CircleAlert,
   CircleCheck,
+  Eye,
+  EyeOff,
   LockKeyhole,
   Mail,
   UserRound,
@@ -20,6 +22,9 @@ export function LecturerSignupPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirmation, setShowPasswordConfirmation] =
+    useState(false);
 
   useEffect(() => {
     if (!loading && isLecturer) {
@@ -206,7 +211,7 @@ export function LecturerSignupPage() {
             <input
               id="signup-password"
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="new-password"
               minLength={6}
               required
@@ -214,8 +219,31 @@ export function LecturerSignupPage() {
               placeholder={
                 language === "id" ? "Minimal 6 karakter" : "At least 6 characters"
               }
-              className="academic-input h-10 bg-white pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
+              className="academic-input h-10 bg-white pl-10 pr-11 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((visible) => !visible)}
+              aria-label={
+                language === "id"
+                  ? showPassword
+                    ? "Sembunyikan kata sandi"
+                    : "Tampilkan kata sandi"
+                  : showPassword
+                    ? "Hide password"
+                    : "Show password"
+              }
+              aria-controls="signup-password"
+              aria-pressed={showPassword}
+              disabled={submitting}
+              className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted/65 transition-colors hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {showPassword ? (
+                <EyeOff size={16} strokeWidth={1.8} aria-hidden="true" />
+              ) : (
+                <Eye size={16} strokeWidth={1.8} aria-hidden="true" />
+              )}
+            </button>
           </div>
         </div>
 
@@ -236,7 +264,7 @@ export function LecturerSignupPage() {
             <input
               id="signup-password-confirmation"
               name="passwordConfirmation"
-              type="password"
+              type={showPasswordConfirmation ? "text" : "password"}
               autoComplete="new-password"
               minLength={6}
               required
@@ -248,8 +276,33 @@ export function LecturerSignupPage() {
                   ? "Masukkan kembali kata sandi"
                   : "Re-enter your password"
               }
-              className="academic-input h-10 bg-white pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-incorrect aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-incorrect/15"
+              className="academic-input h-10 bg-white pl-10 pr-11 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60 aria-[invalid=true]:border-incorrect aria-[invalid=true]:ring-2 aria-[invalid=true]:ring-incorrect/15"
             />
+            <button
+              type="button"
+              onClick={() =>
+                setShowPasswordConfirmation((visible) => !visible)
+              }
+              aria-label={
+                language === "id"
+                  ? showPasswordConfirmation
+                    ? "Sembunyikan konfirmasi kata sandi"
+                    : "Tampilkan konfirmasi kata sandi"
+                  : showPasswordConfirmation
+                    ? "Hide password confirmation"
+                    : "Show password confirmation"
+              }
+              aria-controls="signup-password-confirmation"
+              aria-pressed={showPasswordConfirmation}
+              disabled={submitting}
+              className="absolute right-1 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted/65 transition-colors hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {showPasswordConfirmation ? (
+                <EyeOff size={16} strokeWidth={1.8} aria-hidden="true" />
+              ) : (
+                <Eye size={16} strokeWidth={1.8} aria-hidden="true" />
+              )}
+            </button>
           </div>
         </div>
 

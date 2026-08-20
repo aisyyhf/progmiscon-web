@@ -1,5 +1,13 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowRight, CircleAlert, CircleCheck, LockKeyhole, Mail } from "lucide-react";
+import {
+  ArrowRight,
+  CircleAlert,
+  CircleCheck,
+  Eye,
+  EyeOff,
+  LockKeyhole,
+  Mail,
+} from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { AuthPageLayout } from "../components/auth/AuthPageLayout";
 import { Button } from "../components/common/Button";
@@ -13,6 +21,7 @@ export function LecturerLoginPage() {
   const [searchParams] = useSearchParams();
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!loading && isLecturer) {
@@ -146,7 +155,7 @@ export function LecturerLoginPage() {
             <input
               id="lecturer-password"
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               required
               disabled={submitting}
@@ -155,8 +164,31 @@ export function LecturerLoginPage() {
                   ? "Masukkan kata sandi"
                   : "Enter your password"
               }
-              className="academic-input h-11 bg-white pl-10 pr-3.5 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
+              className="academic-input h-11 bg-white pl-10 pr-11 text-sm placeholder:text-muted/55 disabled:cursor-not-allowed disabled:opacity-60"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword((visible) => !visible)}
+              aria-label={
+                language === "id"
+                  ? showPassword
+                    ? "Sembunyikan kata sandi"
+                    : "Tampilkan kata sandi"
+                  : showPassword
+                    ? "Hide password"
+                    : "Show password"
+              }
+              aria-controls="lecturer-password"
+              aria-pressed={showPassword}
+              disabled={submitting}
+              className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md text-muted/65 transition-colors hover:text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {showPassword ? (
+                <EyeOff size={16} strokeWidth={1.8} aria-hidden="true" />
+              ) : (
+                <Eye size={16} strokeWidth={1.8} aria-hidden="true" />
+              )}
+            </button>
           </div>
         </div>
 
