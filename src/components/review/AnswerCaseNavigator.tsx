@@ -24,7 +24,7 @@ export function AnswerCaseNavigator({
   return (
     <nav
       aria-label={language === "id" ? "Navigasi variasi jawaban" : "Answer variation navigation"}
-      className="inline-grid h-9 shrink-0 grid-cols-[2.25rem_auto_2.25rem] items-stretch overflow-hidden rounded-full border border-brand/10 bg-brand-soft/70 text-muted"
+      className="inline-grid h-9 max-w-full shrink-0 grid-cols-[2.25rem_minmax(0,auto)_2.25rem] items-stretch overflow-hidden rounded-full border border-brand/10 bg-brand-soft/70 text-muted"
     >
       <button
         type="button"
@@ -39,7 +39,7 @@ export function AnswerCaseNavigator({
       </button>
 
       <span
-        className="flex min-w-[7.5rem] items-center justify-center px-3 text-[11px] font-bold leading-none tabular-nums text-navy-deep"
+        className="flex min-w-0 items-center justify-center px-3 text-[11px] font-bold leading-none tabular-nums text-navy-deep sm:min-w-[7.5rem]"
         aria-live="polite"
       >
         {label}
