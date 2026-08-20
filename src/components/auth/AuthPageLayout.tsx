@@ -4,7 +4,6 @@ import { useLanguage } from "../../hooks/useLanguage";
 
 type AuthPageLayoutProps = {
   title: string;
-  subtitle: string;
   accountPrompt: string;
   accountLinkLabel: string;
   accountLinkTo: string;
@@ -35,7 +34,6 @@ function BrandLink() {
 
 export function AuthPageLayout({
   title,
-  subtitle,
   accountPrompt,
   accountLinkLabel,
   accountLinkTo,
@@ -89,9 +87,6 @@ export function AuthPageLayout({
               <h1 className="auth-title text-balance text-[2rem] font-bold leading-tight tracking-[-0.025em] text-navy-deep sm:text-[2.2rem]">
                 {title}
               </h1>
-              <p className="mt-2 max-w-md text-pretty text-sm leading-5 text-muted">
-                {subtitle}
-              </p>
             </header>
 
             <div className="mt-4 border-t border-border pt-4">
