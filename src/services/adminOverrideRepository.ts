@@ -2,6 +2,8 @@ import type {
   AdminReviewConsensusItem,
   MasterBaselineSyncResult,
   MasterData,
+  SaveQuestionWordingRevisionInput,
+  SaveQuestionWordingRevisionResult,
 } from "../types";
 import {
   buildConsensusSnapshot,
@@ -40,6 +42,16 @@ type MasterBaselineSyncRow = {
   synced_at: string;
 };
 
+type QuestionWordingRevisionResultRow = {
+  question_id: string;
+  previous_source_version: string;
+  source_version: string;
+  question_ind: string;
+  question_en: string;
+  updated_at: string;
+  captured_at: string;
+};
+
 function adminError(scope: string, error: { message?: string }): Error {
   const detail = error.message?.trim() ?? "";
   if (detail.includes("CONSENSUS_REQUIRES_THREE_REVIEWERS")) {
@@ -55,6 +67,21 @@ function adminError(scope: string, error: { message?: string }): Error {
   }
   if (detail.includes("INVALID_MISCONCEPTION_ID")) {
     return new Error("Review memuat ID misconception yang tidak ada di katalog baseline.");
+  }
+  if (detail.includes("DATA_VERSION_CHANGED")) {
+    return new Error("Versi soal telah berubah. Muat ulang sebelum menyimpan.");
+  }
+  if (detail.includes("MP_WORDING_EDIT_NOT_SUPPORTED")) {
+    return new Error("Perubahan wording soal MP belum didukung.");
+  }
+  if (detail.includes("QUESTION_WORDING_UNCHANGED")) {
+    return new Error("Tidak ada perubahan wording untuk disimpan.");
+  }
+  if (detail.includes("INVALID_QUESTION_WORDING")) {
+    return new Error("Minimal satu wording soal wajib diisi.");
+  }
+  if (detail.includes("QUESTION_NOT_FOUND")) {
+    return new Error("Soal tidak ditemukan atau baseline belum tersedia.");
   }
   return new Error(detail ? `${scope} gagal: ${detail}` : `${scope} gagal.`);
 }
@@ -220,6 +247,41 @@ export async function saveQuestionContentOverride(
     },
     "Konten soal disimpan",
   );
+}
+
+export async function saveQuestionWordingRevision(
+  input: SaveQuestionWordingRevisionInput,
+): Promise<SaveQuestionWordingRevisionResult> {
+  const { data, error } = await supabase.rpc(
+    "save_question_wording_revision_v1",
+    {
+      input_question_id: input.questionId,
+      input_expected_source_version: input.expectedSourceVersion,
+      input_current_question_ind: input.currentQuestionInd,
+      input_current_question_en: input.currentQuestionEn,
+      input_question_ind: input.questionInd,
+      input_question_en: input.questionEn,
+    },
+  );
+
+  if (error) throw adminError("Wording soal disimpan", error);
+
+  const row = ((data ?? []) as QuestionWordingRevisionResultRow[])[0];
+  if (!row) {
+    throw new Error("Penyimpanan wording soal tidak mengembalikan hasil.");
+  }
+
+  invalidateEffectiveMasterData();
+
+  return {
+    questionId: row.question_id,
+    previousSourceVersion: row.previous_source_version,
+    sourceVersion: row.source_version,
+    questionInd: row.question_ind,
+    questionEn: row.question_en,
+    updatedAt: row.updated_at,
+    capturedAt: row.captured_at,
+  };
 }
 
 export async function saveAnswerContentOverride(

@@ -6,6 +6,7 @@ import type {
   AnswerReviewCount,
   AnswerReviewHistoryItem,
   AnswerReviewValues,
+  QuestionWordingRevision,
   QuestionReviewHistoryItem,
   QuestionReviewCount,
   QuestionReviewValues,
@@ -78,6 +79,15 @@ type ReviewSourceVersionRow = {
   target_id: unknown;
   parent_question_id: unknown;
   source_version: unknown;
+};
+
+type QuestionWordingRevisionRow = {
+  question_id: string;
+  source_version: string;
+  question_ind: string | null;
+  question_en: string | null;
+  revision_origin: "captured_pre_edit" | "admin_edit";
+  captured_at: string;
 };
 
 type StorageErrorLike = {
@@ -272,6 +282,33 @@ export async function getAnswerReviewCounts(): Promise<AnswerReviewCount[]> {
   }
 
   return mapAnswerReviewCountRows(data);
+}
+
+export async function getQuestionWordingRevisions(
+  questionIds: readonly string[],
+): Promise<QuestionWordingRevision[]> {
+  const normalizedQuestionIds = [
+    ...new Set(questionIds.map((id) => id.trim()).filter(Boolean)),
+  ];
+  if (normalizedQuestionIds.length === 0) return [];
+
+  const { data, error } = await supabase.rpc(
+    "get_question_wording_revisions",
+    { input_question_ids: normalizedQuestionIds },
+  );
+
+  if (error) {
+    throw storageError("Riwayat wording soal dimuat", error);
+  }
+
+  return ((data ?? []) as QuestionWordingRevisionRow[]).map((row) => ({
+    questionId: row.question_id,
+    sourceVersion: row.source_version,
+    questionInd: row.question_ind,
+    questionEn: row.question_en,
+    revisionOrigin: row.revision_origin,
+    capturedAt: row.captured_at,
+  }));
 }
 
 export async function getReviewSourceVersions(): Promise<ReviewSourceVersions> {

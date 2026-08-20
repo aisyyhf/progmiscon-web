@@ -38,6 +38,38 @@ export type AnswerReviewCount = {
   latestUpdatedAt: string | null;
 };
 
+export type QuestionWordingRevisionOrigin =
+  | "captured_pre_edit"
+  | "admin_edit";
+
+export type QuestionWordingRevision = {
+  questionId: string;
+  sourceVersion: string;
+  questionInd: string | null;
+  questionEn: string | null;
+  revisionOrigin: QuestionWordingRevisionOrigin;
+  capturedAt: string;
+};
+
+export type SaveQuestionWordingRevisionInput = {
+  questionId: string;
+  expectedSourceVersion: string;
+  currentQuestionInd: string;
+  currentQuestionEn: string;
+  questionInd: string;
+  questionEn: string;
+};
+
+export type SaveQuestionWordingRevisionResult = {
+  questionId: string;
+  previousSourceVersion: string;
+  sourceVersion: string;
+  questionInd: string;
+  questionEn: string;
+  updatedAt: string;
+  capturedAt: string;
+};
+
 export type ReviewSourceVersions = {
   questions: Map<string, string>;
   answers: Map<string, { questionId: string; sourceVersion: string }>;

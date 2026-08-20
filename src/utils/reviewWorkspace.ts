@@ -1,7 +1,9 @@
 import type {
   AdminReviewConsensusItem,
+  LocalizedText,
   Question,
   QuestionOption,
+  QuestionWordingRevision,
   ReviewTask,
   StudentAnswer,
 } from "../types";
@@ -319,6 +321,24 @@ export function resolveAnswerSelection(
     missingSelectedOption:
       question.type === "multiple_choice" && option === undefined,
   };
+}
+
+export function resolveQuestionWordingRevision(
+  question: Pick<Question, "id" | "prompt"> | undefined,
+  questionId: string,
+  sourceVersion: string,
+  revisions: readonly QuestionWordingRevision[],
+): LocalizedText | undefined {
+  const revision = revisions.find(
+    (item) =>
+      item.questionId === questionId && item.sourceVersion === sourceVersion,
+  );
+
+  return revision
+    ? { id: revision.questionInd ?? "", en: revision.questionEn ?? "" }
+    : question?.id === questionId
+      ? question.prompt
+      : undefined;
 }
 
 export function stripSelectedOptionPrefix(
