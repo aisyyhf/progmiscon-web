@@ -10,6 +10,7 @@
     "check:effective-overrides": "node --experimental-strip-types scripts/check-effective-overrides.ts",
     "check:review-source-access": "node --experimental-strip-types scripts/check-review-source-access.ts",
     "check:review-source-snapshot": "node --experimental-strip-types scripts/check-review-source-snapshot.ts",
+    "check:trusted-master-sync": "node --experimental-strip-types checks/trusted-master-sync.mjs",
     "check:question-detail": "node --experimental-strip-types scripts/check-question-detail.ts",
     "check:updated-master-data": "node --experimental-strip-types scripts/check-updated-master-data.ts",
     "check:updated-master-data:live": "node --experimental-strip-types scripts/check-updated-master-data-live.ts",
