@@ -6,11 +6,11 @@ import {
 } from "../src/utils/lecturerEmail.ts";
 
 const migrationUrl = new URL(
-  "../supabase/migrations/20260722_001_telkom_lecturer_domain_access.sql",
+  "../database/migration-archive/legacy-20260720-through-20260814174227/20260722_001_telkom_lecturer_domain_access.sql",
   import.meta.url,
 );
 const adminMigrationUrl = new URL(
-  "../supabase/migrations/20260721_001_admin_access.sql",
+  "../database/migration-archive/legacy-20260720-through-20260814174227/20260721_001_admin_access.sql",
   import.meta.url,
 );
 

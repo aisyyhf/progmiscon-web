@@ -3,16 +3,16 @@
   "purpose": "Disposable local Review-v3 reconciliation replay only",
   "productionDeployable": false,
   "entries": [
-    { "order": 10, "path": "supabase/migrations/20260720_001_lecturer_auth_and_reviews.sql" },
-    { "order": 20, "path": "supabase/migrations/20260721_001_admin_access.sql" },
-    { "order": 30, "path": "supabase/migrations/20260721_002_admin_review_read_access.sql" },
-    { "order": 40, "path": "supabase/migrations/20260722_001_telkom_lecturer_domain_access.sql" },
-    { "order": 50, "path": "supabase/migrations/20260727_001_review_status_rpc.sql" },
-    { "order": 60, "path": "supabase/migrations/20260728_001_question_review_counts_rpc.sql" },
-    { "order": 70, "path": "supabase/migrations/20260728_002_prevent_repeat_lecturer_reviews.sql" },
-    { "order": 80, "path": "supabase/migrations/20260728_003_effective_content_overrides.sql" },
-    { "order": 90, "path": "supabase/migrations/20260728_004_fix_baseline_sync_safe_delete.sql" },
-    { "order": 100, "path": "supabase/migrations/20260729_005_fix_override_upsert_conflicts.sql" },
+    { "order": 10, "path": "database/migration-archive/legacy-20260720-through-20260814174227/20260720_001_lecturer_auth_and_reviews.sql" },
+    { "order": 20, "path": "database/migration-archive/legacy-20260720-through-20260814174227/20260721_001_admin_access.sql" },
+    { "order": 30, "path": "database/migration-archive/legacy-20260720-through-20260814174227/20260721_002_admin_review_read_access.sql" },
+    { "order": 40, "path": "database/migration-archive/legacy-20260720-through-20260814174227/20260722_001_telkom_lecturer_domain_access.sql" },
+    { "order": 50, "path": "database/migration-archive/legacy-20260720-through-20260814174227/20260727_001_review_status_rpc.sql" },
+    { "order": 60, "path": "database/migration-archive/legacy-20260720-through-20260814174227/20260728_001_question_review_counts_rpc.sql" },
+    { "order": 70, "path": "database/migration-archive/legacy-20260720-through-20260814174227/20260728_002_prevent_repeat_lecturer_reviews.sql" },
+    { "order": 80, "path": "database/migration-archive/legacy-20260720-through-20260814174227/20260728_003_effective_content_overrides.sql" },
+    { "order": 90, "path": "database/migration-archive/legacy-20260720-through-20260814174227/20260728_004_fix_baseline_sync_safe_delete.sql" },
+    { "order": 100, "path": "database/migration-archive/legacy-20260720-through-20260814174227/20260729_005_fix_override_upsert_conflicts.sql" },
     {
       "order": 110,
       "path": "database/replay/fixtures/pre-v3-reviews.sql",
@@ -25,9 +25,14 @@
     },
     {
       "order": 130,
-      "path": "supabase/migrations/20260814_006_review_source_versions_rpc.sql",
+      "path": "database/migration-archive/legacy-20260720-through-20260814174227/20260814_006_review_source_versions_rpc.sql",
       "stageAs": "20260814000000_review_source_versions_rpc.sql"
     },
-    { "order": 140, "path": "supabase/migrations/20260814174227_fix_review_audit_trigger.sql" }
+    { "order": 140, "path": "database/migration-archive/legacy-20260720-through-20260814174227/20260814174227_fix_review_audit_trigger.sql" },
+    {
+      "order": 150,
+      "path": "supabase/migrations/20260823000000_review_v3_epoch_guard.sql",
+      "activeMigration": true
+    }
   ]
 }

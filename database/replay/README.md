@@ -1,14 +1,17 @@
 # Review-v3 disposable replay
 
 This directory is a local reconciliation harness, not a Supabase migration
-directory. Normal production tooling discovers only `supabase/migrations/`;
-nothing under `database/replay/` may be passed to `db push`, migration repair,
-`--include-all`, or a linked project.
+directory. Historical migrations live outside normal discovery under
+`database/migration-archive/` and remain available only through the explicit
+replay manifest. Nothing under `database/replay/` or the archive may be passed
+to `db push`, migration repair, `--include-all`, or a linked project.
 
-> **Warning:** Repository-root/raw `supabase db push` remains unsafe and
-> unauthorized until the migration-epoch cutover has been separately reviewed
-> and approved. The active historical migration chain is not being declared
-> production-safe by this reconciliation work.
+> **Warning:** Repository-root/raw `supabase db push` was unsafe while the
+> unverifiable historical chain remained active. The active directory now starts
+> with an assertion-only epoch guard, but production adoption is still
+> unauthorized until a separate deployment review proves the pending migration
+> set and approves the operation. Migration repair and `--include-all` remain
+> prohibited.
 
 > **Fingerprint-v3 boundary:** This foundation reconstructs and tests only the
 > current Review-v3 production contract. It does not implement
@@ -16,16 +19,27 @@ nothing under `database/replay/` may be passed to `db push`, migration repair,
 > `preview_master_relation_baselines_v3`, `sync_master_relation_baselines_v3`,
 > Edge v3 changes, or the 176-row cleanup.
 
-`review-v3-manifest.json` is the sole replay order. The runner copies its entries
-into a newly-created temporary Supabase workdir, gives local-only artifacts
-synthetic migration timestamps, proves the resulting database URL is loopback,
-and runs only commands carrying an explicit local target. It refuses linked or
-remote database arguments and deletes only its own OS-created temporary folder.
+Admin Edit Soal is separate future work; it is not implemented or authorized
+by this migration epoch.
+
+PR #48 / Admin Edit Soal work remains separate and is not implemented or
+authorized by this migration-epoch branch/PR. PR #49 / trusted sync /
+fingerprint-v3 work remains separate and is not implemented or authorized by
+this migration-epoch branch/PR.
+
+`review-v3-manifest.json` is the sole full-reconstruction order. The runner
+copies archived history, local-only prerequisites, and explicitly allowlisted
+active migrations into a newly-created temporary Supabase workdir, gives replay
+artifacts synthetic migration timestamps, proves the resulting database URL is
+loopback, and runs only commands carrying an explicit local target. It refuses
+linked or remote database arguments and deletes only its own OS-created
+temporary folder.
 
 Two positive scenarios are defined:
 
-1. `empty` stages the historical migrations, the local prerequisite, the source
-   version getter, and the existing audit patch.
+1. `empty` stages the archived historical migrations, the local prerequisite,
+   the source version getter, the existing audit patch, and the active epoch
+   guard.
 2. `legacy-data` inserts the deterministic pre-v3 fixture immediately after
    `20260729_005`, then follows the same remaining order.
 
@@ -33,6 +47,12 @@ The prerequisite is deliberately not production deployable. It bridges the
 missing historical Review-v3 state only in a disposable fresh replay. The
 contract checker compares the result with normalized authoritative production
 fixtures in `checks/fixtures/review-v3/`.
+
+An active-directory-only local reset is not the historical bootstrap path: the
+epoch guard intentionally fails against an empty application schema. Use the
+explicit replay harness for full reconstruction. The harness also rehearses the
+first epoch application against a production-shaped loopback database with no
+application migration ledger and proves that archived SQL is not discovered.
 
 Contract exports use full `true`/`false` text for standalone boolean columns and
 the literal `null` for table rows without a `sub_name`. Comparison preserves SQL
@@ -46,3 +66,5 @@ stops without attempting any remote fallback.
 
 The exact `supabase` devDependency exists only to make this disposable local
 database replay/test harness reproducible. It is not a deployment dependency.
+Fingerprint v3, bootstrap/sync-v3 behavior, and the legacy answer-baseline
+cleanup remain separate future work.

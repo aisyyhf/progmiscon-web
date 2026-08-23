@@ -12,6 +12,7 @@
     "check:review-source-snapshot": "node --experimental-strip-types scripts/check-review-source-snapshot.ts",
     "check:review-v3-contract": "node checks/review-v3-contract-diff.mjs --self-test",
     "check:review-v3-replay": "node checks/review-v3-replay.mjs",
+    "check:migration-epoch-layout": "node checks/migration-epoch-layout.mjs",
     "check:question-detail": "node --experimental-strip-types scripts/check-question-detail.ts",
     "check:updated-master-data": "node --experimental-strip-types scripts/check-updated-master-data.ts",
     "check:updated-master-data:live": "node --experimental-strip-types scripts/check-updated-master-data-live.ts",

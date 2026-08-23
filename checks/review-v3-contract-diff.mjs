@@ -256,11 +256,12 @@ async function runFoundationSelfTest(fixtures) {
   );
   assert.doesNotMatch(schemaContractQuery, /role_table_grants/i);
   assert.deepEqual(
-    manifest.entries.slice(-3).map((entry) => basename(entry.path)),
+    manifest.entries.slice(-4).map((entry) => basename(entry.path)),
     [
       "review-v3-legacy-prerequisite.sql",
       "20260814_006_review_source_versions_rpc.sql",
       "20260814174227_fix_review_audit_trigger.sql",
+      "20260823000000_review_v3_epoch_guard.sql",
     ],
   );
 

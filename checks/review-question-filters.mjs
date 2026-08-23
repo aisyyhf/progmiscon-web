@@ -213,14 +213,14 @@ assert.equal(
 
 const migration = await readFile(
   new URL(
-    "../supabase/migrations/20260728_001_question_review_counts_rpc.sql",
+    "../database/migration-archive/legacy-20260720-through-20260814174227/20260728_001_question_review_counts_rpc.sql",
     import.meta.url,
   ),
   "utf8",
 );
 const repeatReviewMigration = await readFile(
   new URL(
-    "../supabase/migrations/20260728_002_prevent_repeat_lecturer_reviews.sql",
+    "../database/migration-archive/legacy-20260720-through-20260814174227/20260728_002_prevent_repeat_lecturer_reviews.sql",
     import.meta.url,
   ),
   "utf8",

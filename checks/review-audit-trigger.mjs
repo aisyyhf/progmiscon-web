@@ -4,7 +4,7 @@ import { extname, join } from "node:path";
 
 const migration = await readFile(
   new URL(
-    "../supabase/migrations/20260814174227_fix_review_audit_trigger.sql",
+    "../database/migration-archive/legacy-20260720-through-20260814174227/20260814174227_fix_review_audit_trigger.sql",
     import.meta.url,
   ),
   "utf8",

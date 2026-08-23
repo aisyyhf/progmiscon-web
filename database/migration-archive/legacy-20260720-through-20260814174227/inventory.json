@@ -1,0 +1,18 @@
+{
+  "formatVersion": 1,
+  "boundary": "legacy-20260720-through-20260814174227",
+  "files": [
+    { "name": "20260720_001_lecturer_auth_and_reviews.sql", "bytes": 11673, "sha256": "ea9a383c7b61f6983411b789a8216ff6d514d33707dfead46cdd280dffab2969" },
+    { "name": "20260721_001_admin_access.sql", "bytes": 1104, "sha256": "489be43d8227db7c161ffe7ea8a905924e4f8a1b4e9046c875f8e8aac116c031" },
+    { "name": "20260721_002_admin_review_read_access.sql", "bytes": 1718, "sha256": "a76612dbb8a07ddee600ef6e4f01e951cd1caa3f6b4e8c766dc0e940f3361078" },
+    { "name": "20260722_001_telkom_lecturer_domain_access.sql", "bytes": 4693, "sha256": "65d9c412f6f7d532e7f7840f7a62e7662ba6eb1997f493df85e4a2e6424fe13d" },
+    { "name": "20260727_001_review_status_rpc.sql", "bytes": 1628, "sha256": "17b5c870f491716d1475b90e92909559fe8bcfc57c431763cbc1c6766b1eee74" },
+    { "name": "20260728_001_question_review_counts_rpc.sql", "bytes": 1045, "sha256": "6cb1e7a5040976257a624e709ab5c7357d6c8f00613e8f67538cf65038123ca4" },
+    { "name": "20260728_002_prevent_repeat_lecturer_reviews.sql", "bytes": 1036, "sha256": "b097d6bcb4312f1c4b34afcf0ae0e0bf790287cc51431ca5f38da61e5d7d3bf3" },
+    { "name": "20260728_003_effective_content_overrides.sql", "bytes": 43100, "sha256": "1893a4f44aa9f671d6005295dee1e7d665f163439efce282856f87a6e0c27d9c" },
+    { "name": "20260728_004_fix_baseline_sync_safe_delete.sql", "bytes": 7339, "sha256": "cb7655304bf62b9a60a73c8ebee88403977128ef270003a94643d7269af2a8f3" },
+    { "name": "20260729_005_fix_override_upsert_conflicts.sql", "bytes": 15239, "sha256": "ecd9893b6468c4283125026c4e83b20e832af32b5d0b2d452b07e8bef59cc31d" },
+    { "name": "20260814_006_review_source_versions_rpc.sql", "bytes": 1395, "sha256": "7b6376b4acbcd3d3a3afaae19211802942d3ee25121484b25c9e8b0b67da3e8c" },
+    { "name": "20260814174227_fix_review_audit_trigger.sql", "bytes": 5410, "sha256": "21b6ba98342b82eceab401263a324d157c0e007451ffaf1fccc6b6d3049ca86e" }
+  ]
+}

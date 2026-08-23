@@ -57,11 +57,38 @@ function commandText(command, arguments_) {
 function runCommand(
   command,
   arguments_,
-  { cwd = repositoryRoot, input = null, allowFailure = false } = {},
+  {
+    cwd = repositoryRoot,
+    input = null,
+    allowFailure = false,
+    localDbPushRoot = null,
+  } = {},
 ) {
-  const forbidden = ["--linked", "--db-url", "db push", "migration repair", "--include-all"];
+  const cliArguments =
+    command === process.execPath && arguments_[0] === supabaseCli
+      ? arguments_.slice(1)
+      : [];
+  const exactLocalDbPush =
+    localDbPushRoot !== null &&
+    resolve(cwd) === resolve(localDbPushRoot) &&
+    JSON.stringify(cliArguments) ===
+      JSON.stringify([
+        "db",
+        "push",
+        "--local",
+        "--yes",
+        "--workdir",
+        localDbPushRoot,
+      ]);
   const rendered = commandText(command, arguments_).toLowerCase();
-  if (forbidden.some((token) => rendered.includes(token))) {
+  const forbiddenOption = ["--linked", "--db-url", "--include-all"].some(
+    (option) => cliArguments.includes(option),
+  );
+  const forbiddenCommand =
+    ["link", "login"].includes(cliArguments[0]) ||
+    (cliArguments[0] === "migration" && cliArguments[1] === "repair") ||
+    (cliArguments[0] === "db" && cliArguments[1] === "push" && !exactLocalDbPush);
+  if (forbiddenOption || forbiddenCommand) {
     throw new Error(`LOCAL_REPLAY_SAFETY_REJECTION: ${rendered}`);
   }
   return new Promise((resolvePromise, rejectPromise) => {
@@ -218,7 +245,7 @@ async function createLocalWorkdir(label) {
       (_match, prefix, suffix) => `${prefix}${ports[portIndex++]}${suffix}`,
     );
     await writeFile(configPath, isolatedConfig, "utf8");
-    return { root, projectId, started: false };
+    return { root, projectId, started: false, loopbackProven: false };
   } catch (error) {
     await rm(root, { recursive: true, force: true });
     throw error;
@@ -244,6 +271,7 @@ async function proveLoopback(workdir) {
   if (await exists(join(workdir.root, "supabase", ".temp", "project-ref"))) {
     throw new Error("LOCAL_REPLAY_BLOCKED: linked project metadata appeared in temporary workdir.");
   }
+  workdir.loopbackProven = true;
 }
 
 async function startAndProve(workdir) {
@@ -266,7 +294,11 @@ function selectedManifestSources(entries, scenario) {
     .map((entry) => entry.path);
 }
 
-async function stageSources(workdir, sources) {
+async function stageSources(
+  workdir,
+  sources,
+  { preserveBasenames = false } = {},
+) {
   const migrationDirectory = join(workdir.root, "supabase", "migrations");
   assertInside(workdir.root, migrationDirectory);
   await rm(migrationDirectory, { recursive: true, force: true });
@@ -275,13 +307,31 @@ async function stageSources(workdir, sources) {
     const source = resolve(repositoryRoot, sourcePath);
     assertInside(repositoryRoot, source);
     const version = String(20990101000000n + BigInt(index + 1));
-    const destination = join(
-      migrationDirectory,
-      `${version}_${basename(sourcePath)}`,
-    );
+    const destination = join(migrationDirectory, preserveBasenames
+      ? basename(sourcePath)
+      : `${version}_${basename(sourcePath)}`);
     assertInside(migrationDirectory, destination);
     await copyFile(source, destination);
   }
+}
+
+async function pushOnlyApprovedLocalEpoch(workdir) {
+  if (!workdir.loopbackProven) {
+    throw new Error("LOCAL_REPLAY_BLOCKED: local db push requires prior loopback proof.");
+  }
+  return runCommand(
+    process.execPath,
+    [
+      supabaseCli,
+      "db",
+      "push",
+      "--local",
+      "--yes",
+      "--workdir",
+      workdir.root,
+    ],
+    { cwd: workdir.root, localDbPushRoot: workdir.root },
+  );
 }
 
 async function resetLocal(workdir, { allowFailure = false } = {}) {
@@ -409,6 +459,19 @@ const negativeCases = [
   ["malformed-lifecycle.sql", "REVIEW_V3_MALFORMED_LIFECYCLE"],
 ];
 
+const epochGuardNegativeCases = [
+  ["missing-required-trigger.sql", "TRIGGER_CONTRACT"],
+  ["forbidden-legacy-trigger.sql", "TRIGGER_CONTRACT"],
+  ["missing-critical-function.sql", "FUNCTION_CONTRACT_OR_EXPOSURE"],
+  ["invalid-active-source-version.sql", "ACTIVE_QUESTION_REVIEW_SOURCE_VERSION_MISMATCH"],
+  ["reviewer-cap-exceeded.sql", "ACTIVE_REVIEWER_CAP_EXCEEDED"],
+  ["malformed-lifecycle.sql", "MALFORMED_REVIEW_LIFECYCLE"],
+  ["malformed-lifecycle-invalid-reason.sql", "MALFORMED_REVIEW_LIFECYCLE"],
+  ["malformed-lifecycle-null-reason.sql", "MALFORMED_REVIEW_LIFECYCLE"],
+  ["unsafe-review-write-policy.sql", "RLS_POLICY_CONTRACT"],
+  ["unsafe-function-exposure.sql", "FUNCTION_CONTRACT_OR_EXPOSURE"],
+];
+
 async function runNegativeCases(entries) {
   const history = entries
     .filter((entry) => entry.order <= 100)
@@ -445,9 +508,110 @@ async function runNegativeCases(entries) {
   }
 }
 
+async function runEpochGuardNegativeCases(entries) {
+  const guard = entries.find((entry) => entry.activeMigration === true);
+  if (!guard) throw new Error("Epoch guard is not declared in the replay manifest.");
+  const foundation = selectedManifestSources(entries, "empty").filter(
+    (path) => path !== guard.path,
+  );
+  const guardSql = await readFile(resolve(repositoryRoot, guard.path), "utf8");
+  let workdir;
+  try {
+    workdir = await createLocalWorkdir("epoch-negative");
+    await startAndProve(workdir);
+    for (const [file, expectedError] of epochGuardNegativeCases) {
+      await stageSources(workdir, foundation);
+      await resetLocal(workdir);
+      await runSqlFile(
+        workdir,
+        `database/replay/fixtures/epoch-guard-negative/${file}`,
+      );
+      const result = await psql(workdir, guardSql, { allowFailure: true });
+      const output = `${result.stdout}\n${result.stderr}`;
+      if (result.code === 0 || !output.includes("MIGRATION_EPOCH_GUARD_FAILED") || !output.includes(expectedError)) {
+        throw new Error(
+          `Epoch guard negative ${file} did not fail closed with ${expectedError}.\n${output}`,
+        );
+      }
+      console.log(`Migration epoch guard negative passed: ${file}`);
+    }
+  } finally {
+    await cleanup(workdir);
+  }
+}
+
+async function runAbsentLedgerRehearsal(entries) {
+  const activeEntries = entries.filter((entry) => entry.activeMigration === true);
+  if (activeEntries.length !== 1) {
+    throw new Error(
+      `Absent-ledger rehearsal requires one currently approved epoch migration; found ${activeEntries.length}.`,
+    );
+  }
+  const guard = activeEntries[0];
+  const foundation = selectedManifestSources(entries, "empty").filter(
+    (path) => path !== guard.path,
+  );
+  let workdir;
+  try {
+    workdir = await createLocalWorkdir("absent-ledger");
+    await startAndProve(workdir);
+    await stageSources(workdir, foundation);
+    await resetLocal(workdir);
+    await exportContracts(workdir);
+
+    await psql(workdir, "drop schema supabase_migrations cascade;\n");
+    const absent = await psql(
+      workdir,
+      "select pg_catalog.to_regclass('supabase_migrations.schema_migrations') is null;\n",
+    );
+    if (absent.stdout.trim() !== "t") {
+      throw new Error("Absent-ledger rehearsal could not prove the migration ledger was absent.");
+    }
+
+    await stageSources(workdir, [guard.path], { preserveBasenames: true });
+    await pushOnlyApprovedLocalEpoch(workdir);
+
+    const ledger = await psql(
+      workdir,
+      "select version || '|' || name from supabase_migrations.schema_migrations order by version;\n",
+    );
+    const ledgerRows = ledger.stdout.trim().split(/\r?\n/).filter(Boolean);
+    if (
+      ledgerRows.length !== 1 ||
+      ledgerRows[0] !== "20260823000000|review_v3_epoch_guard"
+    ) {
+      throw new Error(
+        `Absent-ledger rehearsal found an unexpected migration set: ${JSON.stringify(ledgerRows)}`,
+      );
+    }
+    await exportContracts(workdir);
+    console.log(
+      "Absent-ledger local epoch rehearsal passed: only the guard was discovered and recorded.",
+    );
+  } finally {
+    await cleanup(workdir);
+  }
+}
+
+const options = process.argv.slice(2);
+if (options.some((option) => option !== "--epoch-negative-only")) {
+  throw new Error(`Unknown replay option: ${options.join(" ")}`);
+}
+const epochNegativeOnly = options.includes("--epoch-negative-only");
+
+await runCommand(process.execPath, [
+  join(repositoryRoot, "checks", "migration-epoch-layout.mjs"),
+]);
 await preflight();
 const entries = await loadManifest();
-await runPositiveScenario(entries, "empty");
-await runPositiveScenario(entries, "legacy-data");
-await runNegativeCases(entries);
-console.log("Review-v3 disposable local replay suite passed.");
+if (epochNegativeOnly) {
+  await runEpochGuardNegativeCases(entries);
+  console.log("Migration epoch guard targeted negative suite passed.");
+} else {
+  await runPositiveScenario(entries, "empty");
+  await runPositiveScenario(entries, "legacy-data");
+  await runNegativeCases(entries);
+  await runEpochGuardNegativeCases(entries);
+  await runAbsentLedgerRehearsal(entries);
+  console.log("Review-v3 disposable local replay suite passed.");
+}
