@@ -1,0 +1,23 @@
+{
+  "formatVersion": 1,
+  "exceptions": [
+    {
+      "contract": "production-review-runtime-functions.csv",
+      "object": {
+        "schema_name": "public",
+        "function_name": "sync_master_relation_baselines",
+        "identity_arguments": "input_question_baselines jsonb, input_answer_baselines jsonb, input_misconception_ids text[]"
+      },
+      "allowedFields": ["acl", "authenticated_execute"],
+      "production": {
+        "acl": "{postgres=X/postgres,authenticated=X/postgres}",
+        "authenticated_execute": true
+      },
+      "fresh": {
+        "acl": "{postgres=X/postgres}",
+        "authenticated_execute": false
+      },
+      "reason": "The destructive legacy v1 baseline mutation path is retained for definition parity but deliberately remains postgres-only in a fresh reconciled database."
+    }
+  ]
+}
