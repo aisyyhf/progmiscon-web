@@ -478,15 +478,15 @@ assert.equal(
 );
 
 const migration = readFileSync(
-  "supabase/migrations/20260728_003_effective_content_overrides.sql",
+  "database/migration-archive/legacy-20260720-through-20260814174227/20260728_003_effective_content_overrides.sql",
   "utf8",
 );
 const baselineMigration = readFileSync(
-  "supabase/migrations/20260728_004_fix_baseline_sync_safe_delete.sql",
+  "database/migration-archive/legacy-20260720-through-20260814174227/20260728_004_fix_baseline_sync_safe_delete.sql",
   "utf8",
 );
 const upsertMigration = readFileSync(
-  "supabase/migrations/20260729_005_fix_override_upsert_conflicts.sql",
+  "database/migration-archive/legacy-20260720-through-20260814174227/20260729_005_fix_override_upsert_conflicts.sql",
   "utf8",
 );
 const sqlFunction = (source: string, name: string): string => {
@@ -868,9 +868,9 @@ const scannedSourceFiles = [
   ...sourceFiles("src"),
   ...sourceFiles("scripts"),
   ...sourceFiles("checks"),
-  "supabase/migrations/20260728_003_effective_content_overrides.sql",
-  "supabase/migrations/20260728_004_fix_baseline_sync_safe_delete.sql",
-  "supabase/migrations/20260729_005_fix_override_upsert_conflicts.sql",
+  "database/migration-archive/legacy-20260720-through-20260814174227/20260728_003_effective_content_overrides.sql",
+  "database/migration-archive/legacy-20260720-through-20260814174227/20260728_004_fix_baseline_sync_safe_delete.sql",
+  "database/migration-archive/legacy-20260720-through-20260814174227/20260729_005_fix_override_upsert_conflicts.sql",
 ];
 const mojibake = /\u0393\u00c7|\u0393\u00e5|\u00c3|\u00c2|\u252c/u;
 const manualMisconceptionLabel = [

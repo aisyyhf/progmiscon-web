@@ -37,7 +37,7 @@ assert.match(
 );
 
 const migration = readFileSync(
-  "supabase/migrations/20260814_006_review_source_versions_rpc.sql",
+  "database/migration-archive/legacy-20260720-through-20260814174227/20260814_006_review_source_versions_rpc.sql",
   "utf8",
 );
 const functionStart = migration.indexOf(
@@ -118,7 +118,7 @@ assert.equal(
 );
 
 const baselineMigration = readFileSync(
-  "supabase/migrations/20260728_003_effective_content_overrides.sql",
+  "database/migration-archive/legacy-20260720-through-20260814174227/20260728_003_effective_content_overrides.sql",
   "utf8",
 );
 for (const table of baselineTables) {

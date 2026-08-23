@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { mapReviewStatusRow } from "../src/utils/reviewStatus.ts";
 
 const migrationUrl = new URL(
-  "../supabase/migrations/20260727_001_review_status_rpc.sql",
+  "../database/migration-archive/legacy-20260720-through-20260814174227/20260727_001_review_status_rpc.sql",
   import.meta.url,
 );
 const repositoryUrl = new URL(
