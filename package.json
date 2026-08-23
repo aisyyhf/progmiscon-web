@@ -10,6 +10,8 @@
     "check:effective-overrides": "node --experimental-strip-types scripts/check-effective-overrides.ts",
     "check:review-source-access": "node --experimental-strip-types scripts/check-review-source-access.ts",
     "check:review-source-snapshot": "node --experimental-strip-types scripts/check-review-source-snapshot.ts",
+    "check:review-v3-contract": "node checks/review-v3-contract-diff.mjs --self-test",
+    "check:review-v3-replay": "node checks/review-v3-replay.mjs",
     "check:question-detail": "node --experimental-strip-types scripts/check-question-detail.ts",
     "check:updated-master-data": "node --experimental-strip-types scripts/check-updated-master-data.ts",
     "check:updated-master-data:live": "node --experimental-strip-types scripts/check-updated-master-data-live.ts",
@@ -33,6 +35,7 @@
     "autoprefixer": "^10.5.2",
     "oxlint": "^1.71.0",
     "postcss": "^8.5.16",
+    "supabase": "2.115.0",
     "tailwindcss": "^4.3.2",
     "typescript": "~6.0.2",
     "vite": "^8.1.1"
