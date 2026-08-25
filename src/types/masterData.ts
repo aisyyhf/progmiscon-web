@@ -65,6 +65,7 @@ export type QuestionRow = {
   order_no: string;
   active: string;
   data_status: string;
+  content_override_updated_at?: string;
 };
 
 export type QuestionTopicRow = {

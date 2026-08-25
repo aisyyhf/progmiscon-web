@@ -250,6 +250,7 @@ export async function getSheetQuestions(): Promise<Question[]> {
 
       return {
         id: questionId,
+        contentUpdatedAt: text(row.content_override_updated_at) || undefined,
         assessmentId: "asm-master",
         categoryId,
         number: text(row.source_no) || questionId,

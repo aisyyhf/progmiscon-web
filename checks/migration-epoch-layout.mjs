@@ -286,17 +286,17 @@ assert.equal(
 const replayReadme = await readFile(replayReadmePath, "utf8");
 assert.match(
   replayReadme,
-  /Admin Edit Soal is separate future work; it is not implemented or authorized/i,
-  "replay documentation must preserve the Admin Edit Soal scope boundary",
+  /Admin Edit Soal Phase 2A is implemented by the strictly post-epoch/i,
+  "replay documentation must identify the post-epoch Admin Edit migration",
 );
 assert.match(
   replayReadme,
-  /PR #48 \/ Admin Edit Soal work remains separate and is not implemented or\s+authorized/i,
-  "replay documentation must preserve the PR #48 scope boundary",
+  /PR #48 remains a read-only historical reference and its pre-epoch migration is\s+not active or reused/i,
+  "replay documentation must preserve the PR #48 rejection boundary",
 );
 assert.match(
   replayReadme,
-  /PR #49 \/ trusted sync \/\s+fingerprint-v3 work remains separate and is not implemented or authorized/i,
+  /PR #49 \/ trusted sync \/ fingerprint-v3 work remains\s+separate and is not implemented or authorized/i,
   "replay documentation must preserve the PR #49 scope boundary",
 );
 

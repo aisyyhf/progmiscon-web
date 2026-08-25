@@ -19,13 +19,18 @@ to `db push`, migration repair, `--include-all`, or a linked project.
 > `preview_master_relation_baselines_v3`, `sync_master_relation_baselines_v3`,
 > Edge v3 changes, or the 176-row cleanup.
 
-Admin Edit Soal is separate future work; it is not implemented or authorized
-by this migration epoch.
+Admin Edit Soal Phase 2A is implemented by the strictly post-epoch
+`20260824000000_admin_question_wording_edit_phase_2a.sql` migration. It is
+included in disposable local replay only; production application remains
+unauthorized until a separate deployment review.
 
-PR #48 / Admin Edit Soal work remains separate and is not implemented or
-authorized by this migration-epoch branch/PR. PR #49 / trusted sync /
-fingerprint-v3 work remains separate and is not implemented or authorized by
-this migration-epoch branch/PR.
+The immutable wording revisions are an edit audit trail, not Review snapshots.
+Because Phase 2A does not add an exact wording fingerprint to Review saves,
+historical prompts for edited questions fail closed as unavailable.
+
+PR #48 remains a read-only historical reference and its pre-epoch migration is
+not active or reused. PR #49 / trusted sync / fingerprint-v3 work remains
+separate and is not implemented or authorized by this branch.
 
 `review-v3-manifest.json` is the sole full-reconstruction order. The runner
 copies archived history, local-only prerequisites, and explicitly allowlisted

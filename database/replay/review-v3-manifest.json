@@ -33,6 +33,11 @@
       "order": 150,
       "path": "supabase/migrations/20260823000000_review_v3_epoch_guard.sql",
       "activeMigration": true
+    },
+    {
+      "order": 160,
+      "path": "supabase/migrations/20260824000000_admin_question_wording_edit_phase_2a.sql",
+      "activeMigration": true
     }
   ]
 }

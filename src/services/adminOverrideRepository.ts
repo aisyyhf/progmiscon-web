@@ -2,6 +2,9 @@ import type {
   AdminReviewConsensusItem,
   MasterBaselineSyncResult,
   MasterData,
+  QuestionWordingAuthorityState,
+  SaveQuestionWordingOverrideInput,
+  SaveQuestionWordingOverrideResult,
 } from "../types";
 import {
   buildConsensusSnapshot,
@@ -39,6 +42,21 @@ type MasterBaselineSyncRow = {
   misconception_count: number;
   synced_at: string;
 };
+
+type QuestionWordingFunctionEnvelope = {
+  data?: unknown;
+  error?: unknown;
+};
+
+export class QuestionWordingRequestError extends Error {
+  readonly code: string;
+
+  constructor(code: string) {
+    super(code);
+    this.name = "QuestionWordingRequestError";
+    this.code = code;
+  }
+}
 
 function adminError(scope: string, error: { message?: string }): Error {
   const detail = error.message?.trim() ?? "";
@@ -202,6 +220,84 @@ export async function syncMasterRelationBaselines(): Promise<MasterBaselineSyncR
     misconceptionCount: row.misconception_count,
     syncedAt: row.synced_at,
   };
+}
+
+async function functionErrorCode(error: unknown): Promise<string> {
+  const context = (error as { context?: unknown } | null)?.context;
+  if (context instanceof Response) {
+    try {
+      const payload = await context.clone().json() as QuestionWordingFunctionEnvelope;
+      if (typeof payload.error === "string") return payload.error;
+    } catch {
+      // The UI receives only the stable fallback code below.
+    }
+  }
+  return "UNEXPECTED_ERROR";
+}
+
+function authorityState(value: unknown): QuestionWordingAuthorityState {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new QuestionWordingRequestError("UNEXPECTED_ERROR");
+  }
+  const row = value as Record<string, unknown>;
+  if (
+    typeof row.questionId !== "string"
+    || typeof row.questionInd !== "string"
+    || typeof row.questionEn !== "string"
+    || typeof row.editable !== "boolean"
+    || (row.readOnlyReason !== null && typeof row.readOnlyReason !== "string")
+    || typeof row.authoritySha256 !== "string"
+    || !/^[0-9a-f]{64}$/.test(row.authoritySha256)
+    || (row.overrideVersion !== null && typeof row.overrideVersion !== "string")
+    || (row.updatedAt !== null && typeof row.updatedAt !== "string")
+  ) throw new QuestionWordingRequestError("UNEXPECTED_ERROR");
+
+  return {
+    questionId: row.questionId,
+    questionInd: row.questionInd,
+    questionEn: row.questionEn,
+    editable: row.editable,
+    readOnlyReason: row.readOnlyReason,
+    authoritySha256: row.authoritySha256,
+    overrideVersion: row.overrideVersion,
+    updatedAt: row.updatedAt,
+  };
+}
+
+async function invokeQuestionWording(
+  body: Record<string, unknown>,
+): Promise<QuestionWordingAuthorityState> {
+  const { data, error } = await supabase.functions.invoke(
+    "admin-question-wording",
+    { body },
+  );
+  if (error) throw new QuestionWordingRequestError(await functionErrorCode(error));
+  const envelope = data as QuestionWordingFunctionEnvelope | null;
+  if (typeof envelope?.error === "string") {
+    throw new QuestionWordingRequestError(envelope.error);
+  }
+  return authorityState(envelope?.data);
+}
+
+export async function loadQuestionWordingAuthority(
+  questionId: string,
+): Promise<QuestionWordingAuthorityState> {
+  return invokeQuestionWording({ action: "load", questionId });
+}
+
+export async function saveQuestionWordingOverride(
+  input: SaveQuestionWordingOverrideInput,
+): Promise<SaveQuestionWordingOverrideResult> {
+  const result = await invokeQuestionWording({
+    action: "save",
+    questionId: input.questionId,
+    expectedAuthoritySha256: input.expectedAuthoritySha256,
+    expectedOverrideVersion: input.expectedOverrideVersion,
+    questionInd: input.questionInd,
+    questionEn: input.questionEn,
+  });
+  invalidateEffectiveMasterData();
+  return result;
 }
 
 export async function saveQuestionContentOverride(

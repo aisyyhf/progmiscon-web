@@ -336,11 +336,11 @@ for (const page of [questionsPage, reviewsPage, exportsPage]) {
 }
 assert.match(
   questionsPage,
-  /Lihat data soal yang sedang digunakan di Progmiscon\./,
+  /Lihat wording saat ini dan edit soal Esai yang aman\./,
 );
 assert.match(
   questionsPage,
-  /View the question data currently used in Progmiscon\./,
+  /View current wording and edit supported Essay questions\./,
 );
 assert.match(reviewsPage, /return `\$\{count\} item review`/);
 assert.match(
@@ -356,11 +356,12 @@ assert.match(filterSelect, /py-2 pl-3 pr-10/);
 assert.match(filterSelect, /pointer-events-none absolute right-3 top-1\/2/);
 assert.match(filterSelect, /<ChevronDown/);
 
-const mountedAdminSources = [questionsPage, reviewsPage, exportsPage].join("\n");
+assert.match(questionsPage, /AdminQuestionWordingEditor/);
+const mountedReadOnlyAdminSources = [reviewsPage, exportsPage].join("\n");
 assert.doesNotMatch(
-  mountedAdminSources,
+  mountedReadOnlyAdminSources,
   /AdminFinalizationPanel|saveQuestionReview|saveAnswerReview|publish|override|supabase\.rpc|\.from\(/i,
-  "mounted Admin MVP pages must remain read-only",
+  "review and export Admin pages must remain read-only",
 );
 
-console.log("Admin read-only MVP checks passed.");
+console.log("Admin Phase 1 read surfaces and Phase 2A question entry checks passed.");

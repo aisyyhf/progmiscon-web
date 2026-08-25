@@ -15,16 +15,21 @@ import { useLecturerAuth } from "../hooks/useLecturerAuth";
 import { useQuestions } from "../hooks/useQuestions";
 import { useAllStudentAnswers } from "../hooks/useStudentAnswers";
 import { useMisconceptions } from "../hooks/useMisconceptions";
-import { getReviewerHistory } from "../services/reviewPersistenceRepository";
+import {
+  getReviewerHistory,
+  getReviewSourceVersions,
+} from "../services/reviewPersistenceRepository";
 import type {
   AnswerReviewHistoryItem,
   Language,
   QuestionReviewHistoryItem,
   ReviewerHistory,
+  ReviewSourceVersions,
 } from "../types";
 import { cn } from "../utils/cn";
 import { t } from "../utils/translation";
 import { misconceptionLabel } from "../utils/misconceptionLabel";
+import { resolveQuestionWordingForReview } from "../utils/reviewWorkspace";
 
 type HistoryMode = "question" | "answer";
 
@@ -191,11 +196,11 @@ function QuestionHistoryCard({
               </span>
             </div>
 
-            {questionPrompt && (
-              <p className="mt-2 line-clamp-2 text-[13px] font-normal leading-6 text-navy-deep">
-                {questionPrompt}
-              </p>
-            )}
+            <p className="mt-2 line-clamp-2 text-[13px] font-normal leading-6 text-navy-deep">
+              {questionPrompt ?? (language === "id"
+                ? "Wording historis tidak tersedia."
+                : "Historical wording is unavailable.")}
+            </p>
 
             <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
               <span className="flex items-center gap-1.5">
@@ -353,11 +358,11 @@ function AnswerHistoryCard({
               </span>
             </div>
 
-            {questionPrompt && (
-              <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted">
-                {questionPrompt}
-              </p>
-            )}
+            <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted">
+              {questionPrompt ?? (language === "id"
+                ? "Wording historis tidak tersedia."
+                : "Historical wording is unavailable.")}
+            </p>
 
             {answerText && (
               <p className="mt-2 line-clamp-2 rounded-md bg-neutral px-3 py-2 font-mono text-xs leading-5 text-navy-deep">
@@ -475,6 +480,10 @@ export function LecturerReviewHistoryPage() {
 
   const [mode, setMode] = useState<HistoryMode>("question");
   const [history, setHistory] = useState<ReviewerHistory>(emptyHistory);
+  const [sourceVersions, setSourceVersions] = useState<ReviewSourceVersions>({
+    questions: new Map(),
+    answers: new Map(),
+  });
   const [historyLoading, setHistoryLoading] = useState(true);
   const [historyError, setHistoryError] = useState("");
 
@@ -494,11 +503,15 @@ export function LecturerReviewHistoryPage() {
       setHistoryError("");
 
       try {
-        const result = await getReviewerHistory(user.id);
+        const [result, versions] = await Promise.all([
+          getReviewerHistory(user.id),
+          getReviewSourceVersions(),
+        ]);
 
         if (!active) return;
 
         setHistory(result);
+        setSourceVersions(versions);
       } catch (error) {
         if (!active) return;
 
@@ -631,7 +644,20 @@ export function LecturerReviewHistoryPage() {
                   key={review.id}
                   review={review}
                   questionPrompt={
-                    question ? t(question.prompt, language) : undefined
+                    t(
+                      resolveQuestionWordingForReview(
+                        question,
+                        {
+                          questionId: review.questionId,
+                          reviewUpdatedAt: review.updatedAt,
+                          reviewSourceVersion: review.sourceVersion,
+                          currentSourceVersion: sourceVersions.questions.get(
+                            review.questionId,
+                          ),
+                        },
+                      ) ?? { id: "", en: "" },
+                      language,
+                    ) || undefined
                   }
                   typeLabel={
                     question
@@ -676,9 +702,7 @@ export function LecturerReviewHistoryPage() {
               <AnswerHistoryCard
                 key={review.id}
                 review={review}
-                questionPrompt={
-                  question ? t(question.prompt, language) : undefined
-                }
+                  questionPrompt={undefined}
                 answerText={answerText}
                 typeLabel={
                   question

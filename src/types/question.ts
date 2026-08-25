@@ -31,6 +31,7 @@ export type QuestionSampleCase = {
 export type Question = {
   id: string;
   sourceVersion?: string;
+  contentUpdatedAt?: string;
   assessmentId: string;
   categoryId: string;
   number: string;

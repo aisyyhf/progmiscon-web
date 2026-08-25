@@ -1,13 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Search } from "lucide-react";
 import { AdminFilterSelect } from "../components/admin/AdminFilterSelect";
+import { AdminQuestionWordingEditor } from "../components/admin/AdminQuestionWordingEditor";
 import { EmptyState } from "../components/common/EmptyState";
 import { QuestionContent } from "../components/review/QuestionContent";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { useLanguage } from "../hooks/useLanguage";
 import { getMisconceptions } from "../services/misconceptionRepository";
 import { getQuestions } from "../services/questionRepository";
-import type { Misconception, Question } from "../types";
+import type {
+  Misconception,
+  Question,
+  SaveQuestionWordingOverrideResult,
+} from "../types";
 import {
   filterMaterialQuestions,
   getMaterialPaginationItems,
@@ -18,13 +23,51 @@ import {
 import { t } from "../utils/translation";
 
 const PAGE_SIZE = 10;
-const emptyData: [Question[], Misconception[]] = [[], []];
+const emptyData: [Question[], Misconception[]] = [
+  [],
+  [],
+];
+
+function applySavedWording(
+  question: Question,
+  saved: SaveQuestionWordingOverrideResult | undefined,
+): Question {
+  if (!saved) return question;
+  const id = saved.questionInd.trim() || saved.questionEn.trim();
+  const en = saved.questionEn.trim() || id;
+  const replaceTextBlock = (
+    blocks: NonNullable<Question["contentBlocks"]>["id"],
+    content: string,
+  ) => blocks.length === 1 && blocks[0].type === "text"
+    ? [{ ...blocks[0], content }]
+    : blocks;
+
+  return {
+    ...question,
+    questionInd: saved.questionInd,
+    questionEn: saved.questionEn,
+    prompt: { id, en },
+    contentUpdatedAt: saved.updatedAt ?? undefined,
+    contentBlocks: question.contentBlocks
+      ? {
+          id: replaceTextBlock(question.contentBlocks.id, saved.questionInd),
+          en: replaceTextBlock(question.contentBlocks.en, saved.questionEn),
+        }
+      : question.contentBlocks,
+  };
+}
 
 export function AdminQuestionsPage() {
   const { language } = useLanguage();
   const isIndonesian = language === "id";
   const { data, loading, error } = useAsyncData(
-    () => Promise.all([getQuestions(), getMisconceptions()]),
+    async () => {
+      const [questions, misconceptions] = await Promise.all([
+        getQuestions(),
+        getMisconceptions(),
+      ]);
+      return [questions, misconceptions] as const;
+    },
     [],
     emptyData,
   );
@@ -34,14 +77,24 @@ export function AdminQuestionsPage() {
   const [type, setType] = useState<MaterialQuestionTypeFilter>("all");
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [savedQuestionId, setSavedQuestionId] = useState<string | null>(null);
+  const [savedWording, setSavedWording] = useState(
+    () => new Map<string, SaveQuestionWordingOverrideResult>(),
+  );
+
+  const effectiveQuestions = useMemo(
+    () => questions.map((question) =>
+      applySavedWording(question, savedWording.get(question.id))),
+    [questions, savedWording],
+  );
 
   const weekOptions = useMemo(
-    () => getMaterialWeekOptions(questions),
-    [questions],
+    () => getMaterialWeekOptions(effectiveQuestions),
+    [effectiveQuestions],
   );
   const filteredQuestions = useMemo(
-    () => filterMaterialQuestions(questions, { searchQuery, week, type }),
-    [questions, searchQuery, type, week],
+    () => filterMaterialQuestions(effectiveQuestions, { searchQuery, week, type }),
+    [effectiveQuestions, searchQuery, type, week],
   );
   const pageCount = Math.max(1, Math.ceil(filteredQuestions.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount);
@@ -53,6 +106,14 @@ export function AdminQuestionsPage() {
     () => new Map(misconceptions.map((item) => [item.id, item])),
     [misconceptions],
   );
+  const handleSaved = (result: SaveQuestionWordingOverrideResult) => {
+    setSavedWording((current) => {
+      const next = new Map(current);
+      next.set(result.questionId, result);
+      return next;
+    });
+    setSavedQuestionId(result.questionId);
+  };
 
   useEffect(() => {
     setPage(1);
@@ -89,10 +150,18 @@ export function AdminQuestionsPage() {
         </h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
           {isIndonesian
-            ? "Lihat data soal yang sedang digunakan di Progmiscon."
-            : "View the question data currently used in Progmiscon."}
+            ? "Lihat wording saat ini dan edit soal Esai yang aman. Tipe, struktur jawaban, dan relasi tetap terkunci."
+            : "View current wording and edit supported Essay questions. Types, answer structure, and relations stay locked."}
         </p>
       </header>
+
+      {savedQuestionId && (
+        <p role="status" className="mt-4 rounded-md bg-correct-bg px-3 py-2 text-xs leading-5 text-correct">
+          {isIndonesian
+            ? `Wording ${savedQuestionId} berhasil disimpan.`
+            : `${savedQuestionId} wording was saved.`}
+        </p>
+      )}
 
       <div className="grid gap-3 py-5 sm:grid-cols-2 lg:grid-cols-[minmax(260px,1fr)_180px_180px]">
         <label className="relative block sm:col-span-2 lg:col-span-1">
@@ -123,8 +192,8 @@ export function AdminQuestionsPage() {
           onChange={(event) => setType(event.target.value as MaterialQuestionTypeFilter)}
         >
           <option value="all">{isIndonesian ? "Semua tipe" : "All types"}</option>
-          <option value="ps">PS</option>
-          <option value="mp">MP</option>
+          <option value="ps">{isIndonesian ? "Esai (PS)" : "Essay (PS)"}</option>
+          <option value="mp">{isIndonesian ? "Pilihan Ganda (MP)" : "Multiple Choice (MP)"}</option>
         </AdminFilterSelect>
       </div>
 
@@ -211,6 +280,12 @@ export function AdminQuestionsPage() {
                         ) : <p className="mt-2 text-xs text-muted">{isIndonesian ? "Belum tersedia." : "Not available."}</p>}
                       </section>
                     </div>
+
+                    <AdminQuestionWordingEditor
+                      question={question}
+                      language={language}
+                      onSaved={handleSaved}
+                    />
                   </div>
                 )}
               </article>

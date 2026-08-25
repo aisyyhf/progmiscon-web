@@ -33,6 +33,8 @@ const manifestPath = join(
 const fixturePath = "database/replay/fixtures/pre-v3-reviews.sql";
 const prerequisitePath =
   "database/replay/review-v3-legacy-prerequisite.sql";
+const epochGuardPath =
+  "supabase/migrations/20260823000000_review_v3_epoch_guard.sql";
 const localEnvironment = Object.fromEntries(
   Object.entries(process.env).filter(
     ([name]) =>
@@ -387,6 +389,106 @@ async function runSqlFile(workdir, path) {
   await psql(workdir, sql);
 }
 
+async function runConcurrentFirstWordingSave(workdir) {
+  await psql(workdir, `
+begin;
+set local session_replication_role = replica;
+insert into auth.users
+  (id, email, raw_app_meta_data, raw_user_meta_data, created_at, updated_at)
+values
+  ('00000000-0000-4000-8000-000000000099', 'concurrent@example.invalid', '{}', '{}', now(), now());
+insert into public.lecturer_profiles
+  (user_id, email, full_name, active, created_at, updated_at)
+values
+  ('00000000-0000-4000-8000-000000000099', 'concurrent@example.invalid', 'Concurrent Admin', true, now(), now());
+insert into public.lecturer_allowlist (email, full_name, active, is_admin)
+values ('concurrent@example.invalid', 'Concurrent Admin', true, true);
+commit;
+`);
+
+  const first = psql(workdir, `
+begin;
+set local role service_role;
+select pg_advisory_xact_lock(
+  hashtextextended('admin_question_wording:Q998', 0)
+);
+select pg_sleep(3);
+select * from public.admin_save_question_wording_override_v1(
+  '00000000-0000-4000-8000-000000000099', 'Q998', null,
+  repeat('f', 64), 'concurrent-1',
+  'Trusted concurrent Indonesian', 'Trusted concurrent English',
+  'Winning concurrent Indonesian', 'Winning concurrent English'
+);
+select pg_sleep(2);
+commit;
+`, { allowFailure: true });
+
+  let lockObserved = false;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    const result = await psql(workdir, `
+select case
+  when pg_try_advisory_lock(hashtextextended('admin_question_wording:Q998', 0))
+    then 'free'
+  else 'held'
+end;
+select pg_sleep(0.05);
+`);
+    if (result.stdout.split(/\s+/).includes("held")) {
+      lockObserved = true;
+      break;
+    }
+  }
+  if (!lockObserved) {
+    await first;
+    throw new Error("Concurrent first-save probe did not observe the question lock.");
+  }
+
+  const second = psql(workdir, `
+begin;
+set local role service_role;
+select * from public.admin_save_question_wording_override_v1(
+  '00000000-0000-4000-8000-000000000099', 'Q998', null,
+  repeat('f', 64), 'concurrent-1',
+  'Trusted concurrent Indonesian', 'Trusted concurrent English',
+  'Losing concurrent Indonesian', 'Losing concurrent English'
+);
+commit;
+`, { allowFailure: true });
+
+  const [firstResult, secondResult] = await Promise.all([first, second]);
+  if (
+    firstResult.code !== 0 ||
+    secondResult.code === 0 ||
+    !secondResult.stderr.includes("QUESTION_OVERRIDE_STALE")
+  ) {
+    throw new Error("Concurrent first-save probe did not produce one winner and one stale loser.");
+  }
+
+  const invariant = await psql(workdir, `
+select (
+  exists (
+    select 1 from public.question_content_overrides
+    where question_id = 'Q998'
+      and question_ind = 'Winning concurrent Indonesian'
+      and question_en = 'Winning concurrent English'
+  )
+  and exists (
+    select 1 from public.question_wording_revisions
+    where question_id = 'Q998'
+      and previous_question_ind = 'Trusted concurrent Indonesian'
+      and previous_question_en = 'Trusted concurrent English'
+      and new_question_ind = 'Winning concurrent Indonesian'
+      and new_question_en = 'Winning concurrent English'
+  )
+  and (select count(*) from public.question_wording_revisions
+       where question_id = 'Q998') = 1
+);
+`);
+  if (invariant.stdout.trim() !== "t") {
+    throw new Error("Concurrent first-save probe left an invalid override or revision state.");
+  }
+}
+
 async function exportContracts(workdir) {
   const outputDirectory = join(workdir.root, "contracts");
   await mkdir(outputDirectory, { recursive: true });
@@ -443,6 +545,7 @@ async function runPositiveScenario(entries, scenario) {
       await runSqlFile(workdir, "database/replay/assert-legacy-backfill.sql");
     } else {
       await runSqlFile(workdir, "database/replay/review-v3-behavior.sql");
+      await runConcurrentFirstWordingSave(workdir);
     }
     console.log(`Review-v3 ${scenario} local replay passed.`);
   } finally {
@@ -509,10 +612,12 @@ async function runNegativeCases(entries) {
 }
 
 async function runEpochGuardNegativeCases(entries) {
-  const guard = entries.find((entry) => entry.activeMigration === true);
+  const activeEntries = entries.filter((entry) => entry.activeMigration === true);
+  const guard = activeEntries.find((entry) => entry.path === epochGuardPath);
   if (!guard) throw new Error("Epoch guard is not declared in the replay manifest.");
+  const activePaths = new Set(activeEntries.map((entry) => entry.path));
   const foundation = selectedManifestSources(entries, "empty").filter(
-    (path) => path !== guard.path,
+    (path) => !activePaths.has(path),
   );
   const guardSql = await readFile(resolve(repositoryRoot, guard.path), "utf8");
   let workdir;
@@ -542,14 +647,17 @@ async function runEpochGuardNegativeCases(entries) {
 
 async function runAbsentLedgerRehearsal(entries) {
   const activeEntries = entries.filter((entry) => entry.activeMigration === true);
-  if (activeEntries.length !== 1) {
+  if (activeEntries.length === 0) {
     throw new Error(
-      `Absent-ledger rehearsal requires one currently approved epoch migration; found ${activeEntries.length}.`,
+      "Absent-ledger rehearsal requires at least one active migration.",
     );
   }
-  const guard = activeEntries[0];
+  if (activeEntries[0].path !== epochGuardPath) {
+    throw new Error("The epoch guard must be the first active migration.");
+  }
+  const activePaths = new Set(activeEntries.map((entry) => entry.path));
   const foundation = selectedManifestSources(entries, "empty").filter(
-    (path) => path !== guard.path,
+    (path) => !activePaths.has(path),
   );
   let workdir;
   try {
@@ -568,7 +676,9 @@ async function runAbsentLedgerRehearsal(entries) {
       throw new Error("Absent-ledger rehearsal could not prove the migration ledger was absent.");
     }
 
-    await stageSources(workdir, [guard.path], { preserveBasenames: true });
+    await stageSources(workdir, activeEntries.map((entry) => entry.path), {
+      preserveBasenames: true,
+    });
     await pushOnlyApprovedLocalEpoch(workdir);
 
     const ledger = await psql(
@@ -576,17 +686,17 @@ async function runAbsentLedgerRehearsal(entries) {
       "select version || '|' || name from supabase_migrations.schema_migrations order by version;\n",
     );
     const ledgerRows = ledger.stdout.trim().split(/\r?\n/).filter(Boolean);
-    if (
-      ledgerRows.length !== 1 ||
-      ledgerRows[0] !== "20260823000000|review_v3_epoch_guard"
-    ) {
+    const expectedLedgerRows = activeEntries.map((entry) =>
+      basename(entry.path, ".sql").replace("_", "|"),
+    );
+    if (JSON.stringify(ledgerRows) !== JSON.stringify(expectedLedgerRows)) {
       throw new Error(
         `Absent-ledger rehearsal found an unexpected migration set: ${JSON.stringify(ledgerRows)}`,
       );
     }
     await exportContracts(workdir);
     console.log(
-      "Absent-ledger local epoch rehearsal passed: only the guard was discovered and recorded.",
+      `Absent-ledger local epoch rehearsal passed: ${ledgerRows.length} active migrations were discovered and recorded in order.`,
     );
   } finally {
     await cleanup(workdir);
@@ -594,10 +704,18 @@ async function runAbsentLedgerRehearsal(entries) {
 }
 
 const options = process.argv.slice(2);
-if (options.some((option) => option !== "--epoch-negative-only")) {
+const supportedOptions = new Set([
+  "--epoch-negative-only",
+  "--positive-empty-only",
+]);
+if (
+  options.length > 1
+  || options.some((option) => !supportedOptions.has(option))
+) {
   throw new Error(`Unknown replay option: ${options.join(" ")}`);
 }
 const epochNegativeOnly = options.includes("--epoch-negative-only");
+const positiveEmptyOnly = options.includes("--positive-empty-only");
 
 await runCommand(process.execPath, [
   join(repositoryRoot, "checks", "migration-epoch-layout.mjs"),
@@ -607,6 +725,9 @@ const entries = await loadManifest();
 if (epochNegativeOnly) {
   await runEpochGuardNegativeCases(entries);
   console.log("Migration epoch guard targeted negative suite passed.");
+} else if (positiveEmptyOnly) {
+  await runPositiveScenario(entries, "empty");
+  console.log("Review-v3 targeted empty replay passed.");
 } else {
   await runPositiveScenario(entries, "empty");
   await runPositiveScenario(entries, "legacy-data");

@@ -6,7 +6,21 @@ import type {
 import type { PublishedMasterOverrides } from "../types/effectiveOverrides";
 import type { QuestionMisconceptionProvenance } from "../types/question";
 import { isActiveValue } from "./masterDataValidation.ts";
+import { parseContentBlocks } from "./masterDataContent.ts";
 import { normalizeAnswerRole } from "./questionMetadata.ts";
+
+export function replaceSingleTextContentBlock(
+  raw: string | undefined,
+  wording: string | null,
+): string | undefined {
+  if (!raw?.trim() || wording === null) return raw;
+  const parsed = parseContentBlocks(raw);
+  return !parsed.error
+    && parsed.blocks.length === 1
+    && parsed.blocks[0].type === "text"
+    ? JSON.stringify([{ type: "text", content: wording }])
+    : raw;
+}
 
 export function normalizeEffectiveIds(ids: readonly string[]): string[] {
   return [...new Set(ids.map((id) => id.trim()).filter(Boolean))].sort(
@@ -278,8 +292,15 @@ export function applyPublishedMasterOverrides(
         question_ind: override.question_ind ?? row.question_ind,
         question_en: override.question_en ?? row.question_en,
         question_code: override.question_code ?? row.question_code,
-        content_blocks_ind: "",
-        content_blocks_en: "",
+        content_blocks_ind: replaceSingleTextContentBlock(
+          row.content_blocks_ind,
+          override.question_ind,
+        ),
+        content_blocks_en: replaceSingleTextContentBlock(
+          row.content_blocks_en,
+          override.question_en,
+        ),
+        content_override_updated_at: override.updated_at,
       };
     }),
     answers: baseline.answers.map((row) => {

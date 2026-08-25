@@ -15,6 +15,12 @@ values
   ('00000000-0000-4000-8000-000000000012', 'behavior2@example.invalid', 'Behavior Reviewer Two', true, now(), now()),
   ('00000000-0000-4000-8000-000000000013', 'behavior3@example.invalid', 'Behavior Reviewer Three', true, now(), now()),
   ('00000000-0000-4000-8000-000000000014', 'behavior4@example.invalid', 'Behavior Reviewer Four', true, now(), now());
+insert into public.lecturer_allowlist (email, full_name, active, is_admin)
+values
+  ('behavior1@example.invalid', 'Behavior Reviewer One', true, true),
+  ('behavior2@example.invalid', 'Behavior Reviewer Two', true, false),
+  ('behavior3@example.invalid', 'Behavior Reviewer Three', true, true),
+  ('behavior4@example.invalid', 'Behavior Reviewer Four', false, true);
 set local session_replication_role = origin;
 
 insert into public.master_misconception_catalog
@@ -33,6 +39,21 @@ insert into public.answer_misconception_baselines
 values
   ('A-BEH-001', 'Q-BEH-001', array['M-BEH-001'], null, now(),
    '40000000-0000-4000-8000-000000000002', null);
+
+insert into public.question_content_overrides (
+  question_id,
+  question_ind,
+  question_en,
+  question_code,
+  updated_by
+)
+values (
+  'Q-BEH-001',
+  'Original Indonesian wording',
+  'Original English wording',
+  'DO NOT CHANGE',
+  '00000000-0000-4000-8000-000000000011'
+);
 
 select set_config('request.jwt.claim.role', 'authenticated', false);
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', false);
@@ -157,6 +178,374 @@ begin
   end if;
 end;
 $consensus$;
+
+do $wording_permissions$
+declare
+  browser_role text;
+  protected_table text;
+  mutation text;
+begin
+  if pg_catalog.has_function_privilege(
+      'authenticated',
+      'public.admin_save_question_wording_override_v1(uuid,text,uuid,text,text,text,text,text,text)',
+      'EXECUTE'
+    )
+    or pg_catalog.has_function_privilege(
+      'authenticated',
+      'public.admin_question_wording_actor_is_authorized_v1(uuid)',
+      'EXECUTE'
+    )
+    or not pg_catalog.has_function_privilege(
+      'service_role',
+      'public.admin_save_question_wording_override_v1(uuid,text,uuid,text,text,text,text,text,text)',
+      'EXECUTE'
+    )
+    or pg_catalog.has_function_privilege(
+      'authenticated',
+      'public.save_question_content_override(text,text,text,text)',
+      'EXECUTE'
+    )
+    or pg_catalog.has_function_privilege(
+      'authenticated',
+      'public.reset_question_content_override(text)',
+      'EXECUTE'
+    )
+    or pg_catalog.has_table_privilege(
+      'service_role',
+      'public.question_wording_revisions',
+      'SELECT'
+    )
+  then
+    raise exception 'QUESTION_WORDING_PRIVILEGE_FAILED';
+  end if;
+
+  foreach browser_role in array array['anon', 'authenticated'] loop
+    foreach protected_table in array array[
+      'public.question_content_overrides',
+      'public.question_wording_revisions'
+    ] loop
+      foreach mutation in array array['INSERT', 'UPDATE', 'DELETE'] loop
+        if pg_catalog.has_table_privilege(
+          browser_role,
+          protected_table,
+          mutation
+        ) then
+          raise exception 'QUESTION_WORDING_DIRECT_DML_EXPOSED';
+        end if;
+      end loop;
+    end loop;
+  end loop;
+end;
+$wording_permissions$;
+
+do $wording_authorization_states$
+begin
+  update public.lecturer_profiles
+  set active = false
+  where user_id = '00000000-0000-4000-8000-000000000013';
+
+  if not public.admin_question_wording_actor_is_authorized_v1(
+      '00000000-0000-4000-8000-000000000011'
+    )
+    or public.admin_question_wording_actor_is_authorized_v1(
+      '00000000-0000-4000-8000-000000000012'
+    )
+    or public.admin_question_wording_actor_is_authorized_v1(
+      '00000000-0000-4000-8000-000000000013'
+    )
+    or public.admin_question_wording_actor_is_authorized_v1(
+      '00000000-0000-4000-8000-000000000014'
+    )
+  then
+    raise exception 'QUESTION_WORDING_AUTHORIZATION_STATES_FAILED';
+  end if;
+
+  update public.lecturer_profiles
+  set active = true
+  where user_id = '00000000-0000-4000-8000-000000000013';
+end;
+$wording_authorization_states$;
+
+set role service_role;
+do $wording_non_admin$
+declare
+  current_version uuid;
+begin
+  select content_version into current_version
+  from public.question_content_overrides
+  where question_id = 'Q-BEH-001';
+  begin
+    perform public.admin_save_question_wording_override_v1(
+      '00000000-0000-4000-8000-000000000012',
+      'Q-BEH-001',
+      current_version,
+      repeat('a', 64),
+      '169',
+      'Trusted Indonesian wording',
+      'Trusted English wording',
+      'Forged Indonesian wording',
+      'Forged English wording'
+    );
+    raise exception 'EXPECTED_ADMIN_ACCESS_REQUIRED';
+  exception
+    when sqlstate 'P0001' then
+      if sqlerrm <> 'ADMIN_ACCESS_REQUIRED' then raise; end if;
+  end;
+end;
+$wording_non_admin$;
+
+do $wording_admin$
+declare
+  original_version uuid;
+  edited_version uuid;
+begin
+  select content_version into original_version
+  from public.question_content_overrides
+  where question_id = 'Q-BEH-001';
+
+  perform public.admin_save_question_wording_override_v1(
+    '00000000-0000-4000-8000-000000000011',
+    'Q-BEH-001',
+    original_version,
+    repeat('b', 64),
+    '169',
+    'Trusted Indonesian wording',
+    'Trusted English wording',
+    'Edited Indonesian wording',
+    'Edited English wording'
+  );
+
+  select content_version into edited_version
+  from public.question_content_overrides
+  where question_id = 'Q-BEH-001';
+  if edited_version = original_version then
+    raise exception 'CONTENT_VERSION_DID_NOT_ROTATE';
+  end if;
+
+  begin
+    perform public.admin_save_question_wording_override_v1(
+      '00000000-0000-4000-8000-000000000011',
+      'Q-BEH-001',
+      original_version,
+      repeat('b', 64),
+      '169',
+      'Trusted Indonesian wording',
+      'Trusted English wording',
+      'Stale Indonesian wording',
+      'Stale English wording'
+    );
+    raise exception 'EXPECTED_QUESTION_OVERRIDE_STALE';
+  exception
+    when sqlstate 'P0001' then
+      if sqlerrm <> 'QUESTION_OVERRIDE_STALE' then raise; end if;
+  end;
+
+  begin
+    perform public.admin_save_question_wording_override_v1(
+      '00000000-0000-4000-8000-000000000011',
+      'Q-BEH-001',
+      edited_version,
+      repeat('b', 64),
+      '169',
+      'Trusted Indonesian wording',
+      'Trusted English wording',
+      'Edited Indonesian wording',
+      'Edited English wording'
+    );
+    raise exception 'EXPECTED_QUESTION_WORDING_UNCHANGED';
+  exception
+    when sqlstate 'P0001' then
+      if sqlerrm <> 'QUESTION_WORDING_UNCHANGED' then raise; end if;
+  end;
+
+  begin
+    perform public.admin_save_question_wording_override_v1(
+      '00000000-0000-4000-8000-000000000011',
+      'Q-BEH-001',
+      edited_version,
+      repeat('b', 64),
+      '169',
+      'Trusted Indonesian wording',
+      'Trusted English wording',
+      '',
+      'English only'
+    );
+    raise exception 'EXPECTED_INVALID_QUESTION_WORDING';
+  exception
+    when sqlstate '22023' then
+      if sqlerrm <> 'INVALID_QUESTION_WORDING' then raise; end if;
+  end;
+end;
+$wording_admin$;
+reset role;
+
+set role service_role;
+do $wording_first_override$
+declare
+  first_version uuid;
+begin
+  perform public.admin_save_question_wording_override_v1(
+    '00000000-0000-4000-8000-000000000011',
+    'Q-BEH-FIRST',
+    null,
+    repeat('d', 64),
+    '169',
+    'Trusted baseline Indonesian',
+    'Trusted baseline English',
+    'First override Indonesian',
+    'First override English'
+  );
+
+  select content_version into first_version
+  from public.question_content_overrides
+  where question_id = 'Q-BEH-FIRST';
+
+  begin
+    perform public.admin_save_question_wording_override_v1(
+      '00000000-0000-4000-8000-000000000011',
+      'Q-BEH-FIRST',
+      null,
+      repeat('d', 64),
+      '169',
+      'Trusted baseline Indonesian',
+      'Trusted baseline English',
+      'Competing Indonesian',
+      'Competing English'
+    );
+    raise exception 'EXPECTED_COMPETING_FIRST_SAVE_STALE';
+  exception
+    when sqlstate 'P0001' then
+      if sqlerrm <> 'QUESTION_OVERRIDE_STALE' then raise; end if;
+  end;
+
+  perform public.admin_save_question_wording_override_v1(
+    '00000000-0000-4000-8000-000000000011',
+    'Q-BEH-FIRST',
+    first_version,
+    repeat('e', 64),
+    '170',
+    'Ignored newer trusted Indonesian',
+    'Ignored newer trusted English',
+    'Second override Indonesian',
+    'Second override English'
+  );
+
+end;
+$wording_first_override$;
+reset role;
+
+do $wording_first_override_audit$
+begin
+  if not exists (
+      select 1 from public.question_wording_revisions
+      where question_id = 'Q-BEH-FIRST'
+        and previous_question_ind = 'Trusted baseline Indonesian'
+        and previous_question_en = 'Trusted baseline English'
+        and new_question_ind = 'First override Indonesian'
+        and new_question_en = 'First override English'
+    )
+    or not exists (
+      select 1 from public.question_wording_revisions
+      where question_id = 'Q-BEH-FIRST'
+        and previous_question_ind = 'First override Indonesian'
+        and previous_question_en = 'First override English'
+        and new_question_ind = 'Second override Indonesian'
+        and new_question_en = 'Second override English'
+    )
+    or (select count(*) from public.question_wording_revisions
+        where question_id = 'Q-BEH-FIRST') <> 2
+  then
+    raise exception 'QUESTION_WORDING_FIRST_OVERRIDE_AUDIT_FAILED';
+  end if;
+end;
+$wording_first_override_audit$;
+
+create function pg_temp.reject_behavior_revision_insert()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.new_question_ind = 'ROLLBACK TEST' then
+    raise exception 'BEHAVIOR_REVISION_INSERT_FAILED';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger behavior_revision_insert_failure
+before insert on public.question_wording_revisions
+for each row execute function pg_temp.reject_behavior_revision_insert();
+
+set role service_role;
+do $wording_revision_rollback$
+declare
+  expected_version uuid;
+begin
+  select content_version into expected_version
+  from public.question_content_overrides
+  where question_id = 'Q-BEH-001';
+  begin
+    perform public.admin_save_question_wording_override_v1(
+      '00000000-0000-4000-8000-000000000011',
+      'Q-BEH-001',
+      expected_version,
+      repeat('c', 64),
+      '169',
+      'Trusted Indonesian wording',
+      'Trusted English wording',
+      'ROLLBACK TEST',
+      'ROLLBACK TEST'
+    );
+    raise exception 'EXPECTED_REVISION_INSERT_FAILURE';
+  exception
+    when others then
+      if sqlerrm <> 'BEHAVIOR_REVISION_INSERT_FAILED' then raise; end if;
+  end;
+end;
+$wording_revision_rollback$;
+reset role;
+
+drop trigger behavior_revision_insert_failure on public.question_wording_revisions;
+
+do $wording_revision_immutable$
+begin
+  begin
+    update public.question_wording_revisions
+    set new_question_ind = 'Mutated audit';
+    raise exception 'EXPECTED_REVISION_IMMUTABLE';
+  exception
+    when sqlstate '55000' then
+      if sqlerrm <> 'QUESTION_WORDING_REVISION_IMMUTABLE' then raise; end if;
+  end;
+end;
+$wording_revision_immutable$;
+
+do $wording_invariants$
+begin
+  if (select source_version from public.question_misconception_baselines
+      where question_id = 'Q-BEH-001')
+      is distinct from '40000000-0000-4000-8000-000000000001'::uuid
+    or (select count(*) from public.question_reviews
+      where question_id = 'Q-BEH-001'
+        and source_version = '40000000-0000-4000-8000-000000000001'
+        and is_active) <> 3
+    or not exists (
+      select 1
+      from public.question_content_overrides
+      where question_id = 'Q-BEH-001'
+        and question_ind = 'Edited Indonesian wording'
+        and question_en = 'Edited English wording'
+        and question_code = 'DO NOT CHANGE'
+    )
+    or (select count(*) from public.question_wording_revisions
+      where question_id = 'Q-BEH-001'
+        and authority_sha256 = repeat('b', 64)
+        and google_drive_version = '169') <> 1
+  then
+    raise exception 'QUESTION_WORDING_INVARIANT_FAILED';
+  end if;
+end;
+$wording_invariants$;
 
 select set_config('request.jwt.claim.sub', '00000000-0000-4000-8000-000000000011', false);
 set role authenticated;

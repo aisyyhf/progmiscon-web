@@ -1,0 +1,4 @@
+project_id = "progmiscon-web"
+
+[functions.admin-question-wording]
+verify_jwt = true

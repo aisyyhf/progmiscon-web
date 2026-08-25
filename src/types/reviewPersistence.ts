@@ -38,6 +38,27 @@ export type AnswerReviewCount = {
   latestUpdatedAt: string | null;
 };
 
+export type QuestionWordingAuthorityState = {
+  questionId: string;
+  questionInd: string;
+  questionEn: string;
+  editable: boolean;
+  readOnlyReason: string | null;
+  authoritySha256: string;
+  overrideVersion: string | null;
+  updatedAt: string | null;
+};
+
+export type SaveQuestionWordingOverrideInput = {
+  questionId: string;
+  expectedAuthoritySha256: string;
+  expectedOverrideVersion: string | null;
+  questionInd: string;
+  questionEn: string;
+};
+
+export type SaveQuestionWordingOverrideResult = QuestionWordingAuthorityState;
+
 export type ReviewSourceVersions = {
   questions: Map<string, string>;
   answers: Map<string, { questionId: string; sourceVersion: string }>;

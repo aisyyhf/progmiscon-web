@@ -1,5 +1,6 @@
 import type {
   AdminReviewConsensusItem,
+  LocalizedText,
   Question,
   QuestionOption,
   ReviewTask,
@@ -319,6 +320,33 @@ export function resolveAnswerSelection(
     missingSelectedOption:
       question.type === "multiple_choice" && option === undefined,
   };
+}
+
+export function resolveQuestionWordingForReview(
+  question: Pick<Question, "id" | "prompt" | "contentUpdatedAt"> | undefined,
+  input: {
+    questionId: string;
+    reviewUpdatedAt: string;
+    reviewSourceVersion?: string;
+    currentSourceVersion?: string;
+  },
+): LocalizedText | undefined {
+  if (!question || question.id !== input.questionId) return undefined;
+  const reviewedAt = Date.parse(input.reviewUpdatedAt);
+  if (!Number.isFinite(reviewedAt)) return undefined;
+
+  if (
+    input.reviewSourceVersion
+    && input.currentSourceVersion !== input.reviewSourceVersion
+  ) return undefined;
+
+  // Phase 2A intentionally does not change Review save RPCs to persist a
+  // wording fingerprint. An edit timestamp therefore cannot prove which
+  // wording an already-open reviewer saw. Fail closed for any edited question;
+  // the immutable revisions are an edit audit trail, not Review snapshots.
+  if (question.contentUpdatedAt) return undefined;
+
+  return question.prompt;
 }
 
 export function stripSelectedOptionPrefix(
