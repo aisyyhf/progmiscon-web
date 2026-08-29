@@ -35,6 +35,11 @@
 
 begin;
 
+-- Create functions before the tables they reference (mirrors the production
+-- schema-dump restore order).
+set check_function_bodies = false;
+set local client_min_messages = warning;
+
 create extension if not exists "pgcrypto" with schema "extensions";
 
 -- ---------------------------------------------------------------------------
@@ -3472,4 +3477,4 @@ execute procedure public.handle_new_lecturer_user();
 commit;
 
 -- Next: apply supabase/migrations/20260823000000_review_v3_epoch_guard.sql to
--- this database. It must complete with no epoch-guard failure.
+-- this database. It must complete with no MIGRATION_EPOCH_GUARD_FAILED.
