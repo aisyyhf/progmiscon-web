@@ -27,6 +27,12 @@ import { reloadBaselineMasterData } from "./masterDataRepository";
 import { getQuestionById, getQuestions } from "./questionRepository";
 import { assertAnswerReviewEligible } from "../utils/reviewWorkspace";
 import { haveSameReviewSourceVersions } from "../utils/reviewSourceVersions";
+import {
+  REVIEW_SESSION_EXPIRED_MESSAGE,
+  ReviewSessionPreparationError,
+  isReviewSessionAuthError,
+  withPreparedReviewSession,
+} from "./reviewSession";
 
 type QuestionReviewHistoryRow = {
   id: string;
@@ -88,6 +94,7 @@ type StorageErrorLike = {
 };
 
 const reviewErrorMessages = {
+  SESSION_EXPIRED: REVIEW_SESSION_EXPIRED_MESSAGE,
   AUTH_REQUIRED: "Sesi lecturer tidak ditemukan. Silakan masuk kembali.",
   LECTURER_INACTIVE: "Akun lecturer ini tidak aktif.",
   QUESTION_NOT_FOUND: "Soal tidak ditemukan atau sudah tidak tersedia.",
@@ -147,6 +154,13 @@ export function isReviewPersistenceError(
 }
 
 function storageError(scope: string, error: StorageErrorLike): Error {
+  if (isReviewSessionAuthError(error)) {
+    return new ReviewPersistenceError(
+      reviewErrorMessages.SESSION_EXPIRED,
+      "SESSION_EXPIRED",
+    );
+  }
+
   const reviewCode = getReviewErrorCode(error);
   if (reviewCode) {
     return new ReviewPersistenceError(
@@ -159,6 +173,22 @@ function storageError(scope: string, error: StorageErrorLike): Error {
   return new ReviewPersistenceError(
     detail ? `${scope} gagal: ${detail}` : `${scope} belum dapat dilakukan.`,
   );
+}
+
+async function runPreparedReviewWrite<T>(
+  write: () => PromiseLike<T>,
+): Promise<T> {
+  try {
+    return await withPreparedReviewSession(supabase.auth, write);
+  } catch (error) {
+    if (error instanceof ReviewSessionPreparationError) {
+      throw new ReviewPersistenceError(
+        reviewErrorMessages.SESSION_EXPIRED,
+        "SESSION_EXPIRED",
+      );
+    }
+    throw error;
+  }
 }
 
 function mapQuestionReviewHistory(
@@ -466,17 +496,19 @@ export async function saveQuestionReview(
   sourceVersion: string,
   values: QuestionReviewValues,
 ): Promise<void> {
-  const { error } = await supabase.rpc("save_question_review_v3", {
-    p_question_id: questionId,
-    p_source_version: sourceVersion,
-    p_has_incorrect_misconceptions: values.hasIncorrectMisconceptions,
-    p_removed_misconception_ids: values.removedMisconceptionIds,
-    p_removal_reason: values.removalReason,
-    p_has_additional_misconceptions: values.hasAdditionalMisconceptions,
-    p_additional_misconception_ids: values.additionalMisconceptionIds,
-    p_addition_reason: values.additionReason,
-    p_note: values.note,
-  });
+  const { error } = await runPreparedReviewWrite(() =>
+    supabase.rpc("save_question_review_v3", {
+      p_question_id: questionId,
+      p_source_version: sourceVersion,
+      p_has_incorrect_misconceptions: values.hasIncorrectMisconceptions,
+      p_removed_misconception_ids: values.removedMisconceptionIds,
+      p_removal_reason: values.removalReason,
+      p_has_additional_misconceptions: values.hasAdditionalMisconceptions,
+      p_additional_misconception_ids: values.additionalMisconceptionIds,
+      p_addition_reason: values.additionReason,
+      p_note: values.note,
+    }),
+  );
 
   if (error) {
     throw storageError("Validasi soal disimpan", error);
@@ -491,22 +523,24 @@ export async function saveAnswerReview(
 ): Promise<void> {
   assertAnswerReviewEligible(await getQuestionById(questionId));
 
-  const { error } = await supabase.rpc("save_answer_review_v3", {
-    p_answer_id: answerId,
-    p_source_version: sourceVersion,
-    p_has_mismatched_misconceptions: values.hasMismatchedMisconceptions,
-    p_removed_misconception_ids: values.removedMisconceptionIds,
-    p_removal_reason: values.removalReason,
-    p_has_additional_misconceptions: values.hasAdditionalMisconceptions,
-    p_additional_misconception_ids: values.additionalMisconceptionIds,
-    p_addition_reason: values.additionReason,
-    p_note: values.note,
-  });
+  const { error } = await runPreparedReviewWrite(() =>
+    supabase.rpc("save_answer_review_v3", {
+      p_answer_id: answerId,
+      p_source_version: sourceVersion,
+      p_has_mismatched_misconceptions: values.hasMismatchedMisconceptions,
+      p_removed_misconception_ids: values.removedMisconceptionIds,
+      p_removal_reason: values.removalReason,
+      p_has_additional_misconceptions: values.hasAdditionalMisconceptions,
+      p_additional_misconception_ids: values.additionalMisconceptionIds,
+      p_addition_reason: values.additionReason,
+      p_note: values.note,
+    }),
+  );
 
   if (error) {
-    console.error("[Progmiscon] Validasi jawaban gagal disimpan", error);
-
-    throw storageError("Validasi jawaban disimpan", error);
+    const mappedError = storageError("Validasi jawaban disimpan", error);
+    console.error("[Progmiscon] Validasi jawaban gagal disimpan", mappedError);
+    throw mappedError;
   }
 }
 

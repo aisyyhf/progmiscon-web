@@ -10,6 +10,7 @@
     "check:effective-overrides": "node --experimental-strip-types scripts/check-effective-overrides.ts",
     "check:review-source-access": "node --experimental-strip-types scripts/check-review-source-access.ts",
     "check:review-source-snapshot": "node --experimental-strip-types scripts/check-review-source-snapshot.ts",
+    "check:review-session-expiry": "node --experimental-strip-types checks/review-session-expiry.mjs",
     "check:review-v3-contract": "node checks/review-v3-contract-diff.mjs --self-test",
     "check:review-v3-replay": "node checks/review-v3-replay.mjs",
     "check:migration-epoch-layout": "node checks/migration-epoch-layout.mjs",

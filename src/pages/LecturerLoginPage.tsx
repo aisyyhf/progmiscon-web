@@ -13,6 +13,10 @@ import { AuthPageLayout } from "../components/auth/AuthPageLayout";
 import { Button } from "../components/common/Button";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLecturerAuth } from "../hooks/useLecturerAuth";
+import {
+  REVIEW_REAUTH_RETURN_PARAM,
+  sanitizeReviewReturnTo,
+} from "../utils/reviewReauthReturn";
 
 export function LecturerLoginPage() {
   const { language } = useLanguage();
@@ -22,12 +26,16 @@ export function LecturerLoginPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const reauthenticate = searchParams.get("reauth") === "1";
+  const safeReturnTo = sanitizeReviewReturnTo(
+    searchParams.get(REVIEW_REAUTH_RETURN_PARAM),
+  );
 
   useEffect(() => {
-    if (!loading && isLecturer) {
+    if (!reauthenticate && !loading && isLecturer) {
       navigate("/dashboard", { replace: true });
     }
-  }, [isLecturer, loading, navigate]);
+  }, [isLecturer, loading, navigate, reauthenticate]);
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -40,7 +48,7 @@ export function LecturerLoginPage() {
 
     try {
       await login(email, password);
-      navigate("/dashboard", { replace: true });
+      navigate(safeReturnTo ?? "/dashboard", { replace: true });
     } catch (loginError) {
       setError(
         loginError instanceof Error

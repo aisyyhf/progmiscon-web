@@ -3,6 +3,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
 } from "react";
 import {
@@ -17,7 +18,8 @@ import {
   TriangleAlert,
   Trash2,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
@@ -56,6 +58,9 @@ import {
   saveAnswerReview,
   saveQuestionReview,
 } from "../services/reviewPersistenceRepository";
+import { hasActiveReviewSession } from "../services/reviewSession";
+import { supabase } from "../services/supabaseClient";
+import { buildReviewReauthPath } from "../utils/reviewReauthReturn";
 import { QuestionContent } from "../components/review/QuestionContent";
 import { PsAnswerEvidenceWorkspace } from "../components/review/PsAnswerEvidenceWorkspace";
 import { QuestionContextAccordion } from "../components/review/AnswerWorkspaceNavigation";
@@ -119,7 +124,14 @@ import {
   isMisconceptionReviewFormDirty,
   misconceptionReviewFormReducer,
   questionReviewFormState,
+  type MisconceptionReviewFormState,
 } from "../utils/reviewMisconceptionForm";
+import {
+  clearReviewSessionDraft,
+  loadReviewSessionDraft,
+  persistReviewSessionDraft,
+  type ReviewSessionDraftIdentity,
+} from "../utils/reviewSessionDraft";
 
 type ReviewFormMode = "review" | "edit" | "view";
 
@@ -127,6 +139,163 @@ type ReviewStepAction = {
   label: string;
   onClick: () => void;
 };
+
+function loadPreservedReviewForm(
+  savedForm: MisconceptionReviewFormState,
+  identity: ReviewSessionDraftIdentity | undefined,
+): MisconceptionReviewFormState {
+  if (!identity || typeof window === "undefined") return savedForm;
+
+  try {
+    return loadReviewSessionDraft(window.sessionStorage, identity) ?? savedForm;
+  } catch {
+    return savedForm;
+  }
+}
+
+function preserveReviewForm(
+  identity: ReviewSessionDraftIdentity | undefined,
+  form: MisconceptionReviewFormState,
+): boolean {
+  if (typeof window === "undefined") return false;
+  // Returns whether the draft is now safely stored; the reducer state stays
+  // intact regardless, but callers use this to decide if an unsaved-change
+  // warning is still warranted.
+  return persistReviewSessionDraft(window.sessionStorage, identity, form);
+}
+
+function clearPreservedReviewForm(
+  identity: ReviewSessionDraftIdentity | undefined,
+) {
+  if (!identity || typeof window === "undefined") return;
+
+  try {
+    clearReviewSessionDraft(window.sessionStorage, identity);
+  } catch {
+    // A stale temporary draft is scoped to this reviewer and source version.
+  }
+}
+
+function ReviewSubmitError({ message }: { message: string }) {
+  return (
+    <div
+      role="alert"
+      className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2.5 text-xs leading-5 text-incorrect"
+    >
+      <p>{message}</p>
+    </div>
+  );
+}
+
+export function ReviewSessionExpiredDialog({
+  language,
+  onReauthReturn,
+  onBeforeReauth,
+}: {
+  language: Language;
+  onReauthReturn: () => void;
+  onBeforeReauth?: () => void;
+}) {
+  const loginActionRef = useRef<HTMLButtonElement>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    loginActionRef.current?.focus();
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // Reauthentication is required, so keep focus pinned to the only action
+    // and do not let Escape or Tab reach the Review page behind the dialog.
+    const keepFocusContained = (event: KeyboardEvent) => {
+      if (event.key === "Tab" || event.key === "Escape") {
+        event.preventDefault();
+        loginActionRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", keepFocusContained, true);
+
+    // Fallback for a lecturer who reaches login in another tab (e.g. opened the
+    // button with a modifier key): when they come back to this tab, ask Supabase
+    // Auth whether a valid session now exists and only then release the dialog.
+    // Missing/invalid session or any failure keeps the dialog open; the Review
+    // draft and write are never touched here.
+    let cancelled = false;
+    let leftTab = false;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        leftTab = true;
+        return;
+      }
+      if (!leftTab) return;
+      leftTab = false;
+      void hasActiveReviewSession(supabase.auth).then((valid) => {
+        if (!cancelled && valid) onReauthReturn();
+      });
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      document.removeEventListener("keydown", keepFocusContained, true);
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onReauthReturn]);
+
+  const handleBackToLogin = () => {
+    // Flush the in-progress Review form to the browser-local draft before the
+    // same-tab navigation unmounts this page. No Review is submitted here.
+    onBeforeReauth?.();
+    navigate(buildReviewReauthPath(`${location.pathname}${location.search}`));
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex min-h-full items-center justify-center overflow-y-auto p-4">
+      <div
+        className="fixed inset-0 bg-navy-deep/50"
+        aria-hidden="true"
+      />
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="review-session-expired-title"
+        aria-describedby="review-session-expired-body"
+        className="relative w-full max-w-md rounded-lg border border-border bg-white p-6 shadow-xl"
+      >
+        <h2
+          id="review-session-expired-title"
+          className="text-center text-base font-bold uppercase tracking-wide text-navy-deep"
+        >
+          {language === "id" ? "Silakan login kembali" : "Please sign in again"}
+        </h2>
+        <p
+          id="review-session-expired-body"
+          className="mx-auto mt-2 max-w-sm text-center text-[13px] leading-5 text-muted"
+        >
+          {language === "id"
+            ? "Sesi login Anda sudah berakhir. Review yang sudah Anda isi tetap tersimpan. Silakan login kembali untuk melanjutkan review"
+            : "Your sign-in session has ended. The review you have already filled in is still saved. Please sign in again to continue your review"}
+        </p>
+        <button
+          ref={loginActionRef}
+          type="button"
+          onClick={handleBackToLogin}
+          className="mt-5 inline-flex min-h-10 w-full items-center justify-center rounded-md border border-brand bg-brand px-4 font-semibold text-white shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-brand-deep hover:bg-brand-deep hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          {language === "id"
+            ? "Kembali ke Halaman Login"
+            : "Back to the login page"}
+        </button>
+      </section>
+    </div>,
+    document.body,
+  );
+}
 
 function ReviewStepNavigation({
   previous,
@@ -1799,6 +1968,7 @@ export function QuestionValidationWorkspace({
   onSubmit: (values: QuestionReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
+  const { user } = useLecturerAuth();
   const questionTitle =
     t(question.title, language).trim() ||
     `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
@@ -1824,9 +1994,24 @@ export function QuestionValidationWorkspace({
     () => questionReviewFormState(submittedReview),
     [submittedReview],
   );
+  const draftIdentity = useMemo<ReviewSessionDraftIdentity | undefined>(() => {
+    const sourceVersion = question.sourceVersion?.trim();
+    if (!user?.id || !sourceVersion) return undefined;
+
+    return {
+      reviewerId: user.id,
+      targetType: "question",
+      targetId: question.id,
+      sourceVersion,
+    };
+  }, [question.id, question.sourceVersion, user?.id]);
+  const initialForm = useMemo(
+    () => loadPreservedReviewForm(savedForm, draftIdentity),
+    [draftIdentity, savedForm],
+  );
   const [form, dispatchForm] = useReducer(
     misconceptionReviewFormReducer,
-    savedForm,
+    initialForm,
   );
   const {
     removalChoice: hasIncorrectMisconceptions,
@@ -1839,6 +2024,13 @@ export function QuestionValidationWorkspace({
   } = form;
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const dismissSessionExpiredDialog = useCallback(() => {
+    // A valid session is confirmed: drop every trace of the expiry UI so the
+    // restored draft is all that remains.
+    setSessionExpired(false);
+    setSubmitError("");
+  }, []);
   const [validationAttempted, setValidationAttempted] = useState(false);
   const formDirty = isMisconceptionReviewFormDirty(form, savedForm);
   const formUnavailable = mode === "view" || locked || progressUnavailable;
@@ -1847,13 +2039,31 @@ export function QuestionValidationWorkspace({
     : {};
 
   useEffect(() => {
-    onDirtyChange?.(formDirty);
-  }, [formDirty, onDirtyChange]);
-
-  useEffect(() => {
-    dispatchForm({ type: "replace", value: savedForm });
+    if (!draftIdentity) return;
+    dispatchForm({
+      type: "replace",
+      value: loadPreservedReviewForm(savedForm, draftIdentity),
+    });
     setValidationAttempted(false);
-  }, [savedForm]);
+    setSubmitError("");
+    setSessionExpired(false);
+  }, [draftIdentity, savedForm]);
+
+  // Browser-local autosave + unsaved-change signal. Whenever the reviewer
+  // changes the form we synchronously persist the full reducer state to the
+  // scoped sessionStorage draft. The review is reported as "unsaved" (which
+  // drives the reload / internal-navigation warnings) only when that local
+  // persistence fails, so a safely stored draft never nags the reviewer. This
+  // never contacts Supabase and never counts as a submitted Review.
+  useEffect(() => {
+    if (!formDirty) {
+      onDirtyChange?.(false);
+      return () => onDirtyChange?.(false);
+    }
+    const preserved = preserveReviewForm(draftIdentity, form);
+    onDirtyChange?.(!preserved);
+    return () => onDirtyChange?.(false);
+  }, [formDirty, form, draftIdentity, onDirtyChange]);
 
   const handleSubmit = async () => {
     if (formUnavailable || submitting) return;
@@ -1875,15 +2085,21 @@ export function QuestionValidationWorkspace({
     }
 
     setSubmitError("");
+    setSessionExpired(false);
     setValidationAttempted(false);
     setSubmitting(true);
+    preserveReviewForm(draftIdentity, form);
 
     try {
       await onSubmit(buildQuestionReviewValues(form));
+      clearPreservedReviewForm(draftIdentity);
       onDirtyChange?.(false);
     } catch (error) {
       console.error("[Progmiscon] Validasi soal gagal disimpan", error);
       if (reloadChangedReviewData(error)) return;
+      if (isReviewPersistenceError(error, "SESSION_EXPIRED")) {
+        setSessionExpired(true);
+      }
       setSubmitError(
         error instanceof Error
           ? error.message
@@ -2273,13 +2489,16 @@ export function QuestionValidationWorkspace({
             </section>
           </fieldset>
 
-          {!formUnavailable && submitError && (
-            <p
-              role="alert"
-              className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2.5 text-xs leading-5 text-incorrect"
-            >
-              {submitError}
-            </p>
+          {!formUnavailable && submitError && !sessionExpired && (
+            <ReviewSubmitError message={submitError} />
+          )}
+
+          {sessionExpired && (
+            <ReviewSessionExpiredDialog
+              language={language}
+              onReauthReturn={dismissSessionExpiredDialog}
+              onBeforeReauth={() => preserveReviewForm(draftIdentity, form)}
+            />
           )}
 
           {!formUnavailable && (
@@ -2353,6 +2572,7 @@ export function AnswerValidationWorkspace({
   onSubmit: (values: AnswerReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
+  const { user } = useLecturerAuth();
   const {
     option: selectedOption,
     fallbackText,
@@ -2394,9 +2614,24 @@ export function AnswerValidationWorkspace({
     () => answerReviewFormState(submittedReview),
     [submittedReview],
   );
+  const draftIdentity = useMemo<ReviewSessionDraftIdentity | undefined>(() => {
+    const sourceVersion = answer.sourceVersion?.trim();
+    if (!user?.id || !sourceVersion) return undefined;
+
+    return {
+      reviewerId: user.id,
+      targetType: "answer",
+      targetId: answer.id,
+      sourceVersion,
+    };
+  }, [answer.id, answer.sourceVersion, user?.id]);
+  const initialForm = useMemo(
+    () => loadPreservedReviewForm(savedForm, draftIdentity),
+    [draftIdentity, savedForm],
+  );
   const [form, dispatchForm] = useReducer(
     misconceptionReviewFormReducer,
-    savedForm,
+    initialForm,
   );
   const {
     removalChoice: hasMismatchedMisconceptions,
@@ -2410,21 +2645,46 @@ export function AnswerValidationWorkspace({
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const dismissSessionExpiredDialog = useCallback(() => {
+    // A valid session is confirmed: drop every trace of the expiry UI so the
+    // restored draft is all that remains.
+    setSessionExpired(false);
+    setSubmitError("");
+  }, []);
   const [validationAttempted, setValidationAttempted] = useState(false);
   const formUnavailable = mode === "view" || locked || progressUnavailable;
   const formErrors = validationAttempted
     ? getMisconceptionReviewFormErrors(form)
     : {};
   const formDirty = isMisconceptionReviewFormDirty(form, savedForm);
-  useEffect(() => {
-    onDirtyChange(formDirty);
-    return () => onDirtyChange(false);
-  }, [formDirty, onDirtyChange]);
 
   useEffect(() => {
-    dispatchForm({ type: "replace", value: savedForm });
+    if (!draftIdentity) return;
+    dispatchForm({
+      type: "replace",
+      value: loadPreservedReviewForm(savedForm, draftIdentity),
+    });
     setValidationAttempted(false);
-  }, [savedForm]);
+    setSubmitError("");
+    setSessionExpired(false);
+  }, [draftIdentity, savedForm]);
+
+  // Browser-local autosave + unsaved-change signal. Whenever the reviewer
+  // changes the form we synchronously persist the full reducer state to the
+  // scoped sessionStorage draft. The review is reported as "unsaved" (which
+  // drives the reload / internal-navigation warnings) only when that local
+  // persistence fails, so a safely stored draft never nags the reviewer. This
+  // never contacts Supabase and never counts as a submitted Review.
+  useEffect(() => {
+    if (!formDirty) {
+      onDirtyChange(false);
+      return () => onDirtyChange(false);
+    }
+    const preserved = preserveReviewForm(draftIdentity, form);
+    onDirtyChange(!preserved);
+    return () => onDirtyChange(false);
+  }, [formDirty, form, draftIdentity, onDirtyChange]);
 
   const handleSubmit = async () => {
     if (formUnavailable || submitting) return;
@@ -2446,14 +2706,20 @@ export function AnswerValidationWorkspace({
     }
 
     setSubmitError("");
+    setSessionExpired(false);
     setValidationAttempted(false);
     setSubmitting(true);
+    preserveReviewForm(draftIdentity, form);
 
     try {
       await onSubmit(buildAnswerReviewValues(form));
+      clearPreservedReviewForm(draftIdentity);
     } catch (error) {
       console.error("[Progmiscon] Validasi jawaban gagal disimpan", error);
       if (reloadChangedReviewData(error)) return;
+      if (isReviewPersistenceError(error, "SESSION_EXPIRED")) {
+        setSessionExpired(true);
+      }
       setSubmitError(
         error instanceof Error
           ? error.message
@@ -2904,13 +3170,16 @@ export function AnswerValidationWorkspace({
             </section>
           </fieldset>
 
-          {!formUnavailable && submitError && (
-            <p
-              role="alert"
-              className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2.5 text-xs leading-5 text-incorrect"
-            >
-              {submitError}
-            </p>
+          {!formUnavailable && submitError && !sessionExpired && (
+            <ReviewSubmitError message={submitError} />
+          )}
+
+          {sessionExpired && (
+            <ReviewSessionExpiredDialog
+              language={language}
+              onReauthReturn={dismissSessionExpiredDialog}
+              onBeforeReauth={() => preserveReviewForm(draftIdentity, form)}
+            />
           )}
 
           {!formUnavailable && (
