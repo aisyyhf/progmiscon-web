@@ -117,3 +117,23 @@ export function clearReviewSessionDraft(
 ) {
   storage.removeItem(draftKey(identity));
 }
+
+/**
+ * Attempts to preserve the in-progress form as the scoped browser-local draft.
+ * Returns `true` only when the write actually succeeded, so callers can decide
+ * whether an unsaved-change warning is still needed. Never throws.
+ */
+export function persistReviewSessionDraft(
+  storage: SessionStorageLike | undefined,
+  identity: ReviewSessionDraftIdentity | undefined,
+  form: MisconceptionReviewFormState,
+): boolean {
+  if (!storage || !identity) return false;
+
+  try {
+    saveReviewSessionDraft(storage, identity, form);
+    return true;
+  } catch {
+    return false;
+  }
+}

@@ -84,9 +84,12 @@ import {
   stripSelectedOptionPrefix,
 } from "../utils/reviewWorkspace";
 import { t } from "../utils/translation";
+import { hasActiveReviewSession } from "../services/reviewSession";
+import { supabase } from "../services/supabaseClient";
 import {
   AnswerValidationWorkspace,
   QuestionValidationWorkspace,
+  ReviewSessionExpiredDialog,
 } from "./LecturerReviewPage";
 
 function readInitialNavigation(search: string): Partial<ReviewNavigationState> {
@@ -938,6 +941,13 @@ export function LecturerReviewPage({
   const [metadataLoading, setMetadataLoading] = useState(true);
   const [snapshotLoaded, setSnapshotLoaded] = useState(false);
   const [metadataLoaded, setMetadataLoaded] = useState(false);
+  // Gate protected Review-source loading on a genuinely valid session. When the
+  // route is restored (browser Back / bfcache) without one, we must show the
+  // blocking reauth dialog instead of letting protected RPCs return raw
+  // permission-denied errors.
+  const [reviewSessionState, setReviewSessionState] = useState<
+    "checking" | "valid" | "expired"
+  >("checking");
   const [loadError, setLoadError] = useState("");
   const [reviewDataRevision, setReviewDataRevision] = useState(0);
   const [handledInitialAnswerId, setHandledInitialAnswerId] = useState("");
@@ -955,7 +965,34 @@ export function LecturerReviewPage({
 
   useEffect(() => {
     let active = true;
-    if (!user) {
+
+    const verifySession = () => {
+      void hasActiveReviewSession(supabase.auth).then((valid) => {
+        if (active) setReviewSessionState(valid ? "valid" : "expired");
+      });
+    };
+
+    verifySession();
+
+    // A history restore (browser Back, bfcache) can revive this route without a
+    // fresh mount; re-verify before any protected Review load runs again.
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        setReviewSessionState("checking");
+        verifySession();
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+
+    return () => {
+      active = false;
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, [user]);
+
+  useEffect(() => {
+    let active = true;
+    if (!user || reviewSessionState !== "valid") {
       setSnapshotLoading(false);
       setSnapshotLoaded(false);
       return () => {
@@ -977,11 +1014,20 @@ export function LecturerReviewPage({
       .catch((error) => {
         if (!active) return;
         console.error("[Progmiscon] Workspace review gagal dimuat", error);
-        setLoadError(
-          error instanceof Error
-            ? error.message
-            : "Workspace review belum dapat dimuat.",
-        );
+        // If the load failed only because the session is no longer valid, show
+        // the blocking reauth dialog rather than a raw permission error.
+        void hasActiveReviewSession(supabase.auth).then((valid) => {
+          if (!active) return;
+          if (!valid) {
+            setReviewSessionState("expired");
+            return;
+          }
+          setLoadError(
+            error instanceof Error
+              ? error.message
+              : "Workspace review belum dapat dimuat.",
+          );
+        });
       })
       .finally(() => {
         if (active) setSnapshotLoading(false);
@@ -990,7 +1036,7 @@ export function LecturerReviewPage({
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [user, reviewSessionState]);
 
   useEffect(() => {
     let active = true;
@@ -1403,6 +1449,7 @@ export function LecturerReviewPage({
   const reviewedTotal = contextQueues[1].length;
   const contextTotal = contextQueues[0].length + reviewedTotal;
   const loading =
+    reviewSessionState === "checking" ||
     snapshotLoading ||
     metadataLoading ||
     misconceptionsLoading ||
@@ -1863,6 +1910,20 @@ export function LecturerReviewPage({
           onClick: () => navigateToAnswerStep(nextAnswer),
         }
       : undefined;
+
+  if (reviewSessionState === "expired") {
+    // The session is gone. Keep whatever local/restored state is on screen but
+    // block interaction and never run protected Review loads; reauthentication
+    // uses the same safe same-tab flow, and a confirmed session unblocks.
+    return (
+      <div className="lecturer-ui review-week-pages review-stage-enter mx-auto max-w-[1240px] text-black">
+        <ReviewSessionExpiredDialog
+          language={language}
+          onReauthReturn={() => setReviewSessionState("valid")}
+        />
+      </div>
+    );
+  }
 
   if (reviewStage === "overview") {
     return (

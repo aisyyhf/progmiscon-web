@@ -22,6 +22,7 @@ import {
 import {
   clearReviewSessionDraft,
   loadReviewSessionDraft,
+  persistReviewSessionDraft,
   saveReviewSessionDraft,
 } from "../src/utils/reviewSessionDraft.ts";
 import {
@@ -280,6 +281,37 @@ assert.equal(
 clearReviewSessionDraft(storage, identity);
 assert.equal(loadReviewSessionDraft(storage, identity), undefined);
 
+// persistReviewSessionDraft tells callers whether the draft is safely stored,
+// which is what suppresses (or keeps) the unsaved-change warnings.
+assert.equal(persistReviewSessionDraft(storage, identity, form), true);
+assert.deepEqual(loadReviewSessionDraft(storage, identity), form);
+assert.equal(
+  persistReviewSessionDraft(storage, undefined, form),
+  false,
+  "no scoped identity means the draft is not safely persisted",
+);
+assert.equal(
+  persistReviewSessionDraft(undefined, identity, form),
+  false,
+  "no storage means the draft is not safely persisted",
+);
+assert.equal(
+  persistReviewSessionDraft(
+    {
+      getItem: () => null,
+      setItem: () => {
+        throw new Error("QuotaExceededError");
+      },
+      removeItem: () => {},
+    },
+    identity,
+    form,
+  ),
+  false,
+  "a failing storage write keeps the protective warning",
+);
+clearReviewSessionDraft(storage, identity);
+
 // returnTo may only round-trip safe internal Review routes; never an open redirect.
 assert.equal(sanitizeReviewReturnTo("/review?week=1&item=q-1"), "/review?week=1&item=q-1");
 assert.equal(sanitizeReviewReturnTo("/review/answer/a-1"), "/review/answer/a-1");
@@ -426,8 +458,25 @@ const dialogSlice = reviewPage.slice(
 assert.doesNotMatch(dialogSlice, /target="_blank"/, "reauth navigates in the same tab");
 assert.doesNotMatch(dialogSlice, /href=/, "reauth uses router navigation, not an anchor href");
 assert.match(dialogSlice, /Kembali ke Halaman Login/);
-assert.match(dialogSlice, /onBeforeReauth\(\);/, "the draft is flushed before navigating away");
+assert.match(dialogSlice, /onBeforeReauth\?\.\(\)/, "the draft is flushed before navigating away when a form is present");
 assert.match(dialogSlice, /createPortal\(/, "the blocking overlay is portalled to document.body");
+
+// Modal body copy: no trailing period after the final word "review".
+assert.match(
+  dialogSlice,
+  /tetap tersimpan\. Silakan login kembali untuk melanjutkan review"/,
+);
+assert.doesNotMatch(
+  dialogSlice,
+  /melanjutkan review\."/,
+  "the modal body must not end with a period",
+);
+
+// Autosave drives the unsaved-change signal: a review is reported "unsaved"
+// only when local persistence fails, so a safely stored draft suppresses the
+// reload / internal-navigation warnings.
+assert.match(questionWorkspace, /onDirtyChange\?\.\(!preserved\)/);
+assert.match(answerWorkspace, /onDirtyChange\(!preserved\)/);
 
 // Login page looks normal again: the special reauth notice is gone, and a
 // validated returnTo drives the post-login redirect.
@@ -440,8 +489,46 @@ assert.match(loginPage, /sanitizeReviewReturnTo\(/);
 assert.match(loginPage, /safeReturnTo \?\? "\/dashboard"/);
 assert.match(loginPage, /!reauthenticate && !loading && isLecturer/);
 
+// The routed Review page gates protected Review-source loading on a genuinely
+// valid session, so a browser Back from login (still unauthenticated) shows the
+// blocking dialog instead of a raw permission-denied error.
+const weekFirstPage = await readFile(
+  new URL("../src/pages/LecturerReviewWeekFirstPage.tsx", import.meta.url),
+  "utf8",
+);
+assert.match(weekFirstPage, /hasActiveReviewSession\(supabase\.auth\)/);
+assert.match(
+  weekFirstPage,
+  /reviewSessionState !== "valid"/,
+  "the workspace snapshot load is gated on a valid session",
+);
+assert.match(
+  weekFirstPage,
+  /pageshow/,
+  "a history / bfcache restore re-verifies the session before protected loads",
+);
+assert.match(
+  weekFirstPage,
+  /reviewSessionState === "expired"[\s\S]*?<ReviewSessionExpiredDialog/,
+  "an expired session on the Review route renders the blocking dialog",
+);
 assert.doesNotMatch(
-  `${repository}\n${reviewPage}\n${loginPage}`,
+  weekFirstPage,
+  /setInterval\(/,
+  "no polling was introduced for the session gate",
+);
+const weekFirstSnapshotEffect = weekFirstPage.slice(
+  weekFirstPage.indexOf("void getReviewWorkspaceSnapshot()"),
+  weekFirstPage.indexOf("}, [user, reviewSessionState]);"),
+);
+assert.match(
+  weekFirstSnapshotEffect,
+  /if \(!valid\) \{\s*setReviewSessionState\("expired"\)/,
+  "a load failure caused only by a missing session becomes the blocking dialog",
+);
+
+assert.doesNotMatch(
+  `${repository}\n${reviewPage}\n${loginPage}\n${weekFirstPage}`,
   /Authorization|access_token|localStorage\.(?:setItem|getItem)/,
   "the hotfix must not implement manual token handling",
 );

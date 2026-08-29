@@ -129,7 +129,7 @@ import {
 import {
   clearReviewSessionDraft,
   loadReviewSessionDraft,
-  saveReviewSessionDraft,
+  persistReviewSessionDraft,
   type ReviewSessionDraftIdentity,
 } from "../utils/reviewSessionDraft";
 
@@ -156,14 +156,12 @@ function loadPreservedReviewForm(
 function preserveReviewForm(
   identity: ReviewSessionDraftIdentity | undefined,
   form: MisconceptionReviewFormState,
-) {
-  if (!identity || typeof window === "undefined") return;
-
-  try {
-    saveReviewSessionDraft(window.sessionStorage, identity, form);
-  } catch {
-    // The reducer state remains intact when browser storage is unavailable.
-  }
+): boolean {
+  if (typeof window === "undefined") return false;
+  // Returns whether the draft is now safely stored; the reducer state stays
+  // intact regardless, but callers use this to decide if an unsaved-change
+  // warning is still warranted.
+  return persistReviewSessionDraft(window.sessionStorage, identity, form);
 }
 
 function clearPreservedReviewForm(
@@ -189,14 +187,14 @@ function ReviewSubmitError({ message }: { message: string }) {
   );
 }
 
-function ReviewSessionExpiredDialog({
+export function ReviewSessionExpiredDialog({
   language,
   onReauthReturn,
   onBeforeReauth,
 }: {
   language: Language;
   onReauthReturn: () => void;
-  onBeforeReauth: () => void;
+  onBeforeReauth?: () => void;
 }) {
   const loginActionRef = useRef<HTMLButtonElement>(null);
   const location = useLocation();
@@ -252,7 +250,7 @@ function ReviewSessionExpiredDialog({
   const handleBackToLogin = () => {
     // Flush the in-progress Review form to the browser-local draft before the
     // same-tab navigation unmounts this page. No Review is submitted here.
-    onBeforeReauth();
+    onBeforeReauth?.();
     navigate(buildReviewReauthPath(`${location.pathname}${location.search}`));
   };
 
@@ -280,8 +278,8 @@ function ReviewSessionExpiredDialog({
           className="mx-auto mt-2 max-w-sm text-center text-[13px] leading-5 text-muted"
         >
           {language === "id"
-            ? "Sesi login Anda sudah berakhir. Review yang sudah Anda isi tetap tersimpan. Silakan login kembali untuk melanjutkan review."
-            : "Your sign-in session has ended. The review you have already filled in is still saved. Please sign in again to continue your review."}
+            ? "Sesi login Anda sudah berakhir. Review yang sudah Anda isi tetap tersimpan. Silakan login kembali untuk melanjutkan review"
+            : "Your sign-in session has ended. The review you have already filled in is still saved. Please sign in again to continue your review"}
         </p>
         <button
           ref={loginActionRef}
@@ -2041,10 +2039,6 @@ export function QuestionValidationWorkspace({
     : {};
 
   useEffect(() => {
-    onDirtyChange?.(formDirty);
-  }, [formDirty, onDirtyChange]);
-
-  useEffect(() => {
     if (!draftIdentity) return;
     dispatchForm({
       type: "replace",
@@ -2055,28 +2049,21 @@ export function QuestionValidationWorkspace({
     setSessionExpired(false);
   }, [draftIdentity, savedForm]);
 
-  // Browser-local autosave: whenever the reviewer changes the form, keep the
-  // current reducer state in sessionStorage (debounced) so it survives a
-  // same-tab login round trip or a reload. This never contacts Supabase and
-  // never counts as a submitted Review.
+  // Browser-local autosave + unsaved-change signal. Whenever the reviewer
+  // changes the form we synchronously persist the full reducer state to the
+  // scoped sessionStorage draft. The review is reported as "unsaved" (which
+  // drives the reload / internal-navigation warnings) only when that local
+  // persistence fails, so a safely stored draft never nags the reviewer. This
+  // never contacts Supabase and never counts as a submitted Review.
   useEffect(() => {
-    if (!draftIdentity) return;
-    if (!isMisconceptionReviewFormDirty(form, savedForm)) return;
-
-    const flushDraft = () => preserveReviewForm(draftIdentity, form);
-    const debounce = window.setTimeout(flushDraft, 400);
-    const flushOnHide = () => {
-      if (document.visibilityState === "hidden") flushDraft();
-    };
-    document.addEventListener("visibilitychange", flushOnHide);
-    window.addEventListener("pagehide", flushDraft);
-
-    return () => {
-      window.clearTimeout(debounce);
-      document.removeEventListener("visibilitychange", flushOnHide);
-      window.removeEventListener("pagehide", flushDraft);
-    };
-  }, [draftIdentity, form, savedForm]);
+    if (!formDirty) {
+      onDirtyChange?.(false);
+      return () => onDirtyChange?.(false);
+    }
+    const preserved = preserveReviewForm(draftIdentity, form);
+    onDirtyChange?.(!preserved);
+    return () => onDirtyChange?.(false);
+  }, [formDirty, form, draftIdentity, onDirtyChange]);
 
   const handleSubmit = async () => {
     if (formUnavailable || submitting) return;
@@ -2671,10 +2658,6 @@ export function AnswerValidationWorkspace({
     ? getMisconceptionReviewFormErrors(form)
     : {};
   const formDirty = isMisconceptionReviewFormDirty(form, savedForm);
-  useEffect(() => {
-    onDirtyChange(formDirty);
-    return () => onDirtyChange(false);
-  }, [formDirty, onDirtyChange]);
 
   useEffect(() => {
     if (!draftIdentity) return;
@@ -2687,28 +2670,21 @@ export function AnswerValidationWorkspace({
     setSessionExpired(false);
   }, [draftIdentity, savedForm]);
 
-  // Browser-local autosave: whenever the reviewer changes the form, keep the
-  // current reducer state in sessionStorage (debounced) so it survives a
-  // same-tab login round trip or a reload. This never contacts Supabase and
-  // never counts as a submitted Review.
+  // Browser-local autosave + unsaved-change signal. Whenever the reviewer
+  // changes the form we synchronously persist the full reducer state to the
+  // scoped sessionStorage draft. The review is reported as "unsaved" (which
+  // drives the reload / internal-navigation warnings) only when that local
+  // persistence fails, so a safely stored draft never nags the reviewer. This
+  // never contacts Supabase and never counts as a submitted Review.
   useEffect(() => {
-    if (!draftIdentity) return;
-    if (!isMisconceptionReviewFormDirty(form, savedForm)) return;
-
-    const flushDraft = () => preserveReviewForm(draftIdentity, form);
-    const debounce = window.setTimeout(flushDraft, 400);
-    const flushOnHide = () => {
-      if (document.visibilityState === "hidden") flushDraft();
-    };
-    document.addEventListener("visibilitychange", flushOnHide);
-    window.addEventListener("pagehide", flushDraft);
-
-    return () => {
-      window.clearTimeout(debounce);
-      document.removeEventListener("visibilitychange", flushOnHide);
-      window.removeEventListener("pagehide", flushDraft);
-    };
-  }, [draftIdentity, form, savedForm]);
+    if (!formDirty) {
+      onDirtyChange(false);
+      return () => onDirtyChange(false);
+    }
+    const preserved = preserveReviewForm(draftIdentity, form);
+    onDirtyChange(!preserved);
+    return () => onDirtyChange(false);
+  }, [formDirty, form, draftIdentity, onDirtyChange]);
 
   const handleSubmit = async () => {
     if (formUnavailable || submitting) return;
