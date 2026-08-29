@@ -57,6 +57,8 @@ import {
   saveAnswerReview,
   saveQuestionReview,
 } from "../services/reviewPersistenceRepository";
+import { hasActiveReviewSession } from "../services/reviewSession";
+import { supabase } from "../services/supabaseClient";
 import { QuestionContent } from "../components/review/QuestionContent";
 import { PsAnswerEvidenceWorkspace } from "../components/review/PsAnswerEvidenceWorkspace";
 import { QuestionContextAccordion } from "../components/review/AnswerWorkspaceNavigation";
@@ -211,19 +213,26 @@ function ReviewSessionExpiredDialog({
     document.addEventListener("keydown", keepFocusContained, true);
 
     // The lecturer reauthenticates in a separate tab. When they come back to
-    // this tab, release the dialog so they can submit again; the write
-    // preflight re-blocks with this same dialog if the session is still gone.
+    // this tab, ask Supabase Auth whether a valid session now exists and only
+    // then release the dialog. Missing/invalid session or any failure keeps
+    // the dialog open; the Review draft and write are never touched here.
+    let cancelled = false;
     let leftTab = false;
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         leftTab = true;
         return;
       }
-      if (leftTab) onReauthReturn();
+      if (!leftTab) return;
+      leftTab = false;
+      void hasActiveReviewSession(supabase.auth).then((valid) => {
+        if (!cancelled && valid) onReauthReturn();
+      });
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
+      cancelled = true;
       document.removeEventListener("keydown", keepFocusContained, true);
       document.removeEventListener(
         "visibilitychange",

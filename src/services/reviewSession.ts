@@ -90,6 +90,17 @@ export async function withPreparedReviewSession<T>(
   return await write();
 }
 
+export async function hasActiveReviewSession(
+  auth: Pick<ReviewAuthClient, "getSession">,
+): Promise<boolean> {
+  try {
+    const { data, error } = await auth.getSession();
+    return !error && isAuthenticatedSession(data.session);
+  } catch {
+    return false;
+  }
+}
+
 export function isReviewSessionAuthError(
   error: ReviewSessionAuthErrorLike,
 ): boolean {

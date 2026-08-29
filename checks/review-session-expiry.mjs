@@ -15,6 +15,7 @@ import {
   REVIEW_SESSION_EXPIRED_MESSAGE,
   REVIEW_SESSION_REFRESH_MARGIN_MS,
   ReviewSessionPreparationError,
+  hasActiveReviewSession,
   isReviewSessionAuthError,
   withPreparedReviewSession,
 } from "../src/services/reviewSession.ts";
@@ -179,6 +180,43 @@ assert.equal(isReviewSessionAuthError({ message: "JWT expired" }), true);
 assert.equal(isReviewSessionAuthError({ code: "401", message: "Unauthorized" }), false);
 assert.equal(isReviewSessionAuthError({ message: "permission denied" }), false);
 assert.doesNotMatch(REVIEW_SESSION_EXPIRED_MESSAGE, /jwt|postgrest|pgrst/i);
+
+// The blocking dialog only releases once Supabase Auth confirms a real session.
+assert.equal(
+  await hasActiveReviewSession({
+    async getSession() {
+      return { data: { session: { user: { id: "lecturer-1" } } }, error: null };
+    },
+  }),
+  true,
+);
+assert.equal(
+  await hasActiveReviewSession({
+    async getSession() {
+      return { data: { session: null }, error: null };
+    },
+  }),
+  false,
+  "no session keeps the dialog open",
+);
+assert.equal(
+  await hasActiveReviewSession({
+    async getSession() {
+      return { data: { session: { user: { id: "lecturer-1" } } }, error: { message: "network" } };
+    },
+  }),
+  false,
+  "a getSession error keeps the dialog open",
+);
+assert.equal(
+  await hasActiveReviewSession({
+    async getSession() {
+      throw new Error("offline");
+    },
+  }),
+  false,
+  "a thrown getSession keeps the dialog open",
+);
 
 class MemoryStorage {
   values = new Map();
