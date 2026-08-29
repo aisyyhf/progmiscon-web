@@ -3,6 +3,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   useState,
 } from "react";
 import {
@@ -173,33 +174,101 @@ function clearPreservedReviewForm(
   }
 }
 
-function ReviewSubmitError({
-  message,
-  sessionExpired,
-  language,
-}: {
-  message: string;
-  sessionExpired: boolean;
-  language: Language;
-}) {
+function ReviewSubmitError({ message }: { message: string }) {
   return (
     <div
       role="alert"
       className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2.5 text-xs leading-5 text-incorrect"
     >
       <p>{message}</p>
-      {sessionExpired && (
+    </div>
+  );
+}
+
+function ReviewSessionExpiredDialog({
+  language,
+  onReauthReturn,
+}: {
+  language: Language;
+  onReauthReturn: () => void;
+}) {
+  const loginActionRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    loginActionRef.current?.focus();
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    // Reauthentication is required, so keep focus pinned to the only action
+    // and do not let Escape or Tab reach the Review page behind the dialog.
+    const keepFocusContained = (event: KeyboardEvent) => {
+      if (event.key === "Tab" || event.key === "Escape") {
+        event.preventDefault();
+        loginActionRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", keepFocusContained, true);
+
+    // The lecturer reauthenticates in a separate tab. When they come back to
+    // this tab, release the dialog so they can submit again; the write
+    // preflight re-blocks with this same dialog if the session is still gone.
+    let leftTab = false;
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        leftTab = true;
+        return;
+      }
+      if (leftTab) onReauthReturn();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener("keydown", keepFocusContained, true);
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange,
+      );
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [onReauthReturn]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+      <div className="absolute inset-0 bg-navy-deep/45" aria-hidden="true" />
+      <section
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="review-session-expired-title"
+        aria-describedby="review-session-expired-body"
+        className="relative w-full max-w-md rounded-lg border border-border bg-white p-6 shadow-xl"
+      >
+        <h2
+          id="review-session-expired-title"
+          className="text-lg font-bold text-navy-deep"
+        >
+          {language === "id"
+            ? "Silakan login kembali"
+            : "Please sign in again"}
+        </h2>
+        <p
+          id="review-session-expired-body"
+          className="mt-2 text-sm leading-6 text-navy-deep"
+        >
+          {language === "id"
+            ? "Sesi login Anda sudah berakhir. Review yang sudah Anda isi tetap tersimpan di halaman ini. Silakan login kembali untuk melanjutkan dan menyimpan review."
+            : "Your sign-in session has ended. The review you have already filled in stays saved on this page. Please sign in again to continue and save your review."}
+        </p>
         <a
+          ref={loginActionRef}
           href="/dosen/login?reauth=1"
           target="_blank"
           rel="noreferrer"
-          className="mt-2 inline-flex min-h-9 items-center rounded-md border border-incorrect-border bg-white px-3 font-medium text-incorrect transition-colors hover:bg-incorrect-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          className="mt-5 inline-flex min-h-10 w-full items-center justify-center rounded-md border border-brand bg-brand px-4 font-semibold text-white transition-colors hover:border-brand-deep hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         >
-          {language === "id"
-            ? "Login kembali di tab baru"
-            : "Sign in again in a new tab"}
+          {language === "id" ? "Login kembali" : "Sign in again"}
         </a>
-      )}
+      </section>
     </div>
   );
 }
@@ -1932,6 +2001,10 @@ export function QuestionValidationWorkspace({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [sessionExpired, setSessionExpired] = useState(false);
+  const dismissSessionExpiredDialog = useCallback(
+    () => setSessionExpired(false),
+    [],
+  );
   const [validationAttempted, setValidationAttempted] = useState(false);
   const formDirty = isMisconceptionReviewFormDirty(form, savedForm);
   const formUnavailable = mode === "view" || locked || progressUnavailable;
@@ -2378,11 +2451,14 @@ export function QuestionValidationWorkspace({
             </section>
           </fieldset>
 
-          {!formUnavailable && submitError && (
-            <ReviewSubmitError
-              message={submitError}
-              sessionExpired={sessionExpired}
+          {!formUnavailable && submitError && !sessionExpired && (
+            <ReviewSubmitError message={submitError} />
+          )}
+
+          {sessionExpired && (
+            <ReviewSessionExpiredDialog
               language={language}
+              onReauthReturn={dismissSessionExpiredDialog}
             />
           )}
 
@@ -2531,6 +2607,10 @@ export function AnswerValidationWorkspace({
   const [deleting, setDeleting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [sessionExpired, setSessionExpired] = useState(false);
+  const dismissSessionExpiredDialog = useCallback(
+    () => setSessionExpired(false),
+    [],
+  );
   const [validationAttempted, setValidationAttempted] = useState(false);
   const formUnavailable = mode === "view" || locked || progressUnavailable;
   const formErrors = validationAttempted
@@ -3037,11 +3117,14 @@ export function AnswerValidationWorkspace({
             </section>
           </fieldset>
 
-          {!formUnavailable && submitError && (
-            <ReviewSubmitError
-              message={submitError}
-              sessionExpired={sessionExpired}
+          {!formUnavailable && submitError && !sessionExpired && (
+            <ReviewSubmitError message={submitError} />
+          )}
+
+          {sessionExpired && (
+            <ReviewSessionExpiredDialog
               language={language}
+              onReauthReturn={dismissSessionExpiredDialog}
             />
           )}
 
