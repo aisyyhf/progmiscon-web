@@ -119,7 +119,14 @@ import {
   isMisconceptionReviewFormDirty,
   misconceptionReviewFormReducer,
   questionReviewFormState,
+  type MisconceptionReviewFormState,
 } from "../utils/reviewMisconceptionForm";
+import {
+  clearReviewSessionDraft,
+  loadReviewSessionDraft,
+  saveReviewSessionDraft,
+  type ReviewSessionDraftIdentity,
+} from "../utils/reviewSessionDraft";
 
 type ReviewFormMode = "review" | "edit" | "view";
 
@@ -127,6 +134,75 @@ type ReviewStepAction = {
   label: string;
   onClick: () => void;
 };
+
+function loadPreservedReviewForm(
+  savedForm: MisconceptionReviewFormState,
+  identity: ReviewSessionDraftIdentity | undefined,
+): MisconceptionReviewFormState {
+  if (!identity || typeof window === "undefined") return savedForm;
+
+  try {
+    return loadReviewSessionDraft(window.sessionStorage, identity) ?? savedForm;
+  } catch {
+    return savedForm;
+  }
+}
+
+function preserveReviewForm(
+  identity: ReviewSessionDraftIdentity | undefined,
+  form: MisconceptionReviewFormState,
+) {
+  if (!identity || typeof window === "undefined") return;
+
+  try {
+    saveReviewSessionDraft(window.sessionStorage, identity, form);
+  } catch {
+    // The reducer state remains intact when browser storage is unavailable.
+  }
+}
+
+function clearPreservedReviewForm(
+  identity: ReviewSessionDraftIdentity | undefined,
+) {
+  if (!identity || typeof window === "undefined") return;
+
+  try {
+    clearReviewSessionDraft(window.sessionStorage, identity);
+  } catch {
+    // A stale temporary draft is scoped to this reviewer and source version.
+  }
+}
+
+function ReviewSubmitError({
+  message,
+  sessionExpired,
+  language,
+}: {
+  message: string;
+  sessionExpired: boolean;
+  language: Language;
+}) {
+  return (
+    <div
+      role="alert"
+      className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2.5 text-xs leading-5 text-incorrect"
+    >
+      <p>{message}</p>
+      {sessionExpired && (
+        <a
+          href="/dosen/login?reauth=1"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 inline-flex min-h-9 items-center rounded-md border border-incorrect-border bg-white px-3 font-medium text-incorrect transition-colors hover:bg-incorrect-bg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          {language === "id"
+            ? "Login kembali di tab baru"
+            : "Sign in again in a new tab"}
+        </a>
+      )}
+    </div>
+  );
+}
 
 function ReviewStepNavigation({
   previous,
@@ -1799,6 +1875,7 @@ export function QuestionValidationWorkspace({
   onSubmit: (values: QuestionReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
+  const { user } = useLecturerAuth();
   const questionTitle =
     t(question.title, language).trim() ||
     `${language === "id" ? "Soal" : "Question"} ${question.number || question.id}`;
@@ -1824,9 +1901,24 @@ export function QuestionValidationWorkspace({
     () => questionReviewFormState(submittedReview),
     [submittedReview],
   );
+  const draftIdentity = useMemo<ReviewSessionDraftIdentity | undefined>(() => {
+    const sourceVersion = question.sourceVersion?.trim();
+    if (!user?.id || !sourceVersion) return undefined;
+
+    return {
+      reviewerId: user.id,
+      targetType: "question",
+      targetId: question.id,
+      sourceVersion,
+    };
+  }, [question.id, question.sourceVersion, user?.id]);
+  const initialForm = useMemo(
+    () => loadPreservedReviewForm(savedForm, draftIdentity),
+    [draftIdentity, savedForm],
+  );
   const [form, dispatchForm] = useReducer(
     misconceptionReviewFormReducer,
-    savedForm,
+    initialForm,
   );
   const {
     removalChoice: hasIncorrectMisconceptions,
@@ -1839,6 +1931,7 @@ export function QuestionValidationWorkspace({
   } = form;
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [validationAttempted, setValidationAttempted] = useState(false);
   const formDirty = isMisconceptionReviewFormDirty(form, savedForm);
   const formUnavailable = mode === "view" || locked || progressUnavailable;
@@ -1851,9 +1944,15 @@ export function QuestionValidationWorkspace({
   }, [formDirty, onDirtyChange]);
 
   useEffect(() => {
-    dispatchForm({ type: "replace", value: savedForm });
+    if (!draftIdentity) return;
+    dispatchForm({
+      type: "replace",
+      value: loadPreservedReviewForm(savedForm, draftIdentity),
+    });
     setValidationAttempted(false);
-  }, [savedForm]);
+    setSubmitError("");
+    setSessionExpired(false);
+  }, [draftIdentity, savedForm]);
 
   const handleSubmit = async () => {
     if (formUnavailable || submitting) return;
@@ -1875,15 +1974,21 @@ export function QuestionValidationWorkspace({
     }
 
     setSubmitError("");
+    setSessionExpired(false);
     setValidationAttempted(false);
     setSubmitting(true);
+    preserveReviewForm(draftIdentity, form);
 
     try {
       await onSubmit(buildQuestionReviewValues(form));
+      clearPreservedReviewForm(draftIdentity);
       onDirtyChange?.(false);
     } catch (error) {
       console.error("[Progmiscon] Validasi soal gagal disimpan", error);
       if (reloadChangedReviewData(error)) return;
+      if (isReviewPersistenceError(error, "SESSION_EXPIRED")) {
+        setSessionExpired(true);
+      }
       setSubmitError(
         error instanceof Error
           ? error.message
@@ -2274,12 +2379,11 @@ export function QuestionValidationWorkspace({
           </fieldset>
 
           {!formUnavailable && submitError && (
-            <p
-              role="alert"
-              className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2.5 text-xs leading-5 text-incorrect"
-            >
-              {submitError}
-            </p>
+            <ReviewSubmitError
+              message={submitError}
+              sessionExpired={sessionExpired}
+              language={language}
+            />
           )}
 
           {!formUnavailable && (
@@ -2353,6 +2457,7 @@ export function AnswerValidationWorkspace({
   onSubmit: (values: AnswerReviewValues) => Promise<void>;
 }) {
   const { language } = useLanguage();
+  const { user } = useLecturerAuth();
   const {
     option: selectedOption,
     fallbackText,
@@ -2394,9 +2499,24 @@ export function AnswerValidationWorkspace({
     () => answerReviewFormState(submittedReview),
     [submittedReview],
   );
+  const draftIdentity = useMemo<ReviewSessionDraftIdentity | undefined>(() => {
+    const sourceVersion = answer.sourceVersion?.trim();
+    if (!user?.id || !sourceVersion) return undefined;
+
+    return {
+      reviewerId: user.id,
+      targetType: "answer",
+      targetId: answer.id,
+      sourceVersion,
+    };
+  }, [answer.id, answer.sourceVersion, user?.id]);
+  const initialForm = useMemo(
+    () => loadPreservedReviewForm(savedForm, draftIdentity),
+    [draftIdentity, savedForm],
+  );
   const [form, dispatchForm] = useReducer(
     misconceptionReviewFormReducer,
-    savedForm,
+    initialForm,
   );
   const {
     removalChoice: hasMismatchedMisconceptions,
@@ -2410,6 +2530,7 @@ export function AnswerValidationWorkspace({
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [validationAttempted, setValidationAttempted] = useState(false);
   const formUnavailable = mode === "view" || locked || progressUnavailable;
   const formErrors = validationAttempted
@@ -2422,9 +2543,15 @@ export function AnswerValidationWorkspace({
   }, [formDirty, onDirtyChange]);
 
   useEffect(() => {
-    dispatchForm({ type: "replace", value: savedForm });
+    if (!draftIdentity) return;
+    dispatchForm({
+      type: "replace",
+      value: loadPreservedReviewForm(savedForm, draftIdentity),
+    });
     setValidationAttempted(false);
-  }, [savedForm]);
+    setSubmitError("");
+    setSessionExpired(false);
+  }, [draftIdentity, savedForm]);
 
   const handleSubmit = async () => {
     if (formUnavailable || submitting) return;
@@ -2446,14 +2573,20 @@ export function AnswerValidationWorkspace({
     }
 
     setSubmitError("");
+    setSessionExpired(false);
     setValidationAttempted(false);
     setSubmitting(true);
+    preserveReviewForm(draftIdentity, form);
 
     try {
       await onSubmit(buildAnswerReviewValues(form));
+      clearPreservedReviewForm(draftIdentity);
     } catch (error) {
       console.error("[Progmiscon] Validasi jawaban gagal disimpan", error);
       if (reloadChangedReviewData(error)) return;
+      if (isReviewPersistenceError(error, "SESSION_EXPIRED")) {
+        setSessionExpired(true);
+      }
       setSubmitError(
         error instanceof Error
           ? error.message
@@ -2905,12 +3038,11 @@ export function AnswerValidationWorkspace({
           </fieldset>
 
           {!formUnavailable && submitError && (
-            <p
-              role="alert"
-              className="mt-5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2.5 text-xs leading-5 text-incorrect"
-            >
-              {submitError}
-            </p>
+            <ReviewSubmitError
+              message={submitError}
+              sessionExpired={sessionExpired}
+              language={language}
+            />
           )}
 
           {!formUnavailable && (

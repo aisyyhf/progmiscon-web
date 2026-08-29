@@ -22,12 +22,13 @@ export function LecturerLoginPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const reauthenticate = searchParams.get("reauth") === "1";
 
   useEffect(() => {
-    if (!loading && isLecturer) {
+    if (!reauthenticate && !loading && isLecturer) {
       navigate("/dashboard", { replace: true });
     }
-  }, [isLecturer, loading, navigate]);
+  }, [isLecturer, loading, navigate, reauthenticate]);
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -67,6 +68,17 @@ export function LecturerLoginPage() {
       }
       accountLinkTo="/dosen/daftar"
     >
+      {reauthenticate && (
+        <p
+          role="status"
+          className="mb-5 rounded-lg border border-warning-border bg-warning-bg px-3.5 py-3 text-sm leading-5 text-warning"
+        >
+          {language === "id"
+            ? "Login kembali untuk memperbarui sesi Review. Draf tetap tersimpan di tab Review sebelumnya."
+            : "Sign in again to refresh your Review session. Your draft remains in the previous Review tab."}
+        </p>
+      )}
+
       {emailConfirmed && (
         <p
           role="status"
