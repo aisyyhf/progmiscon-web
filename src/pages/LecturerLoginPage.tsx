@@ -13,6 +13,10 @@ import { AuthPageLayout } from "../components/auth/AuthPageLayout";
 import { Button } from "../components/common/Button";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLecturerAuth } from "../hooks/useLecturerAuth";
+import {
+  REVIEW_REAUTH_RETURN_PARAM,
+  sanitizeReviewReturnTo,
+} from "../utils/reviewReauthReturn";
 
 export function LecturerLoginPage() {
   const { language } = useLanguage();
@@ -23,6 +27,9 @@ export function LecturerLoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const reauthenticate = searchParams.get("reauth") === "1";
+  const safeReturnTo = sanitizeReviewReturnTo(
+    searchParams.get(REVIEW_REAUTH_RETURN_PARAM),
+  );
 
   useEffect(() => {
     if (!reauthenticate && !loading && isLecturer) {
@@ -41,7 +48,7 @@ export function LecturerLoginPage() {
 
     try {
       await login(email, password);
-      navigate("/dashboard", { replace: true });
+      navigate(safeReturnTo ?? "/dashboard", { replace: true });
     } catch (loginError) {
       setError(
         loginError instanceof Error
@@ -68,17 +75,6 @@ export function LecturerLoginPage() {
       }
       accountLinkTo="/dosen/daftar"
     >
-      {reauthenticate && (
-        <p
-          role="status"
-          className="mb-5 rounded-lg border border-warning-border bg-warning-bg px-3.5 py-3 text-sm leading-5 text-warning"
-        >
-          {language === "id"
-            ? "Login kembali untuk memperbarui sesi Review. Draf tetap tersimpan di tab Review sebelumnya."
-            : "Sign in again to refresh your Review session. Your draft remains in the previous Review tab."}
-        </p>
-      )}
-
       {emailConfirmed && (
         <p
           role="status"

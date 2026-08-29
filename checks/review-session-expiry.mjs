@@ -24,6 +24,10 @@ import {
   loadReviewSessionDraft,
   saveReviewSessionDraft,
 } from "../src/utils/reviewSessionDraft.ts";
+import {
+  buildReviewReauthPath,
+  sanitizeReviewReturnTo,
+} from "../src/utils/reviewReauthReturn.ts";
 
 const now = 1_800_000_000_000;
 const session = (expiresInMs) => ({
@@ -263,8 +267,39 @@ assert.equal(
   undefined,
   "a different source version cannot restore the draft",
 );
+assert.equal(
+  loadReviewSessionDraft(storage, { ...identity, targetId: "question-2" }),
+  undefined,
+  "a different target id cannot restore the draft",
+);
+assert.equal(
+  loadReviewSessionDraft(storage, { ...identity, targetType: "answer" }),
+  undefined,
+  "a different target type cannot restore the draft",
+);
 clearReviewSessionDraft(storage, identity);
 assert.equal(loadReviewSessionDraft(storage, identity), undefined);
+
+// returnTo may only round-trip safe internal Review routes; never an open redirect.
+assert.equal(sanitizeReviewReturnTo("/review?week=1&item=q-1"), "/review?week=1&item=q-1");
+assert.equal(sanitizeReviewReturnTo("/review/answer/a-1"), "/review/answer/a-1");
+assert.equal(sanitizeReviewReturnTo("/dashboard"), null, "non-review routes are rejected");
+assert.equal(sanitizeReviewReturnTo("https://evil.example/review"), null);
+assert.equal(sanitizeReviewReturnTo("//evil.example"), null);
+assert.equal(sanitizeReviewReturnTo("/\\evil.example"), null);
+assert.equal(sanitizeReviewReturnTo("/review/../admin/reviews"), null, "path traversal is rejected");
+assert.equal(sanitizeReviewReturnTo("javascript:alert(1)"), null);
+assert.equal(sanitizeReviewReturnTo("/review\t/x"), null, "control characters are rejected");
+assert.equal(sanitizeReviewReturnTo(null), null);
+assert.equal(
+  buildReviewReauthPath("/review?week=2"),
+  "/dosen/login?reauth=1&returnTo=%2Freview%3Fweek%3D2",
+);
+assert.equal(
+  buildReviewReauthPath("https://evil.example"),
+  "/dosen/login?reauth=1",
+  "an unsafe current path falls back to a bare login redirect",
+);
 
 const repository = await readFile(
   new URL("../src/services/reviewPersistenceRepository.ts", import.meta.url),
@@ -323,20 +358,88 @@ assert.equal(
     ?.length,
   2,
 );
-assert.equal(reviewPage.match(/preserveReviewForm\(draftIdentity, form\)/g)?.length, 2);
+// Success-only draft clearing: exactly one clear per workspace, and only after
+// the explicit write resolves.
 assert.equal(reviewPage.match(/clearPreservedReviewForm\(draftIdentity\)/g)?.length, 2);
 for (const [label, workspace] of [
   ["question", questionWorkspace],
   ["answer", answerWorkspace],
 ]) {
-  const preservedAt = workspace.indexOf("preserveReviewForm(draftIdentity, form)");
   const submittedAt = workspace.indexOf("await onSubmit(");
   const clearedAt = workspace.indexOf("clearPreservedReviewForm(draftIdentity)");
-  assert.ok(preservedAt >= 0 && preservedAt < submittedAt, `${label} draft is preserved before auth/write`);
-  assert.ok(clearedAt > submittedAt, `${label} draft is cleared only after save success`);
+  const flushedAt = workspace.indexOf("preserveReviewForm(draftIdentity, form)");
+  assert.ok(submittedAt >= 0, `${label} workspace submits through onSubmit`);
+  assert.ok(
+    flushedAt >= 0 && flushedAt < submittedAt,
+    `${label} draft is flushed before the write`,
+  );
+  assert.ok(
+    clearedAt > submittedAt,
+    `${label} draft is cleared only after save success`,
+  );
+
+  // The failure branch must keep the draft.
+  const catchStart = workspace.indexOf("} catch (error) {", submittedAt);
+  const catchEnd = workspace.indexOf("} finally {", catchStart);
+  const catchBlock = workspace.slice(catchStart, catchEnd);
+  assert.doesNotMatch(
+    catchBlock,
+    /clearPreservedReviewForm/,
+    `${label} save failure must not clear the draft`,
+  );
+  assert.match(
+    catchBlock,
+    /isReviewPersistenceError\(error, "SESSION_EXPIRED"\)/,
+    `${label} still classifies SESSION_EXPIRED`,
+  );
 }
-assert.match(reviewPage, /href="\/dosen\/login\?reauth=1"/);
+
+// Browser-local autosave never reaches Supabase.
+assert.match(
+  reviewPage,
+  /Browser-local autosave[\s\S]*?preserveReviewForm\(draftIdentity, form\)/,
+  "the autosave effect writes only the sessionStorage draft",
+);
+assert.doesNotMatch(
+  reviewPage,
+  /\.rpc\(/,
+  "the Review page never calls a Supabase RPC directly",
+);
+assert.equal(
+  reviewPage.match(/saveQuestionReview\(/g)?.length,
+  1,
+  "exactly one deliberate question Review write call site",
+);
+assert.equal(
+  reviewPage.match(/saveAnswerReview\(/g)?.length,
+  1,
+  "exactly one deliberate answer Review write call site",
+);
+assert.doesNotMatch(reviewPage, /setInterval\(/, "no polling was introduced");
+
+// Same-tab reauthentication with a safe return path, no new-tab anchor.
+assert.match(reviewPage, /buildReviewReauthPath\(/);
+const dialogSlice = reviewPage.slice(
+  reviewPage.indexOf("function ReviewSessionExpiredDialog"),
+  reviewPage.indexOf("function ReviewStepNavigation"),
+);
+assert.doesNotMatch(dialogSlice, /target="_blank"/, "reauth navigates in the same tab");
+assert.doesNotMatch(dialogSlice, /href=/, "reauth uses router navigation, not an anchor href");
+assert.match(dialogSlice, /Kembali ke Halaman Login/);
+assert.match(dialogSlice, /onBeforeReauth\(\);/, "the draft is flushed before navigating away");
+assert.match(dialogSlice, /createPortal\(/, "the blocking overlay is portalled to document.body");
+
+// Login page looks normal again: the special reauth notice is gone, and a
+// validated returnTo drives the post-login redirect.
+assert.doesNotMatch(
+  loginPage,
+  /memperbarui sesi Review|Draf tetap tersimpan|refresh your Review session/,
+  "the special reauth notice was removed from the login page",
+);
+assert.match(loginPage, /sanitizeReviewReturnTo\(/);
+assert.match(loginPage, /safeReturnTo \?\? "\/dashboard"/);
 assert.match(loginPage, /!reauthenticate && !loading && isLecturer/);
+
 assert.doesNotMatch(
   `${repository}\n${reviewPage}\n${loginPage}`,
   /Authorization|access_token|localStorage\.(?:setItem|getItem)/,

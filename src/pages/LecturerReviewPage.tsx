@@ -18,7 +18,8 @@ import {
   TriangleAlert,
   Trash2,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { AnswerStatusBar } from "../components/review/AnswerStatusBar";
 import { Button } from "../components/common/Button";
 import { EmptyState } from "../components/common/EmptyState";
@@ -59,6 +60,7 @@ import {
 } from "../services/reviewPersistenceRepository";
 import { hasActiveReviewSession } from "../services/reviewSession";
 import { supabase } from "../services/supabaseClient";
+import { buildReviewReauthPath } from "../utils/reviewReauthReturn";
 import { QuestionContent } from "../components/review/QuestionContent";
 import { PsAnswerEvidenceWorkspace } from "../components/review/PsAnswerEvidenceWorkspace";
 import { QuestionContextAccordion } from "../components/review/AnswerWorkspaceNavigation";
@@ -190,11 +192,15 @@ function ReviewSubmitError({ message }: { message: string }) {
 function ReviewSessionExpiredDialog({
   language,
   onReauthReturn,
+  onBeforeReauth,
 }: {
   language: Language;
   onReauthReturn: () => void;
+  onBeforeReauth: () => void;
 }) {
-  const loginActionRef = useRef<HTMLAnchorElement>(null);
+  const loginActionRef = useRef<HTMLButtonElement>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loginActionRef.current?.focus();
@@ -212,10 +218,11 @@ function ReviewSessionExpiredDialog({
     };
     document.addEventListener("keydown", keepFocusContained, true);
 
-    // The lecturer reauthenticates in a separate tab. When they come back to
-    // this tab, ask Supabase Auth whether a valid session now exists and only
-    // then release the dialog. Missing/invalid session or any failure keeps
-    // the dialog open; the Review draft and write are never touched here.
+    // Fallback for a lecturer who reaches login in another tab (e.g. opened the
+    // button with a modifier key): when they come back to this tab, ask Supabase
+    // Auth whether a valid session now exists and only then release the dialog.
+    // Missing/invalid session or any failure keeps the dialog open; the Review
+    // draft and write are never touched here.
     let cancelled = false;
     let leftTab = false;
     const handleVisibilityChange = () => {
@@ -242,9 +249,19 @@ function ReviewSessionExpiredDialog({
     };
   }, [onReauthReturn]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
-      <div className="absolute inset-0 bg-navy-deep/45" aria-hidden="true" />
+  const handleBackToLogin = () => {
+    // Flush the in-progress Review form to the browser-local draft before the
+    // same-tab navigation unmounts this page. No Review is submitted here.
+    onBeforeReauth();
+    navigate(buildReviewReauthPath(`${location.pathname}${location.search}`));
+  };
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex min-h-full items-center justify-center overflow-y-auto p-4">
+      <div
+        className="fixed inset-0 bg-navy-deep/50"
+        aria-hidden="true"
+      />
       <section
         role="dialog"
         aria-modal="true"
@@ -254,31 +271,31 @@ function ReviewSessionExpiredDialog({
       >
         <h2
           id="review-session-expired-title"
-          className="text-lg font-bold text-navy-deep"
+          className="text-center text-base font-bold uppercase tracking-wide text-navy-deep"
         >
-          {language === "id"
-            ? "Silakan login kembali"
-            : "Please sign in again"}
+          {language === "id" ? "Silakan login kembali" : "Please sign in again"}
         </h2>
         <p
           id="review-session-expired-body"
-          className="mt-2 text-sm leading-6 text-navy-deep"
+          className="mx-auto mt-2 max-w-sm text-center text-[13px] leading-5 text-muted"
         >
           {language === "id"
-            ? "Sesi login Anda sudah berakhir. Review yang sudah Anda isi tetap tersimpan di halaman ini. Silakan login kembali untuk melanjutkan dan menyimpan review."
-            : "Your sign-in session has ended. The review you have already filled in stays saved on this page. Please sign in again to continue and save your review."}
+            ? "Sesi login Anda sudah berakhir. Review yang sudah Anda isi tetap tersimpan. Silakan login kembali untuk melanjutkan review."
+            : "Your sign-in session has ended. The review you have already filled in is still saved. Please sign in again to continue your review."}
         </p>
-        <a
+        <button
           ref={loginActionRef}
-          href="/dosen/login?reauth=1"
-          target="_blank"
-          rel="noreferrer"
-          className="mt-5 inline-flex min-h-10 w-full items-center justify-center rounded-md border border-brand bg-brand px-4 font-semibold text-white transition-colors hover:border-brand-deep hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+          type="button"
+          onClick={handleBackToLogin}
+          className="mt-5 inline-flex min-h-10 w-full items-center justify-center rounded-md border border-brand bg-brand px-4 font-semibold text-white shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-brand-deep hover:bg-brand-deep hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
         >
-          {language === "id" ? "Login kembali" : "Sign in again"}
-        </a>
+          {language === "id"
+            ? "Kembali ke Halaman Login"
+            : "Back to the login page"}
+        </button>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -2010,10 +2027,12 @@ export function QuestionValidationWorkspace({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [sessionExpired, setSessionExpired] = useState(false);
-  const dismissSessionExpiredDialog = useCallback(
-    () => setSessionExpired(false),
-    [],
-  );
+  const dismissSessionExpiredDialog = useCallback(() => {
+    // A valid session is confirmed: drop every trace of the expiry UI so the
+    // restored draft is all that remains.
+    setSessionExpired(false);
+    setSubmitError("");
+  }, []);
   const [validationAttempted, setValidationAttempted] = useState(false);
   const formDirty = isMisconceptionReviewFormDirty(form, savedForm);
   const formUnavailable = mode === "view" || locked || progressUnavailable;
@@ -2035,6 +2054,29 @@ export function QuestionValidationWorkspace({
     setSubmitError("");
     setSessionExpired(false);
   }, [draftIdentity, savedForm]);
+
+  // Browser-local autosave: whenever the reviewer changes the form, keep the
+  // current reducer state in sessionStorage (debounced) so it survives a
+  // same-tab login round trip or a reload. This never contacts Supabase and
+  // never counts as a submitted Review.
+  useEffect(() => {
+    if (!draftIdentity) return;
+    if (!isMisconceptionReviewFormDirty(form, savedForm)) return;
+
+    const flushDraft = () => preserveReviewForm(draftIdentity, form);
+    const debounce = window.setTimeout(flushDraft, 400);
+    const flushOnHide = () => {
+      if (document.visibilityState === "hidden") flushDraft();
+    };
+    document.addEventListener("visibilitychange", flushOnHide);
+    window.addEventListener("pagehide", flushDraft);
+
+    return () => {
+      window.clearTimeout(debounce);
+      document.removeEventListener("visibilitychange", flushOnHide);
+      window.removeEventListener("pagehide", flushDraft);
+    };
+  }, [draftIdentity, form, savedForm]);
 
   const handleSubmit = async () => {
     if (formUnavailable || submitting) return;
@@ -2468,6 +2510,7 @@ export function QuestionValidationWorkspace({
             <ReviewSessionExpiredDialog
               language={language}
               onReauthReturn={dismissSessionExpiredDialog}
+              onBeforeReauth={() => preserveReviewForm(draftIdentity, form)}
             />
           )}
 
@@ -2616,10 +2659,12 @@ export function AnswerValidationWorkspace({
   const [deleting, setDeleting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [sessionExpired, setSessionExpired] = useState(false);
-  const dismissSessionExpiredDialog = useCallback(
-    () => setSessionExpired(false),
-    [],
-  );
+  const dismissSessionExpiredDialog = useCallback(() => {
+    // A valid session is confirmed: drop every trace of the expiry UI so the
+    // restored draft is all that remains.
+    setSessionExpired(false);
+    setSubmitError("");
+  }, []);
   const [validationAttempted, setValidationAttempted] = useState(false);
   const formUnavailable = mode === "view" || locked || progressUnavailable;
   const formErrors = validationAttempted
@@ -2641,6 +2686,29 @@ export function AnswerValidationWorkspace({
     setSubmitError("");
     setSessionExpired(false);
   }, [draftIdentity, savedForm]);
+
+  // Browser-local autosave: whenever the reviewer changes the form, keep the
+  // current reducer state in sessionStorage (debounced) so it survives a
+  // same-tab login round trip or a reload. This never contacts Supabase and
+  // never counts as a submitted Review.
+  useEffect(() => {
+    if (!draftIdentity) return;
+    if (!isMisconceptionReviewFormDirty(form, savedForm)) return;
+
+    const flushDraft = () => preserveReviewForm(draftIdentity, form);
+    const debounce = window.setTimeout(flushDraft, 400);
+    const flushOnHide = () => {
+      if (document.visibilityState === "hidden") flushDraft();
+    };
+    document.addEventListener("visibilitychange", flushOnHide);
+    window.addEventListener("pagehide", flushDraft);
+
+    return () => {
+      window.clearTimeout(debounce);
+      document.removeEventListener("visibilitychange", flushOnHide);
+      window.removeEventListener("pagehide", flushDraft);
+    };
+  }, [draftIdentity, form, savedForm]);
 
   const handleSubmit = async () => {
     if (formUnavailable || submitting) return;
@@ -3134,6 +3202,7 @@ export function AnswerValidationWorkspace({
             <ReviewSessionExpiredDialog
               language={language}
               onReauthReturn={dismissSessionExpiredDialog}
+              onBeforeReauth={() => preserveReviewForm(draftIdentity, form)}
             />
           )}
 
