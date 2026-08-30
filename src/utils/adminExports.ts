@@ -26,29 +26,32 @@ export type AdminCsvData = {
  * already passed the Admin snapshot's source-version filtering reach this
  * builder; it performs an in-memory presentation transform and never mutates
  * Review or master data. Internal identifiers (review/answer/question UUIDs and
- * source_version) are deliberately omitted in favour of LMS/master metadata.
+ * source_version) are deliberately omitted in favour of one lecturer-facing
+ * question code (numeric LMS id for PS, MP display code for MP).
+ *
+ * Presentation strings generated here (outcome labels, misconception labels,
+ * list separators) use a plain ASCII hyphen only - never an en/em dash.
  */
 export const lecturerReviewHeaders = [
-  "minggu",
-  "tipe_soal",
-  "id_lms",
-  "kode_soal",
-  "kode_miskonsepsi",
-  "nama_soal",
-  "objek_review",
-  "opsi_jawaban",
-  "isi_jawaban",
-  "reviewer",
-  "hasil_review",
-  "miskonsepsi_acuan",
-  "miskonsepsi_dihapus",
-  "alasan_penghapusan",
-  "miskonsepsi_ditambahkan",
-  "alasan_penambahan",
-  "miskonsepsi_usulan_reviewer",
-  "catatan",
-  "waktu_review",
-  "terakhir_diperbarui",
+  "Minggu",
+  "Tipe Soal",
+  "Kode Soal",
+  "Judul Soal",
+  "Kode Miskonsepsi",
+  "Nama Reviewer",
+  "Waktu Review",
+  "Terakhir Diperbarui",
+  "Bagian yang Direview",
+  "Opsi Jawaban",
+  "Isi Jawaban",
+  "Hasil Review",
+  "Miskonsepsi yang Tercantum",
+  "Miskonsepsi yang Dihapus",
+  "Alasan Penghapusan Miskonsepsi",
+  "Miskonsepsi yang Ditambahkan",
+  "Alasan Penambahan Miskonsepsi",
+  "Miskonsepsi Menurut Reviewer",
+  "Catatan Tambahan",
 ] as const;
 
 export const REVIEWER_NAME_UNAVAILABLE = "(Nama tidak tersedia)";
@@ -74,7 +77,7 @@ function renderMisconceptionList(
   return sortMisconceptionIds(ids)
     .map((id) => {
       const misconception = misconceptionById.get(id);
-      return misconception ? `${id} – ${t(misconception.title, language)}` : id;
+      return misconception ? `${id} - ${t(misconception.title, language)}` : id;
     })
     .join("; ");
 }
@@ -102,14 +105,14 @@ export function reviewOutcomeLabel(
 ): string {
   const hasRemoval = removedIds.length > 0;
   const hasAddition = addedIds.length > 0;
-  if (!hasRemoval && !hasAddition) return "Sesuai – tanpa perubahan";
+  if (!hasRemoval && !hasAddition) return "Sesuai - tanpa perubahan";
   if (hasRemoval && !hasAddition) {
-    return "Perlu revisi – ada miskonsepsi yang dihapus";
+    return "Perlu revisi - ada miskonsepsi yang dihapus";
   }
   if (!hasRemoval && hasAddition) {
-    return "Perlu revisi – ada miskonsepsi yang ditambahkan";
+    return "Perlu revisi - ada miskonsepsi yang ditambahkan";
   }
-  return "Perlu revisi – ada penghapusan & penambahan";
+  return "Perlu revisi - ada penghapusan & penambahan";
 }
 
 export function reviewerDisplayName(reviewer: AdminReviewer): string {
@@ -120,19 +123,18 @@ export function reviewerDisplayName(reviewer: AdminReviewer): string {
   return name;
 }
 
-function questionLmsId(question: Question): string {
-  // MP probes never carry an LMS question id; keep the column blank for them.
-  if (question.type === "multiple_choice") return "";
-  return question.lmsQuestionId?.trim() ?? "";
-}
-
-function questionSourceCode(question: Question): string {
+/**
+ * The single lecturer-facing question code:
+ *  - PS: the numeric LMS question id (`question.lmsQuestionId`)
+ *  - MP: the MP display code (`question.displayCode`, e.g. `MP-CO-01-1`)
+ * Falls back to `displayCode` for PS only if the LMS id is unexpectedly absent
+ * so a row is never left without an identifier.
+ */
+function questionCode(question: Question): string {
   if (question.type === "multiple_choice") {
     return question.displayCode?.trim() ?? "";
   }
-  // PS: the lecturer/source question code. Fall back to the display code only
-  // when source_code is unexpectedly missing so a row is never left blank.
-  return question.sourceCode?.trim() || question.displayCode?.trim() || "";
+  return question.lmsQuestionId?.trim() || question.displayCode?.trim() || "";
 }
 
 export function buildCurrentReviewsCsv(
@@ -152,10 +154,9 @@ export function buildCurrentReviewsCsv(
     const { question } = group;
     const minggu = question.week ? getMaterialWeekLabel(question.week) : "";
     const tipeSoal = getMaterialQuestionType(question.type).toUpperCase();
-    const idLms = questionLmsId(question);
-    const kodeSoal = questionSourceCode(question);
+    const kodeSoal = questionCode(question);
     const kodeMiskonsepsi = question.targetMisconceptionId?.trim() ?? "";
-    const namaSoal = t(question.title, language);
+    const judulSoal = t(question.title, language);
 
     const reviewers = [...group.reviewers].sort((left, right) => {
       const nameOrder = reviewerDisplayName(left.reviewer).localeCompare(
@@ -167,98 +168,90 @@ export function buildCurrentReviewsCsv(
       return left.reviewer.reviewerId.localeCompare(right.reviewer.reviewerId);
     });
 
+    const buildRow = (
+      review: {
+        removedMisconceptionIds: string[];
+        additionalMisconceptionIds: string[];
+        removalReason: string | null;
+        additionReason: string | null;
+        note: string | null;
+        createdAt: string;
+        updatedAt: string;
+      },
+      reviewerName: string,
+      referenceIds: readonly string[],
+      section: "Soal" | "Opsi jawaban",
+      optionLabel: string,
+      answerText: string,
+    ): CsvValue[] => [
+      minggu,
+      tipeSoal,
+      kodeSoal,
+      judulSoal,
+      kodeMiskonsepsi,
+      reviewerName,
+      formatWibDateTime(review.createdAt),
+      formatWibDateTime(review.updatedAt),
+      section,
+      optionLabel,
+      answerText,
+      reviewOutcomeLabel(
+        review.removedMisconceptionIds,
+        review.additionalMisconceptionIds,
+      ),
+      renderMisconceptionList(referenceIds, misconceptionById, language),
+      renderMisconceptionList(
+        review.removedMisconceptionIds,
+        misconceptionById,
+        language,
+      ),
+      review.removalReason ?? "",
+      renderMisconceptionList(
+        review.additionalMisconceptionIds,
+        misconceptionById,
+        language,
+      ),
+      review.additionReason ?? "",
+      renderMisconceptionList(
+        reviewerFinalMisconceptionIds(
+          referenceIds,
+          review.removedMisconceptionIds,
+          review.additionalMisconceptionIds,
+        ),
+        misconceptionById,
+        language,
+      ),
+      review.note ?? "",
+    ];
+
     for (const reviewerGroup of reviewers) {
-      const reviewer = reviewerDisplayName(reviewerGroup.reviewer);
+      const reviewerName = reviewerDisplayName(reviewerGroup.reviewer);
       const questionReview = reviewerGroup.questionReview;
 
       if (questionReview) {
-        const referenceIds = question.questionMisconceptionIds;
-        rows.push([
-          minggu,
-          tipeSoal,
-          idLms,
-          kodeSoal,
-          kodeMiskonsepsi,
-          namaSoal,
-          "Soal",
-          "",
-          "",
-          reviewer,
-          reviewOutcomeLabel(
-            questionReview.removedMisconceptionIds,
-            questionReview.additionalMisconceptionIds,
+        rows.push(
+          buildRow(
+            questionReview,
+            reviewerName,
+            question.questionMisconceptionIds,
+            "Soal",
+            "",
+            "",
           ),
-          renderMisconceptionList(referenceIds, misconceptionById, language),
-          renderMisconceptionList(
-            questionReview.removedMisconceptionIds,
-            misconceptionById,
-            language,
-          ),
-          questionReview.removalReason ?? "",
-          renderMisconceptionList(
-            questionReview.additionalMisconceptionIds,
-            misconceptionById,
-            language,
-          ),
-          questionReview.additionReason ?? "",
-          renderMisconceptionList(
-            reviewerFinalMisconceptionIds(
-              referenceIds,
-              questionReview.removedMisconceptionIds,
-              questionReview.additionalMisconceptionIds,
-            ),
-            misconceptionById,
-            language,
-          ),
-          questionReview.note ?? "",
-          formatWibDateTime(questionReview.createdAt),
-          formatWibDateTime(questionReview.updatedAt),
-        ]);
+        );
       }
 
       for (const { answer, review } of reviewerGroup.answerReviews) {
-        const referenceIds = answer.studentMisconceptionIds;
-        rows.push([
-          minggu,
-          tipeSoal,
-          idLms,
-          kodeSoal,
-          kodeMiskonsepsi,
-          namaSoal,
-          "Opsi jawaban",
-          answer.optionLabel ?? "",
-          answer.answerText ?? "",
-          reviewer,
-          reviewOutcomeLabel(
-            review.removedMisconceptionIds,
-            review.additionalMisconceptionIds,
+        rows.push(
+          buildRow(
+            review,
+            reviewerName,
+            answer.studentMisconceptionIds,
+            "Opsi jawaban",
+            answer.optionLabel ?? "",
+            answer.answerText ?? "",
           ),
-          renderMisconceptionList(referenceIds, misconceptionById, language),
-          renderMisconceptionList(
-            review.removedMisconceptionIds,
-            misconceptionById,
-            language,
-          ),
-          review.removalReason ?? "",
-          renderMisconceptionList(
-            review.additionalMisconceptionIds,
-            misconceptionById,
-            language,
-          ),
-          review.additionReason ?? "",
-          renderMisconceptionList(
-            reviewerFinalMisconceptionIds(
-              referenceIds,
-              review.removedMisconceptionIds,
-              review.additionalMisconceptionIds,
-            ),
-            misconceptionById,
-            language,
-          ),
-          review.note ?? "",
-          formatWibDateTime(review.createdAt),
-          formatWibDateTime(review.updatedAt),
-        ]);
+        );
       }
     }
   }
