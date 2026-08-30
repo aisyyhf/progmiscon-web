@@ -169,11 +169,64 @@ assert.deepEqual(countCurrentAdminReviewRows(groups), {
   answerReviews: 2,
   totalReviews: 3,
 });
-const reviewCsv = buildCurrentReviewsCsv(groups);
+const reviewCsv = buildCurrentReviewsCsv(groups, {
+  misconceptions: [],
+  language: "id",
+});
 assert.equal(reviewCsv.rows.length, 3);
-assert.ok(reviewCsv.headers.includes("source_version"));
-assert.ok(reviewCsv.headers.includes("removed_misconception_ids"));
-assert.ok(reviewCsv.headers.includes("additional_misconception_ids"));
+assert.deepEqual(reviewCsv.headers, [
+  "Minggu",
+  "Tipe Soal",
+  "Kode Soal",
+  "Judul Soal",
+  "Kode Miskonsepsi",
+  "Nama Reviewer",
+  "Waktu Review",
+  "Terakhir Diperbarui",
+  "Bagian yang Direview",
+  "Opsi Jawaban",
+  "Isi Jawaban",
+  "Hasil Review",
+  "Miskonsepsi yang Tercantum",
+  "Miskonsepsi yang Dihapus",
+  "Alasan Penghapusan Miskonsepsi",
+  "Miskonsepsi yang Ditambahkan",
+  "Alasan Penambahan Miskonsepsi",
+  "Miskonsepsi Menurut Reviewer",
+  "Catatan Tambahan",
+]);
+assert.equal(reviewCsv.headers.length, 19);
+for (const header of reviewCsv.headers) {
+  assert.ok(!header.includes("_"), `header "${header}" must not use underscores`);
+}
+for (const banned of [
+  "source_version",
+  "review_id",
+  "reviewer_id",
+  "reviewer_email",
+  "question_id",
+  "answer_id",
+  "is_active",
+  "id_lms",
+]) {
+  assert.ok(
+    !reviewCsv.headers.includes(banned),
+    `internal header ${banned} must not be exported`,
+  );
+}
+assert.deepEqual(reviewCsv.rows[0].slice(8, 12), [
+  "Soal",
+  "",
+  "",
+  "Perlu revisi - ada miskonsepsi yang dihapus",
+]);
+assert.equal(reviewCsv.rows[0][5], "Reviewer One");
+assert.deepEqual(reviewCsv.rows[1].slice(8, 12), [
+  "Opsi jawaban",
+  "A",
+  "A text",
+  "Perlu revisi - ada miskonsepsi yang ditambahkan",
+]);
 
 const masterData = {
   topics: [],
@@ -328,7 +381,12 @@ assert.match(shell, /pathname\.startsWith\("\/admin\/"\)/);
 assert.doesNotMatch(app, /AdminPage/);
 assert.doesNotMatch(topNav, /Admin Progmiscon|to="\/admin"/);
 assert.match(questionsPage, /getQuestions\(\)/);
-assert.match(reviewsPage, /buildCurrentReviewsCsv\(filteredGroups\)/);
+assert.match(reviewsPage, /buildCurrentReviewsCsv\(filteredGroups, \{/);
+assert.match(reviewsPage, /progmiscon_hasil_review_dosen_\$\{wibDateStamp\(\)\}\.csv/);
+assert.match(
+  reviewsPage,
+  /"Unduh Hasil Review \(CSV\)" : "Download Review Results \(CSV\)"/,
+);
 assert.match(exportsPage, /getMasterData/);
 
 for (const page of [questionsPage, reviewsPage, exportsPage]) {

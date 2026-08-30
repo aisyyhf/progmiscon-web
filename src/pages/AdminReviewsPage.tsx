@@ -28,7 +28,7 @@ import {
   getMaterialWeekOptions,
   type MaterialQuestionTypeFilter,
 } from "../utils/materialQuestionFilters";
-import { downloadCsvFile, exportDateStamp } from "../utils/reviewCsv";
+import { downloadCsvFile, wibDateStamp } from "../utils/reviewCsv";
 import { t } from "../utils/translation";
 
 const PAGE_SIZE = 8;
@@ -223,8 +223,15 @@ export function AdminReviewsPage() {
   useEffect(() => setPage(1), [query, reviewerId, type, week]);
 
   const handleExport = () => {
-    const csv = buildCurrentReviewsCsv(filteredGroups);
-    downloadCsvFile(`reviews_current_${exportDateStamp()}.csv`, csv.headers, csv.rows);
+    const csv = buildCurrentReviewsCsv(filteredGroups, {
+      misconceptions: data.misconceptions,
+      language,
+    });
+    downloadCsvFile(
+      `progmiscon_hasil_review_dosen_${wibDateStamp()}.csv`,
+      csv.headers,
+      csv.rows,
+    );
   };
 
   if (loading) {
@@ -261,7 +268,7 @@ export function AdminReviewsPage() {
           className="inline-flex min-h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-md bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-45"
         >
           <Download size={16} aria-hidden="true" />
-          {isIndonesian ? "Export Review Saat Ini" : "Export Current Reviews"}
+          {isIndonesian ? "Unduh Hasil Review (CSV)" : "Download Review Results (CSV)"}
         </button>
       </header>
 
