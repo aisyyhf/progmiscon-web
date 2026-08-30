@@ -169,11 +169,61 @@ assert.deepEqual(countCurrentAdminReviewRows(groups), {
   answerReviews: 2,
   totalReviews: 3,
 });
-const reviewCsv = buildCurrentReviewsCsv(groups);
+const reviewCsv = buildCurrentReviewsCsv(groups, {
+  misconceptions: [],
+  language: "id",
+});
 assert.equal(reviewCsv.rows.length, 3);
-assert.ok(reviewCsv.headers.includes("source_version"));
-assert.ok(reviewCsv.headers.includes("removed_misconception_ids"));
-assert.ok(reviewCsv.headers.includes("additional_misconception_ids"));
+assert.deepEqual(reviewCsv.headers, [
+  "minggu",
+  "tipe_soal",
+  "id_lms",
+  "kode_soal",
+  "kode_miskonsepsi",
+  "nama_soal",
+  "objek_review",
+  "opsi_jawaban",
+  "isi_jawaban",
+  "reviewer",
+  "hasil_review",
+  "miskonsepsi_acuan",
+  "miskonsepsi_dihapus",
+  "alasan_penghapusan",
+  "miskonsepsi_ditambahkan",
+  "alasan_penambahan",
+  "miskonsepsi_usulan_reviewer",
+  "catatan",
+  "waktu_review",
+  "terakhir_diperbarui",
+]);
+for (const internal of [
+  "source_version",
+  "review_id",
+  "reviewer_id",
+  "reviewer_email",
+  "question_id",
+  "answer_id",
+  "is_active",
+]) {
+  assert.ok(
+    !reviewCsv.headers.includes(internal),
+    `internal header ${internal} must not be exported`,
+  );
+}
+assert.deepEqual(reviewCsv.rows[0].slice(6, 11), [
+  "Soal",
+  "",
+  "",
+  "Reviewer One",
+  "Perlu revisi – ada miskonsepsi yang dihapus",
+]);
+assert.deepEqual(reviewCsv.rows[1].slice(6, 11), [
+  "Opsi jawaban",
+  "A",
+  "A text",
+  "Reviewer One",
+  "Perlu revisi – ada miskonsepsi yang ditambahkan",
+]);
 
 const masterData = {
   topics: [],
@@ -328,7 +378,12 @@ assert.match(shell, /pathname\.startsWith\("\/admin\/"\)/);
 assert.doesNotMatch(app, /AdminPage/);
 assert.doesNotMatch(topNav, /Admin Progmiscon|to="\/admin"/);
 assert.match(questionsPage, /getQuestions\(\)/);
-assert.match(reviewsPage, /buildCurrentReviewsCsv\(filteredGroups\)/);
+assert.match(reviewsPage, /buildCurrentReviewsCsv\(filteredGroups, \{/);
+assert.match(reviewsPage, /progmiscon_hasil_review_dosen_\$\{wibDateStamp\(\)\}\.csv/);
+assert.match(
+  reviewsPage,
+  /"Unduh Hasil Review \(CSV\)" : "Download Review Results \(CSV\)"/,
+);
 assert.match(exportsPage, /getMasterData/);
 
 for (const page of [questionsPage, reviewsPage, exportsPage]) {
