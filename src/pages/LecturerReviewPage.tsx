@@ -122,6 +122,7 @@ import {
   getMisconceptionReviewFormErrors,
   getQuestionRemovalProposalIds,
   isMisconceptionReviewFormDirty,
+  limitFormSelectionsToCurrentOptions,
   misconceptionReviewFormReducer,
   questionReviewFormState,
   type MisconceptionReviewFormState,
@@ -1990,9 +1991,30 @@ export function QuestionValidationWorkspace({
     recommended.flatMap((item) => item.relatedMisconceptionIds),
   );
   const relatedEvidence = getEvidenceAnswersForQuestion(question.id, answers);
+  // IDs the form currently offers for removal / addition. A restored review may
+  // still carry selections that have since left the effective question set
+  // (e.g. an answer-derived misconception dropped from its answer relation);
+  // those are invisible in the form yet would make a re-save fail, so they are
+  // pruned when the persisted state is loaded.
+  const restorableSelectionOptions = useMemo(
+    () => ({
+      removableIds: getQuestionRemovalProposalIds(
+        question.questionMisconceptionIds,
+      ),
+      addableIds: getAdditionalMisconceptionCandidates(
+        misconceptions,
+        question.questionMisconceptionIds,
+      ).map((item) => item.id),
+    }),
+    [misconceptions, question.questionMisconceptionIds],
+  );
   const savedForm = useMemo(
-    () => questionReviewFormState(submittedReview),
-    [submittedReview],
+    () =>
+      limitFormSelectionsToCurrentOptions(
+        questionReviewFormState(submittedReview),
+        restorableSelectionOptions,
+      ),
+    [submittedReview, restorableSelectionOptions],
   );
   const draftIdentity = useMemo<ReviewSessionDraftIdentity | undefined>(() => {
     const sourceVersion = question.sourceVersion?.trim();
@@ -2006,8 +2028,12 @@ export function QuestionValidationWorkspace({
     };
   }, [question.id, question.sourceVersion, user?.id]);
   const initialForm = useMemo(
-    () => loadPreservedReviewForm(savedForm, draftIdentity),
-    [draftIdentity, savedForm],
+    () =>
+      limitFormSelectionsToCurrentOptions(
+        loadPreservedReviewForm(savedForm, draftIdentity),
+        restorableSelectionOptions,
+      ),
+    [draftIdentity, savedForm, restorableSelectionOptions],
   );
   const [form, dispatchForm] = useReducer(
     misconceptionReviewFormReducer,
@@ -2042,12 +2068,15 @@ export function QuestionValidationWorkspace({
     if (!draftIdentity) return;
     dispatchForm({
       type: "replace",
-      value: loadPreservedReviewForm(savedForm, draftIdentity),
+      value: limitFormSelectionsToCurrentOptions(
+        loadPreservedReviewForm(savedForm, draftIdentity),
+        restorableSelectionOptions,
+      ),
     });
     setValidationAttempted(false);
     setSubmitError("");
     setSessionExpired(false);
-  }, [draftIdentity, savedForm]);
+  }, [draftIdentity, savedForm, restorableSelectionOptions]);
 
   // Browser-local autosave + unsaved-change signal. Whenever the reviewer
   // changes the form we synchronously persist the full reducer state to the

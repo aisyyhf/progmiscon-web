@@ -255,14 +255,33 @@ async function runFoundationSelfTest(fixtures) {
     /when table_grant\.grantee = 0::oid then 'PUBLIC'::text/i,
   );
   assert.doesNotMatch(schemaContractQuery, /role_table_grants/i);
-  assert.deepEqual(
-    manifest.entries.slice(-4).map((entry) => basename(entry.path)),
-    [
-      "review-v3-legacy-prerequisite.sql",
-      "20260814_006_review_source_versions_rpc.sql",
-      "20260814174227_fix_review_audit_trigger.sql",
-      "20260823000000_review_v3_epoch_guard.sql",
-    ],
+  // The reconstruction tail must apply, in this relative order, the local
+  // prerequisite, the post-prerequisite RPC/audit migrations and the epoch
+  // guard. Reviewed forward migrations (activeMigration entries after the
+  // guard) may follow; their naming/versioning is enforced by
+  // checks/migration-epoch-layout.mjs.
+  const manifestNames = manifest.entries.map((entry) => basename(entry.path));
+  const orderedAnchors = [
+    "review-v3-legacy-prerequisite.sql",
+    "20260814_006_review_source_versions_rpc.sql",
+    "20260814174227_fix_review_audit_trigger.sql",
+    "20260823000000_review_v3_epoch_guard.sql",
+  ];
+  const anchorPositions = orderedAnchors.map((name) => manifestNames.indexOf(name));
+  assert.ok(
+    anchorPositions.every(
+      (position, index) =>
+        position !== -1 &&
+        (index === 0 || position > anchorPositions[index - 1]),
+    ),
+    "replay manifest must apply the prerequisite, the post-prerequisite RPC/audit migrations and the epoch guard in order",
+  );
+  const guardPosition = anchorPositions[anchorPositions.length - 1];
+  assert.ok(
+    manifest.entries
+      .slice(guardPosition + 1)
+      .every((entry) => entry.activeMigration === true),
+    "every reconstruction step after the epoch guard must be a reviewed active migration",
   );
 
   const syncRows = fixtures["production-review-sync-contracts.csv"];

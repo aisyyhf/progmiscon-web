@@ -307,4 +307,132 @@ begin
 end;
 $final_assertions$;
 
+-- ===========================================================================
+-- Effective question misconception set (direct UNION answer-derived).
+-- save_question_review_v3 must accept a removal / reject an addition for any
+-- misconception in the effective set the Review Soal UI exposes, not only the
+-- direct question baseline.
+-- ===========================================================================
+insert into public.master_misconception_catalog
+  (misconception_id, synced_by, synced_at)
+values
+  ('M-EFF-DIRECT', null, now()),
+  ('M-EFF-ANSWER', null, now()),
+  ('M-EFF-MULTI', null, now());
+
+insert into public.question_misconception_baselines
+  (question_id, misconception_ids, synced_by, synced_at, source_version, source_fingerprint)
+values
+  ('Q-EFF-001', array['M-EFF-DIRECT'], null, now(),
+   '41000000-0000-4000-8000-000000000001', null),
+  ('Q-EFF-002', array['M-EFF-DIRECT'], null, now(),
+   '41000000-0000-4000-8000-000000000004', null);
+
+-- Q-EFF-001 derives M-EFF-ANSWER from two answer options (CASE E: the effective
+-- set must stay unique and deterministic) plus M-EFF-MULTI from one of them.
+insert into public.answer_misconception_baselines
+  (answer_id, question_id, misconception_ids, synced_by, synced_at,
+   source_version, source_fingerprint)
+values
+  ('A-EFF-001', 'Q-EFF-001', array['M-EFF-ANSWER'], null, now(),
+   '41000000-0000-4000-8000-000000000002', null),
+  ('A-EFF-002', 'Q-EFF-001', array['M-EFF-ANSWER', 'M-EFF-MULTI'], null, now(),
+   '41000000-0000-4000-8000-000000000003', null);
+
+do $effective_set$
+declare
+  removed_now text[];
+begin
+  perform set_config('request.jwt.claim.role', 'authenticated', false);
+  perform set_config('request.jwt.claim.sub',
+    '00000000-0000-4000-8000-000000000012', false);
+
+  -- CASE A: remove an answer-derived misconception -> allowed, stored verbatim.
+  perform public.save_question_review_v3(
+    'Q-EFF-001', '41000000-0000-4000-8000-000000000001',
+    true, array['M-EFF-ANSWER'], 'answer-derived removal proposal',
+    false, '{}', null, null
+  );
+  select removed_misconception_ids into removed_now
+  from public.question_reviews
+  where reviewer_id = '00000000-0000-4000-8000-000000000012'
+    and question_id = 'Q-EFF-001'
+    and source_version = '41000000-0000-4000-8000-000000000001';
+  if removed_now is distinct from array['M-EFF-ANSWER'] then
+    raise exception 'CASE_A_ANSWER_DERIVED_REMOVAL_NOT_STORED: %', removed_now;
+  end if;
+
+  -- CASE B: remove a direct misconception -> still allowed.
+  perform public.save_question_review_v3(
+    'Q-EFF-001', '41000000-0000-4000-8000-000000000001',
+    true, array['M-EFF-DIRECT'], 'direct removal proposal',
+    false, '{}', null, null
+  );
+
+  -- CASE E/F: remove several effective ids at once (direct + answer-derived,
+  -- the answer-derived id resolved from two answers) -> allowed and unique.
+  perform public.save_question_review_v3(
+    'Q-EFF-001', '41000000-0000-4000-8000-000000000001',
+    true, array['M-EFF-ANSWER', 'M-EFF-MULTI'], 'multi removal proposal',
+    false, '{}', null, null
+  );
+
+  -- CASE C: a misconception in neither the direct nor any answer-derived
+  -- relation is still rejected.
+  begin
+    perform public.save_question_review_v3(
+      'Q-EFF-001', '41000000-0000-4000-8000-000000000001',
+      true, array['M-EFF-UNKNOWN'], 'should be rejected',
+      false, '{}', null, null
+    );
+    raise exception 'CASE_C_EXPECTED_REMOVAL_NOT_IN_BASELINE';
+  exception
+    when sqlstate '22023' then
+      if sqlerrm <> 'REMOVAL_NOT_IN_BASELINE' then raise; end if;
+  end;
+
+  -- CASE D: proposing to ADD a misconception that already belongs to the
+  -- effective set through an answer relation is rejected.
+  begin
+    perform public.save_question_review_v3(
+      'Q-EFF-001', '41000000-0000-4000-8000-000000000001',
+      false, '{}', null,
+      true, array['M-EFF-ANSWER'], 'already effective via answer', null
+    );
+    raise exception 'CASE_D_EXPECTED_ADDITION_ALREADY_IN_BASELINE';
+  exception
+    when sqlstate '22023' then
+      if sqlerrm <> 'ADDITION_ALREADY_IN_BASELINE' then raise; end if;
+  end;
+
+  -- CASE G: a question with no answer-derived misconceptions keeps the
+  -- direct-only behaviour -- direct removal allowed, answer-derived id rejected.
+  perform public.save_question_review_v3(
+    'Q-EFF-002', '41000000-0000-4000-8000-000000000004',
+    true, array['M-EFF-DIRECT'], 'direct only question',
+    false, '{}', null, null
+  );
+  begin
+    perform public.save_question_review_v3(
+      'Q-EFF-002', '41000000-0000-4000-8000-000000000004',
+      true, array['M-EFF-ANSWER'], 'no answer relation here',
+      false, '{}', null, null
+    );
+    raise exception 'CASE_G_EXPECTED_REMOVAL_NOT_IN_BASELINE';
+  exception
+    when sqlstate '22023' then
+      if sqlerrm <> 'REMOVAL_NOT_IN_BASELINE' then raise; end if;
+  end;
+
+  -- Answer-derived removal votes must not leak into the question consensus
+  -- snapshot: with a single reviewer no override row is created.
+  if exists (
+    select 1 from public.question_misconception_overrides
+    where question_id in ('Q-EFF-001', 'Q-EFF-002')
+  ) then
+    raise exception 'EFFECTIVE_SET_REMOVAL_LEAKED_INTO_CONSENSUS';
+  end if;
+end;
+$effective_set$;
+
 commit;

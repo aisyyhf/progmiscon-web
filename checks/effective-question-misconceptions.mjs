@@ -10,6 +10,7 @@ import {
   getAdditionalMisconceptionCandidates,
   getQuestionRemovalProposalIds,
   initialMisconceptionReviewFormState,
+  limitFormSelectionsToCurrentOptions,
   misconceptionReviewFormReducer,
 } from "../src/utils/reviewMisconceptionForm.ts";
 import { buildQuestionOptions } from "../src/utils/questionMetadata.ts";
@@ -302,9 +303,150 @@ assert.deepEqual(
   "MP options must retain every misconception ID",
 );
 
+// ---------------------------------------------------------------------------
+// Restoring a submitted Question Review must not keep selections that have
+// since left the effective set (e.g. an answer-derived misconception dropped
+// from its answer relation). Such IDs are invisible in the form and would make
+// save_question_review_v3 reject a re-save.
+// ---------------------------------------------------------------------------
+const restoredForm = {
+  removalChoice: true,
+  // M-01 direct, M-03 answer-derived at save time
+  removedMisconceptionIds: ["M-03", "M-01"],
+  removalReason: "IO-05-style answer-derived removal plus a direct one",
+  additionChoice: true,
+  additionalMisconceptionIds: ["M-04"],
+  additionReason: "extra proposal",
+  note: "reviewer note",
+};
+
+const unionAtSaveTime = provenanceFor(
+  masterData(
+    [questionRelation("M-01"), questionRelation("M-02")],
+    [answerRelation("A-01", "M-02"), answerRelation("A-01", "M-03")],
+  ),
+).questionMisconceptionIds;
+assert.deepEqual(unionAtSaveTime, ["M-01", "M-02", "M-03"]);
+
+// M-03 still part of the effective set -> every retained selection survives and
+// the untouched form keeps its identity.
+const stillCurrent = limitFormSelectionsToCurrentOptions(restoredForm, {
+  removableIds: getQuestionRemovalProposalIds(unionAtSaveTime),
+  addableIds: getAdditionalMisconceptionCandidates(
+    [{ id: "M-04" }, { id: "M-05" }],
+    unionAtSaveTime,
+  ).map((item) => item.id),
+});
+assert.equal(
+  stillCurrent,
+  restoredForm,
+  "a still-valid restored review is returned unchanged",
+);
+assert.deepEqual(stillCurrent.removedMisconceptionIds, ["M-03", "M-01"]);
+assert.deepEqual(stillCurrent.additionalMisconceptionIds, ["M-04"]);
+
+// M-03 has been dropped from the answer relation -> effective set is now
+// [M-01, M-02]. The stale answer-derived removal is pruned; the direct removal,
+// the still-addable addition, and every reason / note field are untouched.
+const reducedUnion = provenanceFor(
+  masterData(
+    [questionRelation("M-01"), questionRelation("M-02")],
+    [answerRelation("A-01", "M-02")],
+  ),
+).questionMisconceptionIds;
+assert.deepEqual(reducedUnion, ["M-01", "M-02"]);
+
+const afterStale = limitFormSelectionsToCurrentOptions(restoredForm, {
+  removableIds: getQuestionRemovalProposalIds(reducedUnion),
+  addableIds: getAdditionalMisconceptionCandidates(
+    [{ id: "M-03" }, { id: "M-04" }, { id: "M-05" }],
+    reducedUnion,
+  ).map((item) => item.id),
+});
+assert.deepEqual(
+  afterStale.removedMisconceptionIds,
+  ["M-01"],
+  "stale answer-derived removal is dropped, the direct removal is kept",
+);
+assert.deepEqual(
+  afterStale.additionalMisconceptionIds,
+  ["M-04"],
+  "a still-addable addition survives the prune",
+);
+assert.equal(afterStale.removalChoice, true, "removal choice is untouched");
+assert.equal(
+  afterStale.removalReason,
+  restoredForm.removalReason,
+  "removal reason is untouched",
+);
+assert.equal(afterStale.additionChoice, true, "addition choice is untouched");
+assert.equal(
+  afterStale.additionReason,
+  restoredForm.additionReason,
+  "addition reason is untouched",
+);
+assert.equal(afterStale.note, restoredForm.note, "note is untouched");
+
+// The re-save payload built from the restored state carries no hidden stale ID.
+const restoredPayload = buildQuestionReviewValues(
+  misconceptionReviewFormReducer(initialMisconceptionReviewFormState, {
+    type: "replace",
+    value: afterStale,
+  }),
+);
+assert.deepEqual(restoredPayload.removedMisconceptionIds, ["M-01"]);
+assert.ok(
+  !restoredPayload.removedMisconceptionIds.includes("M-03"),
+  "re-save payload must not resurrect the pruned answer-derived removal",
+);
+assert.deepEqual(restoredPayload.additionalMisconceptionIds, ["M-04"]);
+
+// An addition that has since BECOME part of the effective set (through an
+// answer relation) is pruned too, matching save_question_review_v3's
+// ADDITION_ALREADY_IN_BASELINE guard against the effective union.
+const additionNowEffective = limitFormSelectionsToCurrentOptions(
+  { ...restoredForm, additionalMisconceptionIds: ["M-03"] },
+  {
+    removableIds: getQuestionRemovalProposalIds(unionAtSaveTime),
+    addableIds: getAdditionalMisconceptionCandidates(
+      [{ id: "M-04" }],
+      unionAtSaveTime,
+    ).map((item) => item.id),
+  },
+);
+assert.deepEqual(
+  additionNowEffective.additionalMisconceptionIds,
+  [],
+  "an addition now covered by the effective set is dropped on restore",
+);
+
+// A review that only ever proposed a now-stale removal ends up with an empty
+// selection (surfaced by the form's existing selection validation, never sent
+// as a hidden stale ID).
+const onlyStaleRemoval = limitFormSelectionsToCurrentOptions(
+  {
+    ...restoredForm,
+    removedMisconceptionIds: ["M-03"],
+    additionChoice: false,
+    additionalMisconceptionIds: [],
+    additionReason: "",
+  },
+  {
+    removableIds: getQuestionRemovalProposalIds(reducedUnion),
+    addableIds: [],
+  },
+);
+assert.deepEqual(onlyStaleRemoval.removedMisconceptionIds, []);
+assert.equal(onlyStaleRemoval.removalReason, restoredForm.removalReason);
+
 const questionReviewSource = readFileSync(
   "src/pages/LecturerReviewPage.tsx",
   "utf8",
+);
+assert.match(
+  questionReviewSource,
+  /limitFormSelectionsToCurrentOptions\(\s*loadPreservedReviewForm\(savedForm, draftIdentity\),\s*restorableSelectionOptions,?\s*\)/,
+  "the restored Question Review form state must be pruned to the current options",
 );
 const removalProposalSection = questionReviewSource.slice(
   questionReviewSource.indexOf('aria-labelledby="remove-misconception-question"'),
