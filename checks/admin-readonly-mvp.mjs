@@ -156,39 +156,106 @@ assert.deepEqual(visibleCurrent.excluded, {
   inactive: 2,
   staleOrUnverifiable: 4,
 });
-const groups = groupCurrentAdminReviews(visibleCurrent, questions, answers);
+// MP review is Question Review only: reviewer groups are question-review-driven
+// and never surface the retired A/B/C/D Answer Reviews.
+const groups = groupCurrentAdminReviews(visibleCurrent, questions);
 assert.equal(groups.length, 1);
+assert.equal(groups[0].reviewers.length, 1);
+assert.ok(groups[0].reviewers[0].questionReview, "group carries the question review");
 assert.deepEqual(
-  groups[0].reviewers[0].answerReviews.map(({ answer }) => answer.optionLabel),
-  ["A", "B"],
-  "answer reviews must use canonical MP option order",
+  groups[0].reviewers[0].answerReviews,
+  [],
+  "Answer Reviews never surface as current Admin activity",
 );
 assert.deepEqual(countCurrentAdminReviewRows(groups), {
   questions: 1,
   reviewers: 1,
   questionReviews: 1,
-  answerReviews: 2,
-  totalReviews: 3,
+  answerReviews: 0,
+  totalReviews: 1,
 });
+const optionMappingMasterAnswers = [
+  {
+    id: "opt-a",
+    questionId: "q-map",
+    answerRole: "mp_option",
+    optionLabel: "A",
+    order: 1,
+    studentId: "",
+    status: "correct",
+    answerText: "A text",
+    checks: [],
+    masteredConcepts: [],
+    incorrectElements: [],
+    studentMisconceptionIds: [],
+  },
+  {
+    id: "opt-b",
+    questionId: "q-map",
+    answerRole: "mp_option",
+    optionLabel: "B",
+    order: 2,
+    studentId: "",
+    status: "incorrect",
+    answerText: "B text",
+    checks: [],
+    masteredConcepts: [],
+    incorrectElements: [],
+    studentMisconceptionIds: ["m-1"],
+  },
+  {
+    id: "opt-c",
+    questionId: "q-map",
+    answerRole: "mp_option",
+    optionLabel: "C",
+    order: 3,
+    studentId: "",
+    status: "incorrect",
+    answerText: "C text",
+    checks: [],
+    masteredConcepts: [],
+    incorrectElements: [],
+    studentMisconceptionIds: [],
+  },
+];
+const optionMappingGroups = groupCurrentAdminReviews(
+  {
+    ...visibleCurrent,
+    questionReviews: visibleCurrent.questionReviews.map((review) => ({
+      ...review,
+      questionId: "q-map",
+    })),
+  },
+  [
+    {
+      ...questions[0],
+      id: "q-map",
+      options: [
+        { id: "opt-a", label: "A", text: localized("A text"), isCorrect: true, misconceptionIds: [] },
+        { id: "opt-b", label: "B", text: localized("B text"), isCorrect: false, misconceptionIds: [] },
+        { id: "opt-c", label: "C", text: localized("C text"), isCorrect: false, misconceptionIds: [] },
+      ],
+    },
+  ],
+);
 const reviewCsv = buildCurrentReviewsCsv(groups, {
   misconceptions: [],
+  answers,
   language: "id",
 });
-assert.equal(reviewCsv.rows.length, 3);
+assert.equal(reviewCsv.rows.length, 1, "one row per Question Review generation");
 assert.deepEqual(reviewCsv.headers, [
   "Minggu",
   "Tipe Soal",
   "Kode Soal",
   "Judul Soal",
+  "Pemetaan Opsi",
   "Kode Miskonsepsi",
   "Nama Reviewer",
   "Waktu Review",
   "Terakhir Diperbarui",
   "Status Review",
   "Aktivitas Terakhir",
-  "Bagian yang Direview",
-  "Opsi Jawaban",
-  "Isi Jawaban",
   "Hasil Review",
   "Miskonsepsi yang Tercantum",
   "Miskonsepsi yang Dihapus",
@@ -198,7 +265,12 @@ assert.deepEqual(reviewCsv.headers, [
   "Miskonsepsi Menurut Reviewer",
   "Catatan Tambahan",
 ]);
-assert.equal(reviewCsv.headers.length, 21);
+assert.equal(reviewCsv.headers.length, 19);
+assert.ok(
+  !reviewCsv.headers.includes("Opsi jawaban") &&
+    !reviewCsv.headers.includes("Bagian yang Direview"),
+  "retired Answer Review columns are gone",
+);
 for (const header of reviewCsv.headers) {
   assert.ok(!header.includes("_"), `header "${header}" must not use underscores`);
 }
@@ -217,23 +289,44 @@ for (const banned of [
     `internal header ${banned} must not be exported`,
   );
 }
-assert.deepEqual(reviewCsv.rows[0].slice(8, 14), [
+assert.equal(reviewCsv.rows[0][6], "Reviewer One");
+assert.deepEqual(reviewCsv.rows[0].slice(9, 12), [
   "Aktif",
   "Direview",
-  "Soal",
-  "",
-  "",
   "Perlu revisi - ada miskonsepsi yang dihapus",
 ]);
-assert.equal(reviewCsv.rows[0][5], "Reviewer One");
-assert.deepEqual(reviewCsv.rows[1].slice(8, 14), [
-  "Aktif",
-  "Direview",
-  "Opsi jawaban",
-  "A",
-  "A text",
-  "Perlu revisi - ada miskonsepsi yang ditambahkan",
-]);
+for (const row of reviewCsv.rows) {
+  assert.ok(!row.includes("Opsi jawaban"), "no Answer Review rows in the export");
+}
+
+// "Pemetaan Opsi" is the EFFECTIVE per-option mapping (master relation), not an
+// Answer Review result: correct option -> "Jawaban benar", mapped -> id - title,
+// unmapped incorrect option -> "Tidak ada miskonsepsi yang dipetakan".
+const mappingCsv = buildCurrentReviewsCsv(optionMappingGroups, {
+  misconceptions: [{ id: "m-1", title: localized("M1 title") }],
+  answers: optionMappingMasterAnswers,
+  language: "id",
+});
+assert.equal(mappingCsv.rows.length, 1);
+assert.equal(
+  mappingCsv.rows[0][4],
+  "A -> Jawaban benar\nB -> m-1 - M1 title\nC -> Tidak ada miskonsepsi yang dipetakan",
+);
+// PS questions carry no option mapping.
+const psMappingCsv = buildCurrentReviewsCsv(
+  groupCurrentAdminReviews(
+    {
+      ...visibleCurrent,
+      questionReviews: visibleCurrent.questionReviews.map((review) => ({
+        ...review,
+        questionId: "q-ps",
+      })),
+    },
+    [{ ...questions[0], id: "q-ps", type: "short_answer", options: undefined }],
+  ),
+  { misconceptions: [], answers: [], language: "id" },
+);
+assert.equal(psMappingCsv.rows[0][4], "");
 
 // --- Lifecycle: deleted generations are kept for Admin history, never counted.
 const deletedHistory = {
@@ -275,15 +368,15 @@ const deletedVisible = filterCurrentAdminReviewsToVisibleTargets(
   questions,
   answers,
 );
-const deletedGroups = groupCurrentAdminReviews(deletedVisible, questions, answers);
+const deletedGroups = groupCurrentAdminReviews(deletedVisible, questions);
 assert.equal(deletedGroups.length, 1);
 assert.equal(deletedGroups[0].deletedReviewers.length, 1);
 assert.deepEqual(countCurrentAdminReviewRows(deletedGroups), {
   questions: 1,
   reviewers: 1,
   questionReviews: 1,
-  answerReviews: 1,
-  totalReviews: 2,
+  answerReviews: 0,
+  totalReviews: 1,
 });
 assert.deepEqual(
   resolveReviewLifecycleLabels(
@@ -510,6 +603,15 @@ assert.match(reviewsPage, /deleted: "Dihapus"/);
 assert.doesNotMatch(reviewsPage, /"Dibuat"/);
 assert.match(reviewsPage, /STATUS_LABEL = \{ active: "Aktif", deleted: "Dihapus" \}/);
 assert.match(reviewsPage, /resolveReviewLifecycleLabels\(/);
+
+// MP review is Question Review only in the Admin view + export.
+assert.doesNotMatch(
+  reviewsPage,
+  /Review pilihan jawaban|Answer option reviews|"Review jawaban" : "Answer reviews"/,
+  "Admin Hasil Review Dosen no longer renders Answer Review cards or count",
+);
+assert.match(reviewsPage, /answers: data\.answers/);
+assert.match(reviewsPage, /groupCurrentAdminReviews\(data\.current, data\.questions\)/);
 
 for (const page of [questionsPage, reviewsPage, exportsPage]) {
   assert.doesNotMatch(page, /uppercase tracking-\[0\.16em\][^>]*>Admin</);

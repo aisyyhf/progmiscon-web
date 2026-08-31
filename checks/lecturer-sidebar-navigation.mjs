@@ -44,7 +44,7 @@ for (const [path, page] of [
 for (const route of [
   'to="/dashboard"',
   'to="/materi"',
-  'to="/review?task=question"',
+  'to="/review"',
   'to="/konsep"',
   'to="/miskonsepsi"',
   'to="/review/riwayat"',
@@ -54,6 +54,9 @@ for (const route of [
 ]) {
   assert.match(sidebar, new RegExp(route.replace(/[?]/g, "\\?")));
 }
+// The Question/Answer task split is retired: no answer-route active-state
+// special casing remains.
+assert.doesNotMatch(sidebar, /task=answer|\/review\/answer\//);
 
 for (const label of [
   "Dashboard",
