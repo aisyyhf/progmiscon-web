@@ -80,9 +80,11 @@ function LegacyQuestionRedirect() {
   );
 }
 
-function LecturerAnswerReviewRoute() {
-  const { answerId } = useParams<{ answerId: string }>();
-  return <LecturerReviewPage initialAnswerId={answerId} />;
+// The lecturer Answer Review workflow is retired. Old A/B/C/D deep links must
+// never open an editable Answer Review; send them to the one-page Question
+// Review context instead.
+function RetiredAnswerReviewRedirect() {
+  return <Navigate to="/review" replace />;
 }
 
 export default function App() {
@@ -136,7 +138,7 @@ export default function App() {
                 path="/review/answer/:answerId"
                 element={
                   <LecturerOnly>
-                    <LecturerAnswerReviewRoute />
+                    <RetiredAnswerReviewRedirect />
                   </LecturerOnly>
                 }
               />
