@@ -43,6 +43,11 @@
       "order": 170,
       "path": "supabase/migrations/20260831130000_review_v3_workflow_reset_and_lifecycle_reads.sql",
       "activeMigration": true
+    },
+    {
+      "order": 180,
+      "path": "supabase/migrations/20260831140000_review_v3_publish_lifecycle.sql",
+      "activeMigration": true
     }
   ]
 }
