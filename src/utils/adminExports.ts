@@ -70,7 +70,9 @@ const REVIEW_STATUS_LABEL: Record<ReviewLifecycleStatus, string> = {
 };
 
 const REVIEW_LAST_ACTIVITY_LABEL: Record<ReviewLastActivity, string> = {
-  created: "Dibuat",
+  // Presentation wording: an initial (never-edited) active review reads as
+  // "Direview". The audit event type stays `created`.
+  created: "Direview",
   edited: "Diedit",
   deleted: "Dihapus",
 };
