@@ -542,12 +542,20 @@ async function runEpochGuardNegativeCases(entries) {
 
 async function runAbsentLedgerRehearsal(entries) {
   const activeEntries = entries.filter((entry) => entry.activeMigration === true);
-  if (activeEntries.length !== 1) {
+  if (activeEntries.length < 1) {
     throw new Error(
-      `Absent-ledger rehearsal requires one currently approved epoch migration; found ${activeEntries.length}.`,
+      `Absent-ledger rehearsal requires the approved epoch guard migration; found ${activeEntries.length}.`,
     );
   }
+  // entries is order-sorted by loadManifest(); the epoch guard is the first
+  // approved active migration. Reviewed forward migrations may follow it, but
+  // the absent-ledger rehearsal only ever pushes the guard.
   const guard = activeEntries[0];
+  if (basename(guard.path) !== "20260823000000_review_v3_epoch_guard.sql") {
+    throw new Error(
+      `Absent-ledger rehearsal expected the epoch guard first; found ${basename(guard.path)}.`,
+    );
+  }
   const foundation = selectedManifestSources(entries, "empty").filter(
     (path) => path !== guard.path,
   );

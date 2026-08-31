@@ -121,6 +121,46 @@ export function getQuestionRemovalProposalIds(
   return uniqueIds([...effectiveMisconceptionIds]);
 }
 
+/**
+ * When an already-submitted review is loaded back into the form, its stored
+ * selections may reference misconception IDs that are no longer part of the
+ * current effective set (e.g. an answer-derived misconception that has since
+ * been removed from the answer relation). Such IDs are not shown as options,
+ * so the reviewer cannot deselect them, and a re-save would be rejected by the
+ * server. Intersect the retained selections with the IDs still offered by the
+ * form, leaving every other field (choices, reasons, note) untouched. Returns
+ * the same object when nothing had to be dropped.
+ */
+export function limitFormSelectionsToCurrentOptions(
+  state: MisconceptionReviewFormState,
+  options: {
+    removableIds: readonly string[];
+    addableIds: readonly string[];
+  },
+): MisconceptionReviewFormState {
+  const removable = new Set(
+    options.removableIds.map((id) => id.trim()).filter(Boolean),
+  );
+  const addable = new Set(
+    options.addableIds.map((id) => id.trim()).filter(Boolean),
+  );
+  const removedMisconceptionIds = state.removedMisconceptionIds.filter((id) =>
+    removable.has(id.trim()),
+  );
+  const additionalMisconceptionIds = state.additionalMisconceptionIds.filter(
+    (id) => addable.has(id.trim()),
+  );
+
+  if (
+    removedMisconceptionIds.length === state.removedMisconceptionIds.length &&
+    additionalMisconceptionIds.length === state.additionalMisconceptionIds.length
+  ) {
+    return state;
+  }
+
+  return { ...state, removedMisconceptionIds, additionalMisconceptionIds };
+}
+
 export function toggleMisconceptionSelection(
   selectedIds: readonly string[],
   misconceptionId: string,

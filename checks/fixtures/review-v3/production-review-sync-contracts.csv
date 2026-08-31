@@ -715,6 +715,7 @@ declare
   target_id text := pg_catalog.btrim(coalesce(p_question_id, ''));
   current_version uuid;
   baseline_ids text[];
+  effective_ids text[];
   removed_ids text[];
   added_ids text[];
   existing_review public.question_reviews%rowtype;
@@ -757,6 +758,23 @@ begin
   end if;
 
   baseline_ids := public.normalize_text_id_array(baseline_ids);
+
+  -- Effective question misconceptions = direct question relations UNION the
+  -- misconceptions derived from this question's answer-option relations. The
+  -- Review Soal UI offers this same union for removal, so the save path must
+  -- validate against it (direct-only rejected legitimate answer-derived
+  -- proposals). Answer relations are not merged into the question baseline;
+  -- the union is recomputed here only for input validation.
+  effective_ids := public.normalize_text_id_array(
+    baseline_ids || array(
+      select derived.misconception_id
+      from public.answer_misconception_baselines answer_baseline
+      cross join lateral pg_catalog.unnest(answer_baseline.misconception_ids)
+        as derived(misconception_id)
+      where answer_baseline.question_id = target_id
+    )
+  );
+
   removed_ids := case
     when p_has_incorrect_misconceptions then
       public.normalize_text_id_array(p_removed_misconception_ids)
@@ -790,11 +808,11 @@ begin
     raise exception using message = 'REVIEW_SELECTION_OVERLAP', errcode = '22023';
   end if;
 
-  if not (removed_ids <@ baseline_ids) then
+  if not (removed_ids <@ effective_ids) then
     raise exception using message = 'REMOVAL_NOT_IN_BASELINE', errcode = '22023';
   end if;
 
-  if added_ids && baseline_ids then
+  if added_ids && effective_ids then
     raise exception using message = 'ADDITION_ALREADY_IN_BASELINE', errcode = '22023';
   end if;
 
