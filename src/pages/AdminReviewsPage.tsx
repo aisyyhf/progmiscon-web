@@ -13,11 +13,15 @@ import type {
   AdminQuestionReviewHistoryItem,
   Language,
   Misconception,
+  ReviewLifecycleRow,
 } from "../types";
 import {
   countCurrentAdminReviewRows,
   groupCurrentAdminReviews,
+  indexReviewLifecycle,
+  resolveReviewLifecycleLabels,
   type AdminQuestionReviewGroup,
+  type AdminReviewerReviewGroup,
 } from "../utils/adminCurrentReviews";
 import { buildCurrentReviewsCsv } from "../utils/adminExports";
 import {
@@ -36,13 +40,28 @@ const emptySnapshot: AdminReviewReadSnapshot = {
   current: {
     questionReviews: [],
     answerReviews: [],
+    deletedQuestionReviews: [],
+    deletedAnswerReviews: [],
     reviewers: [],
     excluded: { inactive: 0, staleOrUnverifiable: 0 },
   },
+  lifecycle: [],
   questions: [],
   answers: [],
   misconceptions: [],
 };
+
+const STATUS_LABEL = { active: "Aktif", deleted: "Dihapus" } as const;
+const ACTIVITY_LABEL_ID = {
+  created: "Dibuat",
+  edited: "Diedit",
+  deleted: "Dihapus",
+} as const;
+const ACTIVITY_LABEL_EN = {
+  created: "Created",
+  edited: "Edited",
+  deleted: "Deleted",
+} as const;
 
 function formatDate(value: string, language: Language): string {
   const date = new Date(value);
@@ -118,6 +137,142 @@ function ReviewDetails({
   );
 }
 
+function LifecycleBadge({
+  review,
+  lifecycleByReviewId,
+  language,
+}: {
+  review: { id: string; isActive: boolean; inactiveReason: string | null };
+  lifecycleByReviewId: ReadonlyMap<
+    string,
+    ReviewLifecycleRow
+  >;
+  language: Language;
+}) {
+  const { status, lastActivity } = resolveReviewLifecycleLabels(
+    review,
+    lifecycleByReviewId,
+  );
+  const activityLabel =
+    language === "id"
+      ? ACTIVITY_LABEL_ID[lastActivity]
+      : ACTIVITY_LABEL_EN[lastActivity];
+  const statusLabel =
+    language === "id"
+      ? STATUS_LABEL[status]
+      : status === "active"
+        ? "Active"
+        : "Deleted";
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[10px] font-semibold ${
+        status === "deleted"
+          ? "border-border bg-neutral text-muted"
+          : "border-correct-border bg-correct-bg text-correct"
+      }`}
+    >
+      <span>{statusLabel}</span>
+      <span className="font-normal opacity-70">{activityLabel}</span>
+    </span>
+  );
+}
+
+function ReviewerReviewPanel({
+  reviewerGroup,
+  misconceptionById,
+  lifecycleByReviewId,
+  language,
+  historical = false,
+}: {
+  reviewerGroup: AdminReviewerReviewGroup;
+  misconceptionById: ReadonlyMap<string, Misconception>;
+  lifecycleByReviewId: ReadonlyMap<
+    string,
+    ReviewLifecycleRow
+  >;
+  language: Language;
+  historical?: boolean;
+}) {
+  const isIndonesian = language === "id";
+  const questionReview = reviewerGroup.questionReview;
+  return (
+    <details>
+      <summary className="cursor-pointer list-none px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand sm:px-5 [&::-webkit-details-marker]:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-sm text-navy-deep">
+              {reviewerGroup.reviewer.fullName || reviewerGroup.reviewer.email}
+            </p>
+            <p className="mt-0.5 truncate text-[11px] text-muted">{reviewerGroup.reviewer.email}</p>
+          </div>
+          <span className="shrink-0 text-right text-xs text-muted">
+            <span className="block text-brand">{isIndonesian ? "Lihat Review" : "View Review"}</span>
+            <span className="mt-0.5 block">
+              {formatReviewItemCount(
+                (questionReview ? 1 : 0) + reviewerGroup.answerReviews.length,
+                language,
+              )}
+            </span>
+          </span>
+        </div>
+      </summary>
+      <div className="space-y-3 border-t border-border bg-[var(--progmiscon-background)]/60 px-4 py-4 sm:px-5">
+        <section className="rounded-md border border-border bg-white p-4">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h3 className="text-xs font-semibold text-navy-deep">{isIndonesian ? "Review soal" : "Question review"}</h3>
+            {questionReview && (
+              <LifecycleBadge
+                review={questionReview}
+                lifecycleByReviewId={lifecycleByReviewId}
+                language={language}
+              />
+            )}
+          </div>
+          {questionReview ? (
+            <ReviewDetails review={questionReview} misconceptionById={misconceptionById} language={language} />
+          ) : (
+            <p className="text-xs text-muted">
+              {historical
+                ? isIndonesian
+                  ? "Review soal tidak termasuk dalam penghapusan ini."
+                  : "No question review in this deletion."
+                : isIndonesian
+                  ? "Belum ada review soal saat ini."
+                  : "No current question review."}
+            </p>
+          )}
+        </section>
+
+        {reviewerGroup.answerReviews.length > 0 && (
+          <section>
+            <h3 className="mb-2 text-xs font-semibold text-navy-deep">{isIndonesian ? "Review pilihan jawaban" : "Answer option reviews"}</h3>
+            <div className="space-y-2">
+              {reviewerGroup.answerReviews.map(({ answer, review }) => (
+                <details key={review.id} className="rounded-md border border-border bg-white">
+                  <summary className="cursor-pointer list-none break-words px-4 py-3 text-xs text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
+                    <span className="font-semibold">{answer.optionLabel ?? "?"}.</span>{" "}
+                    {answer.answerText || (isIndonesian ? "Pilihan jawaban" : "Answer option")}
+                  </summary>
+                  <div className="border-t border-border px-4 py-3">
+                    <div className="mb-2 flex justify-end">
+                      <LifecycleBadge
+                        review={review}
+                        lifecycleByReviewId={lifecycleByReviewId}
+                        language={language}
+                      />
+                    </div>
+                    <ReviewDetails review={review} misconceptionById={misconceptionById} language={language} />
+                  </div>
+                </details>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    </details>
+  );
+}
+
 function filterReviewGroups(
   groups: readonly AdminQuestionReviewGroup[],
   filters: {
@@ -150,7 +305,7 @@ function filterReviewGroups(
         t(group.question.title, language),
         t(group.question.prompt, language),
       ].some((value) => value.toLocaleLowerCase().includes(query));
-    const reviewers = group.reviewers.filter(({ reviewer }) => {
+    const matchesReviewer = ({ reviewer }: AdminReviewerReviewGroup) => {
       if (filters.reviewerId !== "all" && reviewer.reviewerId !== filters.reviewerId) {
         return false;
       }
@@ -161,9 +316,13 @@ function filterReviewGroups(
           .toLocaleLowerCase()
           .includes(query)
       );
-    });
+    };
+    const reviewers = group.reviewers.filter(matchesReviewer);
+    const deletedReviewers = group.deletedReviewers.filter(matchesReviewer);
 
-    return reviewers.length > 0 ? [{ ...group, reviewers }] : [];
+    return reviewers.length > 0 || deletedReviewers.length > 0
+      ? [{ ...group, reviewers, deletedReviewers }]
+      : [];
   });
 }
 
@@ -199,7 +358,10 @@ export function AdminReviewsPage() {
   const reviewerOptions = useMemo(() => {
     const seen = new Map<string, { id: string; label: string }>();
     for (const group of groups) {
-      for (const reviewerGroup of group.reviewers) {
+      for (const reviewerGroup of [
+        ...group.reviewers,
+        ...group.deletedReviewers,
+      ]) {
         const reviewer = reviewerGroup.reviewer;
         seen.set(reviewer.reviewerId, {
           id: reviewer.reviewerId,
@@ -209,6 +371,10 @@ export function AdminReviewsPage() {
     }
     return [...seen.values()].sort((left, right) => left.label.localeCompare(right.label));
   }, [groups]);
+  const lifecycleByReviewId = useMemo(
+    () => indexReviewLifecycle(data.lifecycle),
+    [data.lifecycle],
+  );
   const misconceptionById = useMemo(
     () => new Map(data.misconceptions.map((item) => [item.id, item])),
     [data.misconceptions],
@@ -226,6 +392,7 @@ export function AdminReviewsPage() {
     const csv = buildCurrentReviewsCsv(filteredGroups, {
       misconceptions: data.misconceptions,
       language,
+      lifecycle: data.lifecycle,
     });
     downloadCsvFile(
       `progmiscon_hasil_review_dosen_${wibDateStamp()}.csv`,
@@ -257,8 +424,8 @@ export function AdminReviewsPage() {
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted">
             {isIndonesian
-              ? "Hanya review aktif yang cocok dengan versi sumber saat ini."
-              : "Only active reviews matching the current source version are shown."}
+              ? "Review aktif untuk versi sumber saat ini, ditambah generasi yang dihapus lecturer sebagai riwayat. Hitungan reviewer hanya memakai review aktif."
+              : "Active reviews for the current source version, plus lecturer-deleted generations as history. Reviewer counts use active reviews only."}
           </p>
         </div>
         <button
@@ -275,8 +442,8 @@ export function AdminReviewsPage() {
       {(data.current.excluded.inactive > 0 || data.current.excluded.staleOrUnverifiable > 0) && (
         <p className="mt-4 rounded-md border border-border bg-neutral/50 px-3 py-2 text-xs leading-5 text-muted">
           {isIndonesian
-            ? `${data.current.excluded.inactive + data.current.excluded.staleOrUnverifiable} baris riwayat disembunyikan karena tidak aktif, sudah usang, atau tidak dapat diverifikasi terhadap sumber saat ini.`
-            : `${data.current.excluded.inactive + data.current.excluded.staleOrUnverifiable} history rows are hidden because they are inactive, stale, or cannot be verified against the current source.`}
+            ? `${data.current.excluded.inactive + data.current.excluded.staleOrUnverifiable} baris disembunyikan karena sumbernya diperbarui, sudah usang, atau tidak dapat diverifikasi terhadap sumber saat ini (bukan penghapusan oleh lecturer).`
+            : `${data.current.excluded.inactive + data.current.excluded.staleOrUnverifiable} rows are hidden because their source was updated, is stale, or cannot be verified against the current source (not a lecturer deletion).`}
         </p>
       )}
 
@@ -350,56 +517,39 @@ export function AdminReviewsPage() {
               </header>
               <div className="divide-y divide-border">
                 {group.reviewers.map((reviewerGroup) => (
-                  <details key={reviewerGroup.reviewer.reviewerId}>
-                    <summary className="cursor-pointer list-none px-4 py-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand sm:px-5 [&::-webkit-details-marker]:hidden">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm text-navy-deep">{reviewerGroup.reviewer.fullName || reviewerGroup.reviewer.email}</p>
-                          <p className="mt-0.5 truncate text-[11px] text-muted">{reviewerGroup.reviewer.email}</p>
-                        </div>
-                        <span className="shrink-0 text-right text-xs text-muted">
-                          <span className="block text-brand">{isIndonesian ? "Lihat Review" : "View Review"}</span>
-                          <span className="mt-0.5 block">
-                            {formatReviewItemCount(
-                              (reviewerGroup.questionReview ? 1 : 0) + reviewerGroup.answerReviews.length,
-                              language,
-                            )}
-                          </span>
-                        </span>
-                      </div>
-                    </summary>
-                    <div className="space-y-3 border-t border-border bg-[var(--progmiscon-background)]/60 px-4 py-4 sm:px-5">
-                      <section className="rounded-md border border-border bg-white p-4">
-                        <h3 className="mb-3 text-xs font-semibold text-navy-deep">{isIndonesian ? "Review soal" : "Question review"}</h3>
-                        {reviewerGroup.questionReview ? (
-                          <ReviewDetails review={reviewerGroup.questionReview} misconceptionById={misconceptionById} language={language} />
-                        ) : (
-                          <p className="text-xs text-muted">{isIndonesian ? "Belum ada review soal saat ini." : "No current question review."}</p>
-                        )}
-                      </section>
-
-                      {reviewerGroup.answerReviews.length > 0 && (
-                        <section>
-                          <h3 className="mb-2 text-xs font-semibold text-navy-deep">{isIndonesian ? "Review pilihan jawaban" : "Answer option reviews"}</h3>
-                          <div className="space-y-2">
-                            {reviewerGroup.answerReviews.map(({ answer, review }) => (
-                              <details key={review.id} className="rounded-md border border-border bg-white">
-                                <summary className="cursor-pointer list-none break-words px-4 py-3 text-xs text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
-                                  <span className="font-semibold">{answer.optionLabel ?? "?"}.</span>{" "}
-                                  {answer.answerText || (isIndonesian ? "Pilihan jawaban" : "Answer option")}
-                                </summary>
-                                <div className="border-t border-border px-4 py-3">
-                                  <ReviewDetails review={review} misconceptionById={misconceptionById} language={language} />
-                                </div>
-                              </details>
-                            ))}
-                          </div>
-                        </section>
-                      )}
-                    </div>
-                  </details>
+                  <ReviewerReviewPanel
+                    key={reviewerGroup.reviewer.reviewerId}
+                    reviewerGroup={reviewerGroup}
+                    misconceptionById={misconceptionById}
+                    lifecycleByReviewId={lifecycleByReviewId}
+                    language={language}
+                  />
                 ))}
               </div>
+              {group.deletedReviewers.length > 0 && (
+                <div className="border-t border-border bg-neutral/40">
+                  <p className="px-4 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted sm:px-5">
+                    {isIndonesian ? "Riwayat dihapus" : "Deleted history"}
+                  </p>
+                  <p className="px-4 pb-2 text-[11px] leading-4 text-muted sm:px-5">
+                    {isIndonesian
+                      ? "Generasi review yang dihapus lecturer. Tidak dihitung sebagai reviewer aktif dan tidak ikut konsensus."
+                      : "Lecturer-deleted review generations. Not counted as active reviewers and excluded from consensus."}
+                  </p>
+                  <div className="divide-y divide-border">
+                    {group.deletedReviewers.map((reviewerGroup, index) => (
+                      <ReviewerReviewPanel
+                        key={`${reviewerGroup.reviewer.reviewerId}-deleted-${index}`}
+                        reviewerGroup={reviewerGroup}
+                        misconceptionById={misconceptionById}
+                        lifecycleByReviewId={lifecycleByReviewId}
+                        language={language}
+                        historical
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </article>
           ))}
         </div>

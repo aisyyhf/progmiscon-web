@@ -168,13 +168,17 @@ AS $function$
     review.answer_id,
     pg_catalog.count(distinct review.reviewer_id)::integer,
     pg_catalog.max(review.updated_at)
-  from public.answer_reviews as review
-  where exists (
-    select 1
-    from public.lecturer_profiles as profile
-    where profile.user_id = (select auth.uid())
-      and profile.active = true
-  )
+  from public.answer_reviews review
+  join public.answer_misconception_baselines baseline
+    on baseline.answer_id = review.answer_id
+   and baseline.source_version = review.source_version
+  where review.is_active = true
+    and exists (
+      select 1
+      from public.lecturer_profiles profile
+      where profile.user_id = (select auth.uid())
+        and profile.active = true
+    )
   group by review.answer_id;
 $function$
 "
@@ -194,6 +198,7 @@ AS $function$
       max(updated_at) as latest_updated_at
     from public.question_reviews
     where reviewer_id = (select auth.uid())
+      and is_active = true
   ),
   answer_status as (
     select
@@ -205,6 +210,7 @@ AS $function$
       max(updated_at) as latest_updated_at
     from public.answer_reviews
     where reviewer_id = (select auth.uid())
+      and is_active = true
   )
   select
     question_status.question_ids,
@@ -295,31 +301,22 @@ public,get_question_review_counts,,postgres,true,s,"[""search_path=\""\""""]","{
  STABLE SECURITY DEFINER
  SET search_path TO ''
 AS $function$
-
   select
-
-    public.question_reviews.question_id,
-
-    count(distinct public.question_reviews.reviewer_id)::integer as review_count,
-
-    max(public.question_reviews.updated_at) as latest_updated_at
-
-  from public.question_reviews
-
-  where exists (
-
-    select 1
-
-    from public.lecturer_profiles
-
-    where public.lecturer_profiles.user_id = (select auth.uid())
-
-      and public.lecturer_profiles.active = true
-
-  )
-
-  group by public.question_reviews.question_id;
-
+    review.question_id,
+    pg_catalog.count(distinct review.reviewer_id)::integer as review_count,
+    pg_catalog.max(review.updated_at) as latest_updated_at
+  from public.question_reviews review
+  join public.question_misconception_baselines baseline
+    on baseline.question_id = review.question_id
+   and baseline.source_version = review.source_version
+  where review.is_active = true
+    and exists (
+      select 1
+      from public.lecturer_profiles profile
+      where profile.user_id = (select auth.uid())
+        and profile.active = true
+    )
+  group by review.question_id;
 $function$
 "
 public,prevent_repeat_lecturer_review_update,,postgres,false,v,"[""search_path=\""\""""]","{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}",true,true,true,"CREATE OR REPLACE FUNCTION public.prevent_repeat_lecturer_review_update()

@@ -235,6 +235,7 @@ const guarded = [
   ["current_user_is_admin", "()", ["anon", "authenticated", "service_role"], true, "stable"],
   ["delete_answer_review_v3", "(text, uuid)", ["authenticated", "service_role"], true, null],
   ["delete_question_review_v3", "(text, uuid)", ["authenticated", "service_role"], true, null],
+  ["delete_question_review_workflow_v3", "(text, uuid)", ["authenticated", "service_role"], true, null],
   ["get_review_source_versions", "()", ["authenticated"], true, "stable"],
   ["recompute_answer_review_consensus_v3", "(text, uuid)", ["service_role"], true, null],
   ["recompute_question_review_consensus_v3", "(text, uuid)", ["service_role"], true, null],
@@ -244,7 +245,8 @@ const guarded = [
   ["sync_master_relation_baselines", "(jsonb, jsonb, text[])", ["authenticated"], true, null],
 ];
 const nonGuarded = [
-  "get_admin_review_consensus", "get_admin_reviewer_profiles", "get_answer_review_counts",
+  "get_admin_review_consensus", "get_admin_review_lifecycle",
+  "get_admin_reviewer_profiles", "get_answer_review_counts",
   "get_my_review_status", "get_published_master_overrides", "get_question_review_counts",
   "prevent_repeat_lecturer_review_update", "publish_answer_misconception_override",
   "publish_question_misconception_override", "save_answer_content_override",

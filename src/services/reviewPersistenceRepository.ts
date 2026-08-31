@@ -10,6 +10,7 @@ import type {
   QuestionReviewCount,
   QuestionReviewValues,
   ReviewerHistory,
+  ReviewLifecycleRow,
   ReviewProgress,
   ReviewSourceVersions,
 } from "../types";
@@ -491,6 +492,57 @@ export async function getAdminReviewHistory(): Promise<AdminReviewHistory> {
   };
 }
 
+type ReviewLifecycleRpcRow = {
+  review_type?: unknown;
+  review_id?: unknown;
+  last_event_type?: unknown;
+  last_event_at?: unknown;
+  edited?: unknown;
+  last_deleted_at?: unknown;
+  last_deleted_before?: unknown;
+};
+
+function mapReviewLifecycleRow(
+  row: ReviewLifecycleRpcRow,
+): ReviewLifecycleRow | null {
+  const reviewType = row.review_type === "answer" ? "answer" : "question";
+  const reviewId = typeof row.review_id === "string" ? row.review_id : "";
+  if (!reviewId) return null;
+
+  return {
+    reviewType,
+    reviewId,
+    lastEventType:
+      typeof row.last_event_type === "string" ? row.last_event_type : "",
+    lastEventAt:
+      typeof row.last_event_at === "string" ? row.last_event_at : null,
+    edited: row.edited === true,
+    lastDeletedAt:
+      typeof row.last_deleted_at === "string" ? row.last_deleted_at : null,
+    lastDeletedBefore:
+      row.last_deleted_before && typeof row.last_deleted_before === "object"
+        ? (row.last_deleted_before as Record<string, unknown>)
+        : null,
+  };
+}
+
+/**
+ * Admin-only. Read-only lifecycle projection of review_audit_log used to label
+ * "Status Review" / "Aktivitas Terakhir" and to reconstruct a deleted
+ * generation that has since been reactivated. Never feeds counts or consensus.
+ */
+export async function getAdminReviewLifecycle(): Promise<ReviewLifecycleRow[]> {
+  const { data, error } = await supabase.rpc("get_admin_review_lifecycle");
+
+  if (error) {
+    throw storageError("Riwayat siklus review Admin dimuat", error);
+  }
+
+  return ((data ?? []) as ReviewLifecycleRpcRow[])
+    .map(mapReviewLifecycleRow)
+    .filter((row): row is ReviewLifecycleRow => row !== null);
+}
+
 export async function saveQuestionReview(
   questionId: string,
   sourceVersion: string,
@@ -549,6 +601,28 @@ export async function deleteQuestionReview(
   sourceVersion: string,
 ): Promise<void> {
   const { error } = await supabase.rpc("delete_question_review_v3", {
+    p_question_id: questionId,
+    p_source_version: sourceVersion,
+  });
+
+  if (error) {
+    throw storageError("Review soal dihapus", error);
+  }
+}
+
+/**
+ * Resets the caller's entire review workflow for one question: their active
+ * Question Review and every active Answer Review they hold for that question
+ * (each matched against the answer's own current source version) are
+ * deactivated in one atomic RPC, and question + answer consensus are
+ * recomputed. Idempotent server-side, so a retry after a partial failure is
+ * safe. `sourceVersion` is the question's source version only.
+ */
+export async function deleteQuestionReviewWorkflow(
+  questionId: string,
+  sourceVersion: string,
+): Promise<void> {
+  const { error } = await supabase.rpc("delete_question_review_workflow_v3", {
     p_question_id: questionId,
     p_source_version: sourceVersion,
   });

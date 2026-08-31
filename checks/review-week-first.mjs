@@ -777,7 +777,7 @@ assert.doesNotMatch(activePage, /Semua minggu/);
 assert.doesNotMatch(activePage, /Judul, kode, atau KC/);
 assert.match(activePage, /saveQuestionReview\(/);
 assert.match(activePage, /saveAnswerReview\(/);
-assert.match(activePage, /deleteQuestionReview\(/);
+assert.match(activePage, /deleteQuestionReviewWorkflow\(/);
 assert.match(activePage, /deleteAnswerReview\(/);
 assert.match(listSource, /questionStatus === "unreviewed"/);
 assert.match(listSource, /questionStatus === "reviewed"/);
@@ -812,7 +812,14 @@ assert.equal(
   "the header and every row variant share the same desktop column grid",
 );
 assert.match(activePage, /withdrawQuestionReview/);
-assert.match(activePage, /deleteQuestionReview\(question\.id, question\.sourceVersion\)/);
+assert.match(
+  activePage,
+  /deleteQuestionReviewWorkflow\(question\.id, question\.sourceVersion\)/,
+);
+// Deleting a Question Review resets the whole workflow: the caller's Answer
+// Review history/counts for that question are cleared optimistically too.
+assert.match(activePage, /setAnswerHistory\(\(current\) =>[\s\S]*?questionAnswerIds\.has\(review\.answerId\)/);
+assert.match(activePage, /setConfirmedAnswerReviewIds\(\(current\) =>[\s\S]*?questionAnswerIds/);
 assert.match(activePage, /mode=\{navigation\.mode\}/);
 assert.doesNotMatch(activePage, /reviewReadOnly|readOnly=/);
 assert.match(validationWorkspace, /formUnavailable = mode === "view" \|\| locked \|\| progressUnavailable/);

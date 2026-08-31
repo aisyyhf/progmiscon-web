@@ -21,7 +21,7 @@ import { useMisconceptions } from "../hooks/useMisconceptions";
 import { useReviewTasks } from "../hooks/useReviewTasks";
 import {
   deleteAnswerReview,
-  deleteQuestionReview,
+  deleteQuestionReviewWorkflow,
   getAnswerReviewCounts,
   getQuestionReviewCounts,
   getReviewerHistory,
@@ -460,13 +460,16 @@ function WeekQuestionList({
     full: { id: "Soal dengan jumlah reviewer terpenuhi", en: "Questions with reviewer limit reached" },
   }[status][language];
   const handleWithdraw = async (question: Question) => {
-    if (
-      !window.confirm(
-        language === "id"
-          ? "Hapus review soal ini? Review akan dinonaktifkan dan soal kembali ke daftar tugas jika kuota masih tersedia."
-          : "Delete this question review? It will be deactivated and returned to the task list if quota remains available.",
-      )
-    ) {
+    const isMultipleChoice = question.type === "multiple_choice";
+    const confirmMessage =
+      language === "id"
+        ? isMultipleChoice
+          ? "Hapus review Anda untuk soal ini? Review soal dan semua review pilihan jawaban (A/B/C/D) yang Anda buat untuk soal ini akan direset. Soal kembali ke daftar tugas jika kuota masih tersedia. Riwayat tetap tersimpan."
+          : "Hapus review soal ini? Review akan dinonaktifkan dan soal kembali ke daftar tugas jika kuota masih tersedia. Riwayat tetap tersimpan."
+        : isMultipleChoice
+          ? "Delete your review of this question? Your question review and every answer-option review (A/B/C/D) you made for it are reset. The question returns to the task list if quota remains. History is kept."
+          : "Delete this question review? It will be deactivated and returned to the task list if quota remains available. History is kept.";
+    if (!window.confirm(confirmMessage)) {
       return;
     }
 
@@ -1596,35 +1599,74 @@ export function LecturerReviewPage({
       reviewedQuestionStepIds,
     ],
   );
-  const withdrawQuestionReview = useCallback(async (question: Question) => {
-    if (!question.sourceVersion) {
-      throw new Error("Versi sumber soal belum tersedia.");
-    }
-    await deleteQuestionReview(question.id, question.sourceVersion);
-    setQuestionHistory((current) =>
-      current.map((review) =>
-        review.questionId === question.id &&
-        review.sourceVersion === question.sourceVersion &&
-        review.isActive
-          ? {
-              ...review,
-              isActive: false,
-              inactiveReason: "deleted",
-              inactiveAt: new Date().toISOString(),
-            }
-          : review,
-      ),
-    );
-    setQuestionCounts((current) => {
-      const next = new Map(current);
-      next.set(question.id, Math.max(0, (next.get(question.id) ?? 1) - 1));
-      return next;
-    });
-    setConfirmedQuestionReviewIds((current) =>
-      current.filter((questionId) => questionId !== question.id),
-    );
-    setReviewDataRevision((current) => current + 1);
-  }, []);
+  const withdrawQuestionReview = useCallback(
+    async (question: Question) => {
+      if (!question.sourceVersion) {
+        throw new Error("Versi sumber soal belum tersedia.");
+      }
+      // Resets the caller's whole review workflow for this question: their
+      // active Question Review AND every active Answer Review they hold for it
+      // (each at the answer's own source version) are deactivated in one atomic
+      // RPC. The revision bump below reloads the authoritative state.
+      await deleteQuestionReviewWorkflow(question.id, question.sourceVersion);
+
+      const nowIso = new Date().toISOString();
+      const questionAnswerIds = new Set(
+        answers
+          .filter((answer) => answer.questionId === question.id)
+          .map((answer) => answer.id),
+      );
+
+      setQuestionHistory((current) =>
+        current.map((review) =>
+          review.questionId === question.id &&
+          review.sourceVersion === question.sourceVersion &&
+          review.isActive
+            ? {
+                ...review,
+                isActive: false,
+                inactiveReason: "deleted",
+                inactiveAt: nowIso,
+              }
+            : review,
+        ),
+      );
+      setAnswerHistory((current) =>
+        current.map((review) =>
+          questionAnswerIds.has(review.answerId) && review.isActive
+            ? {
+                ...review,
+                isActive: false,
+                inactiveReason: "deleted",
+                inactiveAt: nowIso,
+              }
+            : review,
+        ),
+      );
+      setQuestionCounts((current) => {
+        const next = new Map(current);
+        next.set(question.id, Math.max(0, (next.get(question.id) ?? 1) - 1));
+        return next;
+      });
+      setAnswerCounts((current) => {
+        const next = new Map(current);
+        for (const answerId of questionAnswerIds) {
+          if (next.has(answerId)) {
+            next.set(answerId, Math.max(0, (next.get(answerId) ?? 1) - 1));
+          }
+        }
+        return next;
+      });
+      setConfirmedQuestionReviewIds((current) =>
+        current.filter((questionId) => questionId !== question.id),
+      );
+      setConfirmedAnswerReviewIds((current) =>
+        current.filter((answerId) => !questionAnswerIds.has(answerId)),
+      );
+      setReviewDataRevision((current) => current + 1);
+    },
+    [answers],
+  );
 
   const handleQuestionSubmit = async (values: QuestionReviewValues) => {
     if (
