@@ -436,11 +436,15 @@ end;
 $effective_set$;
 
 -- ===========================================================================
--- Whole-question review workflow reset (delete_question_review_workflow_v3).
--- Deleting a lecturer's Question Review must also deactivate that lecturer's
--- current active Answer Reviews for the same question -- each matched against
--- the answer's OWN source_version -- atomically and idempotently, while
--- leaving other reviewers and 'source_updated' rows untouched.
+-- delete_question_review_workflow_v3 -- QUESTION REVIEW ONLY.
+--
+-- The lecturer A/B/C/D Answer Review workflow is retired. Deleting a lecturer's
+-- MP Question Review deactivates ONLY that Question Review and recomputes ONLY
+-- question consensus. It MUST leave every answer_reviews row unchanged and MUST
+-- leave every answer_misconception_overrides row untouched -- including the
+-- caller's own frozen legacy Answer Reviews and any published answer override.
+-- Under this contract it is deliberately valid to hold an inactive Question
+-- Review beside an active legacy Answer Review for the same question.
 -- ===========================================================================
 insert into public.master_misconception_catalog (misconception_id, synced_by, synced_at)
 values ('M-WFR-001', null, now());
@@ -505,46 +509,65 @@ begin
     raise exception 'WFR_SEED_CONSENSUS_MISSING';
   end if;
 
-  -- Reviewer two: one answer is invalidated by a source change before the reset.
+  -- The seed also published answer overrides (3 reviewers per answer). Capture
+  -- their pre-delete state so we can prove the workflow delete never touches it.
+  if not exists (
+    select 1 from public.answer_misconception_overrides where answer_id = 'A-WFR-A'
+  ) or not exists (
+    select 1 from public.answer_misconception_overrides where answer_id = 'A-WFR-B'
+  ) then
+    raise exception 'WFR_SEED_ANSWER_OVERRIDES_MISSING';
+  end if;
+
+  -- Reviewer two: one answer is invalidated by a source change before the reset
+  -- (verifies the workflow delete does not rewrite an unrelated inactive row).
   update public.answer_reviews
   set is_active = false, inactive_reason = 'source_updated', inactive_at = now()
   where reviewer_id = reviewer_two
     and answer_id = 'A-WFR-B'
     and source_version = '42000000-0000-4000-8000-0000000000b1';
 
-  -- Reviewer one resets their whole workflow for Q-WFR-001.
+  -- Reviewer one deletes their Question Review for Q-WFR-001.
   perform set_config('request.jwt.claim.sub', reviewer_one::text, false);
   result := public.delete_question_review_workflow_v3(
     'Q-WFR-001', '42000000-0000-4000-8000-000000000001'
   );
 
+  -- Return shape is preserved; the answer arrays are always empty now.
   if (result ->> 'question_review_reset') <> 'true'
-    or pg_catalog.jsonb_array_length(result -> 'deactivated_answer_reviews') <> 2
+    or pg_catalog.jsonb_array_length(result -> 'deactivated_answer_reviews') <> 0
+    or pg_catalog.jsonb_array_length(result -> 'answer_consensus') <> 0
   then
     raise exception 'WFR_RESET_RESULT_UNEXPECTED: %', result;
   end if;
 
-  -- Reviewer one: question review + BOTH answer reviews are now deleted.
+  -- Reviewer one: ONLY the Question Review is deleted.
   if exists (
     select 1 from public.question_reviews
-    where reviewer_id = reviewer_one and question_id = 'Q-WFR-001' and is_active
-  ) or exists (
-    select 1 from public.answer_reviews
     where reviewer_id = reviewer_one and question_id = 'Q-WFR-001' and is_active
   ) or not exists (
     select 1 from public.question_reviews
     where reviewer_id = reviewer_one and question_id = 'Q-WFR-001'
       and is_active = false and inactive_reason = 'deleted'
-  ) or (
-    select count(*) from public.answer_reviews
-    where reviewer_id = reviewer_one and question_id = 'Q-WFR-001'
-      and is_active = false and inactive_reason = 'deleted'
-  ) <> 2 then
-    raise exception 'WFR_RESET_LIFECYCLE_FAILED';
+  ) then
+    raise exception 'WFR_RESET_QUESTION_LIFECYCLE_FAILED';
   end if;
 
-  -- Reviewer two: the 'source_updated' answer review must NOT become 'deleted';
-  -- their still-current rows are untouched by reviewer one's reset.
+  -- Reviewer one's legacy Answer Reviews for this question are FROZEN, not
+  -- deleted: an inactive Question Review beside active legacy Answer Reviews is
+  -- the intended steady state, not corruption.
+  if (
+    select count(*) from public.answer_reviews
+    where reviewer_id = reviewer_one and question_id = 'Q-WFR-001' and is_active
+  ) <> 2 or exists (
+    select 1 from public.answer_reviews
+    where reviewer_id = reviewer_one and question_id = 'Q-WFR-001'
+      and is_active = false
+  ) then
+    raise exception 'WFR_RESET_TOUCHED_LEGACY_ANSWER_REVIEWS';
+  end if;
+
+  -- Reviewer two: untouched (source_updated row unchanged, current rows active).
   if not exists (
     select 1 from public.answer_reviews
     where reviewer_id = reviewer_two and answer_id = 'A-WFR-B'
@@ -559,16 +582,23 @@ begin
     raise exception 'WFR_RESET_TOUCHED_OTHER_REVIEWER';
   end if;
 
-  -- Consensus recomputed: 3 -> 2 active reviewers, override dropped.
+  -- ONLY question consensus recomputed: 3 -> 2 active reviewers, question
+  -- override dropped. Every answer_misconception_overrides row survives intact --
+  -- the delete never calls recompute_answer_review_consensus_v3.
   if exists (
     select 1 from public.question_misconception_overrides where question_id = 'Q-WFR-001'
-  ) or exists (
-    select 1 from public.answer_misconception_overrides where answer_id in ('A-WFR-A', 'A-WFR-B')
   ) then
-    raise exception 'WFR_RESET_CONSENSUS_NOT_RECOMPUTED';
+    raise exception 'WFR_RESET_QUESTION_CONSENSUS_NOT_RECOMPUTED';
+  end if;
+  if not exists (
+    select 1 from public.answer_misconception_overrides where answer_id = 'A-WFR-A'
+  ) or not exists (
+    select 1 from public.answer_misconception_overrides where answer_id = 'A-WFR-B'
+  ) then
+    raise exception 'WFR_RESET_DROPPED_ANSWER_OVERRIDE';
   end if;
 
-  -- Idempotent: a second reset by reviewer one is a clean no-op.
+  -- Idempotent: a second delete by reviewer one is a clean no-op.
   result := public.delete_question_review_workflow_v3(
     'Q-WFR-001', '42000000-0000-4000-8000-000000000001'
   );
@@ -605,9 +635,9 @@ end;
 $wfr_reset$;
 
 -- Lifecycle-aware current read paths: deleted / source-invalidated rows never
--- inflate the reviewer count. After the reset above Q-WFR-001 keeps exactly the
--- two reviewers who did not reset (reviewer one just re-reviewed -> back to 3
--- for the question, still 2 for A-WFR-A because reviewer one has not re-done it).
+-- inflate the reviewer count. After the delete above (reviewer one re-reviewed
+-- the question -> back to 3), A-WFR-A still has all three reviewers active
+-- because the question-only delete never touched any Answer Review.
 do $wfr_counts$
 declare
   q_count integer;
@@ -624,7 +654,7 @@ begin
   if coalesce(q_count, 0) <> 3 then
     raise exception 'WFR_QUESTION_COUNT_WRONG: %', q_count;
   end if;
-  if coalesce(a_count, 0) <> 2 then
+  if coalesce(a_count, 0) <> 3 then
     raise exception 'WFR_ANSWER_COUNT_WRONG: %', a_count;
   end if;
 
@@ -642,10 +672,15 @@ end;
 $wfr_counts$;
 
 -- ===========================================================================
--- Generic orphan reconciliation predicate: a pre-fix partial delete leaves a
--- deleted Question Review beside still-active current Answer Reviews for the
--- same reviewer + question. The reconciliation predicate must repair ONLY those
--- rows. (Simulated here as post-migration data, then the predicate is re-run.)
+-- HISTORICAL one-time predicate from 20260831130000 (NOT a steady-state
+-- process). It repaired the pre-PR57 partial-delete defect: a deleted Question
+-- Review beside still-active current Answer Reviews for the same
+-- reviewer + question, with no newer active Question Review. This block only
+-- re-runs that exact predicate against synthetic data to prove its scoping is
+-- unchanged. The new question-only delete_question_review_workflow_v3
+-- deliberately does NOT invoke this predicate: an inactive Question Review
+-- beside a frozen active legacy Answer Review is now valid, not an orphan, and
+-- the applied migration must not be rewritten retroactively.
 -- ===========================================================================
 do $orphan_repair$
 declare
@@ -1018,9 +1053,11 @@ begin
 end;
 $pub_scenario_a$;
 
--- Scenario B: reviewer three resets their whole review of Q-PUB-001. The
--- question and both answers fall to two current reviewers; reviewer three's
--- votes vanish from consensus; every publish path now rejects.
+-- Scenario B: reviewer three steps off Q-PUB-001 entirely. delete_question_
+-- review_workflow_v3 is question-only now, so the two legacy Answer Reviews are
+-- removed explicitly via delete_answer_review_v3. The question and both answers
+-- fall to two current reviewers; reviewer three's votes vanish from consensus;
+-- every publish path now rejects.
 do $pub_scenario_b$
 declare
   reviewer_three uuid := '00000000-0000-4000-8000-000000000013';
@@ -1034,6 +1071,10 @@ begin
   perform set_config('request.jwt.claim.sub', reviewer_three::text, false);
   perform public.delete_question_review_workflow_v3(
     'Q-PUB-001', '44000000-0000-4000-8000-000000000001');
+  perform public.delete_answer_review_v3(
+    'A-PUB-A', '44000000-0000-4000-8000-0000000000a1');
+  perform public.delete_answer_review_v3(
+    'A-PUB-B', '44000000-0000-4000-8000-0000000000b1');
 
   perform set_config('request.jwt.claim.sub', admin_id::text, false);
   select consensus.review_count, consensus.removed_votes, consensus.additional_votes

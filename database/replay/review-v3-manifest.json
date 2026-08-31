@@ -48,6 +48,11 @@
       "order": 180,
       "path": "supabase/migrations/20260831140000_review_v3_publish_lifecycle.sql",
       "activeMigration": true
+    },
+    {
+      "order": 190,
+      "path": "supabase/migrations/20260901000000_review_v3_mp_question_only_delete.sql",
+      "activeMigration": true
     }
   ]
 }

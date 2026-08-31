@@ -234,9 +234,6 @@ declare
   question_current_version uuid;
   question_review_id uuid;
   question_review_reset boolean := false;
-  deactivated_answers jsonb;
-  answer_generation jsonb := pg_catalog.jsonb_build_array();
-  answer_row record;
   question_consensus jsonb;
 begin
   if caller_id is null then
@@ -270,6 +267,8 @@ begin
     raise exception using message = 'DATA_VERSION_CHANGED', errcode = 'P0001';
   end if;
 
+  -- Question Review only. The A/B/C/D Answer Review workflow is retired; legacy
+  -- answer_reviews and answer_misconception_overrides are left untouched.
   update public.question_reviews review
   set
     is_active = false,
@@ -285,50 +284,6 @@ begin
     question_review_reset := true;
   end if;
 
-  with deactivated as (
-    update public.answer_reviews review
-    set
-      is_active = false,
-      inactive_reason = 'deleted',
-      inactive_at = pg_catalog.now()
-    from public.answer_misconception_baselines baseline
-    where review.reviewer_id = caller_id
-      and review.question_id = target_id
-      and review.answer_id = baseline.answer_id
-      and review.is_active = true
-      and review.source_version = baseline.source_version
-    returning review.id as review_id, review.answer_id, review.source_version
-  )
-  select coalesce(
-    pg_catalog.jsonb_agg(
-      pg_catalog.jsonb_build_object(
-        'review_id', deactivated.review_id,
-        'answer_id', deactivated.answer_id,
-        'source_version', deactivated.source_version
-      )
-      order by deactivated.answer_id
-    ),
-    pg_catalog.jsonb_build_array()
-  )
-  into deactivated_answers
-  from deactivated;
-
-  for answer_row in
-    select
-      element ->> 'answer_id' as answer_id,
-      (element ->> 'source_version')::uuid as source_version
-    from pg_catalog.jsonb_array_elements(deactivated_answers) as element
-  loop
-    answer_generation := answer_generation || pg_catalog.jsonb_build_object(
-      'answer_id', answer_row.answer_id,
-      'source_version', answer_row.source_version,
-      'consensus', public.recompute_answer_review_consensus_v3(
-        answer_row.answer_id,
-        answer_row.source_version
-      )
-    );
-  end loop;
-
   question_consensus := public.recompute_question_review_consensus_v3(
     target_id,
     question_current_version
@@ -339,9 +294,9 @@ begin
     'source_version', question_current_version,
     'question_review_id', question_review_id,
     'question_review_reset', question_review_reset,
-    'deactivated_answer_reviews', deactivated_answers,
+    'deactivated_answer_reviews', pg_catalog.jsonb_build_array(),
     'question_consensus', question_consensus,
-    'answer_consensus', answer_generation
+    'answer_consensus', pg_catalog.jsonb_build_array()
   );
 end;
 $$;
