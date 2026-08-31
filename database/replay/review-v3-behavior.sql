@@ -680,6 +680,12 @@ begin
           and qr.is_active = false
           and qr.inactive_reason = 'deleted'
       )
+      and not exists (
+        select 1 from public.question_reviews qr2
+        where qr2.reviewer_id = ar.reviewer_id
+          and qr2.question_id = ar.question_id
+          and qr2.is_active = true
+      )
   )
   update public.answer_reviews ar
   set is_active = false, inactive_reason = 'deleted', inactive_at = now()
@@ -716,6 +722,12 @@ begin
           and qr.is_active = false
           and qr.inactive_reason = 'deleted'
       )
+      and not exists (
+        select 1 from public.question_reviews qr2
+        where qr2.reviewer_id = ar.reviewer_id
+          and qr2.question_id = ar.question_id
+          and qr2.is_active = true
+      )
   )
   select count(*) into repaired from orphan;
   if repaired <> 0 then
@@ -723,6 +735,156 @@ begin
   end if;
 end;
 $orphan_repair$;
+
+-- ===========================================================================
+-- Negative: orphan reconciliation must NOT touch a reviewer who has already
+-- started a fresh, legitimate review generation for that question. An old
+-- 'deleted' Question Review row (from a previous generation) beside new active
+-- current-version reviews must not be misread as a partial-delete orphan.
+-- ===========================================================================
+insert into public.master_misconception_catalog (misconception_id, synced_by, synced_at)
+values ('M-ORR-001', null, now());
+
+-- Q-ORR-001 and A-ORR-A currently exist at their v2 source versions. The v1
+-- versions ('...01' / '...a1') were superseded by a master change and have no
+-- baseline rows any more.
+insert into public.question_misconception_baselines
+  (question_id, misconception_ids, synced_by, synced_at, source_version, source_fingerprint)
+values
+  ('Q-ORR-001', array['M-ORR-001'], null, now(),
+   '43000000-0000-4000-8000-000000000002', null);
+
+insert into public.answer_misconception_baselines
+  (answer_id, question_id, misconception_ids, synced_by, synced_at, source_version, source_fingerprint)
+values
+  ('A-ORR-A', 'Q-ORR-001', array['M-ORR-001'], null, now(),
+   '43000000-0000-4000-8000-0000000000a2', null);
+
+-- Reviewer four's PRIOR generation: a Question Review that was deleted while it
+-- was still at the old question source version. Kept only as history.
+insert into public.question_reviews
+  (reviewer_id, question_id, has_incorrect_misconceptions,
+   has_additional_misconceptions, note, source_version,
+   is_active, inactive_reason, inactive_at)
+values
+  ('00000000-0000-4000-8000-000000000014', 'Q-ORR-001',
+   false, false, 'orr prior deleted generation',
+   '43000000-0000-4000-8000-000000000001',
+   false, 'deleted', now());
+
+do $orphan_re_review_untouched$
+declare
+  reviewer_four uuid := '00000000-0000-4000-8000-000000000014';
+  seed_reviewers uuid[] := array[
+    '00000000-0000-4000-8000-000000000014',
+    '00000000-0000-4000-8000-000000000011',
+    '00000000-0000-4000-8000-000000000012'
+  ];
+  seed_reviewer uuid;
+  repaired integer;
+begin
+  -- All three review Q-ORR-001 + A-ORR-A at the CURRENT (v2) source versions.
+  -- Reviewer four is doing a legitimate fresh review after their prior
+  -- generation was deleted.
+  foreach seed_reviewer in array seed_reviewers loop
+    perform set_config('request.jwt.claim.sub', seed_reviewer::text, false);
+    perform public.save_question_review_v3(
+      'Q-ORR-001', '43000000-0000-4000-8000-000000000002',
+      false, '{}', null, false, '{}', null, 'orr current generation'
+    );
+    perform public.save_answer_review_v3(
+      'A-ORR-A', '43000000-0000-4000-8000-0000000000a2',
+      false, '{}', null, false, '{}', null, 'orr current answer'
+    );
+  end loop;
+
+  -- Three active reviewers -> A-ORR-A consensus override exists.
+  if not exists (
+    select 1 from public.answer_misconception_overrides
+    where answer_id = 'A-ORR-A'
+      and source_version = '43000000-0000-4000-8000-0000000000a2'
+      and source_review_count = 3
+  ) then
+    raise exception 'ORR_SEED_CONSENSUS_MISSING';
+  end if;
+
+  -- Reviewer four now has BOTH a deleted Question Review (old generation) and an
+  -- active Question Review (current generation) for Q-ORR-001.
+  if not exists (
+    select 1 from public.question_reviews
+    where reviewer_id = reviewer_four and question_id = 'Q-ORR-001'
+      and is_active = false and inactive_reason = 'deleted'
+  ) or not exists (
+    select 1 from public.question_reviews
+    where reviewer_id = reviewer_four and question_id = 'Q-ORR-001'
+      and is_active = true
+  ) then
+    raise exception 'ORR_SETUP_FAILED';
+  end if;
+
+  -- Run the exact tightened reconciliation predicate from the migration.
+  with orphan as (
+    select ar.id, amb.answer_id, amb.source_version
+    from public.answer_reviews ar
+    join public.answer_misconception_baselines amb on amb.answer_id = ar.answer_id
+    where ar.is_active = true
+      and ar.source_version = amb.source_version
+      and exists (
+        select 1 from public.question_reviews qr
+        where qr.reviewer_id = ar.reviewer_id
+          and qr.question_id = ar.question_id
+          and qr.is_active = false
+          and qr.inactive_reason = 'deleted'
+      )
+      and not exists (
+        select 1 from public.question_reviews qr2
+        where qr2.reviewer_id = ar.reviewer_id
+          and qr2.question_id = ar.question_id
+          and qr2.is_active = true
+      )
+  ),
+  affected as (
+    update public.answer_reviews ar
+    set is_active = false, inactive_reason = 'deleted', inactive_at = now()
+    from orphan where orphan.id = ar.id
+    returning ar.answer_id, ar.source_version
+  )
+  select count(*) into repaired from affected;
+
+  -- The predicate must not have matched reviewer four's fresh Answer Review
+  -- (they have an active current Question Review for Q-ORR-001).
+  if repaired <> 0 then
+    raise exception 'ORR_REPAIR_TOUCHED_RE_REVIEW: % row(s)', repaired;
+  end if;
+
+  if not exists (
+    select 1 from public.answer_reviews
+    where reviewer_id = reviewer_four and answer_id = 'A-ORR-A' and is_active = true
+  ) then
+    raise exception 'ORR_RE_REVIEW_ANSWER_DEACTIVATED';
+  end if;
+
+  -- Consensus / override for the current generation is untouched.
+  if not exists (
+    select 1 from public.answer_misconception_overrides
+    where answer_id = 'A-ORR-A'
+      and source_version = '43000000-0000-4000-8000-0000000000a2'
+      and source_review_count = 3
+  ) then
+    raise exception 'ORR_CONSENSUS_INCORRECTLY_REMOVED';
+  end if;
+
+  -- The prior deleted generation stays exactly as it was (history only).
+  if not exists (
+    select 1 from public.question_reviews
+    where reviewer_id = reviewer_four and question_id = 'Q-ORR-001'
+      and source_version = '43000000-0000-4000-8000-000000000001'
+      and is_active = false and inactive_reason = 'deleted'
+  ) then
+    raise exception 'ORR_PRIOR_GENERATION_MUTATED';
+  end if;
+end;
+$orphan_re_review_untouched$;
 
 reset role;
 

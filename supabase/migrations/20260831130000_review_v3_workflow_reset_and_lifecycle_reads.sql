@@ -25,13 +25,16 @@
 --
 --   2. One-time, generic, predicate-based reconciliation of the historical
 --      partial-delete defect: any reviewer/question whose question_reviews row
---      is inactive with inactive_reason = 'deleted' while the same reviewer
---      still has an active Answer Review for that question at the answer's
---      current baseline version. Those still-active Answer Reviews are
---      soft-deleted (inactive_reason = 'deleted') and their consensus is
---      recomputed. No reviewer / question / lecturer identifiers are referenced
---      or logged; only aggregate NOTICE counts are emitted. Clean no-op when
---      nothing matches.
+--      is inactive with inactive_reason = 'deleted', who has NO active Question
+--      Review for that question, yet still has an active Answer Review for it at
+--      the answer's current baseline version. Those still-active Answer Reviews
+--      are soft-deleted (inactive_reason = 'deleted') and their consensus is
+--      recomputed. The "no active Question Review" guard keeps a reviewer who
+--      legitimately re-reviewed the question at a newer source version (leaving
+--      an older generation's Question Review row deleted) from having their new
+--      Answer Reviews reset. No reviewer / question / lecturer identifiers are
+--      referenced or logged; only aggregate NOTICE counts are emitted. Clean
+--      no-op when nothing matches.
 --
 --   3. Makes the lecturer-facing "current" read paths lifecycle-aware so
 --      deleted or source-invalidated reviews can no longer inflate current
@@ -225,6 +228,7 @@ begin
     on amb.answer_id = ar.answer_id
   where ar.is_active = true
     and ar.source_version = amb.source_version
+    -- The reviewer intentionally deleted a Question Review for this question ...
     and exists (
       select 1
       from public.question_reviews qr
@@ -232,6 +236,17 @@ begin
         and qr.question_id = ar.question_id
         and qr.is_active = false
         and qr.inactive_reason = 'deleted'
+    )
+    -- ... and has NOT since started a new active Question Review for it. Without
+    -- this guard, a reviewer who re-reviewed the question at a newer source
+    -- version (leaving the old generation's Question Review row deleted) would
+    -- have their new, legitimate Answer Reviews wrongly reset by this backfill.
+    and not exists (
+      select 1
+      from public.question_reviews qr2
+      where qr2.reviewer_id = ar.reviewer_id
+        and qr2.question_id = ar.question_id
+        and qr2.is_active = true
     );
 
   select
