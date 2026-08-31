@@ -52,13 +52,15 @@ const emptySnapshot: AdminReviewReadSnapshot = {
 };
 
 const STATUS_LABEL = { active: "Aktif", deleted: "Dihapus" } as const;
+// Presentation wording only: an initial (never-edited) active review reads as
+// "Direview" / "Reviewed". The underlying audit event type stays `created`.
 const ACTIVITY_LABEL_ID = {
-  created: "Dibuat",
+  created: "Direview",
   edited: "Diedit",
   deleted: "Dihapus",
 } as const;
 const ACTIVITY_LABEL_EN = {
-  created: "Created",
+  created: "Reviewed",
   edited: "Edited",
   deleted: "Deleted",
 } as const;

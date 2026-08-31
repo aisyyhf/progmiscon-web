@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/common/Button";
+import { ConfirmDialog } from "../components/common/ConfirmDialog";
 import { EmptyState } from "../components/common/EmptyState";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLecturerAuth } from "../hooks/useLecturerAuth";
@@ -400,6 +401,7 @@ function WeekQuestionList({
 }) {
   const [query, setQuery] = useState("");
   const [withdrawingId, setWithdrawingId] = useState("");
+  const [pendingWithdraw, setPendingWithdraw] = useState<Question | null>(null);
   const reviewed = useMemo(() => new Set(reviewedQuestionIds), [reviewedQuestionIds]);
   const started = useMemo(() => new Set(startedQuestionIds), [startedQuestionIds]);
   const typeOptions = [
@@ -459,23 +461,25 @@ function WeekQuestionList({
     reviewed: { id: "Soal yang sudah direview", en: "Reviewed questions" },
     full: { id: "Soal dengan jumlah reviewer terpenuhi", en: "Questions with reviewer limit reached" },
   }[status][language];
+  const pendingWithdrawIsMultipleChoice =
+    pendingWithdraw?.type === "multiple_choice";
+  const withdrawDialogBody = pendingWithdraw
+    ? language === "id"
+      ? pendingWithdrawIsMultipleChoice
+        ? "Review soal dan seluruh review pilihan jawaban (A/B/C/D) yang Anda buat untuk soal ini akan dihapus dari review aktif. Riwayat review tetap tersimpan."
+        : "Review soal yang Anda buat untuk soal ini akan dihapus dari review aktif. Riwayat review tetap tersimpan."
+      : pendingWithdrawIsMultipleChoice
+        ? "Your question review and every answer-option review (A/B/C/D) you made for this question will be removed from the active review. Review history is kept."
+        : "Your question review for this question will be removed from the active review. Review history is kept."
+    : "";
+
   const handleWithdraw = async (question: Question) => {
-    const isMultipleChoice = question.type === "multiple_choice";
-    const confirmMessage =
-      language === "id"
-        ? isMultipleChoice
-          ? "Hapus review Anda untuk soal ini? Review soal dan semua review pilihan jawaban (A/B/C/D) yang Anda buat untuk soal ini akan direset. Soal kembali ke daftar tugas jika kuota masih tersedia. Riwayat tetap tersimpan."
-          : "Hapus review soal ini? Review akan dinonaktifkan dan soal kembali ke daftar tugas jika kuota masih tersedia. Riwayat tetap tersimpan."
-        : isMultipleChoice
-          ? "Delete your review of this question? Your question review and every answer-option review (A/B/C/D) you made for it are reset. The question returns to the task list if quota remains. History is kept."
-          : "Delete this question review? It will be deactivated and returned to the task list if quota remains available. History is kept.";
-    if (!window.confirm(confirmMessage)) {
-      return;
-    }
+    if (withdrawingId) return;
 
     setWithdrawingId(question.id);
     try {
       await onDeleteReview(question);
+      setPendingWithdraw(null);
     } catch (error) {
       console.error("[Progmiscon] Review soal gagal dihapus", error);
       if (isReviewPersistenceError(error, "DATA_VERSION_CHANGED")) {
@@ -740,7 +744,7 @@ function WeekQuestionList({
                                 type="button"
                                 aria-labelledby={deleteTooltipId}
                                 disabled={withdrawingId === question.id}
-                                onClick={() => void handleWithdraw(question)}
+                                onClick={() => setPendingWithdraw(question)}
                                 className="group/action relative inline-flex h-9 w-9 cursor-pointer items-center justify-center rounded-md text-[#B6252A] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--review-primary-soft)] disabled:cursor-wait disabled:opacity-45 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand active:scale-[0.98] motion-reduce:scale-none lg:h-7 lg:w-7"
                               >
                                 <Trash2 size={14} strokeWidth={1.9} aria-hidden="true" />
@@ -758,6 +762,22 @@ function WeekQuestionList({
           </div>
         )}
       </section>
+      <ConfirmDialog
+        open={pendingWithdraw !== null}
+        title={language === "id" ? "Hapus review?" : "Delete review?"}
+        description={withdrawDialogBody}
+        cancelLabel={language === "id" ? "Batal" : "Cancel"}
+        confirmLabel={language === "id" ? "Hapus review" : "Delete review"}
+        confirmIcon={<Trash2 size={16} strokeWidth={1.9} aria-hidden="true" />}
+        destructive
+        confirming={withdrawingId !== ""}
+        onCancel={() => {
+          if (withdrawingId === "") setPendingWithdraw(null);
+        }}
+        onConfirm={() => {
+          if (pendingWithdraw) void handleWithdraw(pendingWithdraw);
+        }}
+      />
     </>
   );
 }

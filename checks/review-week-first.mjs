@@ -798,6 +798,66 @@ assert.match(
   "edit and delete controls are restricted to personally reviewed questions",
 );
 assert.match(listSource, /Hapus review/);
+
+// --- Question Review delete: application-native confirmation, not window.confirm.
+const confirmDialogSource = await readFile(
+  new URL("../src/components/common/ConfirmDialog.tsx", import.meta.url),
+  "utf8",
+);
+// 1. the lecturer Question Review delete no longer uses a browser-native prompt.
+assert.doesNotMatch(listSource, /window\.confirm\(/);
+assert.doesNotMatch(confirmDialogSource, /window\.(confirm|alert|prompt)\(/);
+// 2. a custom modal component backs the confirmation and is rendered by the list.
+assert.match(
+  activePage,
+  /import \{ ConfirmDialog \} from "\.\.\/components\/common\/ConfirmDialog"/,
+);
+assert.match(listSource, /<ConfirmDialog\b/);
+assert.match(confirmDialogSource, /role="alertdialog"/);
+assert.match(confirmDialogSource, /createPortal\(/);
+assert.match(confirmDialogSource, /event\.key === "Escape"/);
+// modal copy matches the product spec (title + whole-question body + buttons).
+assert.match(listSource, /"Hapus review\?"/);
+assert.match(
+  listSource,
+  /Review soal dan seluruh review pilihan jawaban \(A\/B\/C\/D\) yang Anda buat untuk soal ini akan dihapus dari review aktif\. Riwayat review tetap tersimpan\./,
+);
+assert.match(listSource, /"Batal"/);
+assert.match(listSource, /confirmLabel=\{language === "id" \? "Hapus review"/);
+assert.match(
+  listSource,
+  /confirmIcon=\{<Trash2 /,
+  "destructive button uses a trash icon, not an X",
+);
+assert.match(listSource, /destructive\b/);
+// 3. opening the dialog performs no mutation: the trash button only sets state.
+assert.match(listSource, /onClick=\{\(\) => setPendingWithdraw\(question\)\}/);
+assert.doesNotMatch(listSource, /onClick=\{\(\) => void handleWithdraw\(question\)\}/);
+// 4. cancel / dismiss never deletes; it only clears the pending question.
+assert.match(
+  listSource,
+  /onCancel=\{\(\) => \{\s*if \(withdrawingId === ""\) setPendingWithdraw\(null\);\s*\}\}/,
+);
+// 5. confirm runs the existing whole-question deletion path exactly once and
+// is guarded against duplicate submission while a delete is in progress.
+assert.match(
+  listSource,
+  /onConfirm=\{\(\) => \{\s*if \(pendingWithdraw\) void handleWithdraw\(pendingWithdraw\);\s*\}\}/,
+);
+assert.match(
+  listSource,
+  /const handleWithdraw = async \(question: Question\) => \{\s*if \(withdrawingId\) return;/,
+);
+assert.equal(
+  listSource.match(/await onDeleteReview\(question\)/g)?.length,
+  1,
+  "the confirm path calls the whole-question delete exactly once",
+);
+assert.match(listSource, /confirming=\{withdrawingId !== ""\}/);
+// existing PR #57 error handling is preserved (version-change reload + retry).
+assert.match(listSource, /isReviewPersistenceError\(error, "DATA_VERSION_CHANGED"\)/);
+assert.match(listSource, /setWithdrawingId\(""\);/);
+
 assert.match(
   listSource,
   /text-\[13px\] font-semibold text-black[\s\S]*tableGridClass/,

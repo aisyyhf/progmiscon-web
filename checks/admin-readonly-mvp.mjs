@@ -219,7 +219,7 @@ for (const banned of [
 }
 assert.deepEqual(reviewCsv.rows[0].slice(8, 14), [
   "Aktif",
-  "Dibuat",
+  "Direview",
   "Soal",
   "",
   "",
@@ -228,7 +228,7 @@ assert.deepEqual(reviewCsv.rows[0].slice(8, 14), [
 assert.equal(reviewCsv.rows[0][5], "Reviewer One");
 assert.deepEqual(reviewCsv.rows[1].slice(8, 14), [
   "Aktif",
-  "Dibuat",
+  "Direview",
   "Opsi jawaban",
   "A",
   "A text",
@@ -499,6 +499,17 @@ assert.match(
   /"Unduh Hasil Review \(CSV\)" : "Download Review Results \(CSV\)"/,
 );
 assert.match(exportsPage, /getMasterData/);
+
+// Lifecycle presentation wording: an initial active review reads as
+// "Direview" / "Reviewed"; edited/deleted are preserved. The audit event type
+// stays `created` (the mapping key), and lifecycle detection is untouched.
+assert.match(reviewsPage, /created: "Direview"/);
+assert.match(reviewsPage, /created: "Reviewed"/);
+assert.match(reviewsPage, /edited: "Diedit"/);
+assert.match(reviewsPage, /deleted: "Dihapus"/);
+assert.doesNotMatch(reviewsPage, /"Dibuat"/);
+assert.match(reviewsPage, /STATUS_LABEL = \{ active: "Aktif", deleted: "Dihapus" \}/);
+assert.match(reviewsPage, /resolveReviewLifecycleLabels\(/);
 
 for (const page of [questionsPage, reviewsPage, exportsPage]) {
   assert.doesNotMatch(page, /uppercase tracking-\[0\.16em\][^>]*>Admin</);

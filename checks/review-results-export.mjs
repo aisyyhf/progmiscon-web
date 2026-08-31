@@ -382,6 +382,10 @@ for (const [name, source] of [
   );
 }
 
+// CSV "Aktivitas Terakhir" mapping: initial active review -> "Direview".
+assert.match(exportSource, /created: "Direview"/);
+assert.doesNotMatch(exportSource, /"Dibuat"/);
+
 const reviewsPage = readFileSync("src/pages/AdminReviewsPage.tsx", "utf8");
 assert.match(reviewsPage, /getAdminReviewReadSnapshot/);
 assert.doesNotMatch(
@@ -389,11 +393,16 @@ assert.doesNotMatch(
   /\.insert\(|\.update\(|saveQuestionReview|saveAnswerReview|sync_master/,
 );
 
-// 21. Status Review / Aktivitas Terakhir: active + no lifecycle -> "Aktif" / "Dibuat".
+// 21. Status Review / Aktivitas Terakhir: active + no lifecycle -> "Aktif" /
+// "Direview" (presentation wording for an initial, never-edited active review).
 const STATUS = col("Status Review");
 const AKTIVITAS = col("Aktivitas Terakhir");
 assert.equal(psRow[STATUS], "Aktif");
-assert.equal(psRow[AKTIVITAS], "Dibuat");
+assert.equal(psRow[AKTIVITAS], "Direview");
+assert.ok(
+  !csv.rows.some((r) => r[AKTIVITAS] === "Dibuat"),
+  'the initial activity label is "Direview", never "Dibuat"',
+);
 assert.equal(mpAnswerRow[STATUS], "Aktif");
 
 // 22. An edited active review is still "Aktif" but the activity is "Diedit".

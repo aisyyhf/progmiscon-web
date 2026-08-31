@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import type { ButtonHTMLAttributes, ReactNode, Ref } from "react";
 import { cn } from "../../utils/cn";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
@@ -6,6 +6,7 @@ type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
   children: ReactNode;
+  ref?: Ref<HTMLButtonElement>;
 };
 
 const variantClasses: Record<ButtonVariant, string> = {
@@ -15,9 +16,10 @@ const variantClasses: Record<ButtonVariant, string> = {
   danger: "border border-incorrect-border bg-incorrect-bg text-incorrect hover:border-incorrect hover:bg-incorrect-bg",
 };
 
-export function Button({ variant = "secondary", className, children, ...props }: ButtonProps) {
+export function Button({ variant = "secondary", className, children, ref, ...props }: ButtonProps) {
   return (
     <button
+      ref={ref}
       className={cn(
         "inline-flex items-center gap-2 rounded-md px-3.5 py-2 text-sm font-semibold transition-colors",
         "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
