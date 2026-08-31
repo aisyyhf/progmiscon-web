@@ -224,6 +224,132 @@ $$;
 ALTER FUNCTION "public"."delete_question_review_v3"("p_question_id" "text", "p_source_version" "uuid") OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."delete_question_review_workflow_v3"("p_question_id" "text", "p_source_version" "uuid") RETURNS "jsonb"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+declare
+  caller_id uuid := auth.uid();
+  target_id text := pg_catalog.btrim(coalesce(p_question_id, ''));
+  question_current_version uuid;
+  question_review_id uuid;
+  question_review_reset boolean := false;
+  deactivated_answers jsonb;
+  answer_generation jsonb := pg_catalog.jsonb_build_array();
+  answer_row record;
+  question_consensus jsonb;
+begin
+  if caller_id is null then
+    raise exception using message = 'AUTH_REQUIRED', errcode = 'P0001';
+  end if;
+
+  if not exists (
+    select 1
+    from public.lecturer_profiles profile
+    where profile.user_id = caller_id
+      and profile.active = true
+  ) then
+    raise exception using message = 'LECTURER_INACTIVE', errcode = 'P0001';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended('master_relation_baselines', 0)
+  );
+
+  select baseline.source_version
+  into question_current_version
+  from public.question_misconception_baselines baseline
+  where baseline.question_id = target_id
+  for update;
+
+  if not found then
+    raise exception using message = 'QUESTION_NOT_FOUND', errcode = 'P0001';
+  end if;
+
+  if question_current_version is distinct from p_source_version then
+    raise exception using message = 'DATA_VERSION_CHANGED', errcode = 'P0001';
+  end if;
+
+  update public.question_reviews review
+  set
+    is_active = false,
+    inactive_reason = 'deleted',
+    inactive_at = pg_catalog.now()
+  where review.reviewer_id = caller_id
+    and review.question_id = target_id
+    and review.source_version = question_current_version
+    and review.is_active = true
+  returning review.id into question_review_id;
+
+  if found then
+    question_review_reset := true;
+  end if;
+
+  with deactivated as (
+    update public.answer_reviews review
+    set
+      is_active = false,
+      inactive_reason = 'deleted',
+      inactive_at = pg_catalog.now()
+    from public.answer_misconception_baselines baseline
+    where review.reviewer_id = caller_id
+      and review.question_id = target_id
+      and review.answer_id = baseline.answer_id
+      and review.is_active = true
+      and review.source_version = baseline.source_version
+    returning review.id as review_id, review.answer_id, review.source_version
+  )
+  select coalesce(
+    pg_catalog.jsonb_agg(
+      pg_catalog.jsonb_build_object(
+        'review_id', deactivated.review_id,
+        'answer_id', deactivated.answer_id,
+        'source_version', deactivated.source_version
+      )
+      order by deactivated.answer_id
+    ),
+    pg_catalog.jsonb_build_array()
+  )
+  into deactivated_answers
+  from deactivated;
+
+  for answer_row in
+    select
+      element ->> 'answer_id' as answer_id,
+      (element ->> 'source_version')::uuid as source_version
+    from pg_catalog.jsonb_array_elements(deactivated_answers) as element
+  loop
+    answer_generation := answer_generation || pg_catalog.jsonb_build_object(
+      'answer_id', answer_row.answer_id,
+      'source_version', answer_row.source_version,
+      'consensus', public.recompute_answer_review_consensus_v3(
+        answer_row.answer_id,
+        answer_row.source_version
+      )
+    );
+  end loop;
+
+  question_consensus := public.recompute_question_review_consensus_v3(
+    target_id,
+    question_current_version
+  );
+
+  return pg_catalog.jsonb_build_object(
+    'question_id', target_id,
+    'source_version', question_current_version,
+    'question_review_id', question_review_id,
+    'question_review_reset', question_review_reset,
+    'deactivated_answer_reviews', deactivated_answers,
+    'question_consensus', question_consensus,
+    'answer_consensus', answer_generation
+  );
+end;
+$$;
+
+
+ALTER FUNCTION "public"."delete_question_review_workflow_v3"("p_question_id" "text", "p_source_version" "uuid") OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."enforce_answer_review_cap"() RETURNS "trigger"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO ''
@@ -452,6 +578,69 @@ $$;
 ALTER FUNCTION "public"."get_admin_review_consensus"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."get_admin_review_lifecycle"() RETURNS TABLE("review_type" "text", "review_id" "uuid", "last_event_type" "text", "last_event_at" timestamp with time zone, "edited" boolean, "last_deleted_at" timestamp with time zone, "last_deleted_before" "jsonb")
+    LANGUAGE "sql" STABLE SECURITY DEFINER
+    SET "search_path" TO ''
+    AS $$
+  with events as (
+    select
+      log.review_type,
+      log.review_id,
+      log.event_type,
+      log.occurred_at,
+      log.before_data
+    from public.review_audit_log log
+    where (select public.current_user_is_admin())
+  ),
+  last_start as (
+    select
+      events.review_id,
+      pg_catalog.max(events.occurred_at) as started_at
+    from events
+    where events.event_type in ('created', 'reactivated')
+    group by events.review_id
+  ),
+  last_event as (
+    select distinct on (events.review_id)
+      events.review_id,
+      events.review_type,
+      events.event_type,
+      events.occurred_at
+    from events
+    order by events.review_id, events.occurred_at desc, events.event_type
+  ),
+  last_deleted as (
+    select distinct on (events.review_id)
+      events.review_id,
+      events.occurred_at as deleted_at,
+      events.before_data as deleted_before
+    from events
+    where events.event_type = 'deleted'
+    order by events.review_id, events.occurred_at desc
+  )
+  select
+    last_event.review_type,
+    last_event.review_id,
+    last_event.event_type as last_event_type,
+    last_event.occurred_at as last_event_at,
+    exists (
+      select 1
+      from events edit_event
+      where edit_event.review_id = last_event.review_id
+        and edit_event.event_type = 'edited'
+        and edit_event.occurred_at >= coalesce(last_start.started_at, edit_event.occurred_at)
+    ) as edited,
+    last_deleted.deleted_at as last_deleted_at,
+    last_deleted.deleted_before as last_deleted_before
+  from last_event
+  left join last_start on last_start.review_id = last_event.review_id
+  left join last_deleted on last_deleted.review_id = last_event.review_id;
+$$;
+
+
+ALTER FUNCTION "public"."get_admin_review_lifecycle"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."get_admin_reviewer_profiles"("input_reviewer_ids" "uuid"[]) RETURNS TABLE("user_id" "uuid", "full_name" "text", "email" "text")
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO ''
@@ -486,13 +675,17 @@ CREATE OR REPLACE FUNCTION "public"."get_answer_review_counts"() RETURNS TABLE("
     review.answer_id,
     pg_catalog.count(distinct review.reviewer_id)::integer,
     pg_catalog.max(review.updated_at)
-  from public.answer_reviews as review
-  where exists (
-    select 1
-    from public.lecturer_profiles as profile
-    where profile.user_id = (select auth.uid())
-      and profile.active = true
-  )
+  from public.answer_reviews review
+  join public.answer_misconception_baselines baseline
+    on baseline.answer_id = review.answer_id
+   and baseline.source_version = review.source_version
+  where review.is_active = true
+    and exists (
+      select 1
+      from public.lecturer_profiles profile
+      where profile.user_id = (select auth.uid())
+        and profile.active = true
+    )
   group by review.answer_id;
 $$;
 
@@ -514,6 +707,7 @@ CREATE OR REPLACE FUNCTION "public"."get_my_review_status"() RETURNS TABLE("ques
       max(updated_at) as latest_updated_at
     from public.question_reviews
     where reviewer_id = (select auth.uid())
+      and is_active = true
   ),
   answer_status as (
     select
@@ -525,6 +719,7 @@ CREATE OR REPLACE FUNCTION "public"."get_my_review_status"() RETURNS TABLE("ques
       max(updated_at) as latest_updated_at
     from public.answer_reviews
     where reviewer_id = (select auth.uid())
+      and is_active = true
   )
   select
     question_status.question_ids,
@@ -619,31 +814,22 @@ CREATE OR REPLACE FUNCTION "public"."get_question_review_counts"() RETURNS TABLE
     LANGUAGE "sql" STABLE SECURITY DEFINER
     SET "search_path" TO ''
     AS $$
-
   select
-
-    public.question_reviews.question_id,
-
-    count(distinct public.question_reviews.reviewer_id)::integer as review_count,
-
-    max(public.question_reviews.updated_at) as latest_updated_at
-
-  from public.question_reviews
-
-  where exists (
-
-    select 1
-
-    from public.lecturer_profiles
-
-    where public.lecturer_profiles.user_id = (select auth.uid())
-
-      and public.lecturer_profiles.active = true
-
-  )
-
-  group by public.question_reviews.question_id;
-
+    review.question_id,
+    pg_catalog.count(distinct review.reviewer_id)::integer as review_count,
+    pg_catalog.max(review.updated_at) as latest_updated_at
+  from public.question_reviews review
+  join public.question_misconception_baselines baseline
+    on baseline.question_id = review.question_id
+   and baseline.source_version = review.source_version
+  where review.is_active = true
+    and exists (
+      select 1
+      from public.lecturer_profiles profile
+      where profile.user_id = (select auth.uid())
+        and profile.active = true
+    )
+  group by review.question_id;
 $$;
 
 
@@ -3413,6 +3599,8 @@ revoke all on function public.delete_question_review_v3(text, uuid) from public,
 grant execute on function public.delete_question_review_v3(text, uuid) to authenticated, service_role;
 revoke all on function public.delete_answer_review_v3(text, uuid) from public, anon, authenticated, service_role;
 grant execute on function public.delete_answer_review_v3(text, uuid) to authenticated, service_role;
+revoke all on function public.delete_question_review_workflow_v3(text, uuid) from public, anon, authenticated, service_role;
+grant execute on function public.delete_question_review_workflow_v3(text, uuid) to authenticated, service_role;
 revoke all on function public.recompute_question_review_consensus_v3(text, uuid) from public, anon, authenticated, service_role;
 grant execute on function public.recompute_question_review_consensus_v3(text, uuid) to service_role;
 revoke all on function public.recompute_answer_review_consensus_v3(text, uuid) from public, anon, authenticated, service_role;
@@ -3437,6 +3625,8 @@ revoke all on function public.get_answer_review_counts() from public, anon, auth
 grant execute on function public.get_answer_review_counts() to authenticated;
 revoke all on function public.get_admin_review_consensus() from public, anon, authenticated, service_role;
 grant execute on function public.get_admin_review_consensus() to authenticated;
+revoke all on function public.get_admin_review_lifecycle() from public, anon, authenticated, service_role;
+grant execute on function public.get_admin_review_lifecycle() to authenticated;
 revoke all on function public.get_admin_reviewer_profiles(uuid[]) from public, anon, authenticated, service_role;
 grant execute on function public.get_admin_reviewer_profiles(uuid[]) to anon, authenticated, service_role;
 revoke all on function public.get_published_master_overrides() from public, anon, authenticated, service_role;

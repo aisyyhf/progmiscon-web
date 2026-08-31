@@ -38,6 +38,11 @@
       "order": 160,
       "path": "supabase/migrations/20260831120000_question_review_effective_misconceptions.sql",
       "activeMigration": true
+    },
+    {
+      "order": 170,
+      "path": "supabase/migrations/20260831130000_review_v3_workflow_reset_and_lifecycle_reads.sql",
+      "activeMigration": true
     }
   ]
 }

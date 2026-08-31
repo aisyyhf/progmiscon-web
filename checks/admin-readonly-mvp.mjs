@@ -5,6 +5,7 @@ import {
   filterCurrentAdminReviewHistory,
   filterCurrentAdminReviewsToVisibleTargets,
   groupCurrentAdminReviews,
+  resolveReviewLifecycleLabels,
 } from "../src/utils/adminCurrentReviews.ts";
 import {
   buildCurrentAnswerMisconceptionsCsv,
@@ -183,6 +184,8 @@ assert.deepEqual(reviewCsv.headers, [
   "Nama Reviewer",
   "Waktu Review",
   "Terakhir Diperbarui",
+  "Status Review",
+  "Aktivitas Terakhir",
   "Bagian yang Direview",
   "Opsi Jawaban",
   "Isi Jawaban",
@@ -195,7 +198,7 @@ assert.deepEqual(reviewCsv.headers, [
   "Miskonsepsi Menurut Reviewer",
   "Catatan Tambahan",
 ]);
-assert.equal(reviewCsv.headers.length, 19);
+assert.equal(reviewCsv.headers.length, 21);
 for (const header of reviewCsv.headers) {
   assert.ok(!header.includes("_"), `header "${header}" must not use underscores`);
 }
@@ -214,19 +217,127 @@ for (const banned of [
     `internal header ${banned} must not be exported`,
   );
 }
-assert.deepEqual(reviewCsv.rows[0].slice(8, 12), [
+assert.deepEqual(reviewCsv.rows[0].slice(8, 14), [
+  "Aktif",
+  "Dibuat",
   "Soal",
   "",
   "",
   "Perlu revisi - ada miskonsepsi yang dihapus",
 ]);
 assert.equal(reviewCsv.rows[0][5], "Reviewer One");
-assert.deepEqual(reviewCsv.rows[1].slice(8, 12), [
+assert.deepEqual(reviewCsv.rows[1].slice(8, 14), [
+  "Aktif",
+  "Dibuat",
   "Opsi jawaban",
   "A",
   "A text",
   "Perlu revisi - ada miskonsepsi yang ditambahkan",
 ]);
+
+// --- Lifecycle: deleted generations are kept for Admin history, never counted.
+const deletedHistory = {
+  reviewers: [reviewer],
+  questionReviews: [
+    questionReview(),
+    questionReview({
+      id: "qr-deleted",
+      isActive: false,
+      inactiveReason: "deleted",
+      inactiveAt: "2026-08-20T09:00:00Z",
+      updatedAt: "2026-08-20T09:00:00Z",
+    }),
+    questionReview({
+      id: "qr-source-updated",
+      isActive: false,
+      inactiveReason: "source_updated",
+      inactiveAt: "2026-08-20T08:00:00Z",
+    }),
+  ],
+  answerReviews: [answerReview()],
+};
+const deletedCurrent = filterCurrentAdminReviewHistory(
+  deletedHistory,
+  sourceVersions,
+);
+assert.deepEqual(
+  deletedCurrent.deletedQuestionReviews.map(({ id }) => id),
+  ["qr-deleted"],
+  "lecturer-deleted rows are bucketed for Admin history",
+);
+assert.equal(
+  deletedCurrent.excluded.inactive,
+  1,
+  "source_updated rows stay excluded, not shown as deleted",
+);
+const deletedVisible = filterCurrentAdminReviewsToVisibleTargets(
+  deletedCurrent,
+  questions,
+  answers,
+);
+const deletedGroups = groupCurrentAdminReviews(deletedVisible, questions, answers);
+assert.equal(deletedGroups.length, 1);
+assert.equal(deletedGroups[0].deletedReviewers.length, 1);
+assert.deepEqual(countCurrentAdminReviewRows(deletedGroups), {
+  questions: 1,
+  reviewers: 1,
+  questionReviews: 1,
+  answerReviews: 1,
+  totalReviews: 2,
+});
+assert.deepEqual(
+  resolveReviewLifecycleLabels(
+    { id: "qr-deleted", isActive: false, inactiveReason: "deleted" },
+    new Map(),
+  ),
+  { status: "deleted", lastActivity: "deleted" },
+);
+assert.deepEqual(
+  resolveReviewLifecycleLabels(
+    { id: "qr-1", isActive: true, inactiveReason: null },
+    new Map([
+      [
+        "qr-1",
+        { reviewType: "question", reviewId: "qr-1", lastEventType: "edited", lastEventAt: null, edited: true, lastDeletedAt: null, lastDeletedBefore: null },
+      ],
+    ]),
+  ),
+  { status: "active", lastActivity: "edited" },
+);
+
+// A deleted generation that was reactivated (live row active) is reconstructed
+// from the lifecycle before-image.
+const reactivatedCurrent = filterCurrentAdminReviewHistory(
+  { reviewers: [reviewer], questionReviews: [questionReview()], answerReviews: [] },
+  sourceVersions,
+  [
+    {
+      reviewType: "question",
+      reviewId: "qr-1",
+      lastEventType: "edited",
+      lastEventAt: "2026-08-21T00:00:00Z",
+      edited: true,
+      lastDeletedAt: "2026-08-19T20:00:00Z",
+      lastDeletedBefore: {
+        reviewer_id: "reviewer-1",
+        question_id: "q-mp",
+        source_version: "q-v2",
+        has_incorrect_misconceptions: true,
+        removed_misconception_ids: ["m-1"],
+        removal_reason: "old removal",
+        has_additional_misconceptions: false,
+        additional_misconception_ids: [],
+        addition_reason: null,
+        note: "old generation",
+        created_at: "2026-08-18T10:00:00Z",
+      },
+    },
+  ],
+);
+assert.equal(reactivatedCurrent.questionReviews.length, 1);
+assert.equal(reactivatedCurrent.deletedQuestionReviews.length, 1);
+assert.equal(reactivatedCurrent.deletedQuestionReviews[0].note, "old generation");
+assert.equal(reactivatedCurrent.deletedQuestionReviews[0].inactiveReason, "deleted");
 
 const masterData = {
   topics: [],

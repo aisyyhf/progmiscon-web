@@ -4,8 +4,16 @@ import type {
   MasterData,
   Misconception,
   Question,
+  ReviewLastActivity,
+  ReviewLifecycleRow,
+  ReviewLifecycleStatus,
 } from "../types";
-import type { AdminQuestionReviewGroup } from "./adminCurrentReviews";
+import {
+  indexReviewLifecycle,
+  resolveReviewLifecycleLabels,
+  type AdminQuestionReviewGroup,
+  type AdminReviewerReviewGroup,
+} from "./adminCurrentReviews.ts";
 import type { CsvValue } from "./reviewCsv";
 import { formatWibDateTime } from "./reviewCsv.ts";
 import { isActiveValue } from "./masterDataValidation.ts";
@@ -41,6 +49,8 @@ export const lecturerReviewHeaders = [
   "Nama Reviewer",
   "Waktu Review",
   "Terakhir Diperbarui",
+  "Status Review",
+  "Aktivitas Terakhir",
   "Bagian yang Direview",
   "Opsi Jawaban",
   "Isi Jawaban",
@@ -53,6 +63,17 @@ export const lecturerReviewHeaders = [
   "Miskonsepsi Menurut Reviewer",
   "Catatan Tambahan",
 ] as const;
+
+const REVIEW_STATUS_LABEL: Record<ReviewLifecycleStatus, string> = {
+  active: "Aktif",
+  deleted: "Dihapus",
+};
+
+const REVIEW_LAST_ACTIVITY_LABEL: Record<ReviewLastActivity, string> = {
+  created: "Dibuat",
+  edited: "Diedit",
+  deleted: "Dihapus",
+};
 
 export const REVIEWER_NAME_UNAVAILABLE = "(Nama tidak tersedia)";
 
@@ -142,23 +163,18 @@ export function buildCurrentReviewsCsv(
   options: {
     misconceptions: readonly Misconception[];
     language: Language;
+    lifecycle?: readonly ReviewLifecycleRow[];
   },
 ): AdminCsvData {
   const { language } = options;
   const misconceptionById = new Map(
     options.misconceptions.map((item) => [item.id, item] as const),
   );
+  const lifecycleByReviewId = indexReviewLifecycle(options.lifecycle ?? []);
   const rows: CsvValue[][] = [];
 
-  for (const group of groups) {
-    const { question } = group;
-    const minggu = question.week ? getMaterialWeekLabel(question.week) : "";
-    const tipeSoal = getMaterialQuestionType(question.type).toUpperCase();
-    const kodeSoal = questionCode(question);
-    const kodeMiskonsepsi = question.targetMisconceptionId?.trim() ?? "";
-    const judulSoal = t(question.title, language);
-
-    const reviewers = [...group.reviewers].sort((left, right) => {
+  const sortReviewers = (reviewerGroups: readonly AdminReviewerReviewGroup[]) =>
+    [...reviewerGroups].sort((left, right) => {
       const nameOrder = reviewerDisplayName(left.reviewer).localeCompare(
         reviewerDisplayName(right.reviewer),
         undefined,
@@ -168,8 +184,19 @@ export function buildCurrentReviewsCsv(
       return left.reviewer.reviewerId.localeCompare(right.reviewer.reviewerId);
     });
 
+  for (const group of groups) {
+    const { question } = group;
+    const minggu = question.week ? getMaterialWeekLabel(question.week) : "";
+    const tipeSoal = getMaterialQuestionType(question.type).toUpperCase();
+    const kodeSoal = questionCode(question);
+    const kodeMiskonsepsi = question.targetMisconceptionId?.trim() ?? "";
+    const judulSoal = t(question.title, language);
+
     const buildRow = (
       review: {
+        id: string;
+        isActive: boolean;
+        inactiveReason: string | null;
         removedMisconceptionIds: string[];
         additionalMisconceptionIds: string[];
         removalReason: string | null;
@@ -183,48 +210,53 @@ export function buildCurrentReviewsCsv(
       section: "Soal" | "Opsi jawaban",
       optionLabel: string,
       answerText: string,
-    ): CsvValue[] => [
-      minggu,
-      tipeSoal,
-      kodeSoal,
-      judulSoal,
-      kodeMiskonsepsi,
-      reviewerName,
-      formatWibDateTime(review.createdAt),
-      formatWibDateTime(review.updatedAt),
-      section,
-      optionLabel,
-      answerText,
-      reviewOutcomeLabel(
-        review.removedMisconceptionIds,
-        review.additionalMisconceptionIds,
-      ),
-      renderMisconceptionList(referenceIds, misconceptionById, language),
-      renderMisconceptionList(
-        review.removedMisconceptionIds,
-        misconceptionById,
-        language,
-      ),
-      review.removalReason ?? "",
-      renderMisconceptionList(
-        review.additionalMisconceptionIds,
-        misconceptionById,
-        language,
-      ),
-      review.additionReason ?? "",
-      renderMisconceptionList(
-        reviewerFinalMisconceptionIds(
-          referenceIds,
+    ): CsvValue[] => {
+      const labels = resolveReviewLifecycleLabels(review, lifecycleByReviewId);
+      return [
+        minggu,
+        tipeSoal,
+        kodeSoal,
+        judulSoal,
+        kodeMiskonsepsi,
+        reviewerName,
+        formatWibDateTime(review.createdAt),
+        formatWibDateTime(review.updatedAt),
+        REVIEW_STATUS_LABEL[labels.status],
+        REVIEW_LAST_ACTIVITY_LABEL[labels.lastActivity],
+        section,
+        optionLabel,
+        answerText,
+        reviewOutcomeLabel(
           review.removedMisconceptionIds,
           review.additionalMisconceptionIds,
         ),
-        misconceptionById,
-        language,
-      ),
-      review.note ?? "",
-    ];
+        renderMisconceptionList(referenceIds, misconceptionById, language),
+        renderMisconceptionList(
+          review.removedMisconceptionIds,
+          misconceptionById,
+          language,
+        ),
+        review.removalReason ?? "",
+        renderMisconceptionList(
+          review.additionalMisconceptionIds,
+          misconceptionById,
+          language,
+        ),
+        review.additionReason ?? "",
+        renderMisconceptionList(
+          reviewerFinalMisconceptionIds(
+            referenceIds,
+            review.removedMisconceptionIds,
+            review.additionalMisconceptionIds,
+          ),
+          misconceptionById,
+          language,
+        ),
+        review.note ?? "",
+      ];
+    };
 
-    for (const reviewerGroup of reviewers) {
+    const emitReviewerGroup = (reviewerGroup: AdminReviewerReviewGroup) => {
       const reviewerName = reviewerDisplayName(reviewerGroup.reviewer);
       const questionReview = reviewerGroup.questionReview;
 
@@ -253,6 +285,13 @@ export function buildCurrentReviewsCsv(
           ),
         );
       }
+    };
+
+    for (const reviewerGroup of sortReviewers(group.reviewers)) {
+      emitReviewerGroup(reviewerGroup);
+    }
+    for (const reviewerGroup of sortReviewers(group.deletedReviewers ?? [])) {
+      emitReviewerGroup(reviewerGroup);
     }
   }
 

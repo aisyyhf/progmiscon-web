@@ -139,6 +139,8 @@ const HEADERS = [
   "Nama Reviewer",
   "Waktu Review",
   "Terakhir Diperbarui",
+  "Status Review",
+  "Aktivitas Terakhir",
   "Bagian yang Direview",
   "Opsi Jawaban",
   "Isi Jawaban",
@@ -157,10 +159,12 @@ const col = (name) => {
   return index;
 };
 
-// 1. exact final 19-column order
+// 1. exact final 21-column order
 assert.deepEqual(csv.headers, HEADERS);
-assert.equal(csv.headers.length, 19);
+assert.equal(csv.headers.length, 21);
 assert.deepEqual([...lecturerReviewHeaders], csv.headers);
+assert.equal(HEADERS.indexOf("Status Review"), HEADERS.indexOf("Terakhir Diperbarui") + 1);
+assert.equal(HEADERS.indexOf("Aktivitas Terakhir"), HEADERS.indexOf("Bagian yang Direview") - 1);
 
 // 2. no underscores in headers
 for (const header of csv.headers) {
@@ -384,5 +388,59 @@ assert.doesNotMatch(
   reviewsPage,
   /\.insert\(|\.update\(|saveQuestionReview|saveAnswerReview|sync_master/,
 );
+
+// 21. Status Review / Aktivitas Terakhir: active + no lifecycle -> "Aktif" / "Dibuat".
+const STATUS = col("Status Review");
+const AKTIVITAS = col("Aktivitas Terakhir");
+assert.equal(psRow[STATUS], "Aktif");
+assert.equal(psRow[AKTIVITAS], "Dibuat");
+assert.equal(mpAnswerRow[STATUS], "Aktif");
+
+// 22. An edited active review is still "Aktif" but the activity is "Diedit".
+const editedCsv = buildCurrentReviewsCsv(groups, {
+  misconceptions,
+  language: "id",
+  lifecycle: [
+    { reviewType: "question", reviewId: "qr-ps", lastEventType: "edited", lastEventAt: null, edited: true, lastDeletedAt: null, lastDeletedBefore: null },
+  ],
+});
+const editedPsRow = editedCsv.rows.find(
+  (r) => r[KODE] === PS_LMS_ID && r[REVIEWER] === "Dr. Budi, S.Kom.",
+);
+assert.equal(editedPsRow[STATUS], "Aktif");
+assert.equal(editedPsRow[AKTIVITAS], "Diedit");
+
+// 23. A deleted generation exports once, marked "Dihapus" / "Dihapus", with the
+// deletion time in "Terakhir Diperbarui" and no duplicate "active vote" row.
+const deletedGroups = [
+  {
+    question: mpQuestion,
+    reviewers: [],
+    deletedReviewers: [
+      {
+        reviewer: reviewerNamed,
+        questionReview: {
+          ...base,
+          id: "qr-mp-deleted",
+          questionId: "Q020",
+          isActive: false,
+          inactiveReason: "deleted",
+          inactiveAt: "2026-08-22T03:00:00Z",
+          updatedAt: "2026-08-22T03:00:00Z",
+        },
+        answerReviews: [],
+      },
+    ],
+  },
+];
+const deletedCsv = buildCurrentReviewsCsv(deletedGroups, {
+  misconceptions,
+  language: "id",
+});
+assert.equal(deletedCsv.rows.length, 1);
+assert.equal(deletedCsv.rows[0][STATUS], "Dihapus");
+assert.equal(deletedCsv.rows[0][AKTIVITAS], "Dihapus");
+assert.equal(deletedCsv.rows[0][col("Terakhir Diperbarui")], "2026-08-22 10:00 WIB");
+assert.equal(deletedCsv.rows[0][REVIEWER], "Dr. Budi, S.Kom.");
 
 console.log("Lecturer review-results export checks passed.");
