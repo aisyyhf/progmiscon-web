@@ -7,7 +7,9 @@ import type {
   ReviewLastActivity,
   ReviewLifecycleRow,
   ReviewLifecycleStatus,
+  StudentAnswer,
 } from "../types";
+import { buildOptionMisconceptionMappings } from "./optionMisconceptionMapping.ts";
 import {
   indexReviewLifecycle,
   resolveReviewLifecycleLabels,
@@ -45,15 +47,13 @@ export const lecturerReviewHeaders = [
   "Tipe Soal",
   "Kode Soal",
   "Judul Soal",
+  "Pemetaan Opsi",
   "Kode Miskonsepsi",
   "Nama Reviewer",
   "Waktu Review",
   "Terakhir Diperbarui",
   "Status Review",
   "Aktivitas Terakhir",
-  "Bagian yang Direview",
-  "Opsi Jawaban",
-  "Isi Jawaban",
   "Hasil Review",
   "Miskonsepsi yang Tercantum",
   "Miskonsepsi yang Dihapus",
@@ -160,10 +160,43 @@ function questionCode(question: Question): string {
   return question.lmsQuestionId?.trim() || question.displayCode?.trim() || "";
 }
 
+/**
+ * Deterministic, CSV-safe serialization of the EFFECTIVE option -> misconception
+ * mapping for a multiple-choice question. One line per option in the question's
+ * own option order, e.g.
+ *   A -> IO-02 - Nama variabel tertukar dengan nilainya saat output
+ *   B -> Jawaban benar
+ *   D -> Tidak ada miskonsepsi yang dipetakan
+ * This is master-data context (baseline answer_misconceptions + valid published
+ * answer overrides), NOT Answer Review history. Blank for PS questions.
+ */
+export function serializeOptionMisconceptionMapping(
+  question: Pick<Question, "type" | "options">,
+  answers: readonly StudentAnswer[],
+  misconceptionById: ReadonlyMap<string, Misconception>,
+  language: Language,
+): string {
+  return buildOptionMisconceptionMappings(question, answers)
+    .map((mapping) => {
+      const detail = mapping.isCorrect
+        ? "Jawaban benar"
+        : mapping.misconceptionIds.length > 0
+          ? renderMisconceptionList(
+              mapping.misconceptionIds,
+              misconceptionById,
+              language,
+            )
+          : "Tidak ada miskonsepsi yang dipetakan";
+      return `${mapping.label} -> ${detail}`;
+    })
+    .join("\n");
+}
+
 export function buildCurrentReviewsCsv(
   groups: readonly AdminQuestionReviewGroup[],
   options: {
     misconceptions: readonly Misconception[];
+    answers: readonly StudentAnswer[];
     language: Language;
     lifecycle?: readonly ReviewLifecycleRow[];
   },
@@ -193,7 +226,16 @@ export function buildCurrentReviewsCsv(
     const kodeSoal = questionCode(question);
     const kodeMiskonsepsi = question.targetMisconceptionId?.trim() ?? "";
     const judulSoal = t(question.title, language);
+    // Informational MP context only -- not a separate Answer Review result.
+    const pemetaanOpsi = serializeOptionMisconceptionMapping(
+      question,
+      options.answers,
+      misconceptionById,
+      language,
+    );
 
+    // One exported row per Question Review generation (current or lecturer-
+    // deleted). The retired A/B/C/D Answer Review no longer produces rows.
     const buildRow = (
       review: {
         id: string;
@@ -209,9 +251,6 @@ export function buildCurrentReviewsCsv(
       },
       reviewerName: string,
       referenceIds: readonly string[],
-      section: "Soal" | "Opsi jawaban",
-      optionLabel: string,
-      answerText: string,
     ): CsvValue[] => {
       const labels = resolveReviewLifecycleLabels(review, lifecycleByReviewId);
       return [
@@ -219,15 +258,13 @@ export function buildCurrentReviewsCsv(
         tipeSoal,
         kodeSoal,
         judulSoal,
+        pemetaanOpsi,
         kodeMiskonsepsi,
         reviewerName,
         formatWibDateTime(review.createdAt),
         formatWibDateTime(review.updatedAt),
         REVIEW_STATUS_LABEL[labels.status],
         REVIEW_LAST_ACTIVITY_LABEL[labels.lastActivity],
-        section,
-        optionLabel,
-        answerText,
         reviewOutcomeLabel(
           review.removedMisconceptionIds,
           review.additionalMisconceptionIds,
@@ -259,34 +296,15 @@ export function buildCurrentReviewsCsv(
     };
 
     const emitReviewerGroup = (reviewerGroup: AdminReviewerReviewGroup) => {
-      const reviewerName = reviewerDisplayName(reviewerGroup.reviewer);
       const questionReview = reviewerGroup.questionReview;
-
-      if (questionReview) {
-        rows.push(
-          buildRow(
-            questionReview,
-            reviewerName,
-            question.questionMisconceptionIds,
-            "Soal",
-            "",
-            "",
-          ),
-        );
-      }
-
-      for (const { answer, review } of reviewerGroup.answerReviews) {
-        rows.push(
-          buildRow(
-            review,
-            reviewerName,
-            answer.studentMisconceptionIds,
-            "Opsi jawaban",
-            answer.optionLabel ?? "",
-            answer.answerText ?? "",
-          ),
-        );
-      }
+      if (!questionReview) return;
+      rows.push(
+        buildRow(
+          questionReview,
+          reviewerDisplayName(reviewerGroup.reviewer),
+          question.questionMisconceptionIds,
+        ),
+      );
     };
 
     for (const reviewerGroup of sortReviewers(group.reviewers)) {
