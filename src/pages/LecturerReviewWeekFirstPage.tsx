@@ -5,12 +5,10 @@ import {
   ChevronDown,
   ChevronRight,
   Eye,
-  History,
   Info,
   Pencil,
   Search,
   Trash2,
-  Users,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "../components/common/Button";
@@ -19,76 +17,48 @@ import { EmptyState } from "../components/common/EmptyState";
 import { useLanguage } from "../hooks/useLanguage";
 import { useLecturerAuth } from "../hooks/useLecturerAuth";
 import { useMisconceptions } from "../hooks/useMisconceptions";
-import { useReviewTasks } from "../hooks/useReviewTasks";
 import {
-  deleteAnswerReview,
   deleteQuestionReviewWorkflow,
-  getAnswerReviewCounts,
   getQuestionReviewCounts,
   getReviewerHistory,
   getReviewProgress,
   getReviewWorkspaceSnapshot,
   isReviewPersistenceError,
-  saveAnswerReview,
   saveQuestionReview,
 } from "../services/reviewPersistenceRepository";
 import type {
-  AnswerReviewHistoryItem,
-  AnswerReviewValues,
   Language,
   Question,
   QuestionReviewHistoryItem,
   QuestionReviewValues,
   ReviewSourceVersions,
-  ReviewTask,
   StudentAnswer,
 } from "../types";
 import { cn } from "../utils/cn";
-import {
-  getMaterialQuestionIdentifier,
-  getMaterialWeekOptions,
-} from "../utils/materialQuestionFilters";
-import { sortReviewTasks } from "../utils/reviewPriority";
+import { getMaterialQuestionIdentifier } from "../utils/materialQuestionFilters";
 import {
   REVIEW_NAVIGATION_SESSION_KEY,
   buildReviewQueue,
   filterWeekReviewQuestions,
-  getActiveCurrentAnswerReviewIds,
   getActiveCurrentQuestionReviewIds,
-  getNavigationAfterWithdraw,
   getReviewWeekSummaries,
   getWeekReviewQuestionStatus,
   normalizeReviewNavigationState,
   parseReviewNavigationSearch,
   parseReviewNavigationSession,
-  resolveAnswerDeepLink,
   serializeReviewNavigationSearch,
   serializeReviewNavigationSession,
   type ReviewNavigationState,
-  type ReviewPersonalStatus,
   type ReviewQuestionType,
   type ReviewSessionMode,
-  type ReviewTaskKind,
   type ReviewWeekListStatus,
   type ReviewWeekSummary,
 } from "../utils/reviewQueue";
 import { QUESTION_REVIEWED_THRESHOLD } from "../utils/reviewQuestionFilters";
-import { getEvidenceAnswersForQuestion } from "../utils/reviewLinking";
-import {
-  filterEligibleAnswerReviewCounts,
-  filterEligibleAnswerReviewIds,
-  getActionableAnswerReviewSequence,
-  getCompositeReviewedQuestionIds,
-  getNextUnreviewedAnswerId,
-  getReachableAnswerReviewSequence,
-  resolveAnswerSelection,
-  stripSelectedOptionPrefix,
-} from "../utils/reviewWorkspace";
 import { t } from "../utils/translation";
 import { hasActiveReviewSession } from "../services/reviewSession";
 import { supabase } from "../services/supabaseClient";
 import {
-  AnswerValidationWorkspace,
   QuestionValidationWorkspace,
   ReviewSessionExpiredDialog,
 } from "./LecturerReviewPage";
@@ -107,35 +77,8 @@ function readInitialNavigation(search: string): Partial<ReviewNavigationState> {
   }
 }
 
-function orderAnswersByTaskPriority(
-  answers: readonly StudentAnswer[],
-  tasks: readonly ReviewTask[],
-): StudentAnswer[] {
-  const rank = new Map(
-    sortReviewTasks([...tasks]).map((task, index) => [task.answerCaseId, index]),
-  );
-  return [...answers].sort(
-    (left, right) =>
-      (rank.get(left.id) ?? rank.size) - (rank.get(right.id) ?? rank.size),
-  );
-}
-
 function formatWeekLabel(week: string): string {
   return `Week ${week.replace(/^W/i, "")}`;
-}
-
-function getAnswerStepLabel(
-  question: Question,
-  answer: StudentAnswer,
-  index: number,
-  language: Language,
-): string {
-  const optionLabel = resolveAnswerSelection(question, answer).option?.label.trim();
-  return `${language === "id" ? "Jawaban" : "Answer"} ${optionLabel || index + 1}`;
-}
-
-function isQuestionDetailTask(task: ReviewTaskKind): boolean {
-  return task === "question";
 }
 
 function ReviewBreadcrumb({
@@ -199,12 +142,10 @@ function ReviewBreadcrumb({
 }
 
 function ReviewCompletionDialog({
-  kind,
   week,
   language,
   onConfirm,
 }: {
-  kind: "question" | "workflow";
   week: string;
   language: Language;
   onConfirm: () => void;
@@ -239,13 +180,9 @@ function ReviewCompletionDialog({
             {language === "id" ? "Review selesai" : "Review complete"}
           </h2>
           <p id="review-completion-description" className="mt-2 text-sm leading-6 text-muted">
-            {kind === "question"
-              ? language === "id"
-                ? "Review soal telah berhasil disimpan."
-                : "The question review was saved successfully."
-              : language === "id"
-                ? "Review soal dan seluruh jawaban yang tersedia telah selesai."
-                : "The question and all available answers have been reviewed."}
+            {language === "id"
+              ? "Review soal telah berhasil disimpan."
+              : "The question review was saved successfully."}
           </p>
           <Button
             type="button"
@@ -461,16 +398,10 @@ function WeekQuestionList({
     reviewed: { id: "Soal yang sudah direview", en: "Reviewed questions" },
     full: { id: "Soal dengan jumlah reviewer terpenuhi", en: "Questions with reviewer limit reached" },
   }[status][language];
-  const pendingWithdrawIsMultipleChoice =
-    pendingWithdraw?.type === "multiple_choice";
   const withdrawDialogBody = pendingWithdraw
     ? language === "id"
-      ? pendingWithdrawIsMultipleChoice
-        ? "Review soal dan seluruh review pilihan jawaban (A/B/C/D) yang Anda buat untuk soal ini akan dihapus dari review aktif. Riwayat review tetap tersimpan."
-        : "Review soal yang Anda buat untuk soal ini akan dihapus dari review aktif. Riwayat review tetap tersimpan."
-      : pendingWithdrawIsMultipleChoice
-        ? "Your question review and every answer-option review (A/B/C/D) you made for this question will be removed from the active review. Review history is kept."
-        : "Your question review for this question will be removed from the active review. Review history is kept."
+      ? "Review soal yang Anda buat untuk soal ini akan dihapus dari review aktif. Riwayat review tetap tersimpan."
+      : "Your question review for this question will be removed from the active review. Review history is kept."
     : "";
 
   const handleWithdraw = async (question: Question) => {
@@ -782,160 +713,11 @@ function WeekQuestionList({
   );
 }
 
-function QueuePanel({
-  items,
-  selectedItemId,
-  task,
-  language,
-  questionById,
-  questionCounts,
-  answerCounts,
-  reviewedQuestionIds,
-  reviewedAnswerIds,
-  onSelect,
-}: {
-  items: Array<Question | StudentAnswer>;
-  selectedItemId?: string;
-  task: ReviewTaskKind;
-  language: Language;
-  questionById: ReadonlyMap<string, Question>;
-  questionCounts: ReadonlyMap<string, number>;
-  answerCounts: ReadonlyMap<string, number>;
-  reviewedQuestionIds: readonly string[];
-  reviewedAnswerIds: readonly string[];
-  onSelect: (itemId: string) => void;
-}) {
-  const reviewed = new Set(
-    task === "question" ? reviewedQuestionIds : reviewedAnswerIds,
-  );
 
-  return (
-    <aside className="min-w-0 overflow-hidden rounded-lg border border-border bg-white xl:sticky xl:top-20 xl:max-h-[calc(100dvh-6rem)]">
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <h2 className="text-sm font-bold text-navy-deep">
-          {language === "id" ? "Antrian" : "Queue"}
-        </h2>
-        <span className="text-xs font-semibold tabular-nums text-muted">
-          {items.length} {task === "question" ? (language === "id" ? "soal" : "questions") : language === "id" ? "jawaban" : "answers"}
-        </span>
-      </div>
-
-      {items.length === 0 ? (
-        <EmptyState
-          message={
-            language === "id"
-              ? "Tidak ada item dalam konteks ini."
-              : "There are no items in this context."
-          }
-        />
-      ) : (
-        <div className="max-h-[28rem] overflow-y-auto xl:max-h-[calc(100dvh-10rem)]">
-          {items.map((item) => {
-            const selected = item.id === selectedItemId;
-            const personallyReviewed = reviewed.has(item.id);
-            const question =
-              task === "question"
-                ? (item as Question)
-                : questionById.get((item as StudentAnswer).questionId);
-            if (!question) return null;
-
-            const identifier = getMaterialQuestionIdentifier(question);
-            const reviewCount = Math.min(
-              task === "question"
-                ? (questionCounts.get(item.id) ?? 0)
-                : (answerCounts.get(item.id) ?? 0),
-              QUESTION_REVIEWED_THRESHOLD,
-            );
-            let supportingText = question.expectedConcepts
-              .slice(0, 2)
-              .map((concept) => t(concept, language))
-              .join(", ");
-            let answerLabel = "";
-
-            if (task === "answer") {
-              const answer = item as StudentAnswer;
-              const { option, fallbackText } = resolveAnswerSelection(
-                question,
-                answer,
-              );
-              const answerText = option
-                ? t(option.text, language)
-                : stripSelectedOptionPrefix(fallbackText);
-              answerLabel = option?.label
-                ? `${language === "id" ? "Opsi" : "Option"} ${option.label}`
-                : answer.sourceKey?.trim() || answer.id;
-              supportingText = answerText.trim() || answer.id;
-            }
-
-            return (
-              <button
-                key={item.id}
-                type="button"
-                aria-current={selected ? "true" : undefined}
-                onClick={() => onSelect(item.id)}
-                className={cn(
-                  "group flex w-full cursor-pointer items-start gap-3 border-b border-border px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-neutral/70 focus-visible:relative focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand active:bg-brand-soft/55",
-                  selected && "bg-brand-soft/70",
-                )}
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs font-extrabold text-brand">
-                      {identifier}
-                    </span>
-                    <span className="rounded border border-border bg-neutral px-1.5 py-0.5 text-[9px] font-bold text-muted">
-                      {question.type === "multiple_choice" ? "MP" : "PS"}
-                    </span>
-                    {answerLabel && (
-                      <span className="text-[10px] font-bold text-navy-deep">
-                        {answerLabel}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-muted">
-                    {task === "question" && supportingText ? "KC: " : ""}
-                    {supportingText || (language === "id" ? "Topik belum tersedia" : "Topic unavailable")}
-                  </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-semibold text-muted">
-                    <span className="inline-flex items-center gap-1 tabular-nums">
-                      <Users size={12} strokeWidth={2} aria-hidden="true" />
-                      {reviewCount}/{QUESTION_REVIEWED_THRESHOLD}
-                    </span>
-                    {personallyReviewed && (
-                      <span className="inline-flex items-center gap-1 text-brand">
-                        <Check size={12} strokeWidth={2.5} aria-hidden="true" />
-                        {language === "id" ? "Review Anda aktif" : "Your review is active"}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <ChevronRight
-                  size={15}
-                  strokeWidth={2}
-                  aria-hidden="true"
-                  className={cn(
-                    "mt-1 shrink-0 text-muted transition-transform group-hover:translate-x-0.5",
-                    selected && "text-brand",
-                  )}
-                />
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </aside>
-  );
-}
-
-export function LecturerReviewPage({
-  initialAnswerId,
-}: {
-  initialAnswerId?: string;
-} = {}) {
+export function LecturerReviewPage() {
   const { language } = useLanguage();
   const { user } = useLecturerAuth();
   const { misconceptions, loading: misconceptionsLoading } = useMisconceptions();
-  const { tasks: answerTasks, loading: reviewTasksLoading } = useReviewTasks();
   const navigate = useNavigate();
   const location = useLocation();
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -947,11 +729,7 @@ export function LecturerReviewPage({
   const [questionHistory, setQuestionHistory] = useState<
     QuestionReviewHistoryItem[]
   >([]);
-  const [answerHistory, setAnswerHistory] = useState<AnswerReviewHistoryItem[]>([]);
   const [questionCounts, setQuestionCounts] = useState<Map<string, number>>(
-    new Map(),
-  );
-  const [answerCounts, setAnswerCounts] = useState<Map<string, number>>(
     new Map(),
   );
   const [reviewNavigationInput, setReviewNavigationInput] = useState<
@@ -973,16 +751,9 @@ export function LecturerReviewPage({
   >("checking");
   const [loadError, setLoadError] = useState("");
   const [reviewDataRevision, setReviewDataRevision] = useState(0);
-  const [handledInitialAnswerId, setHandledInitialAnswerId] = useState("");
   const [questionDirty, setQuestionDirty] = useState(false);
-  const [answerDirty, setAnswerDirty] = useState(false);
-  const [completionDialog, setCompletionDialog] = useState<
-    "question" | "workflow" | null
-  >(null);
+  const [completionDialog, setCompletionDialog] = useState(false);
   const [confirmedQuestionReviewIds, setConfirmedQuestionReviewIds] = useState<
-    string[]
-  >([]);
-  const [confirmedAnswerReviewIds, setConfirmedAnswerReviewIds] = useState<
     string[]
   >([]);
 
@@ -1077,10 +848,9 @@ export function LecturerReviewPage({
     void Promise.all([
       getReviewProgress(),
       getQuestionReviewCounts(),
-      getAnswerReviewCounts(),
       getReviewerHistory(user.id),
     ])
-      .then(([, nextQuestionCounts, nextAnswerCounts, history]) => {
+      .then(([, nextQuestionCounts, history]) => {
         if (!active) return;
         setQuestionCounts(
           new Map(
@@ -1090,16 +860,7 @@ export function LecturerReviewPage({
             ]),
           ),
         );
-        setAnswerCounts(
-          new Map(
-            nextAnswerCounts.map(({ answerId, reviewCount }) => [
-              answerId,
-              reviewCount,
-            ]),
-          ),
-        );
         setQuestionHistory(history.questionReviews);
-        setAnswerHistory(history.answerReviews);
         setMetadataLoaded(true);
       })
       .catch((error) => {
@@ -1121,7 +882,7 @@ export function LecturerReviewPage({
   }, [reviewDataRevision, snapshotLoaded, user]);
 
   useEffect(() => {
-    if ((!questionDirty && !answerDirty) || typeof window === "undefined") {
+    if (!questionDirty || typeof window === "undefined") {
       return;
     }
     const preventUnsavedExit = (event: BeforeUnloadEvent) => {
@@ -1130,20 +891,19 @@ export function LecturerReviewPage({
     };
     window.addEventListener("beforeunload", preventUnsavedExit);
     return () => window.removeEventListener("beforeunload", preventUnsavedExit);
-  }, [answerDirty, questionDirty]);
+  }, [questionDirty]);
 
-  const questionById = useMemo(
-    () => new Map(questions.map((question) => [question.id, question])),
-    [questions],
-  );
-  const orderedAnswers = useMemo(
-    () => orderAnswersByTaskPriority(answers, answerTasks),
-    [answerTasks, answers],
-  );
   const persistedReviewedQuestionIds = useMemo(
-    () => getActiveCurrentQuestionReviewIds(questionHistory, sourceVersions.questions),
+    () =>
+      getActiveCurrentQuestionReviewIds(
+        questionHistory,
+        sourceVersions.questions,
+      ),
     [questionHistory, sourceVersions.questions],
   );
+  // A question is reviewed for this lecturer once an active current-version
+  // Question Review exists. MP and PS behave identically now that the A/B/C/D
+  // Answer Review workflow is retired; there is no composite completion.
   const reviewedQuestionStepIds = useMemo(
     () => [
       ...new Set([
@@ -1153,68 +913,20 @@ export function LecturerReviewPage({
     ],
     [confirmedQuestionReviewIds, persistedReviewedQuestionIds],
   );
-  const savedReviewedAnswerIds = useMemo(
-    () => getActiveCurrentAnswerReviewIds(answerHistory, sourceVersions.answers),
-    [answerHistory, sourceVersions.answers],
-  );
-  const persistedReviewedAnswerIds = useMemo(
-    () =>
-      filterEligibleAnswerReviewIds(
-        savedReviewedAnswerIds,
-        orderedAnswers,
-        questionById,
-      ),
-    [orderedAnswers, questionById, savedReviewedAnswerIds],
-  );
-  const reviewedAnswerIds = useMemo(
-    () => [
-      ...new Set([
-        ...persistedReviewedAnswerIds,
-        ...confirmedAnswerReviewIds,
-      ]),
-    ],
-    [confirmedAnswerReviewIds, persistedReviewedAnswerIds],
-  );
-  const eligibleAnswerCounts = useMemo(
-    () =>
-      filterEligibleAnswerReviewCounts(
-        answerCounts,
-        orderedAnswers,
-        questionById,
-      ),
-    [answerCounts, orderedAnswers, questionById],
-  );
-  const reviewedQuestionIds = useMemo(
-    () =>
-      getCompositeReviewedQuestionIds(
-        questions,
-        orderedAnswers,
-        reviewedQuestionStepIds,
-        reviewedAnswerIds,
-        eligibleAnswerCounts,
-        QUESTION_REVIEWED_THRESHOLD,
-      ),
-    [
-      eligibleAnswerCounts,
-      orderedAnswers,
-      questions,
-      reviewedAnswerIds,
-      reviewedQuestionStepIds,
-    ],
-  );
+  const reviewedQuestionIds = reviewedQuestionStepIds;
   const navigationReady = snapshotLoaded && metadataLoaded;
   const urlNavigation = useMemo(
     () => parseReviewNavigationSearch(location.search),
     [location.search],
   );
   const reviewStage = useMemo<"overview" | "list" | "detail">(() => {
-    if (initialAnswerId || new URLSearchParams(location.search).has("item")) {
+    if (new URLSearchParams(location.search).has("item")) {
       return "detail";
     }
     return new URLSearchParams(location.search).has("week")
       ? "list"
       : "overview";
-  }, [initialAnswerId, location.search]);
+  }, [location.search]);
   const navigation = useMemo(
     () =>
       normalizeReviewNavigationState(
@@ -1223,19 +935,15 @@ export function LecturerReviewPage({
             ? urlNavigation.state
             : reviewNavigationInput),
         {
-        questions,
-        answers: orderedAnswers,
-        reviewedQuestionIds,
-        reviewedAnswerIds,
+          questions,
+          reviewedQuestionIds,
         },
       ),
     [
       location.pathname,
-      orderedAnswers,
       pendingNavigation,
       questions,
       reviewNavigationInput,
-      reviewedAnswerIds,
       reviewedQuestionIds,
       urlNavigation,
     ],
@@ -1244,18 +952,13 @@ export function LecturerReviewPage({
     () =>
       buildReviewQueue({
         questions,
-        answers: orderedAnswers,
         ...navigation,
         reviewedQuestionIds,
-        reviewedAnswerIds,
       }),
-    [navigation, orderedAnswers, questions, reviewedAnswerIds, reviewedQuestionIds],
+    [navigation, questions, reviewedQuestionIds],
   );
   const commitNavigation = useCallback(
-    (
-      next: ReviewNavigationState,
-      options: { replace?: boolean } = {},
-    ) => {
+    (next: ReviewNavigationState, options: { replace?: boolean } = {}) => {
       setPendingNavigation(next);
       setReviewNavigationInput(next);
       const search = serializeReviewNavigationSearch(next);
@@ -1270,21 +973,13 @@ export function LecturerReviewPage({
   useEffect(() => {
     if (!pendingNavigation) return;
     const pendingSearch = serializeReviewNavigationSearch(pendingNavigation);
-    if (
-      location.pathname === "/review" &&
-      location.search === pendingSearch
-    ) {
+    if (location.pathname === "/review" && location.search === pendingSearch) {
       setPendingNavigation(undefined);
     }
   }, [location.pathname, location.search, pendingNavigation]);
 
   useEffect(() => {
-    if (
-      !navigationReady ||
-      reviewStage !== "detail" ||
-      pendingNavigation ||
-      (initialAnswerId && handledInitialAnswerId !== initialAnswerId)
-    ) {
+    if (!navigationReady || reviewStage !== "detail" || pendingNavigation) {
       return;
     }
 
@@ -1302,8 +997,6 @@ export function LecturerReviewPage({
       navigate({ pathname: "/review", search }, { replace: true });
     }
   }, [
-    handledInitialAnswerId,
-    initialAnswerId,
     location.pathname,
     location.search,
     navigate,
@@ -1313,114 +1006,17 @@ export function LecturerReviewPage({
     reviewStage,
   ]);
 
-  useEffect(() => {
-    if (
-      !initialAnswerId ||
-      handledInitialAnswerId === initialAnswerId ||
-      !navigationReady
-    ) {
-      return;
-    }
-    setHandledInitialAnswerId(initialAnswerId);
-    const target = resolveAnswerDeepLink(
-      initialAnswerId,
-      questions,
-      orderedAnswers,
-      reviewedAnswerIds,
-    );
-    if (!target) {
-      navigate("/review", { replace: true });
-      return;
-    }
-    commitNavigation(target);
-  }, [
-    handledInitialAnswerId,
-    initialAnswerId,
-    commitNavigation,
-    navigate,
-    navigationReady,
-    orderedAnswers,
-    questions,
-    reviewedAnswerIds,
-  ]);
-
   const activeIndex = activeQueue.findIndex(({ id }) => id === navigation.item);
-  const activeQuestion =
-    navigation.task === "question"
-      ? (activeQueue[activeIndex] as Question | undefined)
-      : undefined;
-  const activeAnswer =
-    navigation.task === "answer"
-      ? (activeQueue[activeIndex] as StudentAnswer | undefined)
-      : undefined;
-  const answerQuestion = activeAnswer
-    ? questionById.get(activeAnswer.questionId)
-    : undefined;
-  const answerReviewSequence = useMemo(
-    () =>
-      getActionableAnswerReviewSequence(
-        answerQuestion,
-        orderedAnswers,
-        reviewedAnswerIds,
-        eligibleAnswerCounts,
-        QUESTION_REVIEWED_THRESHOLD,
-      ),
-    [answerQuestion, eligibleAnswerCounts, orderedAnswers, reviewedAnswerIds],
-  );
-  const questionAnswerReviewSequence = useMemo(
-    () =>
-      getActionableAnswerReviewSequence(
-        activeQuestion,
-        orderedAnswers,
-        reviewedAnswerIds,
-        eligibleAnswerCounts,
-        QUESTION_REVIEWED_THRESHOLD,
-      ),
-    [activeQuestion, eligibleAnswerCounts, orderedAnswers, reviewedAnswerIds],
-  );
-  const answerStepSequence = useMemo(() => {
-    if (navigation.mode === "review") return answerReviewSequence;
-    const reviewed = new Set(reviewedAnswerIds);
-    return answerReviewSequence.filter(({ id }) => reviewed.has(id));
-  }, [answerReviewSequence, navigation.mode, reviewedAnswerIds]);
-  const answerSequenceIndex = Math.max(
-    0,
-    answerStepSequence.findIndex(({ id }) => id === activeAnswer?.id),
-  );
-  const nextAnswerId = activeAnswer
-    ? getNextUnreviewedAnswerId(
-        answerReviewSequence,
-        [...reviewedAnswerIds, activeAnswer.id],
-        activeAnswer.id,
-      )
-    : undefined;
-  const displayedAnswerSequence =
-    answerStepSequence.length > 0
-      ? answerStepSequence
-      : activeAnswer
-        ? [activeAnswer]
-        : [];
-  const answerTaskById = useMemo(
-    () => new Map(answerTasks.map((task) => [task.answerCaseId, task])),
-    [answerTasks],
-  );
+  const activeQuestion = activeQueue[activeIndex] as Question | undefined;
   const activeQuestionReviewedByMe = activeQuestion
     ? reviewedQuestionStepIds.includes(activeQuestion.id)
-    : false;
-  const activeAnswerReviewedByMe = activeAnswer
-    ? reviewedAnswerIds.includes(activeAnswer.id)
     : false;
   const activeQuestionCount = activeQuestion
     ? (questionCounts.get(activeQuestion.id) ?? 0)
     : 0;
-  const activeAnswerCount = activeAnswer
-    ? (eligibleAnswerCounts.get(activeAnswer.id) ?? 0)
-    : 0;
   const activeQuestionLocked =
     activeQuestionCount >= QUESTION_REVIEWED_THRESHOLD &&
     !activeQuestionReviewedByMe;
-  const activeAnswerLocked =
-    activeAnswerCount >= QUESTION_REVIEWED_THRESHOLD && !activeAnswerReviewedByMe;
   const activeQuestionReview = activeQuestion
     ? questionHistory.find(
         (review) =>
@@ -1429,16 +1025,6 @@ export function LecturerReviewPage({
           review.isActive,
       )
     : undefined;
-  const activeAnswerReview = activeAnswer
-    ? answerHistory.find(
-        (review) =>
-          review.answerId === activeAnswer.id &&
-          review.questionId === activeAnswer.questionId &&
-          review.sourceVersion === activeAnswer.sourceVersion &&
-          review.isActive,
-      )
-    : undefined;
-  const weekOptions = getMaterialWeekOptions(questions);
   const weekSummaries = useMemo(
     () =>
       getReviewWeekSummaries(
@@ -1448,40 +1034,20 @@ export function LecturerReviewPage({
         QUESTION_REVIEWED_THRESHOLD,
         reviewedQuestionStepIds,
       ),
-    [
-      questionCounts,
-      questions,
-      reviewedQuestionIds,
-      reviewedQuestionStepIds,
-    ],
+    [questionCounts, questions, reviewedQuestionIds, reviewedQuestionStepIds],
   );
-  const contextQueues = useMemo(
-    () =>
-      (["unreviewed", "reviewed"] as const).map((status) =>
-        buildReviewQueue({
-          questions,
-          answers: orderedAnswers,
-          ...navigation,
-          status,
-          reviewedQuestionIds,
-          reviewedAnswerIds,
-        }),
-      ),
-    [navigation, orderedAnswers, questions, reviewedAnswerIds, reviewedQuestionIds],
-  );
-  const reviewedTotal = contextQueues[1].length;
-  const contextTotal = contextQueues[0].length + reviewedTotal;
   const loading =
     reviewSessionState === "checking" ||
     snapshotLoading ||
     metadataLoading ||
-    misconceptionsLoading ||
-    reviewTasksLoading;
+    misconceptionsLoading;
 
   const confirmNavigation = useCallback(
     (next: ReviewNavigationState) => {
-      const dirty = navigation.task === "answer" ? answerDirty : questionDirty;
-      if (!dirty || (next.task === navigation.task && next.item === navigation.item)) {
+      if (
+        !questionDirty ||
+        (next.task === navigation.task && next.item === navigation.item)
+      ) {
         return true;
       }
       return window.confirm(
@@ -1490,7 +1056,7 @@ export function LecturerReviewPage({
           : "This review has not been saved. Continue?",
       );
     },
-    [answerDirty, language, navigation.item, navigation.task, questionDirty],
+    [language, navigation.item, navigation.task, questionDirty],
   );
 
   const changeNavigation = useCallback(
@@ -1502,14 +1068,11 @@ export function LecturerReviewPage({
         { ...navigation, ...patch },
         {
           questions,
-          answers: orderedAnswers,
           reviewedQuestionIds,
-          reviewedAnswerIds,
         },
       );
       if (!confirmNavigation(next)) return false;
       setQuestionDirty(false);
-      setAnswerDirty(false);
       commitNavigation(next, {
         replace: options.replace,
       });
@@ -1519,14 +1082,11 @@ export function LecturerReviewPage({
       confirmNavigation,
       commitNavigation,
       navigation,
-      orderedAnswers,
       questions,
-      reviewedAnswerIds,
       reviewedQuestionIds,
     ],
   );
 
-  const viewHistory = () => navigate("/review/riwayat");
   const navigateToWeekList = useCallback(
     (
       week: string,
@@ -1558,19 +1118,22 @@ export function LecturerReviewPage({
       return;
     }
     setQuestionDirty(false);
-    setAnswerDirty(false);
     navigate("/review");
   }, [confirmNavigation, navigate, navigation, reviewStage]);
   const navigateToWeek = useCallback(
     (week: string) => {
       if (
         reviewStage === "detail" &&
-        !confirmNavigation({ ...navigation, week, task: "question", item: undefined })
+        !confirmNavigation({
+          ...navigation,
+          week,
+          task: "question",
+          item: undefined,
+        })
       ) {
         return;
       }
       setQuestionDirty(false);
-      setAnswerDirty(false);
       navigateToWeekList(
         week,
         reviewStage === "detail" && navigation.mode !== "review"
@@ -1582,9 +1145,8 @@ export function LecturerReviewPage({
     [confirmNavigation, navigateToWeekList, navigation, reviewStage],
   );
   const returnToWeekList = useCallback(() => {
-    setCompletionDialog(null);
+    setCompletionDialog(false);
     setQuestionDirty(false);
-    setAnswerDirty(false);
     navigateToWeekList(navigation.week, "unreviewed", navigation.type, true);
   }, [navigateToWeekList, navigation.type, navigation.week]);
   const openQuestion = useCallback(
@@ -1604,7 +1166,6 @@ export function LecturerReviewPage({
           type: navigation.type,
           mode,
           item: question.id,
-          returnAnswer: undefined,
         },
         { replace: false },
       );
@@ -1624,19 +1185,14 @@ export function LecturerReviewPage({
       if (!question.sourceVersion) {
         throw new Error("Versi sumber soal belum tersedia.");
       }
-      // Resets the caller's whole review workflow for this question: their
-      // active Question Review AND every active Answer Review they hold for it
-      // (each at the answer's own source version) are deactivated in one atomic
-      // RPC. The revision bump below reloads the authoritative state.
+      // Deactivates ONLY the caller's active current-version Question Review and
+      // recomputes question consensus. Legacy Answer Reviews and answer
+      // misconception overrides are deliberately left untouched (see
+      // delete_question_review_workflow_v3). The revision bump reloads the
+      // authoritative state.
       await deleteQuestionReviewWorkflow(question.id, question.sourceVersion);
 
       const nowIso = new Date().toISOString();
-      const questionAnswerIds = new Set(
-        answers
-          .filter((answer) => answer.questionId === question.id)
-          .map((answer) => answer.id),
-      );
-
       setQuestionHistory((current) =>
         current.map((review) =>
           review.questionId === question.id &&
@@ -1651,41 +1207,17 @@ export function LecturerReviewPage({
             : review,
         ),
       );
-      setAnswerHistory((current) =>
-        current.map((review) =>
-          questionAnswerIds.has(review.answerId) && review.isActive
-            ? {
-                ...review,
-                isActive: false,
-                inactiveReason: "deleted",
-                inactiveAt: nowIso,
-              }
-            : review,
-        ),
-      );
       setQuestionCounts((current) => {
         const next = new Map(current);
         next.set(question.id, Math.max(0, (next.get(question.id) ?? 1) - 1));
         return next;
       });
-      setAnswerCounts((current) => {
-        const next = new Map(current);
-        for (const answerId of questionAnswerIds) {
-          if (next.has(answerId)) {
-            next.set(answerId, Math.max(0, (next.get(answerId) ?? 1) - 1));
-          }
-        }
-        return next;
-      });
       setConfirmedQuestionReviewIds((current) =>
         current.filter((questionId) => questionId !== question.id),
       );
-      setConfirmedAnswerReviewIds((current) =>
-        current.filter((answerId) => !questionAnswerIds.has(answerId)),
-      );
       setReviewDataRevision((current) => current + 1);
     },
-    [answers],
+    [],
   );
 
   const handleQuestionSubmit = async (values: QuestionReviewValues) => {
@@ -1697,7 +1229,11 @@ export function LecturerReviewPage({
       return;
     }
     const alreadyReviewed = reviewedQuestionStepIds.includes(activeQuestion.id);
-    await saveQuestionReview(activeQuestion.id, activeQuestion.sourceVersion, values);
+    await saveQuestionReview(
+      activeQuestion.id,
+      activeQuestion.sourceVersion,
+      values,
+    );
     if (!alreadyReviewed) {
       setConfirmedQuestionReviewIds((current) => [
         ...new Set([...current, activeQuestion.id]),
@@ -1712,266 +1248,15 @@ export function LecturerReviewPage({
     setReviewDataRevision((current) => current + 1);
     if (navigation.mode === "edit") return;
 
-    if (activeQuestion.type !== "multiple_choice") {
-      commitNavigation({
-        ...navigation,
-        status: "reviewed",
-        item: activeQuestion.id,
-        returnAnswer: undefined,
-      });
-      setCompletionDialog("question");
-      return;
-    }
-
-    const returnAnswerId = questionAnswerReviewSequence.some(
-      ({ id }) => id === navigation.returnAnswer,
-    )
-      ? navigation.returnAnswer
-      : undefined;
-    const firstAnswerId =
-      returnAnswerId ??
-      getNextUnreviewedAnswerId(questionAnswerReviewSequence, reviewedAnswerIds);
-    const target = firstAnswerId
-      ? resolveAnswerDeepLink(
-          firstAnswerId,
-          questions,
-          orderedAnswers,
-          reviewedAnswerIds,
-        )
-      : undefined;
-    if (target) {
-      commitNavigation({
-        ...target,
-        type: navigation.type,
-        mode: "review",
-        returnAnswer: undefined,
-      });
-    } else {
-      commitNavigation({
-        ...navigation,
-        status: "reviewed",
-        item: activeQuestion.id,
-        returnAnswer: undefined,
-      });
-      setCompletionDialog("workflow");
-    }
-  };
-
-  const handleAnswerDelete = async () => {
-    if (!activeAnswer?.sourceVersion) {
-      throw new Error("Versi sumber jawaban belum tersedia.");
-    }
-    await deleteAnswerReview(activeAnswer.id, activeAnswer.sourceVersion);
-    setAnswerHistory((current) =>
-      current.map((review) =>
-        review.answerId === activeAnswer.id &&
-        review.sourceVersion === activeAnswer.sourceVersion &&
-        review.isActive
-          ? {
-              ...review,
-              isActive: false,
-              inactiveReason: "deleted",
-              inactiveAt: new Date().toISOString(),
-            }
-          : review,
-      ),
-    );
-    setAnswerCounts((current) => {
-      const next = new Map(current);
-      next.set(activeAnswer.id, Math.max(0, (next.get(activeAnswer.id) ?? 1) - 1));
-      return next;
-    });
-    setConfirmedAnswerReviewIds((current) =>
-      current.filter((answerId) => answerId !== activeAnswer.id),
-    );
-    commitNavigation(
-      getNavigationAfterWithdraw(navigation, activeAnswer.id),
-    );
-    setReviewDataRevision((current) => current + 1);
-  };
-
-  const handleAnswerSubmit = async (values: AnswerReviewValues) => {
-    if (
-      !activeAnswer?.sourceVersion ||
-      !answerQuestion ||
-      activeAnswerLocked ||
-      navigation.mode === "view"
-    ) {
-      return;
-    }
-    const alreadyReviewed = reviewedAnswerIds.includes(activeAnswer.id);
-    await saveAnswerReview(
-      activeAnswer.id,
-      answerQuestion.id,
-      activeAnswer.sourceVersion,
-      values,
-    );
-    if (!alreadyReviewed) {
-      setConfirmedAnswerReviewIds((current) => [
-        ...new Set([...current, activeAnswer.id]),
-      ]);
-      setAnswerCounts((current) => {
-        const next = new Map(current);
-        next.set(activeAnswer.id, (next.get(activeAnswer.id) ?? 0) + 1);
-        return next;
-      });
-    }
-    setAnswerDirty(false);
-    setReviewDataRevision((current) => current + 1);
-    if (navigation.mode === "edit") return;
-
-    if (nextAnswerId) {
-      const target = resolveAnswerDeepLink(
-        nextAnswerId,
-        questions,
-        orderedAnswers,
-        reviewedAnswerIds,
-      );
-      if (target) {
-        commitNavigation({
-          ...target,
-          status: "unreviewed",
-          type: navigation.type,
-          mode: "review",
-          returnAnswer: undefined,
-        });
-        return;
-      }
-    }
-
+    // One-page flow for every question type: save, then return to the week
+    // list. MP has no A/B/C/D follow-up.
     commitNavigation({
-      week: navigation.week,
-      task: "question",
+      ...navigation,
       status: "reviewed",
-      type: navigation.type,
-      mode: "review",
-      item: answerQuestion.id,
-      returnAnswer: undefined,
+      item: activeQuestion.id,
     });
-    setCompletionDialog("workflow");
+    setCompletionDialog(true);
   };
-
-  const navigateToAnswerStep = (
-    answer: StudentAnswer,
-    returnAnswer?: string,
-  ) =>
-    changeNavigation({
-      task: "answer",
-      status: reviewedAnswerIds.includes(answer.id) ? "reviewed" : "unreviewed",
-      type: navigation.type,
-      mode: navigation.mode,
-      item: answer.id,
-      returnAnswer,
-    });
-
-  const navigateToQuestionStep = (
-    question: Question,
-    returnAnswer?: string,
-  ) =>
-    changeNavigation({
-      task: "question",
-      status: getWeekReviewQuestionStatus(
-        question.id,
-        new Set(reviewedQuestionIds),
-        questionCounts,
-        QUESTION_REVIEWED_THRESHOLD,
-        new Set(reviewedQuestionStepIds),
-      ),
-      type: navigation.type,
-      mode: navigation.mode,
-      item: question.id,
-      returnAnswer,
-    });
-
-  const questionStepSequence =
-    navigation.mode === "review"
-      ? getReachableAnswerReviewSequence(
-          questionAnswerReviewSequence,
-          reviewedAnswerIds,
-          navigation.returnAnswer,
-        )
-      : questionAnswerReviewSequence.filter(({ id }) =>
-          reviewedAnswerIds.includes(id),
-        );
-  const questionNextAnswer =
-    activeQuestion?.type === "multiple_choice"
-      ? navigation.mode === "review"
-        ? activeQuestionReviewedByMe
-          ? questionStepSequence[0]
-          : undefined
-        : questionStepSequence[0]
-      : undefined;
-  const questionNextStep =
-    activeQuestion && questionNextAnswer
-      ? {
-          label: getAnswerStepLabel(
-            activeQuestion,
-            questionNextAnswer,
-            questionStepSequence.findIndex(({ id }) => id === questionNextAnswer.id),
-            language,
-          ),
-          onClick: () =>
-            navigateToAnswerStep(
-              questionNextAnswer,
-              navigation.mode === "review"
-                ? navigation.returnAnswer
-                : undefined,
-            ),
-        }
-      : undefined;
-
-  const returnAnswerForPreviousStep =
-    navigation.mode === "review"
-      ? navigation.returnAnswer ?? activeAnswer?.id
-      : undefined;
-  const previousAnswer =
-    answerSequenceIndex > 0
-      ? displayedAnswerSequence[answerSequenceIndex - 1]
-      : undefined;
-  const nextAnswer = displayedAnswerSequence[answerSequenceIndex + 1];
-  const answerPreviousStep =
-    activeAnswer && answerQuestion
-      ? previousAnswer
-        ? {
-            label: getAnswerStepLabel(
-              answerQuestion,
-              previousAnswer,
-              answerSequenceIndex - 1,
-              language,
-            ),
-            onClick: () =>
-              navigateToAnswerStep(previousAnswer, returnAnswerForPreviousStep),
-          }
-        : {
-            label: language === "id" ? "Kembali ke soal" : "Back to question",
-            onClick: () =>
-              navigateToQuestionStep(answerQuestion, returnAnswerForPreviousStep),
-          }
-      : undefined;
-  const reachableAnswerStepIds = new Set(
-    getReachableAnswerReviewSequence(
-      answerReviewSequence,
-      reviewedAnswerIds,
-      navigation.returnAnswer ?? activeAnswer?.id,
-    ).map(({ id }) => id),
-  );
-  const answerNextIsReachable = Boolean(
-    nextAnswer &&
-      (navigation.mode !== "review" ||
-        reachableAnswerStepIds.has(nextAnswer.id)),
-  );
-  const answerNextStep =
-    activeAnswer && answerQuestion && nextAnswer && answerNextIsReachable
-      ? {
-          label: getAnswerStepLabel(
-            answerQuestion,
-            nextAnswer,
-            answerSequenceIndex + 1,
-            language,
-          ),
-          onClick: () => navigateToAnswerStep(nextAnswer),
-        }
-      : undefined;
 
   if (reviewSessionState === "expired") {
     // The session is gone. Keep whatever local/restored state is on screen but
@@ -2050,153 +1335,13 @@ export function LecturerReviewPage({
     );
   }
 
-  const detailQuestion = activeQuestion ?? answerQuestion;
-  const detailLabel = detailQuestion
-    ? t(detailQuestion.title, language).trim() ||
-      getMaterialQuestionIdentifier(detailQuestion)
+  const detailLabel = activeQuestion
+    ? t(activeQuestion.title, language).trim() ||
+      getMaterialQuestionIdentifier(activeQuestion)
     : navigation.item;
 
-  if (isQuestionDetailTask(navigation.task)) {
-    return (
-      <div className="lecturer-ui review-week-pages review-stage-enter mx-auto max-w-[1320px] text-black">
-        <ReviewBreadcrumb
-          week={navigation.week || undefined}
-          question={detailLabel}
-          language={language}
-          onOverview={navigateToOverview}
-          onWeek={() => navigateToWeek(navigation.week)}
-        />
-        {loadError && (
-          <p
-            role="alert"
-            className="mb-5 rounded-md border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect"
-          >
-            {loadError}
-          </p>
-        )}
-
-        {loading ? (
-          <div
-            role="status"
-            aria-label={language === "id" ? "Memuat detail soal" : "Loading question detail"}
-            className="grid gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] xl:gap-14"
-          >
-            <div>
-              <div className="h-9 w-3/4 animate-pulse rounded bg-[var(--review-secondary-soft)]" />
-              <div className="mt-3 h-5 w-2/5 animate-pulse rounded bg-[var(--review-secondary-soft)]" />
-              <div className="mt-10 h-44 animate-pulse rounded-lg bg-[var(--review-secondary-soft)]" />
-            </div>
-            <div className="h-[32rem] animate-pulse rounded-xl border border-[#ccbab0] bg-white" />
-          </div>
-        ) : activeQuestion ? (
-          <QuestionValidationWorkspace
-            key={activeQuestion.id}
-            question={activeQuestion}
-            answers={answers}
-            misconceptions={misconceptions}
-            locked={activeQuestionLocked}
-            progressUnavailable={!navigationReady || !activeQuestion.sourceVersion}
-            submittedReview={activeQuestionReview}
-            mode={navigation.mode}
-            nextStep={questionNextStep}
-            onDirtyChange={setQuestionDirty}
-            onSelectMisconception={(misconceptionId) =>
-              navigate(`/miskonsepsi/${misconceptionId}`)
-            }
-            onSubmit={handleQuestionSubmit}
-          />
-        ) : (
-          <EmptyState
-            message={
-              language === "id"
-                ? "Soal ini tidak tersedia dalam daftar review minggu ini."
-                : "This question is not available in this week's review list."
-            }
-          />
-        )}
-        {completionDialog && (
-          <ReviewCompletionDialog
-            kind={completionDialog}
-            week={navigation.week}
-            language={language}
-            onConfirm={returnToWeekList}
-          />
-        )}
-      </div>
-    );
-  }
-
-  if (navigation.task === "answer") {
-    return (
-      <div className="lecturer-ui review-week-pages review-stage-enter mx-auto max-w-[1320px] text-black">
-        <ReviewBreadcrumb
-          week={navigation.week || undefined}
-          question={detailLabel}
-          language={language}
-          onOverview={navigateToOverview}
-          onWeek={() => navigateToWeek(navigation.week)}
-        />
-        {loadError && (
-          <p
-            role="alert"
-            className="mb-5 rounded-md border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm text-incorrect"
-          >
-            {loadError}
-          </p>
-        )}
-
-        {loading ? (
-          <div
-            role="status"
-            aria-label={language === "id" ? "Memuat review jawaban" : "Loading answer review"}
-            className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_390px]"
-          >
-            <div className="h-[32rem] animate-pulse rounded-lg bg-[var(--review-secondary-soft)]" />
-            <div className="h-[32rem] animate-pulse rounded-lg border border-[#ccbab0] bg-white" />
-          </div>
-        ) : activeAnswer && answerQuestion ? (
-          <AnswerValidationWorkspace
-            key={activeAnswer.id}
-            task={answerTaskById.get(activeAnswer.id)}
-            question={answerQuestion}
-            answer={activeAnswer}
-            evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
-            misconceptions={misconceptions}
-            locked={activeAnswerLocked}
-            progressUnavailable={!navigationReady || !activeAnswer.sourceVersion}
-            reviewedByMe={activeAnswerReviewedByMe}
-            mode={navigation.mode}
-            previousStep={answerPreviousStep}
-            nextStep={answerNextStep}
-            isFinalAnswer={!nextAnswerId}
-            submittedReview={activeAnswerReview}
-            onDirtyChange={setAnswerDirty}
-            onDelete={handleAnswerDelete}
-            onSubmit={handleAnswerSubmit}
-          />
-        ) : (
-          <EmptyState
-            message={
-              language === "id"
-                ? "Jawaban ini tidak tersedia untuk direview."
-                : "This answer is not available for review."
-            }
-          />
-        )}
-        {completionDialog && (
-          <ReviewCompletionDialog
-            kind={completionDialog}
-            week={navigation.week}
-            language={language}
-            onConfirm={returnToWeekList}
-          />
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div className="lecturer-ui mx-auto max-w-[1440px] text-black">
+    <div className="lecturer-ui review-week-pages review-stage-enter mx-auto max-w-[1320px] text-black">
       <ReviewBreadcrumb
         week={navigation.week || undefined}
         question={detailLabel}
@@ -2213,178 +1358,50 @@ export function LecturerReviewPage({
         </p>
       )}
 
-      <section className="rounded-lg border border-border bg-white p-4 sm:p-5">
-        <div className="grid gap-4 xl:grid-cols-[minmax(12rem,0.8fr)_minmax(18rem,1.4fr)_minmax(18rem,1.4fr)_auto] xl:items-end">
-          <label className="grid gap-1.5 text-xs font-bold text-navy-deep">
-            <span>{language === "id" ? "Minggu" : "Week"}</span>
-            <select
-              value={navigation.week}
-              disabled={loading || weekOptions.length === 0}
-              onChange={(event) => changeNavigation({ week: event.target.value })}
-              className="min-h-10 cursor-pointer rounded-md border border-border bg-white px-3 text-sm font-semibold text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {weekOptions.map((week) => (
-                <option key={week} value={week}>
-                  {week}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div>
-            <p className="mb-1.5 text-xs font-bold text-navy-deep">
-              {language === "id" ? "Tugas" : "Task"}
-            </p>
-            <div className="segmented-control" role="tablist" aria-label={language === "id" ? "Tugas review" : "Review task"}>
-              {(["question", "answer"] as ReviewTaskKind[]).map((task) => (
-                <button
-                  key={task}
-                  type="button"
-                  role="tab"
-                  aria-selected={navigation.task === task}
-                  onClick={() => changeNavigation({ task, type: "all" })}
-                  className="segmented-tab"
-                >
-                  {task === "question" ? (language === "id" ? "Soal" : "Questions") : language === "id" ? "Jawaban" : "Answers"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <p className="mb-1.5 text-xs font-bold text-navy-deep">
-              {language === "id" ? "Status pribadi" : "Personal status"}
-            </p>
-            <div className="segmented-control" role="tablist" aria-label={language === "id" ? "Status review pribadi" : "Personal review status"}>
-              {(["unreviewed", "reviewed"] as ReviewPersonalStatus[]).map((status) => (
-                <button
-                  key={status}
-                  type="button"
-                  role="tab"
-                  aria-selected={navigation.status === status}
-                  onClick={() => changeNavigation({ status })}
-                  className="segmented-tab"
-                >
-                  {status === "unreviewed" ? (language === "id" ? "Belum direview" : "Not reviewed") : language === "id" ? "Sudah direview" : "Reviewed"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={viewHistory}
-            className="min-h-10 justify-center xl:self-end"
-          >
-            <History size={15} strokeWidth={2} aria-hidden="true" />
-            {language === "id" ? "Riwayat" : "History"}
-          </Button>
-        </div>
-
-        {navigation.task === "question" && (
-          <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4">
-            <p className="text-xs font-bold text-navy-deep">
-              {language === "id" ? "Jenis soal" : "Question type"}
-            </p>
-            <div className="segmented-control" role="tablist" aria-label={language === "id" ? "Jenis soal" : "Question type"}>
-              {(["all", "ps", "mp"] as ReviewQuestionType[]).map((type) => (
-                <button
-                  key={type}
-                  type="button"
-                  role="tab"
-                  aria-selected={navigation.type === type}
-                  onClick={() => changeNavigation({ type })}
-                  className="segmented-tab !min-h-8 !px-3 !py-1.5 !text-xs"
-                >
-                  {type === "all" ? (language === "id" ? "Semua" : "All") : type.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <p className="mt-4 text-sm font-semibold tabular-nums text-muted" aria-live="polite">
-          {loading
-            ? language === "id"
-              ? "Memuat ringkasan..."
-              : "Loading summary..."
-            : language === "id"
-              ? `${reviewedTotal} dari ${contextTotal} ${navigation.task === "question" ? "soal" : "jawaban"} sudah Anda review`
-              : `You have reviewed ${reviewedTotal} of ${contextTotal} ${navigation.task === "question" ? "questions" : "answers"}`}
-        </p>
-      </section>
-
       {loading ? (
-        <div className="mt-5 rounded-lg border border-border bg-white">
-          <EmptyState loading message={language === "id" ? "Memuat tugas validasi..." : "Loading validation tasks..."} />
+        <div
+          role="status"
+          aria-label={language === "id" ? "Memuat detail soal" : "Loading question detail"}
+          className="grid gap-10 lg:grid-cols-[minmax(0,1.65fr)_minmax(22rem,1fr)] xl:gap-14"
+        >
+          <div>
+            <div className="h-9 w-3/4 animate-pulse rounded bg-[var(--review-secondary-soft)]" />
+            <div className="mt-3 h-5 w-2/5 animate-pulse rounded bg-[var(--review-secondary-soft)]" />
+            <div className="mt-10 h-44 animate-pulse rounded-lg bg-[var(--review-secondary-soft)]" />
+          </div>
+          <div className="h-[32rem] animate-pulse rounded-xl border border-[#ccbab0] bg-white" />
         </div>
+      ) : activeQuestion ? (
+        <QuestionValidationWorkspace
+          key={activeQuestion.id}
+          question={activeQuestion}
+          answers={answers}
+          misconceptions={misconceptions}
+          locked={activeQuestionLocked}
+          progressUnavailable={!navigationReady || !activeQuestion.sourceVersion}
+          submittedReview={activeQuestionReview}
+          mode={navigation.mode}
+          onDirtyChange={setQuestionDirty}
+          onSelectMisconception={(misconceptionId) =>
+            navigate(`/miskonsepsi/${misconceptionId}`)
+          }
+          onSubmit={handleQuestionSubmit}
+        />
       ) : (
-        <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-[310px_minmax(0,1fr)] xl:items-start">
-          <QueuePanel
-            items={activeQueue}
-            selectedItemId={navigation.item}
-            task={navigation.task}
-            language={language}
-            questionById={questionById}
-            questionCounts={questionCounts}
-            answerCounts={eligibleAnswerCounts}
-            reviewedQuestionIds={reviewedQuestionIds}
-            reviewedAnswerIds={reviewedAnswerIds}
-            onSelect={(itemId) => changeNavigation({ item: itemId })}
-          />
-
-          <main className="min-w-0">
-            {activeQuestion ? (
-              <QuestionValidationWorkspace
-                key={activeQuestion.id}
-                question={activeQuestion}
-                answers={answers}
-                misconceptions={misconceptions}
-                locked={activeQuestionLocked}
-                progressUnavailable={!navigationReady || !activeQuestion.sourceVersion}
-                submittedReview={activeQuestionReview}
-                mode={navigation.mode}
-                nextStep={questionNextStep}
-                onDirtyChange={setQuestionDirty}
-                onSelectMisconception={(misconceptionId) =>
-                  navigate(`/miskonsepsi/${misconceptionId}`)
-                }
-                onSubmit={handleQuestionSubmit}
-              />
-            ) : activeAnswer && answerQuestion ? (
-              <AnswerValidationWorkspace
-                key={activeAnswer.id}
-                task={answerTaskById.get(activeAnswer.id)}
-                question={answerQuestion}
-                answer={activeAnswer}
-                evidenceAnswers={getEvidenceAnswersForQuestion(answerQuestion.id, answers)}
-                misconceptions={misconceptions}
-                locked={activeAnswerLocked}
-                progressUnavailable={!navigationReady || !activeAnswer.sourceVersion}
-                reviewedByMe={activeAnswerReviewedByMe}
-                mode={navigation.mode}
-                previousStep={answerPreviousStep}
-                nextStep={answerNextStep}
-                isFinalAnswer={!nextAnswerId}
-                submittedReview={activeAnswerReview}
-                onDirtyChange={setAnswerDirty}
-                onDelete={handleAnswerDelete}
-                onSubmit={handleAnswerSubmit}
-              />
-            ) : (
-              <div className="rounded-lg border border-border bg-white">
-                <EmptyState
-                  message={
-                    language === "id"
-                      ? `Tidak ada ${navigation.task === "question" ? "soal" : "jawaban"} ${navigation.status === "reviewed" ? "yang sudah Anda review" : "yang belum Anda review"} untuk ${navigation.week}.`
-                      : `There are no ${navigation.status === "reviewed" ? "reviewed" : "unreviewed"} ${navigation.task === "question" ? "questions" : "answers"} for ${navigation.week}.`
-                  }
-                />
-              </div>
-            )}
-          </main>
-        </div>
+        <EmptyState
+          message={
+            language === "id"
+              ? "Soal ini tidak tersedia dalam daftar review minggu ini."
+              : "This question is not available in this week's review list."
+          }
+        />
+      )}
+      {completionDialog && (
+        <ReviewCompletionDialog
+          week={navigation.week}
+          language={language}
+          onConfirm={returnToWeekList}
+        />
       )}
     </div>
   );

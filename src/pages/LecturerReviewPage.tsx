@@ -45,6 +45,7 @@ import type {
 } from "../types";
 import { cn } from "../utils/cn";
 import { getQuestionOptionMisconceptionIds } from "../utils/questionMetadata";
+import { buildOptionMisconceptionMappings } from "../utils/optionMisconceptionMapping";
 import { prioritizeMisconceptions, sortReviewTasks } from "../utils/reviewPriority";
 import { t, uiText } from "../utils/translation";
 import {
@@ -1991,6 +1992,19 @@ export function QuestionValidationWorkspace({
     recommended.flatMap((item) => item.relatedMisconceptionIds),
   );
   const relatedEvidence = getEvidenceAnswersForQuestion(question.id, answers);
+  const misconceptionById = useMemo(
+    () => new Map(misconceptions.map((item) => [item.id, item])),
+    [misconceptions],
+  );
+  // Read-only pre-review context for multiple-choice: the EFFECTIVE
+  // option -> misconception relation (baseline answer_misconceptions + any valid
+  // published answer_misconception_overrides, joined to options by answer id).
+  // It never depends on Answer Reviews or review history and is shown before the
+  // lecturer submits anything.
+  const optionMisconceptionMappings = useMemo(
+    () => buildOptionMisconceptionMappings(question, answers),
+    [answers, question],
+  );
   // IDs the form currently offers for removal / addition. A restored review may
   // still carry selections that have since left the effective question set
   // (e.g. an answer-derived misconception dropped from its answer relation);
@@ -2178,30 +2192,87 @@ export function QuestionValidationWorkspace({
             <div className="mt-4"><QuestionContent question={question} /></div>
           </section>
 
-          {question.options && (
+          {optionMisconceptionMappings.length > 0 && (
             <section
-              className="mt-3"
-              aria-label={language === "id" ? "Pilihan jawaban" : "Answer options"}
+              className="mt-4 border-t border-border pt-4"
+              aria-label={
+                language === "id"
+                  ? "Pemetaan pilihan jawaban"
+                  : "Answer option mapping"
+              }
             >
-              <ul className="space-y-1.5">
-                {question.options.map((option) => (
+              <h3 className="text-base font-semibold leading-6 tracking-[-0.01em] text-navy-deep">
+                {language === "id"
+                  ? "Pemetaan pilihan jawaban"
+                  : "Answer option mapping"}
+              </h3>
+              <p className="mt-1 text-xs leading-5 text-muted">
+                {language === "id"
+                  ? "Konteks read-only: miskonsepsi efektif yang dipetakan ke setiap opsi. Anda tidak mereview tiap opsi secara terpisah."
+                  : "Read-only context: the effective misconception mapped to each option. You do not review each option separately."}
+              </p>
+              <ul className="mt-3 space-y-2">
+                {optionMisconceptionMappings.map((mapping) => (
                   <li
-                    key={option.id}
+                    key={mapping.optionId}
                     className={cn(
-                      "flex items-start gap-2 rounded-md border px-3 py-2 text-[11px] font-normal leading-5",
-                      option.isCorrect
+                      "rounded-md border px-3 py-2.5 text-[11px] leading-5",
+                      mapping.isCorrect
                         ? "border-[#2F6B4F] bg-[#2F6B4F] text-white"
                         : "border-border bg-white text-navy-deep",
                     )}
                   >
-                    <span className="font-medium">{option.label}.</span>
-                    <span className="min-w-0 flex-1">{t(option.text, language)}</span>
-                    {option.isCorrect && (
-                      <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded border border-white/35 bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white">
-                        <Check size={11} strokeWidth={3} aria-hidden="true" />
-                        {language === "id" ? "Jawaban yang benar" : "Correct answer"}
+                    <div className="flex items-start gap-2">
+                      <span className="shrink-0 font-medium">
+                        {mapping.label}.
                       </span>
-                    )}
+                      <span className="min-w-0 flex-1">
+                        {t(mapping.text, language)}
+                      </span>
+                    </div>
+                    <div
+                      className={cn(
+                        "mt-1.5 border-t pt-1.5",
+                        mapping.isCorrect ? "border-white/25" : "border-border",
+                      )}
+                    >
+                      {mapping.isCorrect ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-medium">
+                          <Check size={11} strokeWidth={3} aria-hidden="true" />
+                          {language === "id" ? "Jawaban benar" : "Correct answer"}
+                        </span>
+                      ) : mapping.misconceptionIds.length > 0 ? (
+                        <ul className="space-y-1">
+                          {mapping.misconceptionIds.map((misconceptionId) => {
+                            const misconception =
+                              misconceptionById.get(misconceptionId);
+                            const reason =
+                              mapping.reasonByMisconceptionId.get(misconceptionId);
+                            return (
+                              <li key={misconceptionId}>
+                                <span className="font-mono text-[10px] font-normal text-brand">
+                                  {misconceptionId}
+                                </span>
+                                {misconception && (
+                                  <span> - {t(misconception.title, language)}</span>
+                                )}
+                                {reason && (
+                                  <span className="mt-0.5 block text-[10px] leading-4 text-muted">
+                                    {t(reason, language)}
+                                  </span>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <span className="text-[10px] text-muted">
+                          {language === "id"
+                            ? "Tidak ada miskonsepsi yang dipetakan"
+                            : "No misconception is mapped"}
+                        </span>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -2544,14 +2615,10 @@ export function QuestionValidationWorkspace({
                 : language === "id"
                   ? mode === "edit"
                     ? "Simpan Perubahan"
-                    : question.type === "multiple_choice"
-                      ? "Simpan & Lanjut ke Review Jawaban"
-                      : "Simpan & Selesai"
+                    : "Simpan & Selesai"
                   : mode === "edit"
                     ? "Save Changes"
-                    : question.type === "multiple_choice"
-                      ? "Save & Continue to Answer Review"
-                      : "Save & Finish"}
+                    : "Save & Finish"}
             </Button>
           )}
           {(previousStep || nextStep) && (
