@@ -452,6 +452,10 @@ CREATE OR REPLACE FUNCTION "public"."get_admin_review_consensus"() RETURNS TABLE
       review.question_id,
       pg_catalog.count(distinct review.reviewer_id)::integer as review_count
     from public.question_reviews as review
+    join public.question_misconception_baselines as baseline
+      on baseline.question_id = review.question_id
+     and baseline.source_version = review.source_version
+    where review.is_active = true
     group by review.question_id
   ),
   question_removed as (
@@ -460,8 +464,12 @@ CREATE OR REPLACE FUNCTION "public"."get_admin_review_consensus"() RETURNS TABLE
       pg_catalog.btrim(value.id) as id,
       pg_catalog.count(distinct review.reviewer_id)::integer as votes
     from public.question_reviews as review
+    join public.question_misconception_baselines as baseline
+      on baseline.question_id = review.question_id
+     and baseline.source_version = review.source_version
     cross join lateral pg_catalog.unnest(review.removed_misconception_ids) as value(id)
-    where review.has_incorrect_misconceptions
+    where review.is_active = true
+      and review.has_incorrect_misconceptions
       and pg_catalog.length(pg_catalog.btrim(value.id)) > 0
     group by review.question_id, pg_catalog.btrim(value.id)
   ),
@@ -471,8 +479,12 @@ CREATE OR REPLACE FUNCTION "public"."get_admin_review_consensus"() RETURNS TABLE
       pg_catalog.btrim(value.id) as id,
       pg_catalog.count(distinct review.reviewer_id)::integer as votes
     from public.question_reviews as review
+    join public.question_misconception_baselines as baseline
+      on baseline.question_id = review.question_id
+     and baseline.source_version = review.source_version
     cross join lateral pg_catalog.unnest(review.additional_misconception_ids) as value(id)
-    where review.has_additional_misconceptions
+    where review.is_active = true
+      and review.has_additional_misconceptions
       and pg_catalog.length(pg_catalog.btrim(value.id)) > 0
     group by review.question_id, pg_catalog.btrim(value.id)
   ),
@@ -483,6 +495,10 @@ CREATE OR REPLACE FUNCTION "public"."get_admin_review_consensus"() RETURNS TABLE
       pg_catalog.min(review.question_id) as question_id,
       pg_catalog.count(distinct review.reviewer_id)::integer as review_count
     from public.answer_reviews as review
+    join public.answer_misconception_baselines as baseline
+      on baseline.answer_id = review.answer_id
+     and baseline.source_version = review.source_version
+    where review.is_active = true
     group by review.answer_id
   ),
   answer_removed as (
@@ -491,8 +507,12 @@ CREATE OR REPLACE FUNCTION "public"."get_admin_review_consensus"() RETURNS TABLE
       pg_catalog.btrim(value.id) as id,
       pg_catalog.count(distinct review.reviewer_id)::integer as votes
     from public.answer_reviews as review
+    join public.answer_misconception_baselines as baseline
+      on baseline.answer_id = review.answer_id
+     and baseline.source_version = review.source_version
     cross join lateral pg_catalog.unnest(review.removed_misconception_ids) as value(id)
-    where review.has_mismatched_misconceptions
+    where review.is_active = true
+      and review.has_mismatched_misconceptions
       and pg_catalog.length(pg_catalog.btrim(value.id)) > 0
     group by review.answer_id, pg_catalog.btrim(value.id)
   ),
@@ -502,8 +522,12 @@ CREATE OR REPLACE FUNCTION "public"."get_admin_review_consensus"() RETURNS TABLE
       pg_catalog.btrim(value.id) as id,
       pg_catalog.count(distinct review.reviewer_id)::integer as votes
     from public.answer_reviews as review
+    join public.answer_misconception_baselines as baseline
+      on baseline.answer_id = review.answer_id
+     and baseline.source_version = review.source_version
     cross join lateral pg_catalog.unnest(review.additional_misconception_ids) as value(id)
-    where review.has_additional_misconceptions
+    where review.is_active = true
+      and review.has_additional_misconceptions
       and pg_catalog.length(pg_catalog.btrim(value.id)) > 0
     group by review.answer_id, pg_catalog.btrim(value.id)
   )
@@ -1224,6 +1248,7 @@ CREATE OR REPLACE FUNCTION "public"."publish_answer_misconception_override"("inp
 declare
   normalized_answer_id text := pg_catalog.btrim(input_answer_id);
   normalized_question_id text;
+  current_version uuid;
   baseline_ids text[];
   reviewer_count integer;
   reviewed_question_id text;
@@ -1253,8 +1278,8 @@ begin
     pg_catalog.hashtextextended('answer_review:' || normalized_answer_id, 0)
   );
 
-  select baseline.question_id, baseline.misconception_ids
-    into normalized_question_id, baseline_ids
+  select baseline.question_id, baseline.misconception_ids, baseline.source_version
+    into normalized_question_id, baseline_ids, current_version
   from public.answer_misconception_baselines as baseline
   where baseline.answer_id = normalized_answer_id;
 
@@ -1268,7 +1293,9 @@ begin
     pg_catalog.count(distinct review.question_id)::integer
     into reviewer_count, reviewed_question_id, reviewed_question_count
   from public.answer_reviews as review
-  where review.answer_id = normalized_answer_id;
+  where review.answer_id = normalized_answer_id
+    and review.is_active = true
+    and review.source_version = current_version;
 
   if reviewer_count <> 3 then
     raise exception using message = 'CONSENSUS_REQUIRES_THREE_REVIEWERS', errcode = 'P0001';
@@ -1288,6 +1315,8 @@ begin
           review.removed_misconception_ids
         ) as value(id)
         where review.answer_id = normalized_answer_id
+          and review.is_active = true
+          and review.source_version = current_version
           and review.has_mismatched_misconceptions
           and pg_catalog.length(pg_catalog.btrim(value.id)) > 0
         group by pg_catalog.btrim(value.id)
@@ -1302,6 +1331,8 @@ begin
           review.additional_misconception_ids
         ) as value(id)
         where review.answer_id = normalized_answer_id
+          and review.is_active = true
+          and review.source_version = current_version
           and review.has_additional_misconceptions
           and pg_catalog.length(pg_catalog.btrim(value.id)) > 0
         group by pg_catalog.btrim(value.id)
@@ -1340,7 +1371,8 @@ begin
     misconception_ids,
     source_review_count,
     published_by,
-    published_at
+    published_at,
+    source_version
   )
   values (
     normalized_answer_id,
@@ -1348,7 +1380,8 @@ begin
     final_ids,
     reviewer_count,
     (select auth.uid()),
-    pg_catalog.now()
+    pg_catalog.now(),
+    current_version
   )
   on conflict on constraint answer_misconception_overrides_pkey do update
   set
@@ -1356,7 +1389,8 @@ begin
     misconception_ids = excluded.misconception_ids,
     source_review_count = excluded.source_review_count,
     published_by = excluded.published_by,
-    published_at = excluded.published_at
+    published_at = excluded.published_at,
+    source_version = excluded.source_version
   returning
     answer_misconception_overrides.answer_id,
     answer_misconception_overrides.question_id,
@@ -1380,6 +1414,7 @@ CREATE OR REPLACE FUNCTION "public"."publish_question_misconception_override"("i
     AS $$
 declare
   normalized_question_id text := pg_catalog.btrim(input_question_id);
+  current_version uuid;
   reviewer_count integer;
   baseline_ids text[];
   removed_ids text[];
@@ -1407,8 +1442,8 @@ begin
     pg_catalog.hashtextextended('question_review:' || normalized_question_id, 0)
   );
 
-  select baseline.misconception_ids
-    into baseline_ids
+  select baseline.misconception_ids, baseline.source_version
+    into baseline_ids, current_version
   from public.question_misconception_baselines as baseline
   where baseline.question_id = normalized_question_id;
 
@@ -1419,7 +1454,9 @@ begin
   select pg_catalog.count(distinct review.reviewer_id)::integer
     into reviewer_count
   from public.question_reviews as review
-  where review.question_id = normalized_question_id;
+  where review.question_id = normalized_question_id
+    and review.is_active = true
+    and review.source_version = current_version;
 
   if reviewer_count <> 3 then
     raise exception using message = 'CONSENSUS_REQUIRES_THREE_REVIEWERS', errcode = 'P0001';
@@ -1434,6 +1471,8 @@ begin
           review.removed_misconception_ids
         ) as value(id)
         where review.question_id = normalized_question_id
+          and review.is_active = true
+          and review.source_version = current_version
           and review.has_incorrect_misconceptions
           and pg_catalog.length(pg_catalog.btrim(value.id)) > 0
         group by pg_catalog.btrim(value.id)
@@ -1448,6 +1487,8 @@ begin
           review.additional_misconception_ids
         ) as value(id)
         where review.question_id = normalized_question_id
+          and review.is_active = true
+          and review.source_version = current_version
           and review.has_additional_misconceptions
           and pg_catalog.length(pg_catalog.btrim(value.id)) > 0
         group by pg_catalog.btrim(value.id)
@@ -1485,21 +1526,24 @@ begin
     misconception_ids,
     source_review_count,
     published_by,
-    published_at
+    published_at,
+    source_version
   )
   values (
     normalized_question_id,
     final_ids,
     reviewer_count,
     (select auth.uid()),
-    pg_catalog.now()
+    pg_catalog.now(),
+    current_version
   )
   on conflict on constraint question_misconception_overrides_pkey do update
   set
     misconception_ids = excluded.misconception_ids,
     source_review_count = excluded.source_review_count,
     published_by = excluded.published_by,
-    published_at = excluded.published_at
+    published_at = excluded.published_at,
+    source_version = excluded.source_version
   returning
     question_misconception_overrides.question_id,
     question_misconception_overrides.misconception_ids,
