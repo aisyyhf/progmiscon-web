@@ -2206,27 +2206,33 @@ export function QuestionValidationWorkspace({
                     className={cn(
                       "rounded-md border px-3 py-2.5",
                       mapping.isCorrect
-                        ? "border-[#2F6B4F] bg-[rgba(47,107,79,0.08)]"
-                        : "border-border bg-white",
+                        ? "border-[#2F6B4F] bg-[#2F6B4F] text-white"
+                        : "border-border bg-white text-navy-deep",
                     )}
                   >
                     {/* Main option row: the option label + text is the primary
                         element; "Jawaban benar" is only an inline correctness
                         badge here, never a substitute for the mapping below. */}
                     <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
-                      <p className="min-w-0 flex-1 text-xs font-semibold leading-5 text-navy-deep">
+                      <p
+                        className={cn(
+                          "min-w-0 flex-1 text-xs font-semibold leading-5",
+                          mapping.isCorrect ? "text-white" : "text-navy-deep",
+                        )}
+                      >
                         <span>{mapping.label}.</span>{" "}
                         {t(mapping.text, language)}
                       </p>
                       {mapping.isCorrect && (
-                        <span className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium leading-4 text-[#2F6B4F]">
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium leading-4 text-white">
                           <Check size={11} strokeWidth={3} aria-hidden="true" />
                           {language === "id" ? "Jawaban benar" : "Correct answer"}
                         </span>
                       )}
                     </div>
                     {/* Independent of correctness: the option's effective
-                        misconception mapping, minimal secondary metadata. */}
+                        misconception mapping, minimal secondary metadata --
+                        white-on-green when the option is correct. */}
                     <div className="mt-1">
                       {mapping.misconceptionIds.length > 0 ? (
                         <ul>
@@ -2236,7 +2242,12 @@ export function QuestionValidationWorkspace({
                             return (
                               <li
                                 key={misconceptionId}
-                                className="text-[10px] font-normal leading-4 text-brand"
+                                className={cn(
+                                  "text-[10px] font-normal leading-4",
+                                  mapping.isCorrect
+                                    ? "text-white/85"
+                                    : "text-brand",
+                                )}
                               >
                                 <span aria-hidden="true">{"↳ "}</span>
                                 <span className="font-mono">{misconceptionId}</span>
@@ -2248,7 +2259,12 @@ export function QuestionValidationWorkspace({
                           })}
                         </ul>
                       ) : (
-                        <p className="text-[10px] font-normal leading-4 text-muted">
+                        <p
+                          className={cn(
+                            "text-[10px] font-normal leading-4",
+                            mapping.isCorrect ? "text-white/75" : "text-muted",
+                          )}
+                        >
                           {language === "id"
                             ? "Tidak ada miskonsepsi yang dipetakan"
                             : "No misconception is mapped"}

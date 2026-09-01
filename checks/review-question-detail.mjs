@@ -115,16 +115,18 @@ assert.match(questionWorkspace, /language === "id"\s*\?\s*"Jawaban benar"/);
 assert.match(questionWorkspace, /Tidak ada miskonsepsi yang dipetakan/);
 assert.match(
   questionWorkspace,
-  /text-xs font-semibold leading-5 text-navy-deep[\s\S]{0,80}\{mapping\.label\}/,
+  /text-xs font-semibold leading-5[\s\S]{0,200}\{mapping\.label\}/,
   "the option label + text is the primary, bold element",
 );
-// Correct option: the #2F6B4F success green -- solid border + a very light
-// #2F6B4F tint background, and #2F6B4F for the "Jawaban benar" text/icon.
+// Correct option: solid #2F6B4F fill + border, white text/label/badge, and the
+// misconception mapping under it stays visible in readable white-opacity.
 assert.match(
   questionWorkspace,
-  /mapping\.isCorrect\s*\?\s*"border-\[#2F6B4F\] bg-\[rgba\(47,107,79,0\.08\)\]"/,
+  /mapping\.isCorrect\s*\?\s*"border-\[#2F6B4F\] bg-\[#2F6B4F\] text-white"/,
 );
-assert.match(questionWorkspace, /text-\[#2F6B4F\][\s\S]{0,220}Jawaban benar/);
+assert.match(questionWorkspace, /leading-4 text-white">\s*<Check[\s\S]{0,220}Jawaban benar/);
+assert.match(questionWorkspace, /mapping\.isCorrect\s*\?\s*"text-white\/85"\s*:\s*"text-brand"/);
+assert.match(questionWorkspace, /mapping\.isCorrect \? "text-white\/75" : "text-muted"/);
 // Minimal mapping line: "↳ <code> · <name>", brand secondary weight, no
 // rationale / colon / dash / helper text.
 assert.match(questionWorkspace, /\{"↳ "\}/);

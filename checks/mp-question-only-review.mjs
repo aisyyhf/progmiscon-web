@@ -77,15 +77,23 @@ assert.ok(
 // Option label + text is bold; the misconception line is subordinate.
 assert.match(
   questionWorkspace,
-  /min-w-0 flex-1 text-xs font-semibold leading-5 text-navy-deep[\s\S]{0,80}\{mapping\.label\}/,
+  /min-w-0 flex-1 text-xs font-semibold leading-5[\s\S]{0,200}\{mapping\.label\}/,
 );
-// Correct option card: the #2F6B4F success green -- solid border + a very
-// light #2F6B4F tint background (not a paler grey-green substitute).
 assert.match(
   questionWorkspace,
-  /mapping\.isCorrect\s*\?\s*"border-\[#2F6B4F\] bg-\[rgba\(47,107,79,0\.08\)\]"/,
+  /mapping\.isCorrect \? "text-white" : "text-navy-deep"/,
+  "correct option label text is white on the solid green card",
 );
-assert.match(questionWorkspace, /Jawaban benar[\s\S]{0,120}text-\[#2F6B4F\]|text-\[#2F6B4F\][\s\S]{0,220}Jawaban benar/);
+// Correct option card: solid #2F6B4F fill + border, white text (matching the
+// reference design) -- never a light tint / transparent / border-only.
+assert.match(
+  questionWorkspace,
+  /mapping\.isCorrect\s*\?\s*"border-\[#2F6B4F\] bg-\[#2F6B4F\] text-white"/,
+);
+assert.match(questionWorkspace, /leading-4 text-white">\s*<Check[\s\S]{0,220}Jawaban benar/);
+// The mapping under a correct option stays visible, in readable white-opacity.
+assert.match(questionWorkspace, /mapping\.isCorrect\s*\?\s*"text-white\/85"\s*:\s*"text-brand"/);
+assert.match(questionWorkspace, /mapping\.isCorrect \? "text-white\/75" : "text-muted"/);
 // "Jawaban benar" is an inline badge rendered by `{mapping.isCorrect && (` on
 // the main option row -- never a ternary that suppresses the mapping.
 assert.match(questionWorkspace, /\{mapping\.isCorrect && \(/);
@@ -98,13 +106,14 @@ assert.ok(
   "the badge is on the main row, above the correctness-independent mapping area",
 );
 // Minimal mapping line: "↳ <code> · <name>" -- no rationale, no colon, no dash,
-// muted/brand secondary weight (smaller than the option text).
+// small secondary weight: text-brand on white cards, white-opacity on green.
 assert.match(questionWorkspace, /\{"↳ "\}/);
 assert.match(questionWorkspace, /\{"·"\}/);
 assert.match(
   questionWorkspace,
-  /className="text-\[10px\] font-normal leading-4 text-brand"[\s\S]{0,220}\{misconceptionId\}/,
+  /"text-\[10px\] font-normal leading-4",\s*mapping\.isCorrect\s*\?\s*"text-white\/85"\s*:\s*"text-brand",/,
 );
+assert.match(questionWorkspace, /<span className="font-mono">\{misconceptionId\}<\/span>/);
 assert.doesNotMatch(
   questionWorkspace,
   /reasonByMisconceptionId|misconceptionReasons|terkait miskonsepsi|— |mapping\.text[\s\S]{0,40}font-bold/,
