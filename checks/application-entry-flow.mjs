@@ -77,10 +77,17 @@ assert.match(
   app,
   /path="\/review"[\s\S]*?<LecturerOnly>[\s\S]*?<LecturerReviewPage \/>[\s\S]*?<\/LecturerOnly>/,
 );
+// The lecturer Answer Review workflow is retired: old A/B/C/D deep links must
+// redirect to the one-page Question Review, never open an editable Answer Review.
 assert.match(
   app,
-  /path="\/review\/answer\/:answerId"[\s\S]*?<LecturerOnly>[\s\S]*?<LecturerAnswerReviewRoute \/>[\s\S]*?<\/LecturerOnly>/,
+  /path="\/review\/answer\/:answerId"[\s\S]*?<LecturerOnly>[\s\S]*?<RetiredAnswerReviewRedirect \/>[\s\S]*?<\/LecturerOnly>/,
 );
+assert.match(
+  app,
+  /function RetiredAnswerReviewRedirect\(\)[\s\S]*?<Navigate to="\/review" replace \/>/,
+);
+assert.doesNotMatch(app, /LecturerAnswerReviewRoute|initialAnswerId/);
 assert.match(
   app,
   /path="\/review\/riwayat"[\s\S]*?<LecturerOnly>[\s\S]*?<LecturerReviewHistoryPage \/>[\s\S]*?<\/LecturerOnly>/,

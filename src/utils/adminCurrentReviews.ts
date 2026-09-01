@@ -10,8 +10,6 @@ import type {
   ReviewSourceVersions,
   StudentAnswer,
 } from "../types";
-import { getCanonicalMpAnswerSequence } from "./reviewWorkspace.ts";
-
 export type CurrentAdminReviewHistory = AdminReviewHistory & {
   /**
    * Lecturer-deleted generations kept for Admin history only. Never counted as
@@ -350,16 +348,16 @@ function reviewerFromReview(
   };
 }
 
+// The lecturer Answer Review workflow is retired: the current Admin view groups
+// by Question Review only. Legacy `answer_reviews` rows stay stored for audit
+// but never surface here as current product activity, so a reviewer who holds
+// only a frozen legacy Answer Review (no active Question Review) does not appear.
 function buildReviewerGroups(
   questionId: string,
   questionReviews: readonly AdminQuestionReviewHistoryItem[],
-  answerReviews: readonly AdminAnswerReviewHistoryItem[],
-  answers: readonly StudentAnswer[],
   reviewerById: ReadonlyMap<string, AdminReviewer>,
 ): AdminReviewerReviewGroup[] {
-  const answerById = new Map(answers.map((answer) => [answer.id, answer]));
   const questionReviewByReviewer = new Map<string, AdminQuestionReviewHistoryItem>();
-  const answerReviewByKey = new Map<string, AdminAnswerReviewHistoryItem>();
   const localReviewerById = new Map(reviewerById);
 
   for (const review of questionReviews) {
@@ -374,38 +372,16 @@ function buildReviewerGroups(
     }
   }
 
-  for (const review of answerReviews) {
-    if (review.questionId !== questionId) continue;
-    const answer = answerById.get(review.answerId);
-    if (answer?.questionId !== questionId || answer.answerRole !== "mp_option") {
-      continue;
-    }
-    const key = `${review.answerId} | ${review.reviewerId}`;
-    const existing = answerReviewByKey.get(key);
-    answerReviewByKey.set(
-      key,
-      existing ? newestByUpdatedAt(existing, review) : review,
-    );
-    if (!localReviewerById.has(review.reviewerId)) {
-      localReviewerById.set(review.reviewerId, reviewerFromReview(review));
-    }
-  }
-
-  const canonicalAnswers = getCanonicalMpAnswerSequence(questionId, answers);
-  const reviewerIds = new Set<string>([
-    ...questionReviewByReviewer.keys(),
-    ...[...answerReviewByKey.values()].map((review) => review.reviewerId),
-  ]);
-
-  const groups = [...reviewerIds].flatMap((reviewerId) => {
+  const groups = [...questionReviewByReviewer.keys()].flatMap((reviewerId) => {
     const reviewer = localReviewerById.get(reviewerId);
     if (!reviewer) return [];
-    const questionReview = questionReviewByReviewer.get(reviewerId);
-    const entries = canonicalAnswers.flatMap((answer) => {
-      const review = answerReviewByKey.get(`${answer.id} | ${reviewerId}`);
-      return review ? [{ answer, review }] : [];
-    });
-    return [{ reviewer, questionReview, answerReviews: entries }];
+    return [
+      {
+        reviewer,
+        questionReview: questionReviewByReviewer.get(reviewerId),
+        answerReviews: [] as AdminAnswerReviewEntry[],
+      },
+    ];
   });
 
   groups.sort((left, right) =>
@@ -419,7 +395,6 @@ function buildReviewerGroups(
 export function groupCurrentAdminReviews(
   current: CurrentAdminReviewHistory,
   questions: readonly Question[],
-  answers: readonly StudentAnswer[],
 ): AdminQuestionReviewGroup[] {
   const reviewerById = new Map(
     current.reviewers.map((reviewer) => [reviewer.reviewerId, reviewer]),
@@ -429,15 +404,11 @@ export function groupCurrentAdminReviews(
     const reviewers = buildReviewerGroups(
       question.id,
       current.questionReviews,
-      current.answerReviews,
-      answers,
       reviewerById,
     );
     const deletedReviewers = buildReviewerGroups(
       question.id,
       current.deletedQuestionReviews,
-      current.deletedAnswerReviews,
-      answers,
       reviewerById,
     );
     return reviewers.length > 0 || deletedReviewers.length > 0

@@ -31,6 +31,7 @@ const psQuestion = {
   targetMisconceptionId: null,
   title: localized("Konversi suhu C ke F"),
   questionMisconceptionIds: ["IO-01"],
+  options: undefined,
 };
 const mpQuestion = {
   id: "Q020",
@@ -84,24 +85,7 @@ const mpQuestionReview = {
   additionalMisconceptionIds: ["LO-05"],
   additionReason: "Perlu ditambah",
 };
-const mpAnswerReview = {
-  ...base,
-  id: "ar-mp",
-  answerId: "A020-B",
-  questionId: "Q020",
-  removedMisconceptionIds: ["IO-02"],
-  removalReason: "Tidak konsisten",
-  additionalMisconceptionIds: ["CO-01"],
-  additionReason: "Lebih tepat",
-};
 const noChangeReview = { ...base, id: "qr-none", questionId: "Q020" };
-
-const mpAnswer = {
-  id: "A020-B",
-  optionLabel: "B",
-  answerText: '9, tetapi "salah"',
-  studentMisconceptionIds: ["IO-02"],
-};
 
 const groups = [
   {
@@ -118,32 +102,27 @@ const groups = [
   {
     question: mpQuestion,
     reviewers: [
-      {
-        reviewer: reviewerNamed,
-        questionReview: mpQuestionReview,
-        answerReviews: [{ answer: mpAnswer, review: mpAnswerReview }],
-      },
+      { reviewer: reviewerNamed, questionReview: mpQuestionReview, answerReviews: [] },
       { reviewer: reviewerUnnamed, questionReview: noChangeReview, answerReviews: [] },
     ],
   },
 ];
 
-const csv = buildCurrentReviewsCsv(groups, { misconceptions, language: "id" });
+const csv = buildCurrentReviewsCsv(groups, {
+  misconceptions,
+  language: "id",
+});
 
 const HEADERS = [
   "Minggu",
   "Tipe Soal",
   "Kode Soal",
   "Judul Soal",
-  "Kode Miskonsepsi",
   "Nama Reviewer",
   "Waktu Review",
   "Terakhir Diperbarui",
   "Status Review",
   "Aktivitas Terakhir",
-  "Bagian yang Direview",
-  "Opsi Jawaban",
-  "Isi Jawaban",
   "Hasil Review",
   "Miskonsepsi yang Tercantum",
   "Miskonsepsi yang Dihapus",
@@ -159,19 +138,26 @@ const col = (name) => {
   return index;
 };
 
-// 1. exact final 21-column order
+// 1. exact final 17-column, question-review-centric order
 assert.deepEqual(csv.headers, HEADERS);
-assert.equal(csv.headers.length, 21);
+assert.equal(csv.headers.length, 17);
 assert.deepEqual([...lecturerReviewHeaders], csv.headers);
+assert.equal(HEADERS.indexOf("Nama Reviewer"), HEADERS.indexOf("Judul Soal") + 1);
 assert.equal(HEADERS.indexOf("Status Review"), HEADERS.indexOf("Terakhir Diperbarui") + 1);
-assert.equal(HEADERS.indexOf("Aktivitas Terakhir"), HEADERS.indexOf("Bagian yang Direview") - 1);
+assert.equal(HEADERS.indexOf("Aktivitas Terakhir"), HEADERS.indexOf("Status Review") + 1);
 
-// 2. no underscores in headers
+// 2. retired Answer Review columns AND the now-dropped context columns are gone
+for (const gone of [
+  "Bagian yang Direview", "Opsi Jawaban", "Isi Jawaban",
+  "Pemetaan Opsi", "Kode Miskonsepsi",
+]) {
+  assert.ok(!csv.headers.includes(gone), `column "${gone}" must be removed`);
+}
+
+// 3. no underscores / internal identifiers in headers
 for (const header of csv.headers) {
   assert.ok(!header.includes("_"), `header "${header}" must not use underscores`);
 }
-
-// 3. no separate id_lms column and no internal identifiers anywhere
 for (const banned of [
   "id_lms",
   "Kode Soal Target",
@@ -189,13 +175,9 @@ const flatCells = csv.rows.flat().map((cell) => String(cell ?? ""));
 const uuid = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 for (const cell of flatCells) {
   assert.ok(!uuid.test(cell), `no UUID may leak into the CSV: ${cell}`);
-  assert.ok(
-    !/^Q\d{3}$/.test(cell) && !/^A\d{3}-[A-Z]$/.test(cell),
-    `no internal Progmiscon id may leak into the CSV: ${cell}`,
-  );
 }
 
-// 4. export-generated labels contain no en dash / em dash (–, —)
+// 4. export-generated labels contain no en dash / em dash
 for (const cell of [...csv.headers, ...flatCells]) {
   assert.ok(
     !cell.includes("–") && !cell.includes("—"),
@@ -203,6 +185,8 @@ for (const cell of [...csv.headers, ...flatCells]) {
   );
 }
 
+// 5. one row per Question Review generation, NEVER a separate Answer Review row
+assert.equal(csv.rows.length, 4);
 const PS_LMS_ID = "10413319";
 const findRow = (predicate) => {
   const match = csv.rows.find(predicate);
@@ -210,7 +194,6 @@ const findRow = (predicate) => {
   return match;
 };
 const KODE = col("Kode Soal");
-const BAGIAN = col("Bagian yang Direview");
 const REVIEWER = col("Nama Reviewer");
 const psRow = findRow(
   (r) => r[KODE] === PS_LMS_ID && r[REVIEWER] === "Dr. Budi, S.Kom.",
@@ -219,20 +202,13 @@ const psUnnamedRow = findRow(
   (r) => r[KODE] === PS_LMS_ID && r[REVIEWER] === "(Nama tidak tersedia)",
 );
 const mpQuestionRow = findRow(
-  (r) =>
-    r[KODE] === "MP-CO-01-1" &&
-    r[BAGIAN] === "Soal" &&
-    r[REVIEWER] === "Dr. Budi, S.Kom.",
+  (r) => r[KODE] === "MP-CO-01-1" && r[REVIEWER] === "Dr. Budi, S.Kom.",
 );
-const mpAnswerRow = findRow((r) => r[BAGIAN] === "Opsi jawaban");
 const noChangeRow = findRow(
-  (r) =>
-    r[KODE] === "MP-CO-01-1" &&
-    r[BAGIAN] === "Soal" &&
-    r[REVIEWER] === "(Nama tidak tersedia)",
+  (r) => r[KODE] === "MP-CO-01-1" && r[REVIEWER] === "(Nama tidak tersedia)",
 );
 
-// 5. PS Kode Soal = lmsQuestionId (NOT the PS source code)
+// 6. PS Kode Soal = lmsQuestionId; MP Kode Soal = displayCode
 assert.equal(psRow[col("Minggu")], "WEEK 02");
 assert.equal(psRow[col("Tipe Soal")], "PS");
 assert.equal(psRow[KODE], PS_LMS_ID);
@@ -240,37 +216,30 @@ assert.ok(
   !flatCells.includes("008.UAI konversi suhu c ke f (en)"),
   "PS source_code must not be exported",
 );
-assert.equal(psRow[col("Kode Miskonsepsi")], "");
 assert.equal(psRow[col("Judul Soal")], "Konversi suhu C ke F");
-
-// 6. MP Kode Soal = displayCode; Kode Miskonsepsi = targetMisconceptionId
 assert.equal(mpQuestionRow[col("Tipe Soal")], "MP");
 assert.equal(mpQuestionRow[KODE], "MP-CO-01-1");
-assert.equal(mpQuestionRow[col("Kode Miskonsepsi")], "IO-02");
 
-// 7. question-review row mapping
-assert.equal(psRow[BAGIAN], "Soal");
-assert.equal(psRow[col("Opsi Jawaban")], "");
-assert.equal(psRow[col("Isi Jawaban")], "");
-
-// 8. MP answer-review row includes option + answer text
-assert.equal(mpAnswerRow[BAGIAN], "Opsi jawaban");
-assert.equal(mpAnswerRow[col("Opsi Jawaban")], "B");
-assert.equal(mpAnswerRow[col("Isi Jawaban")], '9, tetapi "salah"');
-
-// 9. no invented PS answer-review behavior
-assert.equal(
-  csv.rows.filter((r) => r[BAGIAN] === "Opsi jawaban").length,
-  1,
-  "exactly one answer row, from the MP group",
+// 7. per-option mapping is on-screen context only -- it never appears in the CSV
+for (const cell of flatCells) {
+  assert.ok(
+    !cell.includes("Jawaban benar") &&
+      !cell.includes("Tidak ada miskonsepsi yang dipetakan"),
+    `option-mapping text must not leak into the review CSV: ${cell}`,
+  );
+}
+assert.ok(
+  !flatCells.some((c) => c === "IO-02"),
+  "the question target-misconception code is no longer a CSV column",
 );
+
+// 8. no Answer Review rows anywhere
 assert.equal(
-  csv.rows.filter((r) => r[BAGIAN] === "Opsi jawaban" && r[col("Tipe Soal")] === "PS")
-    .length,
+  csv.rows.filter((r) => String(r[col("Judul Soal")]).length === 0).length,
   0,
 );
 
-// 10. all four Hasil Review cases (ASCII hyphen)
+// 9. all four Hasil Review cases (ASCII hyphen)
 assert.equal(reviewOutcomeLabel([], []), "Sesuai - tanpa perubahan");
 assert.equal(
   reviewOutcomeLabel(["IO-01"], []),
@@ -287,10 +256,9 @@ assert.equal(
 const HASIL = col("Hasil Review");
 assert.equal(psRow[HASIL], "Perlu revisi - ada miskonsepsi yang dihapus");
 assert.equal(mpQuestionRow[HASIL], "Perlu revisi - ada miskonsepsi yang ditambahkan");
-assert.equal(mpAnswerRow[HASIL], "Perlu revisi - ada penghapusan & penambahan");
 assert.equal(noChangeRow[HASIL], "Sesuai - tanpa perubahan");
 
-// 11. misconception reference / remove / add / final-set math
+// 10. misconception reference / remove / add / final-set math
 assert.deepEqual(
   reviewerFinalMisconceptionIds(["IO-02", "CO-01"], ["IO-02"], ["LO-05"]),
   ["CO-01", "LO-05"],
@@ -303,27 +271,23 @@ assert.equal(psRow[TERCANTUM], "IO-01 - Salah baca input");
 assert.equal(psRow[DIHAPUS], "IO-01 - Salah baca input");
 assert.equal(psRow[col("Alasan Penghapusan Miskonsepsi")], "Tidak sesuai konteks soal");
 assert.equal(psRow[DITAMBAH], "");
-assert.equal(psRow[MENURUT], ""); // IO-01 removed, nothing added
+assert.equal(psRow[MENURUT], "");
 assert.equal(
   mpQuestionRow[TERCANTUM],
   "CO-01 - Salah kondisi; IO-02 - Salah format keluaran",
 );
-assert.equal(mpQuestionRow[DITAMBAH], "LO-05"); // unknown id -> bare code
+assert.equal(mpQuestionRow[DITAMBAH], "LO-05");
 assert.equal(
   mpQuestionRow[MENURUT],
   "CO-01 - Salah kondisi; IO-02 - Salah format keluaran; LO-05",
 );
-assert.equal(mpAnswerRow[TERCANTUM], "IO-02 - Salah format keluaran");
-assert.equal(mpAnswerRow[MENURUT], "CO-01 - Salah kondisi");
-
-// 12. misconception human labels: "ID - title" joined by "; "
 assert.match(mpQuestionRow[TERCANTUM], /^CO-01 - .+; IO-02 - .+$/);
 
-// 13. reviewer UUID fallback -> "(Nama tidak tersedia)"
+// 11. reviewer UUID fallback -> "(Nama tidak tersedia)"
 assert.equal(psUnnamedRow[REVIEWER], "(Nama tidak tersedia)");
 assert.ok(!flatCells.includes(reviewerUnnamed.reviewerId));
 
-// 14. WIB timestamp conversion (+7, no DST)
+// 12. WIB timestamp conversion (+7, no DST)
 assert.equal(formatWibDateTime("2026-08-19T10:00:00Z"), "2026-08-19 17:00 WIB");
 assert.equal(formatWibDateTime("2026-08-19T17:00:00Z"), "2026-08-20 00:00 WIB");
 assert.equal(formatWibDateTime(""), "");
@@ -331,11 +295,11 @@ assert.equal(formatWibDateTime("not-a-date"), "not-a-date");
 assert.equal(psRow[col("Waktu Review")], "2026-08-19 17:00 WIB");
 assert.equal(psRow[col("Terakhir Diperbarui")], "2026-08-20 09:30 WIB");
 
-// 15. WIB filename date
+// 13. WIB filename date
 assert.match(wibDateStamp(), /^\d{4}-\d{2}-\d{2}$/);
 assert.equal(wibDateStamp(new Date("2026-08-30T20:00:00Z")), "2026-08-31");
 
-// 16. comma / quote / newline CSV escaping survives a real parser round-trip
+// 14. comma / quote / newline CSV escaping survives a real parser round-trip
 const serialized = serializeCsv(csv.headers, csv.rows);
 assert.ok(serialized.startsWith("﻿"), "UTF-8 BOM present");
 assert.ok(serialized.includes("\r\n"), "CRLF row separators present");
@@ -345,18 +309,17 @@ assert.equal(parsed.data.length, csv.rows.length);
 const parsedPsRow = parsed.data.find(
   (row) => row["Kode Soal"] === PS_LMS_ID && row["Nama Reviewer"] === "Dr. Budi, S.Kom.",
 );
-assert.equal(parsedPsRow["Isi Jawaban"], "");
 assert.equal(
   parsedPsRow["Catatan Tambahan"],
   'Catatan dengan "kutip", koma\ndan baris kedua',
 );
 assert.equal(parsedPsRow["Waktu Review"], "2026-08-19 17:00 WIB");
-const parsedAnswerRow = parsed.data.find(
-  (row) => row["Bagian yang Direview"] === "Opsi jawaban",
+assert.ok(
+  !Object.keys(parsedPsRow).includes("Pemetaan Opsi") &&
+    !Object.keys(parsedPsRow).includes("Kode Miskonsepsi"),
 );
-assert.equal(parsedAnswerRow["Isi Jawaban"], '9, tetapi "salah"');
 
-// 17. stale / inactive Review filtering is untouched (guards still present)
+// 15. stale / inactive Review filtering is untouched (guards still present)
 const currentReviewsSource = readFileSync(
   "src/utils/adminCurrentReviews.ts",
   "utf8",
@@ -367,8 +330,7 @@ assert.match(
   /sourceVersions\.questions\.get\(review\.questionId\) !== review\.sourceVersion/,
 );
 
-// 18-20. export stays a pure in-memory transform: no Supabase, no network,
-// no write RPCs, no master mutation in the touched modules.
+// 16. export stays a pure in-memory transform.
 const exportSource = readFileSync("src/utils/adminExports.ts", "utf8");
 const csvSource = readFileSync("src/utils/reviewCsv.ts", "utf8");
 for (const [name, source] of [
@@ -381,8 +343,6 @@ for (const [name, source] of [
     `${name} must not touch Supabase / network / baselines`,
   );
 }
-
-// CSV "Aktivitas Terakhir" mapping: initial active review -> "Direview".
 assert.match(exportSource, /created: "Direview"/);
 assert.doesNotMatch(exportSource, /"Dibuat"/);
 
@@ -393,21 +353,17 @@ assert.doesNotMatch(
   /\.insert\(|\.update\(|saveQuestionReview|saveAnswerReview|sync_master/,
 );
 
-// 21. Status Review / Aktivitas Terakhir: active + no lifecycle -> "Aktif" /
-// "Direview" (presentation wording for an initial, never-edited active review).
+// 17. Status Review / Aktivitas Terakhir wording (PR59): active + no lifecycle
+// -> "Aktif" / "Direview"; edited -> "Diedit"; deleted generation -> "Dihapus".
 const STATUS = col("Status Review");
 const AKTIVITAS = col("Aktivitas Terakhir");
 assert.equal(psRow[STATUS], "Aktif");
 assert.equal(psRow[AKTIVITAS], "Direview");
-assert.ok(
-  !csv.rows.some((r) => r[AKTIVITAS] === "Dibuat"),
-  'the initial activity label is "Direview", never "Dibuat"',
-);
-assert.equal(mpAnswerRow[STATUS], "Aktif");
+assert.ok(!csv.rows.some((r) => r[AKTIVITAS] === "Dibuat"));
 
-// 22. An edited active review is still "Aktif" but the activity is "Diedit".
 const editedCsv = buildCurrentReviewsCsv(groups, {
   misconceptions,
+
   language: "id",
   lifecycle: [
     { reviewType: "question", reviewId: "qr-ps", lastEventType: "edited", lastEventAt: null, edited: true, lastDeletedAt: null, lastDeletedBefore: null },
@@ -419,8 +375,6 @@ const editedPsRow = editedCsv.rows.find(
 assert.equal(editedPsRow[STATUS], "Aktif");
 assert.equal(editedPsRow[AKTIVITAS], "Diedit");
 
-// 23. A deleted generation exports once, marked "Dihapus" / "Dihapus", with the
-// deletion time in "Terakhir Diperbarui" and no duplicate "active vote" row.
 const deletedGroups = [
   {
     question: mpQuestion,
@@ -444,6 +398,7 @@ const deletedGroups = [
 ];
 const deletedCsv = buildCurrentReviewsCsv(deletedGroups, {
   misconceptions,
+
   language: "id",
 });
 assert.equal(deletedCsv.rows.length, 1);

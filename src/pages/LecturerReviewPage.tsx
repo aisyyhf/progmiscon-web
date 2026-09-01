@@ -45,6 +45,7 @@ import type {
 } from "../types";
 import { cn } from "../utils/cn";
 import { getQuestionOptionMisconceptionIds } from "../utils/questionMetadata";
+import { buildOptionMisconceptionMappings } from "../utils/optionMisconceptionMapping";
 import { prioritizeMisconceptions, sortReviewTasks } from "../utils/reviewPriority";
 import { t, uiText } from "../utils/translation";
 import {
@@ -1991,6 +1992,19 @@ export function QuestionValidationWorkspace({
     recommended.flatMap((item) => item.relatedMisconceptionIds),
   );
   const relatedEvidence = getEvidenceAnswersForQuestion(question.id, answers);
+  const misconceptionById = useMemo(
+    () => new Map(misconceptions.map((item) => [item.id, item])),
+    [misconceptions],
+  );
+  // Read-only pre-review context for multiple-choice: the EFFECTIVE
+  // option -> misconception relation (baseline answer_misconceptions + any valid
+  // published answer_misconception_overrides, joined to options by answer id).
+  // It never depends on Answer Reviews or review history and is shown before the
+  // lecturer submits anything.
+  const optionMisconceptionMappings = useMemo(
+    () => buildOptionMisconceptionMappings(question, answers),
+    [answers, question],
+  );
   // IDs the form currently offers for removal / addition. A restored review may
   // still carry selections that have since left the effective question set
   // (e.g. an answer-derived misconception dropped from its answer relation);
@@ -2178,30 +2192,85 @@ export function QuestionValidationWorkspace({
             <div className="mt-4"><QuestionContent question={question} /></div>
           </section>
 
-          {question.options && (
+          {optionMisconceptionMappings.length > 0 && (
             <section
               className="mt-3"
-              aria-label={language === "id" ? "Pilihan jawaban" : "Answer options"}
+              aria-label={
+                language === "id" ? "Pilihan jawaban" : "Answer options"
+              }
             >
-              <ul className="space-y-1.5">
-                {question.options.map((option) => (
+              <ul className="space-y-2">
+                {optionMisconceptionMappings.map((mapping) => (
                   <li
-                    key={option.id}
+                    key={mapping.optionId}
                     className={cn(
-                      "flex items-start gap-2 rounded-md border px-3 py-2 text-[11px] font-normal leading-5",
-                      option.isCorrect
+                      "rounded-md border px-3 py-2.5",
+                      mapping.isCorrect
                         ? "border-[#2F6B4F] bg-[#2F6B4F] text-white"
                         : "border-border bg-white text-navy-deep",
                     )}
                   >
-                    <span className="font-medium">{option.label}.</span>
-                    <span className="min-w-0 flex-1">{t(option.text, language)}</span>
-                    {option.isCorrect && (
-                      <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded border border-white/35 bg-white/10 px-2 py-0.5 text-[10px] font-medium text-white">
-                        <Check size={11} strokeWidth={3} aria-hidden="true" />
-                        {language === "id" ? "Jawaban yang benar" : "Correct answer"}
-                      </span>
-                    )}
+                    {/* Main option row: the option label + text is the primary
+                        element; "Jawaban benar" is only an inline correctness
+                        badge here, never a substitute for the mapping below. */}
+                    <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+                      <p
+                        className={cn(
+                          "min-w-0 flex-1 text-xs font-semibold leading-5",
+                          mapping.isCorrect ? "text-white" : "text-navy-deep",
+                        )}
+                      >
+                        <span>{mapping.label}.</span>{" "}
+                        {t(mapping.text, language)}
+                      </p>
+                      {mapping.isCorrect && (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium leading-4 text-white">
+                          <Check size={11} strokeWidth={3} aria-hidden="true" />
+                          {language === "id" ? "Jawaban benar" : "Correct answer"}
+                        </span>
+                      )}
+                    </div>
+                    {/* Independent of correctness: the option's effective
+                        misconception mapping, minimal secondary metadata --
+                        white-on-green when the option is correct. */}
+                    <div className="mt-1">
+                      {mapping.misconceptionIds.length > 0 ? (
+                        <ul>
+                          {mapping.misconceptionIds.map((misconceptionId) => {
+                            const misconception =
+                              misconceptionById.get(misconceptionId);
+                            return (
+                              <li
+                                key={misconceptionId}
+                                className={cn(
+                                  "text-[10px] font-normal leading-4",
+                                  mapping.isCorrect
+                                    ? "text-white/85"
+                                    : "text-brand",
+                                )}
+                              >
+                                <span aria-hidden="true">{"↳ "}</span>
+                                <span className="font-mono">{misconceptionId}</span>
+                                {misconception && (
+                                  <> {"·"} {t(misconception.title, language)}</>
+                                )}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      ) : (
+                        <p
+                          className={cn(
+                            "text-[10px] font-normal leading-4",
+                            mapping.isCorrect ? "text-white/75" : "text-muted",
+                          )}
+                        >
+                          {language === "id"
+                            ? "Tidak ada miskonsepsi yang dipetakan"
+                            : "No misconception is mapped"}
+                        </p>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -2544,14 +2613,10 @@ export function QuestionValidationWorkspace({
                 : language === "id"
                   ? mode === "edit"
                     ? "Simpan Perubahan"
-                    : question.type === "multiple_choice"
-                      ? "Simpan & Lanjut ke Review Jawaban"
-                      : "Simpan & Selesai"
+                    : "Simpan & Selesai"
                   : mode === "edit"
                     ? "Save Changes"
-                    : question.type === "multiple_choice"
-                      ? "Save & Continue to Answer Review"
-                      : "Save & Finish"}
+                    : "Save & Finish"}
             </Button>
           )}
           {(previousStep || nextStep) && (

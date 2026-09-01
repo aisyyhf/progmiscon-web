@@ -257,17 +257,13 @@ export function LecturerSidebar({
   const profileMenuRef = useRef<HTMLDetailsElement>(null);
   const effectiveCollapsed = mobile ? false : collapsed;
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  const reviewTask = new URLSearchParams(location.search).get("task");
 
   const isDashboard = location.pathname === "/dashboard";
   const isQuestionCatalog =
     location.pathname === "/materi" ||
     location.pathname.startsWith("/question/");
   const isReviewHistory = location.pathname === "/review/riwayat";
-  const isReview =
-    !isReviewHistory &&
-    (location.pathname === "/review" ||
-      location.pathname.startsWith("/review/answer/"));
+  const isReview = !isReviewHistory && location.pathname === "/review";
   const isConcept = location.pathname.startsWith("/konsep");
   const isMisconception = location.pathname.startsWith("/miskonsepsi");
   const isAdminQuestions = location.pathname === "/admin/questions";
@@ -500,10 +496,10 @@ export function LecturerSidebar({
                       subItem
                     />
                     <SidebarLink
-                      to="/review?task=question"
+                      to="/review"
                       label={labels.review}
                       icon={ClipboardCheck}
-                      active={isReview && reviewTask !== "answer"}
+                      active={isReview}
                       collapsed={false}
                       onNavigate={onNavigate}
                       subItem
@@ -558,10 +554,10 @@ export function LecturerSidebar({
                       )}
                       {showReview && (
                         <SidebarLink
-                          to="/review?task=question"
+                          to="/review"
                           label={labels.review}
                           icon={ClipboardCheck}
-                          active={isReview && reviewTask !== "answer"}
+                          active={isReview}
                           collapsed={false}
                           onNavigate={onNavigate}
                           subItem

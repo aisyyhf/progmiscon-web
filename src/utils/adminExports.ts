@@ -45,15 +45,11 @@ export const lecturerReviewHeaders = [
   "Tipe Soal",
   "Kode Soal",
   "Judul Soal",
-  "Kode Miskonsepsi",
   "Nama Reviewer",
   "Waktu Review",
   "Terakhir Diperbarui",
   "Status Review",
   "Aktivitas Terakhir",
-  "Bagian yang Direview",
-  "Opsi Jawaban",
-  "Isi Jawaban",
   "Hasil Review",
   "Miskonsepsi yang Tercantum",
   "Miskonsepsi yang Dihapus",
@@ -191,9 +187,11 @@ export function buildCurrentReviewsCsv(
     const minggu = question.week ? getMaterialWeekLabel(question.week) : "";
     const tipeSoal = getMaterialQuestionType(question.type).toUpperCase();
     const kodeSoal = questionCode(question);
-    const kodeMiskonsepsi = question.targetMisconceptionId?.trim() ?? "";
     const judulSoal = t(question.title, language);
 
+    // One exported row per Question Review generation (current or lecturer-
+    // deleted). The retired A/B/C/D Answer Review no longer produces rows, and
+    // per-option mapping is on-screen context only -- not review activity.
     const buildRow = (
       review: {
         id: string;
@@ -209,9 +207,6 @@ export function buildCurrentReviewsCsv(
       },
       reviewerName: string,
       referenceIds: readonly string[],
-      section: "Soal" | "Opsi jawaban",
-      optionLabel: string,
-      answerText: string,
     ): CsvValue[] => {
       const labels = resolveReviewLifecycleLabels(review, lifecycleByReviewId);
       return [
@@ -219,15 +214,11 @@ export function buildCurrentReviewsCsv(
         tipeSoal,
         kodeSoal,
         judulSoal,
-        kodeMiskonsepsi,
         reviewerName,
         formatWibDateTime(review.createdAt),
         formatWibDateTime(review.updatedAt),
         REVIEW_STATUS_LABEL[labels.status],
         REVIEW_LAST_ACTIVITY_LABEL[labels.lastActivity],
-        section,
-        optionLabel,
-        answerText,
         reviewOutcomeLabel(
           review.removedMisconceptionIds,
           review.additionalMisconceptionIds,
@@ -259,34 +250,15 @@ export function buildCurrentReviewsCsv(
     };
 
     const emitReviewerGroup = (reviewerGroup: AdminReviewerReviewGroup) => {
-      const reviewerName = reviewerDisplayName(reviewerGroup.reviewer);
       const questionReview = reviewerGroup.questionReview;
-
-      if (questionReview) {
-        rows.push(
-          buildRow(
-            questionReview,
-            reviewerName,
-            question.questionMisconceptionIds,
-            "Soal",
-            "",
-            "",
-          ),
-        );
-      }
-
-      for (const { answer, review } of reviewerGroup.answerReviews) {
-        rows.push(
-          buildRow(
-            review,
-            reviewerName,
-            answer.studentMisconceptionIds,
-            "Opsi jawaban",
-            answer.optionLabel ?? "",
-            answer.answerText ?? "",
-          ),
-        );
-      }
+      if (!questionReview) return;
+      rows.push(
+        buildRow(
+          questionReview,
+          reviewerDisplayName(reviewerGroup.reviewer),
+          question.questionMisconceptionIds,
+        ),
+      );
     };
 
     for (const reviewerGroup of sortReviewers(group.reviewers)) {

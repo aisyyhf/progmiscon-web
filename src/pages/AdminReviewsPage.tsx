@@ -210,10 +210,7 @@ function ReviewerReviewPanel({
           <span className="shrink-0 text-right text-xs text-muted">
             <span className="block text-brand">{isIndonesian ? "Lihat Review" : "View Review"}</span>
             <span className="mt-0.5 block">
-              {formatReviewItemCount(
-                (questionReview ? 1 : 0) + reviewerGroup.answerReviews.length,
-                language,
-              )}
+              {formatReviewItemCount(questionReview ? 1 : 0, language)}
             </span>
           </span>
         </div>
@@ -245,31 +242,6 @@ function ReviewerReviewPanel({
           )}
         </section>
 
-        {reviewerGroup.answerReviews.length > 0 && (
-          <section>
-            <h3 className="mb-2 text-xs font-semibold text-navy-deep">{isIndonesian ? "Review pilihan jawaban" : "Answer option reviews"}</h3>
-            <div className="space-y-2">
-              {reviewerGroup.answerReviews.map(({ answer, review }) => (
-                <details key={review.id} className="rounded-md border border-border bg-white">
-                  <summary className="cursor-pointer list-none break-words px-4 py-3 text-xs text-navy-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-brand [&::-webkit-details-marker]:hidden">
-                    <span className="font-semibold">{answer.optionLabel ?? "?"}.</span>{" "}
-                    {answer.answerText || (isIndonesian ? "Pilihan jawaban" : "Answer option")}
-                  </summary>
-                  <div className="border-t border-border px-4 py-3">
-                    <div className="mb-2 flex justify-end">
-                      <LifecycleBadge
-                        review={review}
-                        lifecycleByReviewId={lifecycleByReviewId}
-                        language={language}
-                      />
-                    </div>
-                    <ReviewDetails review={review} misconceptionById={misconceptionById} language={language} />
-                  </div>
-                </details>
-              ))}
-            </div>
-          </section>
-        )}
       </div>
     </details>
   );
@@ -342,7 +314,7 @@ export function AdminReviewsPage() {
   const [reviewerId, setReviewerId] = useState("all");
   const [page, setPage] = useState(1);
   const groups = useMemo(
-    () => groupCurrentAdminReviews(data.current, data.questions, data.answers),
+    () => groupCurrentAdminReviews(data.current, data.questions),
     [data],
   );
   const filteredGroups = useMemo(
@@ -489,12 +461,11 @@ export function AdminReviewsPage() {
         </AdminFilterSelect>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-border bg-border">
         {[
           [isIndonesian ? "Soal" : "Questions", counts.questions],
           ["Reviewer", counts.reviewers],
           [isIndonesian ? "Review soal" : "Question reviews", counts.questionReviews],
-          [isIndonesian ? "Review jawaban" : "Answer reviews", counts.answerReviews],
         ].map(([label, value]) => (
           <div key={label} className="bg-white px-4 py-3">
             <p className="text-[11px] text-muted">{label}</p>

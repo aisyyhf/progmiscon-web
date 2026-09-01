@@ -34,10 +34,12 @@ export type ReviewNavigationState = {
   returnAnswer?: string;
 };
 
+// v3: MP lecturer review is a one-page Question Review. Any persisted
+// `task: "answer"` navigation from the retired Answer Review flow is dropped so a
+// stale session cannot revive it.
 export const REVIEW_NAVIGATION_SESSION_KEY =
-  "progmiscon.review.navigation.v2";
+  "progmiscon.review.navigation.v3";
 
-const taskKinds = new Set<ReviewTaskKind>(["question", "answer"]);
 const weekListStatuses = new Set<ReviewWeekListStatus>([
   "unreviewed",
   "reviewed",
@@ -202,65 +204,47 @@ export function filterWeekReviewQuestions(
 
 export function buildReviewQueue({
   questions,
-  answers,
   week,
   task,
   status,
   type,
   reviewedQuestionIds,
-  reviewedAnswerIds,
 }: {
   questions: readonly Question[];
-  answers: readonly StudentAnswer[];
+  answers?: readonly StudentAnswer[];
   week: string;
   task: ReviewTaskKind;
   status: ReviewWeekListStatus;
   type: ReviewQuestionType;
   reviewedQuestionIds: readonly string[];
-  reviewedAnswerIds: readonly string[];
+  reviewedAnswerIds?: readonly string[];
 }): Array<Question | StudentAnswer> {
-  const questionById = new Map(
-    uniqueById(questions).map((question) => [question.id, question]),
-  );
-  const reviewedIds = new Set(
-    task === "question" ? reviewedQuestionIds : reviewedAnswerIds,
-  );
+  // The Answer Review workflow is retired; only the Question queue remains.
+  if (task !== "question") return [];
+
+  const reviewed = new Set(reviewedQuestionIds);
   const matchesStatus = ({ id }: { id: string }) =>
-    reviewedIds.has(id) === (status === "reviewed");
+    reviewed.has(id) === (status === "reviewed");
 
-  if (task === "question") {
-    return uniqueById(questions).filter(
-      (question) =>
-        question.week === week &&
-        (type === "all" ||
-          (type === "mp") === isAnswerReviewEligible(question)) &&
-        matchesStatus(question),
-    );
-  }
-
-  return uniqueById(answers).filter((answer) => {
-    const parent = questionById.get(answer.questionId);
-    return (
-      parent?.week === week &&
-      isAnswerReviewEligible(parent) &&
-      isMpOptionAnswer(answer) &&
-      matchesStatus(answer)
-    );
-  });
+  return uniqueById(questions).filter(
+    (question) =>
+      question.week === week &&
+      (type === "all" ||
+        (type === "mp") === isAnswerReviewEligible(question)) &&
+      matchesStatus(question),
+  );
 }
 
 export function normalizeReviewNavigationState(
   input: Partial<Record<keyof ReviewNavigationState, unknown>>,
   {
     questions,
-    answers,
     reviewedQuestionIds,
-    reviewedAnswerIds,
   }: {
     questions: readonly Question[];
-    answers: readonly StudentAnswer[];
+    answers?: readonly StudentAnswer[];
     reviewedQuestionIds: readonly string[];
-    reviewedAnswerIds: readonly string[];
+    reviewedAnswerIds?: readonly string[];
   },
 ): ReviewNavigationState {
   const weeks = getMaterialWeekOptions([...questions]);
@@ -268,9 +252,9 @@ export function normalizeReviewNavigationState(
   const week = weeks.includes(requestedWeek)
     ? requestedWeek
     : getDefaultReviewWeek(questions);
-  const task = taskKinds.has(input.task as ReviewTaskKind)
-    ? (input.task as ReviewTaskKind)
-    : "question";
+  // MP Answer Review is retired: any `task: "answer"` (from an old URL or a
+  // stale session) collapses to the one-page Question Review.
+  const task: ReviewTaskKind = "question";
   const status = weekListStatuses.has(input.status as ReviewWeekListStatus)
     ? (input.status as ReviewWeekListStatus)
     : "unreviewed";
@@ -283,25 +267,18 @@ export function normalizeReviewNavigationState(
     : "review";
   const queue = buildReviewQueue({
     questions,
-    answers,
     week,
     task,
     status,
     type,
     reviewedQuestionIds,
-    reviewedAnswerIds,
   });
   const requestedItem = typeof input.item === "string" ? input.item : "";
   const item = queue.some(({ id }) => id === requestedItem)
     ? requestedItem
     : queue[0]?.id;
-  const requestedReturnAnswer =
-    typeof input.returnAnswer === "string" ? input.returnAnswer : "";
-  const returnAnswer = answers.some(({ id }) => id === requestedReturnAnswer)
-    ? requestedReturnAnswer
-    : undefined;
 
-  return { week, task, status, type, mode, item, returnAnswer };
+  return { week, task, status, type, mode, item, returnAnswer: undefined };
 }
 
 export function getNextQueueItemId(
@@ -347,7 +324,7 @@ export function parseReviewNavigationSession(
 
   try {
     const parsed = JSON.parse(storedValue) as Record<string, unknown>;
-    return parsed.version === 2 ? parsed : {};
+    return parsed.version === 3 ? parsed : {};
   } catch {
     return {};
   }
@@ -356,7 +333,7 @@ export function parseReviewNavigationSession(
 export function serializeReviewNavigationSession(
   state: ReviewNavigationState,
 ): string {
-  return JSON.stringify({ version: 2, ...state });
+  return JSON.stringify({ version: 3, ...state });
 }
 
 export function parseReviewNavigationSearch(search: string): {
