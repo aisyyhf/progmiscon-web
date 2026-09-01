@@ -8,6 +8,13 @@ Vercel **Preview** deployments. Production is untouched by everything here.
 | `staging-bootstrap.sql` | One-shot schema bootstrap for a brand-new, empty Supabase project. Creates the `public` application schema (tables, constraints, indexes, functions, triggers, RLS policies, grants) plus the `auth.users` provisioning trigger. |
 | `AUTH.md` | Recommended staging Auth (GoTrue) configuration: Site URL, Preview redirect allow-list, email confirmation, SMTP, Telkom test-account options. |
 | `seed-baselines.mjs` | Operator/CI helper that seeds `*_misconception_baselines` + `master_misconception_catalog` by calling `sync_master_relation_baselines_v2` on staging. Never run against production; dry-run by default. |
+| `lib/build-baseline-snapshot.mjs` | Pure, no-I/O module holding the canonical snapshot + `source_fingerprint` builder. Imported by both `seed-baselines.mjs` and the read-only impact preflight (`scripts/preview-baseline-sync-impact.mjs`) so a preview and a real seed can never disagree about which rows change. |
+
+The read-only **impact preflight** — "which Question/Answer IDs would get a new
+`source_version`, and how many active reviews would go stale, if I synced this
+Master Data change" — lives at `scripts/preview-baseline-sync-impact.mjs`. It
+makes zero writes, only ever issues HTTP `GET`, and (with `--from-staging`)
+refuses any project ref other than the shared staging project.
 
 Not a production migration. `staging-bootstrap.sql` must never be moved under
 `supabase/migrations/` or passed to `supabase db push` against a linked

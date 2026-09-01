@@ -1,17 +1,6 @@
-import type {
-  AdminReviewConsensusItem,
-  MasterBaselineSyncResult,
-  MasterData,
-} from "../types";
-import {
-  buildConsensusSnapshot,
-  normalizeEffectiveIds,
-} from "../utils/effectiveMasterData";
-import { isActiveValue } from "../utils/masterDataValidation";
-import {
-  invalidateEffectiveMasterData,
-  reloadBaselineMasterData,
-} from "./masterDataRepository";
+import type { AdminReviewConsensusItem } from "../types";
+import { buildConsensusSnapshot } from "../utils/effectiveMasterData";
+import { invalidateEffectiveMasterData } from "./masterDataRepository";
 import { supabase } from "./supabaseClient";
 import { getAnswers } from "./answerRepository";
 import { getQuestions } from "./questionRepository";
@@ -31,13 +20,6 @@ type AdminReviewConsensusRow = {
   published_at: string | null;
   baseline_misconception_ids: string[] | null;
   baseline_synced_at: string | null;
-};
-
-type MasterBaselineSyncRow = {
-  question_count: number;
-  answer_count: number;
-  misconception_count: number;
-  synced_at: string;
 };
 
 function adminError(scope: string, error: { message?: string }): Error {
@@ -133,75 +115,6 @@ export async function publishAnswerMisconceptionOverride(
     { input_answer_id: answerId },
     "Relasi jawaban dipublikasikan",
   );
-}
-
-export async function syncMasterRelationBaselines(): Promise<MasterBaselineSyncResult> {
-  const masterData: MasterData = await reloadBaselineMasterData();
-  const misconceptionIds = normalizeEffectiveIds(
-    masterData.misconceptions
-      .filter((item) => isActiveValue(item.active))
-      .map((item) => item.misconception_id),
-  );
-  const activeQuestionIds = new Set(
-    masterData.questions
-      .filter((item) => isActiveValue(item.active))
-      .map((item) => item.question_id.trim()),
-  );
-  const questionRelations = new Map(
-    [...activeQuestionIds].map((questionId) => [questionId, [] as string[]]),
-  );
-  for (const relation of masterData.questionMisconceptions) {
-    const questionId = relation.question_id.trim();
-    if (isActiveValue(relation.active) && questionRelations.has(questionId)) {
-      questionRelations.get(questionId)!.push(relation.misconception_id);
-    }
-  }
-
-  const answerRelations = new Map<string, { questionId: string; ids: string[] }>();
-  for (const answer of masterData.answers) {
-    const answerId = answer.answer_id.trim();
-    const questionId = answer.question_id.trim();
-    if (
-      isActiveValue(answer.active)
-      && activeQuestionIds.has(questionId)
-      && answerId
-    ) {
-      answerRelations.set(answerId, { questionId, ids: [] });
-    }
-  }
-  for (const relation of masterData.answerMisconceptions) {
-    const entry = answerRelations.get(relation.answer_id.trim());
-    if (entry && isActiveValue(relation.active)) {
-      entry.ids.push(relation.misconception_id);
-    }
-  }
-
-  const { data, error } = await supabase.rpc("sync_master_relation_baselines", {
-    input_question_baselines: [...questionRelations].map(
-      ([question_id, ids]) => ({
-        question_id,
-        misconception_ids: normalizeEffectiveIds(ids),
-      }),
-    ),
-    input_answer_baselines: [...answerRelations].map(
-      ([answer_id, entry]) => ({
-        answer_id,
-        question_id: entry.questionId,
-        misconception_ids: normalizeEffectiveIds(entry.ids),
-      }),
-    ),
-    input_misconception_ids: misconceptionIds,
-  });
-  if (error) throw adminError("Baseline Google Sheets disinkronkan", error);
-
-  const row = ((data ?? []) as MasterBaselineSyncRow[])[0];
-  if (!row) throw new Error("Sinkronisasi baseline tidak mengembalikan hasil.");
-  return {
-    questionCount: row.question_count,
-    answerCount: row.answer_count,
-    misconceptionCount: row.misconception_count,
-    syncedAt: row.synced_at,
-  };
 }
 
 export async function saveQuestionContentOverride(

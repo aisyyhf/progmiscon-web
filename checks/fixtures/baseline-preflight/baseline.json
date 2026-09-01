@@ -1,0 +1,67 @@
+{
+  "_comment": "Fixture: a read-only snapshot of the live *_misconception_baselines rows for checks/fixtures/baseline-preflight/current. In real use this comes from --from-staging or a read-only SELECT the operator runs. source_fingerprint values match the current/ snapshot so an unedited target reads as UNCHANGED.",
+  "questions": [
+    {
+      "question_id": "Q038",
+      "source_version": "00000000-0000-4000-8000-0000000000381",
+      "source_fingerprint": "ea62bbfa5b3df5f3f5c83b58747ddb6d51ef8f453218f7e46afbfb68378cfe12",
+      "misconception_ids": ["IO-01"],
+      "active_review_count": 2,
+      "override_exists": true
+    },
+    {
+      "question_id": "Q259",
+      "source_version": "00000000-0000-4000-8000-0000000002591",
+      "source_fingerprint": "1785bb3dd92f0d112d6bde4b2ecffcda1aa4eca6ef2462ad5e47c931f012210c",
+      "misconception_ids": [],
+      "active_review_count": 1,
+      "override_exists": false
+    },
+    {
+      "question_id": "Q260",
+      "source_version": "00000000-0000-4000-8000-0000000002601",
+      "source_fingerprint": "d87ea1f72eca2022c7d2e2e8623621a386327c585a26e16ddc7e764a97d6d897",
+      "misconception_ids": ["CO-01"],
+      "active_review_count": 3,
+      "override_exists": false
+    }
+  ],
+  "answers": [
+    {
+      "answer_id": "A038-A",
+      "question_id": "Q038",
+      "source_version": "00000000-0000-4000-8000-00000000038a1",
+      "source_fingerprint": "de3bb417e540bf4ffc342cf6c020d9af7f470216da2281064f1b0c3b6b73d714",
+      "misconception_ids": [],
+      "active_review_count": 0,
+      "override_exists": false
+    },
+    {
+      "answer_id": "A038-B",
+      "question_id": "Q038",
+      "source_version": "00000000-0000-4000-8000-00000000038b1",
+      "source_fingerprint": "025d09198c41d3ddcaacb698efa254a12d006320857025c257a37cac7bc78e3c",
+      "misconception_ids": ["CO-01"],
+      "active_review_count": 0,
+      "override_exists": false
+    },
+    {
+      "answer_id": "A259-A",
+      "question_id": "Q259",
+      "source_version": "00000000-0000-4000-8000-0000000259a1",
+      "source_fingerprint": "8046c728a723f8c645ee1eeef7bed6cec58ec4afcfbab7458cb4bb4db0f31269",
+      "misconception_ids": [],
+      "active_review_count": 0,
+      "override_exists": false
+    },
+    {
+      "answer_id": "A260-A",
+      "question_id": "Q260",
+      "source_version": "00000000-0000-4000-8000-0000000260a1",
+      "source_fingerprint": "558502a6c727db87d37dd175eaeb4d33895d43ee0e7738f78ee8085a1006538f",
+      "misconception_ids": [],
+      "active_review_count": 0,
+      "override_exists": false
+    }
+  ]
+}
