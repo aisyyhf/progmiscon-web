@@ -1,0 +1,4 @@
+question_id,active,question_ind,question_en,question_code,content_blocks_ind
+Q038,true,Tulis pseudocode untuk mencetak n.,Write pseudocode that prints n.,READ n,"[{""type"":""text"",""content"":""Tulis pseudocode untuk mencetak n.""}]"
+Q259,true,Soal 259 versi awal.,Question 259 original.,READ x,
+Q260,true,Soal 260.,Question 260.,PRINT y,

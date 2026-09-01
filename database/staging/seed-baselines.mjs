@@ -45,97 +45,18 @@
 //   stale reviews. Staging does NOT need to reproduce production fingerprint
 //   values — only stable, deterministic change detection.
 //
-//   Value: lowercase hex SHA-256 of a canonical JSON string.
-//
-//   Question row canonical object:
-//     { "k": "question",
-//       "question_id": <trimmed>,
-//       "misconception_ids": <normalized: trim each, drop blanks, dedupe, sort ascending>,
-//       "question_ind": <canonical text or null>,
-//       "question_en":  <canonical text or null>,
-//       "question_code":<canonical text or null> }
-//
-//   Answer row canonical object:
-//     { "k": "answer",
-//       "answer_id": <trimmed>,
-//       "question_id": <trimmed>,
-//       "misconception_ids": <normalized as above>,
-//       "answer_text": <canonical text or null> }
-//
-//   Text canonicalization: Unicode NFC, CRLF/CR -> LF, strip a UTF-8 BOM,
-//   trim leading/trailing whitespace; empty -> null.
-//   JSON: keys emitted in the fixed order shown above; arrays already sorted;
-//   JSON.stringify with no spaces. Same input bytes => same fingerprint on any
-//   machine and any run.
+//   The canonical snapshot + fingerprint implementation lives in
+//   ./lib/build-baseline-snapshot.mjs and is shared verbatim with the
+//   read-only impact preflight (scripts/preview-baseline-sync-impact.mjs) so a
+//   preview and a real seed can never disagree about which rows change.
 
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { argv, env, exit } from "node:process";
-
-// ---------------------------------------------------------------------------
-// tiny CSV reader (no external dependency; master sheets are simple CSV)
-// ---------------------------------------------------------------------------
-function parseCsv(text) {
-  const rows = [];
-  let field = "";
-  let record = [];
-  let inQuotes = false;
-  const src = text.replace(/^﻿/, "");
-  for (let i = 0; i < src.length; i += 1) {
-    const c = src[i];
-    if (inQuotes) {
-      if (c === '"') {
-        if (src[i + 1] === '"') { field += '"'; i += 1; } else { inQuotes = false; }
-      } else { field += c; }
-    } else if (c === '"') {
-      inQuotes = true;
-    } else if (c === ",") {
-      record.push(field); field = "";
-    } else if (c === "\n" || c === "\r") {
-      if (c === "\r" && src[i + 1] === "\n") i += 1;
-      record.push(field); field = "";
-      if (record.length > 1 || record[0] !== "") rows.push(record);
-      record = [];
-    } else {
-      field += c;
-    }
-  }
-  if (field !== "" || record.length > 0) { record.push(field); rows.push(record); }
-  if (rows.length === 0) return [];
-  const header = rows[0].map((h) => h.trim());
-  return rows.slice(1).map((r) => {
-    const obj = {};
-    header.forEach((h, idx) => { obj[h] = r[idx] ?? ""; });
-    return obj;
-  });
-}
-
-function canonText(value) {
-  if (value === undefined || value === null) return null;
-  const s = String(value)
-    .replace(/^﻿/, "")
-    .replace(/\r\n?/g, "\n")
-    .normalize("NFC")
-    .trim();
-  return s.length === 0 ? null : s;
-}
-
-function normalizeIds(ids) {
-  return [...new Set(ids.map((x) => String(x).trim()).filter((x) => x.length > 0))]
-    .sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-}
-
-function fingerprint(canonicalObject) {
-  return createHash("sha256")
-    .update(JSON.stringify(canonicalObject), "utf8")
-    .digest("hex");
-}
-
-function isTruthyActive(value) {
-  const v = String(value ?? "").trim().toLowerCase();
-  return v === "" || v === "1" || v === "true" || v === "yes" || v === "y" || v === "active";
-}
+import {
+  parseCsv,
+  buildBaselineSnapshot,
+} from "./lib/build-baseline-snapshot.mjs";
 
 // ---------------------------------------------------------------------------
 // arguments + environment
@@ -204,96 +125,16 @@ const [questions, answers, questionMisc, answerMisc, misconceptions] = await Pro
   loadCsvBySource("misconceptions", ["STAGING_SHEET_MISCONCEPTIONS_URL", "VITE_SHEET_MISCONCEPTIONS_URL"], "misconceptions.csv"),
 ]);
 
-const pick = (row, ...names) => {
-  for (const n of names) if (row[n] !== undefined && String(row[n]).trim() !== "") return String(row[n]).trim();
-  return "";
-};
-
-const misconceptionIds = normalizeIds(
-  misconceptions.map((m) => pick(m, "misconception_id", "id", "kode", "code")),
-);
-const misconceptionSet = new Set(misconceptionIds);
-
-const activeQuestionIds = new Set(
-  questions
-    .filter((q) => isTruthyActive(q.active ?? q.is_active))
-    .map((q) => pick(q, "question_id", "id"))
-    .filter(Boolean),
-);
-
-const questionMiscMap = new Map();
-for (const rel of questionMisc) {
-  const qid = pick(rel, "question_id");
-  const mid = pick(rel, "misconception_id");
-  if (!activeQuestionIds.has(qid) || !misconceptionSet.has(mid)) continue;
-  if (!isTruthyActive(rel.active ?? rel.is_active)) continue;
-  if (!questionMiscMap.has(qid)) questionMiscMap.set(qid, []);
-  questionMiscMap.get(qid).push(mid);
-}
-
-const answerParent = new Map();
-for (const a of answers) {
-  const aid = pick(a, "answer_id", "id");
-  const qid = pick(a, "question_id");
-  if (!aid || !activeQuestionIds.has(qid)) continue;
-  if (!isTruthyActive(a.active ?? a.is_active)) continue;
-  answerParent.set(aid, { questionId: qid, text: canonText(pick(a, "answer_text", "text", "jawaban")) });
-}
-
-const answerMiscMap = new Map();
-for (const rel of answerMisc) {
-  const aid = pick(rel, "answer_id");
-  const mid = pick(rel, "misconception_id");
-  if (!answerParent.has(aid) || !misconceptionSet.has(mid)) continue;
-  if (!isTruthyActive(rel.active ?? rel.is_active)) continue;
-  if (!answerMiscMap.has(aid)) answerMiscMap.set(aid, []);
-  answerMiscMap.get(aid).push(mid);
-}
-
-const questionContent = new Map(
-  questions.map((q) => [
-    pick(q, "question_id", "id"),
-    {
-      ind: canonText(pick(q, "question_ind", "soal_ind", "pertanyaan_ind")),
-      en: canonText(pick(q, "question_en", "soal_en", "pertanyaan_en")),
-      code: canonText(pick(q, "question_code", "kode", "pseudocode")),
-    },
-  ]),
-);
-
 // ---------------------------------------------------------------------------
-// build the v2 payload
+// build the v2 payload (canonical logic lives in ./lib/build-baseline-snapshot.mjs
+// and is shared with scripts/preview-baseline-sync-impact.mjs)
 // ---------------------------------------------------------------------------
-const questionBaselines = [...activeQuestionIds].sort().map((questionId) => {
-  const ids = normalizeIds(questionMiscMap.get(questionId) ?? []);
-  const content = questionContent.get(questionId) ?? { ind: null, en: null, code: null };
-  const canonical = {
-    k: "question",
-    question_id: questionId,
-    misconception_ids: ids,
-    question_ind: content.ind,
-    question_en: content.en,
-    question_code: content.code,
-  };
-  return { question_id: questionId, misconception_ids: ids, source_fingerprint: fingerprint(canonical) };
-});
-
-const answerBaselines = [...answerParent.keys()].sort().map((answerId) => {
-  const parent = answerParent.get(answerId);
-  const ids = normalizeIds(answerMiscMap.get(answerId) ?? []);
-  const canonical = {
-    k: "answer",
-    answer_id: answerId,
-    question_id: parent.questionId,
-    misconception_ids: ids,
-    answer_text: parent.text,
-  };
-  return {
-    answer_id: answerId,
-    question_id: parent.questionId,
-    misconception_ids: ids,
-    source_fingerprint: fingerprint(canonical),
-  };
+const { misconceptionIds, questionBaselines, answerBaselines } = buildBaselineSnapshot({
+  questions,
+  answers,
+  questionMisconceptions: questionMisc,
+  answerMisconceptions: answerMisc,
+  misconceptions,
 });
 
 console.log(

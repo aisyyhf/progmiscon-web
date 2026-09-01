@@ -18,6 +18,19 @@ import { filterAdminReviewConsensusItems } from "../../utils/reviewWorkspace";
 import { Button } from "../common/Button";
 import { EmptyState } from "../common/EmptyState";
 
+// This button still calls the legacy, non-versioned baseline sync
+// (public.sync_master_relation_baselines): it deletes and rebuilds every
+// baseline row without assigning a source_version, which desynchronises every
+// active review from its baseline. Baseline sync must go through the controlled
+// version-aware workflow (impact preflight -> sync_master_relation_baselines_v2)
+// instead. Until that workflow replaces this action, guard against accidental
+// clicks with an explicit confirmation.
+const LEGACY_BASELINE_SYNC_WARNING =
+  "Tombol ini memakai sinkronisasi baseline versi lama (tanpa source_version). " +
+  "Menjalankannya dapat membuat SEMUA review aktif menjadi usang, bukan hanya soal yang berubah. " +
+  "Gunakan alur sinkronisasi baseline terkontrol (preflight dampak -> sinkronisasi versi-aware). " +
+  "Lanjutkan hanya jika Anda benar-benar memahami risikonya.";
+
 function IdList({ ids, empty = "Tidak ada" }: { ids: string[]; empty?: string }) {
   return ids.length ? (
     <div className="flex flex-wrap gap-1.5">
@@ -336,6 +349,7 @@ export function AdminFinalizationPanel({
   };
 
   const syncBaseline = async () => {
+    if (!window.confirm(LEGACY_BASELINE_SYNC_WARNING)) return;
     setSyncing(true);
     setSyncStatus("");
     setSyncError("");
@@ -440,6 +454,11 @@ export function AdminFinalizationPanel({
                 {syncError}
               </p>
             )}
+            <p className="mt-2 text-xs font-medium text-incorrect">
+              Sinkronisasi versi lama. Dapat membuat semua review aktif usang.
+              Pakai alur sinkronisasi baseline terkontrol (preflight dampak lalu
+              sinkronisasi versi-aware).
+            </p>
           </div>
           <Button
             type="button"
