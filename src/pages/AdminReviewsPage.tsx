@@ -365,7 +365,6 @@ export function AdminReviewsPage() {
   const handleExport = () => {
     const csv = buildCurrentReviewsCsv(filteredGroups, {
       misconceptions: data.misconceptions,
-      answers: data.answers,
       language,
       lifecycle: data.lifecycle,
     });

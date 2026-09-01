@@ -174,73 +174,8 @@ assert.deepEqual(countCurrentAdminReviewRows(groups), {
   answerReviews: 0,
   totalReviews: 1,
 });
-const optionMappingMasterAnswers = [
-  {
-    id: "opt-a",
-    questionId: "q-map",
-    answerRole: "mp_option",
-    optionLabel: "A",
-    order: 1,
-    studentId: "",
-    status: "correct",
-    answerText: "A text",
-    checks: [],
-    masteredConcepts: [],
-    incorrectElements: [],
-    studentMisconceptionIds: [],
-  },
-  {
-    id: "opt-b",
-    questionId: "q-map",
-    answerRole: "mp_option",
-    optionLabel: "B",
-    order: 2,
-    studentId: "",
-    status: "incorrect",
-    answerText: "B text",
-    checks: [],
-    masteredConcepts: [],
-    incorrectElements: [],
-    studentMisconceptionIds: ["m-1"],
-  },
-  {
-    id: "opt-c",
-    questionId: "q-map",
-    answerRole: "mp_option",
-    optionLabel: "C",
-    order: 3,
-    studentId: "",
-    status: "incorrect",
-    answerText: "C text",
-    checks: [],
-    masteredConcepts: [],
-    incorrectElements: [],
-    studentMisconceptionIds: [],
-  },
-];
-const optionMappingGroups = groupCurrentAdminReviews(
-  {
-    ...visibleCurrent,
-    questionReviews: visibleCurrent.questionReviews.map((review) => ({
-      ...review,
-      questionId: "q-map",
-    })),
-  },
-  [
-    {
-      ...questions[0],
-      id: "q-map",
-      options: [
-        { id: "opt-a", label: "A", text: localized("A text"), isCorrect: true, misconceptionIds: [] },
-        { id: "opt-b", label: "B", text: localized("B text"), isCorrect: false, misconceptionIds: [] },
-        { id: "opt-c", label: "C", text: localized("C text"), isCorrect: false, misconceptionIds: [] },
-      ],
-    },
-  ],
-);
 const reviewCsv = buildCurrentReviewsCsv(groups, {
   misconceptions: [],
-  answers,
   language: "id",
 });
 assert.equal(reviewCsv.rows.length, 1, "one row per Question Review generation");
@@ -249,8 +184,6 @@ assert.deepEqual(reviewCsv.headers, [
   "Tipe Soal",
   "Kode Soal",
   "Judul Soal",
-  "Pemetaan Opsi",
-  "Kode Miskonsepsi",
   "Nama Reviewer",
   "Waktu Review",
   "Terakhir Diperbarui",
@@ -265,11 +198,13 @@ assert.deepEqual(reviewCsv.headers, [
   "Miskonsepsi Menurut Reviewer",
   "Catatan Tambahan",
 ]);
-assert.equal(reviewCsv.headers.length, 19);
+assert.equal(reviewCsv.headers.length, 17);
 assert.ok(
   !reviewCsv.headers.includes("Opsi jawaban") &&
-    !reviewCsv.headers.includes("Bagian yang Direview"),
-  "retired Answer Review columns are gone",
+    !reviewCsv.headers.includes("Bagian yang Direview") &&
+    !reviewCsv.headers.includes("Pemetaan Opsi") &&
+    !reviewCsv.headers.includes("Kode Miskonsepsi"),
+  "retired Answer Review columns and dropped context columns are gone",
 );
 for (const header of reviewCsv.headers) {
   assert.ok(!header.includes("_"), `header "${header}" must not use underscores`);
@@ -289,44 +224,19 @@ for (const banned of [
     `internal header ${banned} must not be exported`,
   );
 }
-assert.equal(reviewCsv.rows[0][6], "Reviewer One");
-assert.deepEqual(reviewCsv.rows[0].slice(9, 12), [
+assert.equal(reviewCsv.rows[0][4], "Reviewer One");
+assert.deepEqual(reviewCsv.rows[0].slice(7, 10), [
   "Aktif",
   "Direview",
   "Perlu revisi - ada miskonsepsi yang dihapus",
 ]);
 for (const row of reviewCsv.rows) {
-  assert.ok(!row.includes("Opsi jawaban"), "no Answer Review rows in the export");
+  assert.ok(
+    !row.includes("Opsi jawaban") &&
+      !row.some((cell) => String(cell).includes("Jawaban benar")),
+    "no Answer Review rows and no per-option mapping text in the export",
+  );
 }
-
-// "Pemetaan Opsi" is the EFFECTIVE per-option mapping (master relation), not an
-// Answer Review result: correct option -> "Jawaban benar", mapped -> id - title,
-// unmapped incorrect option -> "Tidak ada miskonsepsi yang dipetakan".
-const mappingCsv = buildCurrentReviewsCsv(optionMappingGroups, {
-  misconceptions: [{ id: "m-1", title: localized("M1 title") }],
-  answers: optionMappingMasterAnswers,
-  language: "id",
-});
-assert.equal(mappingCsv.rows.length, 1);
-assert.equal(
-  mappingCsv.rows[0][4],
-  "A -> Jawaban benar\nB -> m-1 - M1 title\nC -> Tidak ada miskonsepsi yang dipetakan",
-);
-// PS questions carry no option mapping.
-const psMappingCsv = buildCurrentReviewsCsv(
-  groupCurrentAdminReviews(
-    {
-      ...visibleCurrent,
-      questionReviews: visibleCurrent.questionReviews.map((review) => ({
-        ...review,
-        questionId: "q-ps",
-      })),
-    },
-    [{ ...questions[0], id: "q-ps", type: "short_answer", options: undefined }],
-  ),
-  { misconceptions: [], answers: [], language: "id" },
-);
-assert.equal(psMappingCsv.rows[0][4], "");
 
 // --- Lifecycle: deleted generations are kept for Admin history, never counted.
 const deletedHistory = {
@@ -610,7 +520,7 @@ assert.doesNotMatch(
   /Review pilihan jawaban|Answer option reviews|"Review jawaban" : "Answer reviews"/,
   "Admin Hasil Review Dosen no longer renders Answer Review cards or count",
 );
-assert.match(reviewsPage, /answers: data\.answers/);
+assert.doesNotMatch(reviewsPage, /buildCurrentReviewsCsv\([\s\S]{0,120}answers:/);
 assert.match(reviewsPage, /groupCurrentAdminReviews\(data\.current, data\.questions\)/);
 
 for (const page of [questionsPage, reviewsPage, exportsPage]) {

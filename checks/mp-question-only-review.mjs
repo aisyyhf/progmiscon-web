@@ -74,10 +74,15 @@ assert.ok(
     questionWorkspace.indexOf("REVIEW MISKONSEPSI SOAL"),
   "the option list renders before the lecturer's review controls / submit",
 );
-// Option label + text is bold; the misconception line is not bolder than it.
+// Option label + text is bold; the misconception line is subordinate.
 assert.match(
   questionWorkspace,
   /min-w-0 flex-1 text-xs font-semibold leading-5 text-navy-deep[\s\S]{0,80}\{mapping\.label\}/,
+);
+// Correct option card gets a subtle green background + green border.
+assert.match(
+  questionWorkspace,
+  /mapping\.isCorrect\s*\?\s*"border-\[#2F6B4F\][^"]*bg-\[#2F6B4F\]\/\[0\.07\]"/,
 );
 // "Jawaban benar" is an inline badge rendered by `{mapping.isCorrect && (` on
 // the main option row -- never a ternary that suppresses the mapping.
@@ -89,6 +94,18 @@ const emptyStateAt = questionWorkspace.indexOf("Tidak ada miskonsepsi yang dipet
 assert.ok(
   badgeAt > 0 && badgeAt < mappingListAt && mappingListAt < emptyStateAt,
   "the badge is on the main row, above the correctness-independent mapping area",
+);
+// Minimal mapping line: "↳ <code> · <name>" -- no rationale, no colon, no dash,
+// muted/brand secondary weight (smaller than the option text).
+assert.match(questionWorkspace, /\{"↳ "\}/);
+assert.match(questionWorkspace, /\{"·"\}/);
+assert.match(
+  questionWorkspace,
+  /className="text-\[10px\] font-normal leading-4 text-brand"[\s\S]{0,220}\{misconceptionId\}/,
+);
+assert.doesNotMatch(
+  questionWorkspace,
+  /reasonByMisconceptionId|misconceptionReasons|terkait miskonsepsi|— |mapping\.text[\s\S]{0,40}font-bold/,
 );
 
 const question = {
@@ -170,14 +187,27 @@ assert.match(adminExports, /active: "Aktif"/);
 assert.match(adminExports, /deleted: "Dihapus"/);
 assert.match(adminExports, /created: "Direview"/);
 
-// --- G. CSV: question-review-centric + "Pemetaan Opsi" -----------------
-assert.match(adminExports, /"Pemetaan Opsi"/);
+// --- G. CSV: question-review-centric, narrowed -------------------------
 assert.doesNotMatch(
   adminExports,
-  /"Bagian yang Direview"|"Opsi Jawaban"|"Isi Jawaban"/,
+  /"Bagian yang Direview"|"Opsi Jawaban"|"Isi Jawaban"|"Pemetaan Opsi"|"Kode Miskonsepsi"|serializeOptionMisconceptionMapping|buildOptionMisconceptionMappings/,
+  "per-option mapping and target-misconception code are on-screen context only, not CSV columns",
 );
 assert.doesNotMatch(adminExports, /for \(const \{ answer, review \} of reviewerGroup\.answerReviews\)/);
-assert.match(adminExports, /serializeOptionMisconceptionMapping/);
+const csvHeaders = adminExports.slice(
+  adminExports.indexOf("lecturerReviewHeaders = ["),
+  adminExports.indexOf("] as const;"),
+);
+for (const h of [
+  "Minggu", "Tipe Soal", "Kode Soal", "Judul Soal", "Nama Reviewer",
+  "Waktu Review", "Terakhir Diperbarui", "Status Review", "Aktivitas Terakhir",
+  "Hasil Review", "Miskonsepsi yang Tercantum", "Miskonsepsi yang Dihapus",
+  "Alasan Penghapusan Miskonsepsi", "Miskonsepsi yang Ditambahkan",
+  "Alasan Penambahan Miskonsepsi", "Miskonsepsi Menurut Reviewer",
+  "Catatan Tambahan",
+]) {
+  assert.ok(csvHeaders.includes(`"${h}"`), `CSV keeps column "${h}"`);
+}
 
 // --- Backend: question-only delete_question_review_workflow_v3 ----------
 const workflowBody = (source) => {

@@ -7,9 +7,7 @@ import type {
   ReviewLastActivity,
   ReviewLifecycleRow,
   ReviewLifecycleStatus,
-  StudentAnswer,
 } from "../types";
-import { buildOptionMisconceptionMappings } from "./optionMisconceptionMapping.ts";
 import {
   indexReviewLifecycle,
   resolveReviewLifecycleLabels,
@@ -47,8 +45,6 @@ export const lecturerReviewHeaders = [
   "Tipe Soal",
   "Kode Soal",
   "Judul Soal",
-  "Pemetaan Opsi",
-  "Kode Miskonsepsi",
   "Nama Reviewer",
   "Waktu Review",
   "Terakhir Diperbarui",
@@ -160,43 +156,10 @@ function questionCode(question: Question): string {
   return question.lmsQuestionId?.trim() || question.displayCode?.trim() || "";
 }
 
-/**
- * Deterministic, CSV-safe serialization of the EFFECTIVE option -> misconception
- * mapping for a multiple-choice question. One line per option in the question's
- * own option order, e.g.
- *   A -> IO-02 - Nama variabel tertukar dengan nilainya saat output
- *   B -> Jawaban benar
- *   D -> Tidak ada miskonsepsi yang dipetakan
- * This is master-data context (baseline answer_misconceptions + valid published
- * answer overrides), NOT Answer Review history. Blank for PS questions.
- */
-export function serializeOptionMisconceptionMapping(
-  question: Pick<Question, "type" | "options">,
-  answers: readonly StudentAnswer[],
-  misconceptionById: ReadonlyMap<string, Misconception>,
-  language: Language,
-): string {
-  return buildOptionMisconceptionMappings(question, answers)
-    .map((mapping) => {
-      const detail = mapping.isCorrect
-        ? "Jawaban benar"
-        : mapping.misconceptionIds.length > 0
-          ? renderMisconceptionList(
-              mapping.misconceptionIds,
-              misconceptionById,
-              language,
-            )
-          : "Tidak ada miskonsepsi yang dipetakan";
-      return `${mapping.label} -> ${detail}`;
-    })
-    .join("\n");
-}
-
 export function buildCurrentReviewsCsv(
   groups: readonly AdminQuestionReviewGroup[],
   options: {
     misconceptions: readonly Misconception[];
-    answers: readonly StudentAnswer[];
     language: Language;
     lifecycle?: readonly ReviewLifecycleRow[];
   },
@@ -224,18 +187,11 @@ export function buildCurrentReviewsCsv(
     const minggu = question.week ? getMaterialWeekLabel(question.week) : "";
     const tipeSoal = getMaterialQuestionType(question.type).toUpperCase();
     const kodeSoal = questionCode(question);
-    const kodeMiskonsepsi = question.targetMisconceptionId?.trim() ?? "";
     const judulSoal = t(question.title, language);
-    // Informational MP context only -- not a separate Answer Review result.
-    const pemetaanOpsi = serializeOptionMisconceptionMapping(
-      question,
-      options.answers,
-      misconceptionById,
-      language,
-    );
 
     // One exported row per Question Review generation (current or lecturer-
-    // deleted). The retired A/B/C/D Answer Review no longer produces rows.
+    // deleted). The retired A/B/C/D Answer Review no longer produces rows, and
+    // per-option mapping is on-screen context only -- not review activity.
     const buildRow = (
       review: {
         id: string;
@@ -258,8 +214,6 @@ export function buildCurrentReviewsCsv(
         tipeSoal,
         kodeSoal,
         judulSoal,
-        pemetaanOpsi,
-        kodeMiskonsepsi,
         reviewerName,
         formatWibDateTime(review.createdAt),
         formatWibDateTime(review.updatedAt),

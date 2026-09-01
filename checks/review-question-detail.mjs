@@ -113,11 +113,24 @@ assert.doesNotMatch(
 );
 assert.match(questionWorkspace, /language === "id"\s*\?\s*"Jawaban benar"/);
 assert.match(questionWorkspace, /Tidak ada miskonsepsi yang dipetakan/);
-assert.match(questionWorkspace, /mapping\.reasonByMisconceptionId\.get\(misconceptionId\)/);
 assert.match(
   questionWorkspace,
   /text-xs font-semibold leading-5 text-navy-deep[\s\S]{0,80}\{mapping\.label\}/,
   "the option label + text is the primary, bold element",
+);
+// Correct option: subtle light-green background + green border.
+assert.match(
+  questionWorkspace,
+  /mapping\.isCorrect\s*\?\s*"border-\[#2F6B4F\][^"]*bg-\[#2F6B4F\]\/\[0\.07\]"/,
+);
+// Minimal mapping line: "↳ <code> · <name>", brand secondary weight, no
+// rationale / colon / dash / helper text.
+assert.match(questionWorkspace, /\{"↳ "\}/);
+assert.match(questionWorkspace, /\{"·"\}/);
+assert.doesNotMatch(
+  questionWorkspace,
+  /reasonByMisconceptionId|misconceptionReasons|terkait miskonsepsi/,
+  "no rationale paragraph / helper text under a mapped option",
 );
 // "Jawaban benar" is an inline `{mapping.isCorrect && (` badge on the main row;
 // the mapping underneath is rendered independent of correctness.

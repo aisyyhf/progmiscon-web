@@ -6,7 +6,6 @@ import {
   lecturerReviewHeaders,
   reviewOutcomeLabel,
   reviewerFinalMisconceptionIds,
-  serializeOptionMisconceptionMapping,
 } from "../src/utils/adminExports.ts";
 import {
   formatWibDateTime,
@@ -44,57 +43,7 @@ const mpQuestion = {
   targetMisconceptionId: "IO-02",
   title: localized("Probe keluaran IO"),
   questionMisconceptionIds: ["IO-02", "CO-01"],
-  options: [
-    { id: "A020-A", label: "A", text: localized("Benar"), isCorrect: true, misconceptionIds: [] },
-    { id: "A020-B", label: "B", text: localized("9, salah"), isCorrect: false, misconceptionIds: [] },
-    { id: "A020-C", label: "C", text: localized("Kosong"), isCorrect: false, misconceptionIds: [] },
-  ],
 };
-
-// EFFECTIVE per-option misconception relation (baseline answer_misconceptions +
-// published answer overrides) -- what getSheetAnswers() returns. Never Answer
-// Review history.
-const masterAnswers = [
-  {
-    id: "A020-A",
-    questionId: "Q020",
-    answerRole: "mp_option",
-    optionLabel: "A",
-    status: "correct",
-    answerText: "Benar",
-    checks: [],
-    masteredConcepts: [],
-    incorrectElements: [],
-    studentMisconceptionIds: [],
-  },
-  {
-    id: "A020-B",
-    questionId: "Q020",
-    answerRole: "mp_option",
-    optionLabel: "B",
-    status: "incorrect",
-    answerText: "9, salah",
-    checks: [],
-    masteredConcepts: [],
-    incorrectElements: [],
-    studentMisconceptionIds: ["IO-02"],
-    misconceptionReasons: [
-      { misconceptionId: "IO-02", reason: localized("Menuliskan format salah") },
-    ],
-  },
-  {
-    id: "A020-C",
-    questionId: "Q020",
-    answerRole: "mp_option",
-    optionLabel: "C",
-    status: "incorrect",
-    answerText: "Kosong",
-    checks: [],
-    masteredConcepts: [],
-    incorrectElements: [],
-    studentMisconceptionIds: [],
-  },
-];
 
 const reviewerNamed = {
   reviewerId: "11111111-1111-4111-8111-111111111111",
@@ -161,7 +110,6 @@ const groups = [
 
 const csv = buildCurrentReviewsCsv(groups, {
   misconceptions,
-  answers: masterAnswers,
   language: "id",
 });
 
@@ -170,8 +118,6 @@ const HEADERS = [
   "Tipe Soal",
   "Kode Soal",
   "Judul Soal",
-  "Pemetaan Opsi",
-  "Kode Miskonsepsi",
   "Nama Reviewer",
   "Waktu Review",
   "Terakhir Diperbarui",
@@ -192,16 +138,19 @@ const col = (name) => {
   return index;
 };
 
-// 1. exact final 19-column, question-review-centric order
+// 1. exact final 17-column, question-review-centric order
 assert.deepEqual(csv.headers, HEADERS);
-assert.equal(csv.headers.length, 19);
+assert.equal(csv.headers.length, 17);
 assert.deepEqual([...lecturerReviewHeaders], csv.headers);
-assert.equal(HEADERS.indexOf("Pemetaan Opsi"), HEADERS.indexOf("Judul Soal") + 1);
+assert.equal(HEADERS.indexOf("Nama Reviewer"), HEADERS.indexOf("Judul Soal") + 1);
 assert.equal(HEADERS.indexOf("Status Review"), HEADERS.indexOf("Terakhir Diperbarui") + 1);
 assert.equal(HEADERS.indexOf("Aktivitas Terakhir"), HEADERS.indexOf("Status Review") + 1);
 
-// 2. the retired A/B/C/D Answer Review columns are gone
-for (const gone of ["Bagian yang Direview", "Opsi Jawaban", "Isi Jawaban"]) {
+// 2. retired Answer Review columns AND the now-dropped context columns are gone
+for (const gone of [
+  "Bagian yang Direview", "Opsi Jawaban", "Isi Jawaban",
+  "Pemetaan Opsi", "Kode Miskonsepsi",
+]) {
   assert.ok(!csv.headers.includes(gone), `column "${gone}" must be removed`);
 }
 
@@ -246,7 +195,6 @@ const findRow = (predicate) => {
 };
 const KODE = col("Kode Soal");
 const REVIEWER = col("Nama Reviewer");
-const PEMETAAN = col("Pemetaan Opsi");
 const psRow = findRow(
   (r) => r[KODE] === PS_LMS_ID && r[REVIEWER] === "Dr. Budi, S.Kom.",
 );
@@ -268,25 +216,21 @@ assert.ok(
   !flatCells.includes("008.UAI konversi suhu c ke f (en)"),
   "PS source_code must not be exported",
 );
-assert.equal(psRow[col("Kode Miskonsepsi")], "");
 assert.equal(psRow[col("Judul Soal")], "Konversi suhu C ke F");
 assert.equal(mpQuestionRow[col("Tipe Soal")], "MP");
 assert.equal(mpQuestionRow[KODE], "MP-CO-01-1");
-assert.equal(mpQuestionRow[col("Kode Miskonsepsi")], "IO-02");
 
-// 7. "Pemetaan Opsi": EFFECTIVE per-option mapping, deterministic, CSV-safe.
-//    Correct option -> "Jawaban benar"; mapped -> "id - title"; unmapped
-//    incorrect option -> "Tidak ada miskonsepsi yang dipetakan". Blank for PS.
-assert.equal(
-  mpQuestionRow[PEMETAAN],
-  "A -> Jawaban benar\nB -> IO-02 - Salah format keluaran\nC -> Tidak ada miskonsepsi yang dipetakan",
-);
-assert.equal(noChangeRow[PEMETAAN], mpQuestionRow[PEMETAAN]);
-assert.equal(psRow[PEMETAAN], "");
-assert.equal(psUnnamedRow[PEMETAAN], "");
-assert.equal(
-  serializeOptionMisconceptionMapping(psQuestion, masterAnswers, new Map(), "id"),
-  "",
+// 7. per-option mapping is on-screen context only -- it never appears in the CSV
+for (const cell of flatCells) {
+  assert.ok(
+    !cell.includes("Jawaban benar") &&
+      !cell.includes("Tidak ada miskonsepsi yang dipetakan"),
+    `option-mapping text must not leak into the review CSV: ${cell}`,
+  );
+}
+assert.ok(
+  !flatCells.some((c) => c === "IO-02"),
+  "the question target-misconception code is no longer a CSV column",
 );
 
 // 8. no Answer Review rows anywhere
@@ -370,11 +314,10 @@ assert.equal(
   'Catatan dengan "kutip", koma\ndan baris kedua',
 );
 assert.equal(parsedPsRow["Waktu Review"], "2026-08-19 17:00 WIB");
-const parsedMpRow = parsed.data.find(
-  (row) => row["Kode Soal"] === "MP-CO-01-1" && row["Nama Reviewer"] === "Dr. Budi, S.Kom.",
+assert.ok(
+  !Object.keys(parsedPsRow).includes("Pemetaan Opsi") &&
+    !Object.keys(parsedPsRow).includes("Kode Miskonsepsi"),
 );
-assert.match(parsedMpRow["Pemetaan Opsi"], /A -> Jawaban benar/);
-assert.match(parsedMpRow["Pemetaan Opsi"], /C -> Tidak ada miskonsepsi yang dipetakan/);
 
 // 15. stale / inactive Review filtering is untouched (guards still present)
 const currentReviewsSource = readFileSync(
@@ -420,7 +363,7 @@ assert.ok(!csv.rows.some((r) => r[AKTIVITAS] === "Dibuat"));
 
 const editedCsv = buildCurrentReviewsCsv(groups, {
   misconceptions,
-  answers: masterAnswers,
+
   language: "id",
   lifecycle: [
     { reviewType: "question", reviewId: "qr-ps", lastEventType: "edited", lastEventAt: null, edited: true, lastDeletedAt: null, lastDeletedBefore: null },
@@ -455,7 +398,7 @@ const deletedGroups = [
 ];
 const deletedCsv = buildCurrentReviewsCsv(deletedGroups, {
   misconceptions,
-  answers: masterAnswers,
+
   language: "id",
 });
 assert.equal(deletedCsv.rows.length, 1);

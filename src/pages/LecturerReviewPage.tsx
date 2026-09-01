@@ -2204,8 +2204,10 @@ export function QuestionValidationWorkspace({
                   <li
                     key={mapping.optionId}
                     className={cn(
-                      "rounded-md border bg-white px-3 py-2.5",
-                      mapping.isCorrect ? "border-[#2F6B4F]" : "border-border",
+                      "rounded-md border px-3 py-2.5",
+                      mapping.isCorrect
+                        ? "border-[#2F6B4F]/60 bg-[#2F6B4F]/[0.07]"
+                        : "border-border bg-white",
                     )}
                   >
                     {/* Main option row: the option label + text is the primary
@@ -2217,40 +2219,29 @@ export function QuestionValidationWorkspace({
                         {t(mapping.text, language)}
                       </p>
                       {mapping.isCorrect && (
-                        <span className="inline-flex shrink-0 items-center gap-1 rounded border border-[#2F6B4F]/40 bg-[#2F6B4F]/10 px-2 py-0.5 text-[10px] font-medium leading-4 text-[#2F6B4F]">
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium leading-4 text-[#2F6B4F]">
                           <Check size={11} strokeWidth={3} aria-hidden="true" />
                           {language === "id" ? "Jawaban benar" : "Correct answer"}
                         </span>
                       )}
                     </div>
                     {/* Independent of correctness: the option's effective
-                        misconception mapping, at secondary visual weight. */}
-                    <div className="mt-1.5">
+                        misconception mapping, minimal secondary metadata. */}
+                    <div className="mt-1">
                       {mapping.misconceptionIds.length > 0 ? (
-                        <ul className="space-y-1">
+                        <ul>
                           {mapping.misconceptionIds.map((misconceptionId) => {
                             const misconception =
                               misconceptionById.get(misconceptionId);
-                            const reason =
-                              mapping.reasonByMisconceptionId.get(misconceptionId);
                             return (
                               <li
                                 key={misconceptionId}
-                                className="text-[11px] leading-4"
+                                className="text-[10px] font-normal leading-4 text-brand"
                               >
-                                <span className="font-mono text-[10px] font-normal text-brand">
-                                  {misconceptionId}
-                                </span>
+                                <span aria-hidden="true">{"↳ "}</span>
+                                <span className="font-mono">{misconceptionId}</span>
                                 {misconception && (
-                                  <span className="font-normal text-muted">
-                                    {" "}
-                                    - {t(misconception.title, language)}
-                                  </span>
-                                )}
-                                {reason && (
-                                  <span className="mt-0.5 block text-[10px] font-normal leading-4 text-muted">
-                                    {t(reason, language)}
-                                  </span>
+                                  <> {"·"} {t(misconception.title, language)}</>
                                 )}
                               </li>
                             );
