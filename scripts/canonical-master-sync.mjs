@@ -15,7 +15,11 @@
 //     allowlist match, answer bump count <= max, snapshot complete)
 //   * --apply-bundle-hash equal to the SHA-256 the immediately-preceding plan
 //     run printed for the frozen input bundle (current + proposed + oracle)
-//   * PRODUCTION_SUPABASE_URL whose project ref equals --expect-ref
+//   * --post-oracle <path>  (a fresh baseline export is polled for AFTER the
+//     RPC and verified per-target; RPC counts alone are never accepted)
+//   * PRODUCTION_SUPABASE_URL that STRICTLY validates as https://<ref>.supabase.co
+//     with no userinfo / port / path / query / fragment, and whose ref equals
+//     --expect-ref (the service-role key is used only after this passes)
 //   * PRODUCTION_SUPABASE_SERVICE_ROLE_KEY set
 //   * CANONICAL_MASTER_SYNC_ENABLED === "true"
 //
@@ -35,7 +39,7 @@
 //
 //   node scripts/canonical-master-sync.mjs ...same... \
 //     --apply --apply-bundle-hash <sha256-from-the-plan-run> \
-//     [--post-oracle ./frozen/production-baseline-state.after.json]
+//     --post-oracle ./frozen/production-baseline-state.after.json
 
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -88,13 +92,51 @@ export function parseIdList(value) {
     .filter(Boolean);
 }
 
+// Strict, fail-closed validation of the Production project URL. The project ref
+// is extracted ONLY after the ENTIRE URL has passed every check, so a
+// misconfigured or hostile PRODUCTION_SUPABASE_URL can never reach the
+// service-role client.
+//
+//   * scheme MUST be https:
+//   * no userinfo (username / password)
+//   * no port (no sanctioned path needs one)
+//   * no path / query / fragment
+//   * host MUST be EXACTLY  <ref>.supabase.co
+//     (ref = 16+ lowercase alphanumerics; suffix tricks like
+//      "<ref>.supabase.co.evil.example" or "<ref>.attacker.net" are rejected
+//      because the anchored regex requires ".supabase.co" to end the host)
+//
+// The staging seeder (database/staging/seed-baselines.mjs) also tolerates
+// *.supabase.{in,net}; the Production MUTATION path here is deliberately
+// narrower — no repo evidence shows Production on anything but *.supabase.co.
+const PRODUCTION_HOST = /^([a-z0-9]{16,})\.supabase\.co$/;
+
 export function projectRef(url) {
-  const host = new URL(url).host;
-  const ref = host.split(".")[0];
-  if (!/^[a-z0-9]{16,}$/i.test(ref)) {
-    throw new Error(`could not extract a Supabase project ref from: ${url}`);
+  let parsed;
+  try {
+    parsed = new URL(String(url));
+  } catch {
+    throw new Error(`PRODUCTION_SUPABASE_URL is not a valid URL: ${String(url)}`);
   }
-  return ref;
+  if (parsed.protocol !== "https:") {
+    throw new Error(`PRODUCTION_SUPABASE_URL must use https: (got ${parsed.protocol || "no scheme"})`);
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error("PRODUCTION_SUPABASE_URL must not contain a username or password");
+  }
+  if (parsed.port) {
+    throw new Error(`PRODUCTION_SUPABASE_URL must not specify a port (got :${parsed.port})`);
+  }
+  if (parsed.pathname !== "/" || parsed.search || parsed.hash) {
+    throw new Error("PRODUCTION_SUPABASE_URL must have no path, query string, or fragment");
+  }
+  const match = PRODUCTION_HOST.exec(parsed.hostname);
+  if (!match) {
+    throw new Error(
+      `PRODUCTION_SUPABASE_URL host must be exactly <project-ref>.supabase.co (got "${parsed.hostname}")`,
+    );
+  }
+  return match[1];
 }
 
 // Bundle hash: SHA-256 over a length-prefixed, label-ordered concatenation of
@@ -151,6 +193,9 @@ export async function runCanonicalMasterSync({
   const readFile = deps.readFile ?? ((p) => readFileSync(p));
   const callSyncRpc = deps.callSyncRpc ?? defaultCallSyncRpc;
   const log = deps.log ?? ((line) => console.log(line));
+  const sleep = deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const pollIntervalMs = Number(deps.postOraclePollMs ?? 3000);
+  const pollMaxAttempts = Number(deps.postOraclePollMax ?? 40);
 
   const args = parseArgs(argv);
   for (const required of ["current", "proposed", "oracle", "expect_ref"]) {
@@ -239,16 +284,25 @@ export async function runCanonicalMasterSync({
       `--apply-bundle-hash mismatch: frozen inputs changed since the plan run (got ${args.apply_bundle_hash}, computed ${bundleHash})`,
     );
   }
+  // F2: a fresh post-apply oracle export is mandatory for per-target verification
+  if (!args.post_oracle) {
+    applyBlockers.push("--post-oracle <path> is required for --apply (per-target verification, not RPC counts alone)");
+  }
   if ((env.CANONICAL_MASTER_SYNC_ENABLED ?? "").trim().toLowerCase() !== "true") {
     applyBlockers.push("CANONICAL_MASTER_SYNC_ENABLED must be exactly 'true'");
   }
+  // F1: strict, fail-closed validation of the Production URL. The ref is
+  // extracted only after the ENTIRE URL passes; the service-role key is read
+  // and used only past the applyBlockers gate below.
   const url = (env.PRODUCTION_SUPABASE_URL ?? "").trim();
+  let validatedRef = null;
   if (!url) applyBlockers.push("PRODUCTION_SUPABASE_URL is not set");
   else {
     try {
-      const ref = projectRef(url);
-      if (ref !== args.expect_ref) {
-        applyBlockers.push(`PRODUCTION_SUPABASE_URL ref "${ref}" != --expect-ref "${args.expect_ref}"`);
+      validatedRef = projectRef(url);
+      if (validatedRef !== args.expect_ref) {
+        applyBlockers.push(`PRODUCTION_SUPABASE_URL ref "${validatedRef}" != --expect-ref "${args.expect_ref}"`);
+        validatedRef = null;
       }
     } catch (caught) {
       applyBlockers.push(caught.message);
@@ -263,6 +317,14 @@ export async function runCanonicalMasterSync({
     emit();
     log("");
     log(`APPLY REFUSED (before any mutation):\n${applyBlockers.map((r) => `  - ${r}`).join("\n")}`);
+    return { exitCode: 1, report };
+  }
+
+  // F1 defense-in-depth: re-validate the URL immediately before the key is used,
+  // so no refactor of the gate above can ever send it to an unvalidated host.
+  if (projectRef(url) !== args.expect_ref) {
+    report.apply_error = "PRODUCTION_SUPABASE_URL failed re-validation before mutation";
+    emit();
     return { exitCode: 1, report };
   }
 
@@ -287,18 +349,37 @@ export async function runCanonicalMasterSync({
     return { exitCode: 1, report };
   }
 
+  // F2: block on a FRESH post-apply oracle. It must exist, parse, and differ
+  // from the pre-apply oracle (proving it reflects the mutation just made).
+  log("");
+  log(`MUTATION APPLIED. Export a fresh Production baseline oracle now to:\n  ${args.post_oracle}`);
   let postOracle = null;
-  if (args.post_oracle) {
+  let postOracleError = `no fresh --post-oracle appeared at ${args.post_oracle} within ${Math.round((pollIntervalMs * pollMaxAttempts) / 1000)}s`;
+  for (let attempt = 1; attempt <= pollMaxAttempts; attempt += 1) {
+    let bytes = null;
     try {
-      postOracle = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(readFile(args.post_oracle)));
-    } catch (caught) {
-      report.post_apply = { ok: false, failures: [`cannot parse --post-oracle: ${caught.message}`] };
-      emit();
-      return { exitCode: 1, report };
+      bytes = readFile(args.post_oracle);
+    } catch {
+      bytes = null;
     }
+    if (bytes) {
+      const identicalToPre = Buffer.isBuffer(bytes) && Buffer.isBuffer(oracleBytes)
+        ? bytes.equals(oracleBytes)
+        : String(bytes) === String(oracleBytes);
+      if (identicalToPre) {
+        postOracleError = `--post-oracle at ${args.post_oracle} is byte-identical to the pre-apply oracle — export a fresh one`;
+      } else {
+        try {
+          postOracle = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+          break;
+        } catch (caught) {
+          postOracleError = `--post-oracle at ${args.post_oracle} is present but not valid JSON: ${caught.message}`;
+        }
+      }
+    }
+    if (attempt < pollMaxAttempts) await sleep(pollIntervalMs);
   }
 
-  const postApply = validatePostApply({ plan, rpcResult, preOracle: oracle, postOracle });
   report.rpc_result = {
     question_count: rpcResult?.question_count ?? null,
     answer_count: rpcResult?.answer_count ?? null,
@@ -307,12 +388,27 @@ export async function runCanonicalMasterSync({
     answer_versions_changed: rpcResult?.answer_versions_changed ?? null,
     synced_at: rpcResult?.synced_at ?? null,
   };
+
+  if (!postOracle) {
+    report.post_apply = { ok: false, failures: [postOracleError] };
+    emit();
+    log("");
+    log(`APPLY VERIFICATION FAILED / ALERT — the mutation ran but could not be verified:\n  - ${postOracleError}`);
+    return { exitCode: 1, report };
+  }
+
+  const postApply = validatePostApply({ plan, rpcResult, preOracle: oracle, postOracle });
   report.post_apply = postApply;
   emit();
   log("");
-  log(postApply.ok
-    ? `APPLY VERIFIED — exactly ${plan.expectedQuestionBumpIds.length} question(s) bumped (${plan.expectedQuestionBumpIds.join(", ") || "none"}), 0 answers.`
-    : `APPLY VERIFICATION FAILED / ALERT:\n${postApply.failures.map((f) => `  - ${f}`).join("\n")}`);
+  if (postApply.ok) {
+    const changes = (postApply.observedQuestionChanges ?? [])
+      .map((c) => `${c.id} ${c.old} -> ${c.new}`)
+      .join(", ") || "none";
+    log(`APPLY VERIFIED — observed exactly ${postApply.observedQuestionBumpIds.length} question source_version change(s) [${changes}] and ${postApply.observedAnswerBumpIds.length} answer change(s); all within the approved allowlist; RPC counts match.`);
+  } else {
+    log(`APPLY VERIFICATION FAILED / ALERT:\n${postApply.failures.map((f) => `  - ${f}`).join("\n")}`);
+  }
   return { exitCode: postApply.ok ? 0 : 1, report };
 
   function fail(message) {

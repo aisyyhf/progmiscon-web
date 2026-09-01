@@ -218,7 +218,15 @@ assert.throws(
     options: { questionAllowlist: ["Q2"], answerAllowlist: [], maxQuestionBumps: 3, maxAnswerBumps: 0 },
   });
 
-  // exact match: 1 question, 0 answers, post-oracle shows only Q2 moved
+  // F2: per-target verification is MANDATORY — no post-oracle -> not ok
+  const noPost = validatePostApply({
+    plan,
+    rpcResult: { question_versions_changed: 1, answer_versions_changed: 0 },
+  });
+  assert.equal(noPost.ok, false, "count-only verification is never accepted");
+  assert.ok(noPost.failures.some((f) => /requires BOTH the pre-apply oracle and a fresh --post-oracle/.test(f)));
+
+  // exact match: RPC 1/0, post-oracle shows only Q2 moved, old -> new
   const good = validatePostApply({
     plan,
     rpcResult: { question_versions_changed: 1, answer_versions_changed: 0 },
@@ -228,35 +236,50 @@ assert.throws(
   assert.equal(good.ok, true, JSON.stringify(good.failures));
   assert.deepEqual(good.observedQuestionBumpIds, ["Q2"]);
   assert.deepEqual(good.observedAnswerBumpIds, []);
+  assert.deepEqual(good.observedQuestionChanges, [
+    { id: "Q2", old: "00000000-0000-4000-8000-000000000002", new: "99999999-0000-4000-8000-000000000002" },
+  ]);
 
-  // RPC reports an unexpected ANSWER version change -> fail/alert
+  // RPC count disagrees with the fresh post-oracle -> fail
+  const countDisagree = validatePostApply({
+    plan,
+    rpcResult: { question_versions_changed: 5, answer_versions_changed: 0 },
+    preOracle: oracle("oracle-clean"),
+    postOracle: oracle("oracle-after-q2-bump"),
+  });
+  assert.equal(countDisagree.ok, false);
+  assert.ok(countDisagree.failures.some((f) => /question_versions_changed=5 but the fresh post-oracle shows 1/.test(f)));
+
+  // RPC reports an ANSWER change the post-oracle does not corroborate -> fail
   const answerAlert = validatePostApply({
     plan,
     rpcResult: { question_versions_changed: 1, answer_versions_changed: 2 },
+    preOracle: oracle("oracle-clean"),
+    postOracle: oracle("oracle-after-q2-bump"),
   });
   assert.equal(answerAlert.ok, false);
   assert.ok(answerAlert.failures.some((f) => /answer/i.test(f)));
 
-  // RPC reports more question bumps than planned -> fail/alert
-  const tooMany = validatePostApply({
-    plan,
-    rpcResult: { question_versions_changed: 5, answer_versions_changed: 0 },
-  });
-  assert.equal(tooMany.ok, false);
-  assert.ok(tooMany.failures.some((f) => /question_versions_changed/.test(f)));
-
-  // post-oracle shows a question bumped that is NOT in the allowlist -> fail
-  const rogue = oracle("oracle-after-q2-bump").map((r) =>
-    r.target_id === "Q1" ? { ...r, source_version: "aaaaaaaa-0000-4000-8000-000000000001" } : r,
-  );
-  const rogueResult = validatePostApply({
+  // post-oracle shows a question moved that is NOT in the allowlist -> fail
+  const rogue = validatePostApply({
     plan,
     rpcResult: { question_versions_changed: 1, answer_versions_changed: 0 },
     preOracle: oracle("oracle-clean"),
-    postOracle: rogue,
+    postOracle: oracle("oracle-after-wrong-q1"),
   });
-  assert.equal(rogueResult.ok, false);
-  assert.ok(rogueResult.failures.some((f) => /Q1 bumped but is NOT in the approved allowlist/.test(f)));
+  assert.equal(rogue.ok, false);
+  assert.ok(rogue.failures.some((f) => /Q1 source_version changed .* NOT in the approved allowlist/.test(f)));
+  assert.ok(rogue.failures.some((f) => /allowlisted question Q2 did NOT change/.test(f)));
+
+  // post-oracle shows an unexpected ANSWER moved -> fail
+  const answerMoved = validatePostApply({
+    plan,
+    rpcResult: { question_versions_changed: 1, answer_versions_changed: 0 },
+    preOracle: oracle("oracle-clean"),
+    postOracle: oracle("oracle-after-answer-bump"),
+  });
+  assert.equal(answerMoved.ok, false);
+  assert.ok(answerMoved.failures.some((f) => /answer A1 source_version changed .* NOT in the approved allowlist/.test(f)));
 }
 
 console.log("canonical-sync-plan checks passed");

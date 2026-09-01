@@ -376,7 +376,13 @@ export function validatePostApply({ plan, rpcResult, preOracle, postOracle } = {
 
   let observedQuestionBumpIds = null;
   let observedAnswerBumpIds = null;
-  if (preOracle && postOracle) {
+  let observedQuestionChanges = null;
+  let observedAnswerChanges = null;
+
+  if (!preOracle || !postOracle) {
+    // per-target verification is mandatory for a Production apply
+    failures.push("post-apply verification requires BOTH the pre-apply oracle and a fresh --post-oracle export");
+  } else {
     const pre = normalizeOracle(preOracle);
     const post = normalizeOracle(postOracle);
     const preQ = new Map(pre.questions.map((r) => [r.question_id, r.source_version]));
@@ -384,26 +390,47 @@ export function validatePostApply({ plan, rpcResult, preOracle, postOracle } = {
     const preA = new Map(pre.answers.map((r) => [r.answer_id, r.source_version]));
     const postA = new Map(post.answers.map((r) => [r.answer_id, r.source_version]));
 
-    observedQuestionBumpIds = [...postQ.keys()]
-      .filter((id) => (preQ.get(id) ?? null) !== (postQ.get(id) ?? null))
-      .sort();
-    observedAnswerBumpIds = [...postA.keys()]
-      .filter((id) => (preA.get(id) ?? null) !== (postA.get(id) ?? null))
-      .sort();
+    // every target that appears in either export, in case one side inserted/removed a row
+    const allQ = new Set([...preQ.keys(), ...postQ.keys()]);
+    const allA = new Set([...preA.keys(), ...postA.keys()]);
 
+    observedQuestionChanges = [...allQ]
+      .filter((id) => (preQ.get(id) ?? null) !== (postQ.get(id) ?? null))
+      .sort()
+      .map((id) => ({ id, old: preQ.get(id) ?? null, new: postQ.get(id) ?? null }));
+    observedAnswerChanges = [...allA]
+      .filter((id) => (preA.get(id) ?? null) !== (postA.get(id) ?? null))
+      .sort()
+      .map((id) => ({ id, old: preA.get(id) ?? null, new: postA.get(id) ?? null }));
+    observedQuestionBumpIds = observedQuestionChanges.map((c) => c.id);
+    observedAnswerBumpIds = observedAnswerChanges.map((c) => c.id);
+
+    // 1. every observed change must be an allowlisted target
     const expQ = new Set(plan.expectedQuestionBumpIds);
-    for (const id of observedQuestionBumpIds) {
-      if (!expQ.has(id)) failures.push(`question ${id} bumped but is NOT in the approved allowlist`);
-    }
-    for (const id of plan.expectedQuestionBumpIds) {
-      if (!observedQuestionBumpIds.includes(id)) failures.push(`allowlisted question ${id} did NOT bump`);
-    }
     const expA = new Set(plan.expectedAnswerBumpIds);
-    for (const id of observedAnswerBumpIds) {
-      if (!expA.has(id)) failures.push(`answer ${id} bumped but is NOT in the approved allowlist`);
+    for (const c of observedQuestionChanges) {
+      if (!expQ.has(c.id)) failures.push(`question ${c.id} source_version changed (${c.old} -> ${c.new}) but is NOT in the approved allowlist`);
+    }
+    for (const c of observedAnswerChanges) {
+      if (!expA.has(c.id)) failures.push(`answer ${c.id} source_version changed (${c.old} -> ${c.new}) but is NOT in the approved allowlist`);
+    }
+    // 2. every allowlisted target must have actually changed, old -> new
+    for (const id of plan.expectedQuestionBumpIds) {
+      const c = observedQuestionChanges.find((x) => x.id === id);
+      if (!c) failures.push(`allowlisted question ${id} did NOT change source_version`);
+      else if (c.old != null && c.old === c.new) failures.push(`allowlisted question ${id} source_version unchanged (${c.old})`);
     }
     for (const id of plan.expectedAnswerBumpIds) {
-      if (!observedAnswerBumpIds.includes(id)) failures.push(`allowlisted answer ${id} did NOT bump`);
+      const c = observedAnswerChanges.find((x) => x.id === id);
+      if (!c) failures.push(`allowlisted answer ${id} did NOT change source_version`);
+      else if (c.old != null && c.old === c.new) failures.push(`allowlisted answer ${id} source_version unchanged (${c.old})`);
+    }
+    // 3. RPC-reported counts must match the observed post-oracle changes
+    if (Number.isInteger(reportedQ) && reportedQ !== observedQuestionChanges.length) {
+      failures.push(`RPC question_versions_changed=${reportedQ} but the fresh post-oracle shows ${observedQuestionChanges.length} question source_version change(s)`);
+    }
+    if (Number.isInteger(reportedA) && reportedA !== observedAnswerChanges.length) {
+      failures.push(`RPC answer_versions_changed=${reportedA} but the fresh post-oracle shows ${observedAnswerChanges.length} answer source_version change(s)`);
     }
   }
 
@@ -414,5 +441,7 @@ export function validatePostApply({ plan, rpcResult, preOracle, postOracle } = {
     expected: { question_versions_changed: expectedQ, answer_versions_changed: expectedA },
     observedQuestionBumpIds,
     observedAnswerBumpIds,
+    observedQuestionChanges,
+    observedAnswerChanges,
   };
 }

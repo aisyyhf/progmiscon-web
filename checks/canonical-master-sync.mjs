@@ -37,11 +37,17 @@ function baseArgs({ proposed = "proposed-ok", oracle = "oracle-clean", allow = "
 }
 async function run(argv, { env = {}, callSyncRpc } = {}) {
   const lines = [];
-  const deps = { log: (l) => lines.push(l) };
+  const deps = {
+    log: (l) => lines.push(l),
+    sleep: () => Promise.resolve(), // never wall-clock wait in tests
+    postOraclePollMs: 0,
+    postOraclePollMax: 3,
+  };
   if (callSyncRpc) deps.callSyncRpc = callSyncRpc;
   const result = await runCanonicalMasterSync({ argv, env, deps });
   return { ...result, output: lines.join("\n") };
 }
+const post = (name) => join(FIX, `${name}.json`);
 
 // A mutation RPC that records that it was called and returns a canned row.
 function fakeRpc(row) {
@@ -58,12 +64,42 @@ function fakeRpc(row) {
 // pure helpers
 // ---------------------------------------------------------------------------
 assert.deepEqual(parseIdList("Q225, Q226 ,Q259,"), ["Q225", "Q226", "Q259"]);
-assert.equal(projectRef(`https://${REF}.supabase.co`), REF);
-assert.throws(() => projectRef("https://x.example.com"), /could not extract/);
 assert.deepEqual(parseArgs(["--current", "a", "--apply", "--json"]), {
   _: [], apply: true, json: true, current: "a",
 });
 assert.throws(() => parseArgs(["--current"]), /missing value/);
+
+// ---------------------------------------------------------------------------
+// F1 — strict Production URL validation (fail-closed)
+// ---------------------------------------------------------------------------
+{
+  // exactly one valid Production-style URL passes
+  assert.equal(projectRef(`https://${REF}.supabase.co`), REF);
+  assert.equal(projectRef(`https://${REF}.supabase.co/`), REF, "a bare trailing slash is fine");
+
+  const rejected = [
+    [`https://${REF}.supabase.co.evil.example`, /host must be exactly/],
+    [`https://${REF}.attacker.net`, /host must be exactly/],
+    [`https://evil${REF}.supabase.co.attacker.io`, /host must be exactly/],
+    [`http://${REF}.supabase.co`, /must use https:/],
+    [`https://user:pass@${REF}.supabase.co`, /username or password/],
+    [`https://${REF}.supabase.co:5432`, /must not specify a port/],
+    [`https://${REF}.supabase.co/rest/v1`, /no path, query string, or fragment/],
+    [`https://${REF}.supabase.co?x=1`, /no path, query string, or fragment/],
+    [`https://${REF}.supabase.co#frag`, /no path, query string, or fragment/],
+    [`https://sub.${REF}.supabase.co`, /host must be exactly/],
+    [`https://short.supabase.co`, /host must be exactly/],       // ref too short
+    ["not a url", /not a valid URL/],
+    ["ftp://x", /must use https:/],
+    ["", /not a valid URL/],
+  ];
+  for (const [input, pattern] of rejected) {
+    assert.throws(() => projectRef(input), pattern, `projectRef must reject ${JSON.stringify(input)}`);
+  }
+  // URL parser lowercases the host, so an uppercase ref normalises rather than
+  // throwing; the CLI's ref-equality check is what rejects a mismatch.
+  assert.equal(projectRef(`https://${REF.toUpperCase()}.supabase.co`), REF);
+}
 
 // ---------------------------------------------------------------------------
 // 1. plan mode — applyable / blocked exit codes, no RPC ever called
@@ -112,33 +148,60 @@ const goodBundleHash = computeBundleHash({
   oracleBytes: readFileSync(join(FIX, "oracle-clean.json")),
 });
 
+const APPLY_TAIL = ["--apply", "--apply-bundle-hash", "PLACEHOLDER", "--post-oracle", post("oracle-after-q2-bump")];
+const withHash = (h) => APPLY_TAIL.map((t) => (t === "PLACEHOLDER" ? h : t));
+
 await applyRefused("plan not applyable", {
-  argv: [...baseArgs({ proposed: "proposed-extra-question" }), "--apply", "--apply-bundle-hash", "sha256:whatever"],
+  argv: [...baseArgs({ proposed: "proposed-extra-question" }), ...withHash("sha256:whatever")],
   env: APPLY_ENV,
 });
 await applyRefused("missing --apply-bundle-hash", {
-  argv: [...baseArgs(), "--apply"],
+  argv: [...baseArgs(), "--apply", "--post-oracle", post("oracle-after-q2-bump")],
   env: APPLY_ENV,
+});
+await applyRefused("F2: missing --post-oracle", {
+  argv: [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash],
+  env: APPLY_ENV,
+}).then((res) => {
+  assert.ok(res.report.apply_blockers.some((b) => /--post-oracle .* is required/.test(b)), "F2 blocker named");
 });
 await applyRefused("snapshot changed after preview (hash mismatch)", {
-  argv: [...baseArgs(), "--apply", "--apply-bundle-hash", `sha256:${"1".repeat(64)}`],
+  argv: [...baseArgs(), ...withHash(`sha256:${"1".repeat(64)}`)],
   env: APPLY_ENV,
 });
+await applyRefused("F1: hostile PRODUCTION_SUPABASE_URL (suffix trick)", {
+  argv: [...baseArgs(), ...withHash(goodBundleHash)],
+  env: { ...APPLY_ENV, PRODUCTION_SUPABASE_URL: `https://${REF}.supabase.co.evil.example` },
+}).then((res) => {
+  assert.ok(res.report.apply_blockers.some((b) => /host must be exactly/.test(b)), "F1: host rejected");
+});
+await applyRefused("F1: hostile PRODUCTION_SUPABASE_URL (other TLD)", {
+  argv: [...baseArgs(), ...withHash(goodBundleHash)],
+  env: { ...APPLY_ENV, PRODUCTION_SUPABASE_URL: `https://${REF}.attacker.net` },
+});
+await applyRefused("F1: http:// PRODUCTION_SUPABASE_URL", {
+  argv: [...baseArgs(), ...withHash(goodBundleHash)],
+  env: { ...APPLY_ENV, PRODUCTION_SUPABASE_URL: `http://${REF}.supabase.co` },
+});
+await applyRefused("F1: credentialed PRODUCTION_SUPABASE_URL", {
+  argv: [...baseArgs(), ...withHash(goodBundleHash)],
+  env: { ...APPLY_ENV, PRODUCTION_SUPABASE_URL: `https://u:p@${REF}.supabase.co` },
+});
 await applyRefused("wrong Production ref", {
-  argv: [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash],
-  env: { ...APPLY_ENV, PRODUCTION_SUPABASE_URL: "https://someotherproject.supabase.co" },
+  argv: [...baseArgs(), ...withHash(goodBundleHash)],
+  env: { ...APPLY_ENV, PRODUCTION_SUPABASE_URL: "https://someotherprojectxxxx.supabase.co" },
 });
 await applyRefused("enable flag not exactly 'true'", {
-  argv: [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash],
+  argv: [...baseArgs(), ...withHash(goodBundleHash)],
   env: { ...APPLY_ENV, CANONICAL_MASTER_SYNC_ENABLED: "yes" },
 });
 await applyRefused("missing service role key", {
-  argv: [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash],
+  argv: [...baseArgs(), ...withHash(goodBundleHash)],
   env: { ...APPLY_ENV, PRODUCTION_SUPABASE_SERVICE_ROLE_KEY: "" },
 });
 
 // ---------------------------------------------------------------------------
-// 4. successful apply — injected RPC, post-oracle verification, exit 0
+// 4. successful apply — fresh post-oracle shows exactly the allowlisted change
 // ---------------------------------------------------------------------------
 {
   const rpc = fakeRpc({
@@ -147,10 +210,7 @@ await applyRefused("missing service role key", {
     synced_at: "2026-09-01T00:00:00Z",
   });
   const res = await run(
-    [
-      ...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash,
-      "--post-oracle", join(FIX, "oracle-after-q2-bump.json"),
-    ],
+    [...baseArgs(), ...withHash(goodBundleHash)], // APPLY_TAIL uses oracle-after-q2-bump as --post-oracle
     { env: APPLY_ENV, callSyncRpc: rpc },
   );
   assert.equal(res.exitCode, 0, res.output);
@@ -162,35 +222,98 @@ await applyRefused("missing service role key", {
   assert.equal(res.report.post_apply.ok, true);
   assert.deepEqual(res.report.post_apply.observedQuestionBumpIds, ["Q2"]);
   assert.deepEqual(res.report.post_apply.observedAnswerBumpIds, []);
-  assert.match(res.output, /APPLY VERIFIED/);
+  assert.deepEqual(
+    res.report.post_apply.observedQuestionChanges,
+    [{ id: "Q2", old: "00000000-0000-4000-8000-000000000002", new: "99999999-0000-4000-8000-000000000002" }],
+    "old -> new source_version reported",
+  );
+  assert.match(res.output, /APPLY VERIFIED — observed exactly 1 question source_version change/);
 }
 
 // ---------------------------------------------------------------------------
-// 5. apply where the RPC reports an unexpected answer bump -> non-zero
+// 5. RPC counts match but the fresh post-oracle shows the WRONG question moved
 // ---------------------------------------------------------------------------
 {
-  const rpc = fakeRpc({ question_versions_changed: 1, answer_versions_changed: 2, synced_at: "x" });
+  const rpc = fakeRpc({ question_versions_changed: 1, answer_versions_changed: 0, synced_at: "x" });
   const res = await run(
-    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash],
+    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash, "--post-oracle", post("oracle-after-wrong-q1")],
     { env: APPLY_ENV, callSyncRpc: rpc },
   );
-  assert.equal(res.exitCode, 1, "RPC-reported answer bump -> non-zero exit");
+  assert.equal(res.exitCode, 1, "count match + wrong QID -> failure");
   assert.equal(res.report.post_apply.ok, false);
-  assert.ok(res.report.post_apply.failures.some((f) => /answer/i.test(f)));
+  assert.ok(res.report.post_apply.failures.some((f) => /Q1 source_version changed .* NOT in the approved allowlist/.test(f)));
+  assert.ok(res.report.post_apply.failures.some((f) => /allowlisted question Q2 did NOT change/.test(f)));
   assert.match(res.output, /APPLY VERIFICATION FAILED/);
 }
 
 // ---------------------------------------------------------------------------
-// 6. apply where the RPC reports more question bumps than planned -> non-zero
+// 5b. fresh post-oracle shows an unexpected ANSWER moved
+// ---------------------------------------------------------------------------
+{
+  const rpc = fakeRpc({ question_versions_changed: 1, answer_versions_changed: 0, synced_at: "x" });
+  const res = await run(
+    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash, "--post-oracle", post("oracle-after-answer-bump")],
+    { env: APPLY_ENV, callSyncRpc: rpc },
+  );
+  assert.equal(res.exitCode, 1, "unexpected answer change in post-oracle -> failure");
+  assert.ok(res.report.post_apply.failures.some((f) => /answer A1 source_version changed .* NOT in the approved allowlist/.test(f)));
+  assert.ok(res.report.post_apply.failures.some((f) => /answer_versions_changed=0 but the fresh post-oracle shows 1/.test(f)));
+}
+
+// ---------------------------------------------------------------------------
+// 5c. RPC reports an answer bump the post-oracle does not corroborate
+// ---------------------------------------------------------------------------
+{
+  const rpc = fakeRpc({ question_versions_changed: 1, answer_versions_changed: 2, synced_at: "x" });
+  const res = await run(
+    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash, "--post-oracle", post("oracle-after-q2-bump")],
+    { env: APPLY_ENV, callSyncRpc: rpc },
+  );
+  assert.equal(res.exitCode, 1);
+  assert.ok(res.report.post_apply.failures.some((f) => /RPC reported answer_versions_changed=2/.test(f)));
+  assert.ok(res.report.post_apply.failures.some((f) => /answer_versions_changed=2 but the fresh post-oracle shows 0/.test(f)));
+}
+
+// ---------------------------------------------------------------------------
+// 6. RPC reports more question bumps than the post-oracle corroborates
 // ---------------------------------------------------------------------------
 {
   const rpc = fakeRpc({ question_versions_changed: 4, answer_versions_changed: 0, synced_at: "x" });
   const res = await run(
-    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash],
+    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash, "--post-oracle", post("oracle-after-q2-bump")],
     { env: APPLY_ENV, callSyncRpc: rpc },
   );
   assert.equal(res.exitCode, 1);
-  assert.ok(res.report.post_apply.failures.some((f) => /question_versions_changed/.test(f)));
+  assert.ok(res.report.post_apply.failures.some((f) => /question_versions_changed=4 but the fresh post-oracle shows 1/.test(f)));
+}
+
+// ---------------------------------------------------------------------------
+// 6b. --post-oracle byte-identical to the pre-apply oracle -> not a fresh export
+// ---------------------------------------------------------------------------
+{
+  const rpc = fakeRpc({ question_versions_changed: 1, answer_versions_changed: 0, synced_at: "x" });
+  const res = await run(
+    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash, "--post-oracle", post("oracle-clean")],
+    { env: APPLY_ENV, callSyncRpc: rpc },
+  );
+  assert.equal(res.exitCode, 1, "stale (identical) post-oracle -> verification failure");
+  assert.equal(rpc.calls.length, 1, "mutation still happened; verification then failed");
+  assert.ok(res.report.post_apply.failures.some((f) => /byte-identical to the pre-apply oracle/.test(f)));
+}
+
+// ---------------------------------------------------------------------------
+// 6c. --apply with a green plan but env pointing at a suffix-trick host:
+//     the RPC is never called (F1 blocks before mutation)
+// ---------------------------------------------------------------------------
+{
+  const rpc = fakeRpc({ question_versions_changed: 1, answer_versions_changed: 0 });
+  const res = await run(
+    [...baseArgs(), ...withHash(goodBundleHash)],
+    { env: { ...APPLY_ENV, PRODUCTION_SUPABASE_URL: `https://${REF}.supabase.co.evil.example` }, callSyncRpc: rpc },
+  );
+  assert.equal(res.exitCode, 1);
+  assert.equal(rpc.calls.length, 0, "F1: service-role key never sent to a suffix-trick host");
+  assert.equal(res.report.apply_blocked, true);
 }
 
 // ---------------------------------------------------------------------------

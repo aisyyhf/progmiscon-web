@@ -79,21 +79,32 @@ node scripts/canonical-master-sync.mjs \
 - `--apply-bundle-hash` equals the SHA-256 the plan printed for the **complete**
   frozen bundle (all 10 CSVs + the oracle) — you cannot preview file A and apply
   file B;
-- `PRODUCTION_SUPABASE_URL`'s project ref equals `--expect-ref`;
+- `--post-oracle <path>` is given (a fresh export is **mandatory** — see below);
+- `PRODUCTION_SUPABASE_URL` passes **strict** validation: scheme `https:`, **no**
+  userinfo, **no** port, **no** path / query / fragment, and host **exactly**
+  `<ref>.supabase.co` (`<ref>.supabase.co.evil.example`, `<ref>.attacker.net`,
+  `http://…` and credentialed URLs are all rejected), and its `<ref>` equals
+  `--expect-ref`. The service-role key is read and used **only after** this
+  passes, and the URL is re-validated once more immediately before the RPC;
 - `PRODUCTION_SUPABASE_SERVICE_ROLE_KEY` is set;
 - `CANONICAL_MASTER_SYNC_ENABLED` is exactly `true`.
 
-After the single RPC call the tool runs **post-apply validation** and exits
-non-zero (alert) unless:
+After the single RPC call the tool prints `MUTATION APPLIED`, then **polls for
+`--post-oracle`** — you export a fresh Production baseline oracle to that path
+now. It must exist, parse as JSON, and **differ** from the pre-apply oracle
+(proving it reflects the mutation). Then **per-target verification** runs and the
+tool prints `APPLY VERIFIED` only when **all** of these hold:
 
-- `question_versions_changed` == the number of allowlisted questions;
-- `answer_versions_changed` == the number of allowlisted answers (0 for the
-  pilot);
-- with `--post-oracle`: the exact set of targets whose `source_version` moved
-  equals the allowlist — no more, no fewer.
+- every target whose `source_version` moved in the fresh post-oracle is in the
+  approved allowlist (nothing outside it changed);
+- every allowlisted target actually moved, `old -> new` (reported);
+- the RPC's `question_versions_changed` / `answer_versions_changed` **equal** the
+  number of moves observed in the fresh post-oracle.
 
-`--post-oracle` is a **fresh** owner re-export of the same query, taken
-immediately after the apply.
+Any mismatch — including a stale/identical post-oracle, a wrong target ID, an
+unexpected answer, or an RPC count that the post-oracle does not corroborate —
+prints `APPLY VERIFICATION FAILED / ALERT` and exits non-zero. **RPC counts
+alone are never accepted as verification.**
 
 ## Oracle export (project-owner, read-only)
 

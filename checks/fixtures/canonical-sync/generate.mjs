@@ -112,6 +112,18 @@ const oracleAfterQ2Bump = clone(oracleClean).map((r) =>
     ? { ...r, source_version: "99999999-0000-4000-8000-000000000002" }
     : r,
 );
+// post-apply oracle where the WRONG question (Q1, not the allowlisted Q2) moved
+const oracleAfterWrongQ1 = clone(oracleClean).map((r) =>
+  r.target_id === "Q1"
+    ? { ...r, source_version: "99999999-0000-4000-8000-000000000001" }
+    : r,
+);
+// post-apply oracle where an ANSWER also moved (unexpected in a question-only pilot)
+const oracleAfterAnswerBump = clone(oracleClean).map((r) => {
+  if (r.target_id === "Q2") return { ...r, source_version: "99999999-0000-4000-8000-000000000002" };
+  if (r.target_id === "A1") return { ...r, source_version: "99999999-1000-4000-8000-000000000001" };
+  return r;
+});
 
 const writeJson = (name, value) => {
   const path = join(ROOT, name);
@@ -122,5 +134,7 @@ writeJson("oracle-clean.json", oracleClean);
 writeJson("oracle-null.json", oracleNull);
 writeJson("oracle-parity-mismatch.json", oracleParityMismatch);
 writeJson("oracle-after-q2-bump.json", oracleAfterQ2Bump);
+writeJson("oracle-after-wrong-q1.json", oracleAfterWrongQ1);
+writeJson("oracle-after-answer-bump.json", oracleAfterAnswerBump);
 
 console.log(`wrote ${written.length} fixture files`);
