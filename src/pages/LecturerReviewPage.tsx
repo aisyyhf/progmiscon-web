@@ -2206,7 +2206,7 @@ export function QuestionValidationWorkspace({
                     className={cn(
                       "rounded-md border px-3 py-2.5",
                       mapping.isCorrect
-                        ? "border-[#2F6B4F]/60 bg-[#2F6B4F]/[0.07]"
+                        ? "border-[#2F6B4F] bg-[rgba(47,107,79,0.08)]"
                         : "border-border bg-white",
                     )}
                   >

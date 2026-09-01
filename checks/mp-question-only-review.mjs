@@ -79,11 +79,13 @@ assert.match(
   questionWorkspace,
   /min-w-0 flex-1 text-xs font-semibold leading-5 text-navy-deep[\s\S]{0,80}\{mapping\.label\}/,
 );
-// Correct option card gets a subtle green background + green border.
+// Correct option card: the #2F6B4F success green -- solid border + a very
+// light #2F6B4F tint background (not a paler grey-green substitute).
 assert.match(
   questionWorkspace,
-  /mapping\.isCorrect\s*\?\s*"border-\[#2F6B4F\][^"]*bg-\[#2F6B4F\]\/\[0\.07\]"/,
+  /mapping\.isCorrect\s*\?\s*"border-\[#2F6B4F\] bg-\[rgba\(47,107,79,0\.08\)\]"/,
 );
+assert.match(questionWorkspace, /Jawaban benar[\s\S]{0,120}text-\[#2F6B4F\]|text-\[#2F6B4F\][\s\S]{0,220}Jawaban benar/);
 // "Jawaban benar" is an inline badge rendered by `{mapping.isCorrect && (` on
 // the main option row -- never a ternary that suppresses the mapping.
 assert.match(questionWorkspace, /\{mapping\.isCorrect && \(/);

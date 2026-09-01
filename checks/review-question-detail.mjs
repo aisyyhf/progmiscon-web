@@ -118,11 +118,13 @@ assert.match(
   /text-xs font-semibold leading-5 text-navy-deep[\s\S]{0,80}\{mapping\.label\}/,
   "the option label + text is the primary, bold element",
 );
-// Correct option: subtle light-green background + green border.
+// Correct option: the #2F6B4F success green -- solid border + a very light
+// #2F6B4F tint background, and #2F6B4F for the "Jawaban benar" text/icon.
 assert.match(
   questionWorkspace,
-  /mapping\.isCorrect\s*\?\s*"border-\[#2F6B4F\][^"]*bg-\[#2F6B4F\]\/\[0\.07\]"/,
+  /mapping\.isCorrect\s*\?\s*"border-\[#2F6B4F\] bg-\[rgba\(47,107,79,0\.08\)\]"/,
 );
+assert.match(questionWorkspace, /text-\[#2F6B4F\][\s\S]{0,220}Jawaban benar/);
 // Minimal mapping line: "↳ <code> · <name>", brand secondary weight, no
 // rationale / colon / dash / helper text.
 assert.match(questionWorkspace, /\{"↳ "\}/);
