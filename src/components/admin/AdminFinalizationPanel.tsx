@@ -11,25 +11,11 @@ import {
   publishQuestionMisconceptionOverride,
   resetAnswerMisconceptionOverride,
   resetQuestionMisconceptionOverride,
-  syncMasterRelationBaselines,
 } from "../../services/adminOverrideRepository";
 import { normalizeEffectiveIds } from "../../utils/effectiveMasterData";
 import { filterAdminReviewConsensusItems } from "../../utils/reviewWorkspace";
 import { Button } from "../common/Button";
 import { EmptyState } from "../common/EmptyState";
-
-// This button still calls the legacy, non-versioned baseline sync
-// (public.sync_master_relation_baselines): it deletes and rebuilds every
-// baseline row without assigning a source_version, which desynchronises every
-// active review from its baseline. Baseline sync must go through the controlled
-// version-aware workflow (impact preflight -> sync_master_relation_baselines_v2)
-// instead. Until that workflow replaces this action, guard against accidental
-// clicks with an explicit confirmation.
-const LEGACY_BASELINE_SYNC_WARNING =
-  "Tombol ini memakai sinkronisasi baseline versi lama (tanpa source_version). " +
-  "Menjalankannya dapat membuat SEMUA review aktif menjadi usang, bukan hanya soal yang berubah. " +
-  "Gunakan alur sinkronisasi baseline terkontrol (preflight dampak -> sinkronisasi versi-aware). " +
-  "Lanjutkan hanya jika Anda benar-benar memahami risikonya.";
 
 function IdList({ ids, empty = "Tidak ada" }: { ids: string[]; empty?: string }) {
   return ids.length ? (
@@ -278,9 +264,6 @@ export function AdminFinalizationPanel({
   const [loadError, setLoadError] = useState("");
   const [busyId, setBusyId] = useState("");
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
-  const [syncing, setSyncing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState("");
-  const [syncError, setSyncError] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -345,28 +328,6 @@ export function AdminFinalizationPanel({
       }));
     } finally {
       setBusyId("");
-    }
-  };
-
-  const syncBaseline = async () => {
-    if (!window.confirm(LEGACY_BASELINE_SYNC_WARNING)) return;
-    setSyncing(true);
-    setSyncStatus("");
-    setSyncError("");
-    try {
-      const result = await syncMasterRelationBaselines();
-      setSyncStatus(
-        `Tersinkron ${result.questionCount} soal, ${result.answerCount} jawaban, dan ${result.misconceptionCount} misconception pada ${new Date(result.syncedAt).toLocaleString("id-ID")}.`,
-      );
-      await load();
-    } catch (caught) {
-      setSyncError(
-        caught instanceof Error
-          ? caught.message
-          : "Sinkronisasi baseline gagal.",
-      );
-    } finally {
-      setSyncing(false);
     }
   };
 
@@ -438,37 +399,12 @@ export function AdminFinalizationPanel({
   return (
     <div className="space-y-8">
       <section className="rounded-lg border border-border bg-white p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-base font-bold text-navy-deep">
-              Baseline relasi
-            </h2>
-            <p className="mt-1 text-sm text-muted">
-              {syncStatus ||
-                (latestSync
-                  ? `Sinkronisasi terakhir: ${new Date(latestSync).toLocaleString("id-ID")}`
-                  : "Baseline server belum terdeteksi pada target review.")}
-            </p>
-            {syncError && (
-              <p role="alert" className="mt-2 text-sm font-medium text-incorrect">
-                {syncError}
-              </p>
-            )}
-            <p className="mt-2 text-xs font-medium text-incorrect">
-              Sinkronisasi versi lama. Dapat membuat semua review aktif usang.
-              Pakai alur sinkronisasi baseline terkontrol (preflight dampak lalu
-              sinkronisasi versi-aware).
-            </p>
-          </div>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={syncing}
-            onClick={() => void syncBaseline()}
-          >
-            {syncing ? "Menyinkronkan..." : "Sinkronkan baseline Google Sheets"}
-          </Button>
-        </div>
+        <h2 className="text-base font-bold text-navy-deep">Baseline relasi</h2>
+        <p className="mt-1 text-sm text-muted">
+          {latestSync
+            ? `Sinkronisasi baseline terakhir: ${new Date(latestSync).toLocaleString("id-ID")}`
+            : "Baseline server belum terdeteksi pada target review."}
+        </p>
       </section>
 
       {eligibleItems.length === 0 ? (

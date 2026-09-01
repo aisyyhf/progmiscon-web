@@ -46,10 +46,3 @@ export type AdminReviewConsensusItem = {
   baselineMisconceptionIds: string[] | null;
   baselineSyncedAt: string | null;
 };
-
-export type MasterBaselineSyncResult = {
-  questionCount: number;
-  answerCount: number;
-  misconceptionCount: number;
-  syncedAt: string;
-};

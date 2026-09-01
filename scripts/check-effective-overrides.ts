@@ -831,20 +831,20 @@ assert.match(
   /if \(error\) throw adminError\(scope, error\);\s+invalidateEffectiveMasterData\(\);/,
   "failed mutation RPCs must throw before effective cache invalidation",
 );
-assert.match(
-  adminRepositorySource,
-  /syncMasterRelationBaselines\(\): Promise<MasterBaselineSyncResult>[\s\S]+await reloadBaselineMasterData\(\)/,
-);
 assert.doesNotMatch(
   adminRepositorySource,
-  /syncMasterRelationBaselines\(\s*masterData/,
+  /syncMasterRelationBaselines|sync_master_relation_baselines/,
+  "the legacy non-versioned baseline sync must not be reachable from the frontend",
 );
 const finalizationSource = readFileSync(
   "src/components/admin/AdminFinalizationPanel.tsx",
   "utf8",
 );
-assert.match(finalizationSource, /syncMasterRelationBaselines\(\)/);
-assert.doesNotMatch(finalizationSource, /syncMasterRelationBaselines\(baseline\)/);
+assert.doesNotMatch(
+  finalizationSource,
+  /syncMasterRelationBaselines|syncBaseline\b/,
+  "the legacy baseline sync action must be removed from the finalization panel",
+);
 
 const sourceExtensions = new Set([
   ".ts",
