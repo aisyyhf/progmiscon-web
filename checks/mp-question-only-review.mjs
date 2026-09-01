@@ -63,13 +63,32 @@ const questionWorkspace = workspacePage.slice(
   workspacePage.indexOf("export function AnswerValidationWorkspace"),
 );
 assert.match(questionWorkspace, /buildOptionMisconceptionMappings\(question, answers\)/);
-assert.match(questionWorkspace, /Pemetaan pilihan jawaban/);
+assert.match(questionWorkspace, /optionMisconceptionMappings\.length > 0/);
 assert.match(questionWorkspace, /Jawaban benar/);
 assert.match(questionWorkspace, /Tidak ada miskonsepsi yang dipetakan/);
+// No separate "mapping feature" section: no heading / helper / divider.
+assert.doesNotMatch(questionWorkspace, /Pemetaan pilihan jawaban|Konteks read-only|Answer option mapping/);
+// The option list + its mapping renders before the review controls / submit.
 assert.ok(
-  questionWorkspace.indexOf("Pemetaan pilihan jawaban") <
+  questionWorkspace.indexOf("optionMisconceptionMappings.map") <
     questionWorkspace.indexOf("REVIEW MISKONSEPSI SOAL"),
-  "the mapping renders before the lecturer's review controls / submit",
+  "the option list renders before the lecturer's review controls / submit",
+);
+// Option label + text is bold; the misconception line is not bolder than it.
+assert.match(
+  questionWorkspace,
+  /min-w-0 flex-1 text-xs font-semibold leading-5 text-navy-deep[\s\S]{0,80}\{mapping\.label\}/,
+);
+// "Jawaban benar" is an inline badge rendered by `{mapping.isCorrect && (` on
+// the main option row -- never a ternary that suppresses the mapping.
+assert.match(questionWorkspace, /\{mapping\.isCorrect && \(/);
+assert.doesNotMatch(questionWorkspace, /mapping\.isCorrect \? \(/);
+const badgeAt = questionWorkspace.indexOf("Jawaban benar");
+const mappingListAt = questionWorkspace.indexOf("mapping.misconceptionIds.map");
+const emptyStateAt = questionWorkspace.indexOf("Tidak ada miskonsepsi yang dipetakan");
+assert.ok(
+  badgeAt > 0 && badgeAt < mappingListAt && mappingListAt < emptyStateAt,
+  "the badge is on the main row, above the correctness-independent mapping area",
 );
 
 const question = {

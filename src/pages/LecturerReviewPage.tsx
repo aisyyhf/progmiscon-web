@@ -2194,54 +2194,39 @@ export function QuestionValidationWorkspace({
 
           {optionMisconceptionMappings.length > 0 && (
             <section
-              className="mt-4 border-t border-border pt-4"
+              className="mt-3"
               aria-label={
-                language === "id"
-                  ? "Pemetaan pilihan jawaban"
-                  : "Answer option mapping"
+                language === "id" ? "Pilihan jawaban" : "Answer options"
               }
             >
-              <h3 className="text-base font-semibold leading-6 tracking-[-0.01em] text-navy-deep">
-                {language === "id"
-                  ? "Pemetaan pilihan jawaban"
-                  : "Answer option mapping"}
-              </h3>
-              <p className="mt-1 text-xs leading-5 text-muted">
-                {language === "id"
-                  ? "Konteks read-only: miskonsepsi efektif yang dipetakan ke setiap opsi. Anda tidak mereview tiap opsi secara terpisah."
-                  : "Read-only context: the effective misconception mapped to each option. You do not review each option separately."}
-              </p>
-              <ul className="mt-3 space-y-2">
+              <ul className="space-y-2">
                 {optionMisconceptionMappings.map((mapping) => (
                   <li
                     key={mapping.optionId}
                     className={cn(
-                      "rounded-md border px-3 py-2.5 text-[11px] leading-5",
-                      mapping.isCorrect
-                        ? "border-[#2F6B4F] bg-[#2F6B4F] text-white"
-                        : "border-border bg-white text-navy-deep",
+                      "rounded-md border bg-white px-3 py-2.5",
+                      mapping.isCorrect ? "border-[#2F6B4F]" : "border-border",
                     )}
                   >
-                    <div className="flex items-start gap-2">
-                      <span className="shrink-0 font-medium">
-                        {mapping.label}.
-                      </span>
-                      <span className="min-w-0 flex-1">
+                    {/* Main option row: the option label + text is the primary
+                        element; "Jawaban benar" is only an inline correctness
+                        badge here, never a substitute for the mapping below. */}
+                    <div className="flex flex-wrap items-start justify-between gap-x-2 gap-y-1">
+                      <p className="min-w-0 flex-1 text-xs font-semibold leading-5 text-navy-deep">
+                        <span>{mapping.label}.</span>{" "}
                         {t(mapping.text, language)}
-                      </span>
-                    </div>
-                    <div
-                      className={cn(
-                        "mt-1.5 border-t pt-1.5",
-                        mapping.isCorrect ? "border-white/25" : "border-border",
-                      )}
-                    >
-                      {mapping.isCorrect ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium">
+                      </p>
+                      {mapping.isCorrect && (
+                        <span className="inline-flex shrink-0 items-center gap-1 rounded border border-[#2F6B4F]/40 bg-[#2F6B4F]/10 px-2 py-0.5 text-[10px] font-medium leading-4 text-[#2F6B4F]">
                           <Check size={11} strokeWidth={3} aria-hidden="true" />
                           {language === "id" ? "Jawaban benar" : "Correct answer"}
                         </span>
-                      ) : mapping.misconceptionIds.length > 0 ? (
+                      )}
+                    </div>
+                    {/* Independent of correctness: the option's effective
+                        misconception mapping, at secondary visual weight. */}
+                    <div className="mt-1.5">
+                      {mapping.misconceptionIds.length > 0 ? (
                         <ul className="space-y-1">
                           {mapping.misconceptionIds.map((misconceptionId) => {
                             const misconception =
@@ -2249,15 +2234,21 @@ export function QuestionValidationWorkspace({
                             const reason =
                               mapping.reasonByMisconceptionId.get(misconceptionId);
                             return (
-                              <li key={misconceptionId}>
+                              <li
+                                key={misconceptionId}
+                                className="text-[11px] leading-4"
+                              >
                                 <span className="font-mono text-[10px] font-normal text-brand">
                                   {misconceptionId}
                                 </span>
                                 {misconception && (
-                                  <span> - {t(misconception.title, language)}</span>
+                                  <span className="font-normal text-muted">
+                                    {" "}
+                                    - {t(misconception.title, language)}
+                                  </span>
                                 )}
                                 {reason && (
-                                  <span className="mt-0.5 block text-[10px] leading-4 text-muted">
+                                  <span className="mt-0.5 block text-[10px] font-normal leading-4 text-muted">
                                     {t(reason, language)}
                                   </span>
                                 )}
@@ -2266,11 +2257,11 @@ export function QuestionValidationWorkspace({
                           })}
                         </ul>
                       ) : (
-                        <span className="text-[10px] text-muted">
+                        <p className="text-[10px] font-normal leading-4 text-muted">
                           {language === "id"
                             ? "Tidak ada miskonsepsi yang dipetakan"
                             : "No misconception is mapped"}
-                        </span>
+                        </p>
                       )}
                     </div>
                   </li>

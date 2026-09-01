@@ -100,19 +100,38 @@ assert.doesNotMatch(detailReturn, /nextStep=\{questionNextStep\}|returnAnswer/);
 assert.match(questionWorkspace, /className="review-question-detail"/);
 assert.match(questionWorkspace, /<QuestionContent question=\{question\} \/>/);
 assert.match(questionWorkspace, /Miskonsepsi terkait/);
-// NEW: read-only "Pemetaan pilihan jawaban" block, sourced from the effective
-// per-option relation, shown BEFORE any review controls.
+// The A/B/C/D option list reads as a natural continuation of the question --
+// no separate "mapping feature" section (no heading / helper text / divider),
+// sourced from the effective per-option relation, shown BEFORE any review
+// controls. The option label + text is the primary (bold) element; each
+// option's effective misconception mapping sits underneath at secondary weight.
 assert.match(questionWorkspace, /buildOptionMisconceptionMappings\(question, answers\)/);
 assert.match(questionWorkspace, /optionMisconceptionMappings\.length > 0/);
-assert.match(questionWorkspace, /Pemetaan pilihan jawaban/);
+assert.doesNotMatch(
+  questionWorkspace,
+  /Pemetaan pilihan jawaban|Konteks read-only|Answer option mapping/,
+);
 assert.match(questionWorkspace, /language === "id"\s*\?\s*"Jawaban benar"/);
 assert.match(questionWorkspace, /Tidak ada miskonsepsi yang dipetakan/);
 assert.match(questionWorkspace, /mapping\.reasonByMisconceptionId\.get\(misconceptionId\)/);
-// The mapping block sits in the left article, before the review <aside> form.
+assert.match(
+  questionWorkspace,
+  /text-xs font-semibold leading-5 text-navy-deep[\s\S]{0,80}\{mapping\.label\}/,
+  "the option label + text is the primary, bold element",
+);
+// "Jawaban benar" is an inline `{mapping.isCorrect && (` badge on the main row;
+// the mapping underneath is rendered independent of correctness.
+assert.match(questionWorkspace, /\{mapping\.isCorrect && \(/);
+assert.doesNotMatch(questionWorkspace, /mapping\.isCorrect \? \(/);
 assert.ok(
-  questionWorkspace.indexOf("Pemetaan pilihan jawaban") <
+  questionWorkspace.indexOf("Jawaban benar") <
+    questionWorkspace.indexOf("mapping.misconceptionIds.map"),
+  "the badge is above the correctness-independent mapping area",
+);
+assert.ok(
+  questionWorkspace.indexOf("optionMisconceptionMappings.map") <
     questionWorkspace.indexOf("REVIEW MISKONSEPSI SOAL"),
-  "the option mapping renders before the review controls",
+  "the option list renders before the review controls",
 );
 // One-step submit for every question type: no "continue to answer review".
 assert.match(questionWorkspace, /Simpan & Selesai/);
