@@ -11,7 +11,9 @@ import {
   publishQuestionMisconceptionOverride,
   resetAnswerMisconceptionOverride,
   resetQuestionMisconceptionOverride,
+  resetQuestionReviews,
 } from "../../services/adminOverrideRepository";
+import { getReviewSourceVersions } from "../../services/reviewPersistenceRepository";
 import { normalizeEffectiveIds } from "../../utils/effectiveMasterData";
 import { filterAdminReviewConsensusItems } from "../../utils/reviewWorkspace";
 import { Button } from "../common/Button";
@@ -65,6 +67,8 @@ function ConsensusCard({
   error,
   onPublish,
   onReset,
+  canResetReviews,
+  onResetReviews,
 }: {
   item: AdminReviewConsensusItem;
   summary: string;
@@ -74,6 +78,8 @@ function ConsensusCard({
   error: string;
   onPublish: () => void;
   onReset: () => void;
+  canResetReviews: boolean;
+  onResetReviews: () => void;
 }) {
   const baselineAvailable = item.baselineMisconceptionIds !== null;
   const preview = previewConsensus(item.baselineMisconceptionIds ?? [], item);
@@ -245,6 +251,16 @@ function ConsensusCard({
             Kembalikan ke data asli
           </Button>
         )}
+        {canResetReviews && (
+          <Button
+            type="button"
+            variant="danger"
+            disabled={busy}
+            onClick={onResetReviews}
+          >
+            Reset Review Soal
+          </Button>
+        )}
       </div>
     </article>
   );
@@ -260,16 +276,25 @@ export function AdminFinalizationPanel({
   masterLoading: boolean;
 }) {
   const [items, setItems] = useState<AdminReviewConsensusItem[]>([]);
+  const [questionSourceVersions, setQuestionSourceVersions] = useState<
+    Map<string, string>
+  >(new Map());
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [busyId, setBusyId] = useState("");
   const [actionErrors, setActionErrors] = useState<Record<string, string>>({});
+  const [resetBanner, setResetBanner] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     setLoadError("");
     try {
-      setItems(await getAdminReviewConsensus());
+      const [consensus, sourceVersions] = await Promise.all([
+        getAdminReviewConsensus(),
+        getReviewSourceVersions(),
+      ]);
+      setItems(consensus);
+      setQuestionSourceVersions(sourceVersions.questions);
     } catch (caught) {
       setLoadError(
         caught instanceof Error
@@ -317,6 +342,7 @@ export function AdminFinalizationPanel({
     if (!window.confirm(confirmation)) return;
     setBusyId(`${item.targetType}:${item.targetId}`);
     setActionErrors((current) => ({ ...current, [item.targetId]: "" }));
+    setResetBanner("");
     try {
       await action();
       await load();
@@ -325,6 +351,45 @@ export function AdminFinalizationPanel({
         ...current,
         [item.targetId]:
           caught instanceof Error ? caught.message : "Tindakan gagal.",
+      }));
+    } finally {
+      setBusyId("");
+    }
+  };
+
+  const runResetReviews = async (
+    item: AdminReviewConsensusItem,
+    sourceVersion: string,
+  ) => {
+    const confirmation =
+      `Reset review untuk ${item.targetId}?\n` +
+      `${item.reviewCount} review dosen aktif akan ditandai tidak berlaku ` +
+      `(is_active = false).\n` +
+      `Riwayat review tetap tersimpan.\n` +
+      `Consensus/pemetaan soal akan kembali ke data master jika override tidak ` +
+      `lagi didukung oleh 3 review aktif.\n` +
+      `Review jawaban tidak terpengaruh.`;
+    if (!window.confirm(confirmation)) return;
+    setBusyId(`${item.targetType}:${item.targetId}`);
+    setActionErrors((current) => ({ ...current, [item.targetId]: "" }));
+    setResetBanner("");
+    try {
+      const result = await resetQuestionReviews(item.targetId, sourceVersion);
+      const overrideNote = result.overrideRemoved
+        ? " Override relasi soal dihapus; pemetaan efektif kembali ke data master."
+        : " Tidak ada override relasi soal yang perlu dihapus.";
+      setResetBanner(
+        `Review soal ${result.questionId} direset: ${result.reviewsReset} review dosen ` +
+          `dari ${result.reviewersReset} reviewer ditandai tidak berlaku.` +
+          overrideNote +
+          " Riwayat review tetap tersimpan; review jawaban tidak terpengaruh.",
+      );
+      await load();
+    } catch (caught) {
+      setActionErrors((current) => ({
+        ...current,
+        [item.targetId]:
+          caught instanceof Error ? caught.message : "Reset review gagal.",
       }));
     } finally {
       setBusyId("");
@@ -359,6 +424,10 @@ export function AdminFinalizationPanel({
           targetType === "question"
             ? question?.prompt.id ?? ""
             : answer?.answerText ?? "";
+        const questionSourceVersion =
+          targetType === "question"
+            ? questionSourceVersions.get(item.targetId)
+            : undefined;
 
         return (
           <ConsensusCard
@@ -369,6 +438,15 @@ export function AdminFinalizationPanel({
             question={targetType === "question" ? question : undefined}
             busy={busyId === key}
             error={actionErrors[item.targetId] ?? ""}
+            canResetReviews={
+              targetType === "question" &&
+              item.reviewCount > 0 &&
+              questionSourceVersion !== undefined
+            }
+            onResetReviews={() => {
+              if (questionSourceVersion === undefined) return;
+              void runResetReviews(item, questionSourceVersion);
+            }}
             onPublish={() =>
               void run(
                 item,
@@ -398,6 +476,15 @@ export function AdminFinalizationPanel({
 
   return (
     <div className="space-y-8">
+      {resetBanner && (
+        <p
+          role="status"
+          className="rounded-lg border border-correct-border bg-correct-bg px-4 py-3 text-sm leading-6 text-correct"
+        >
+          {resetBanner}
+        </p>
+      )}
+
       <section className="rounded-lg border border-border bg-white p-5">
         <h2 className="text-base font-bold text-navy-deep">Baseline relasi</h2>
         <p className="mt-1 text-sm text-muted">

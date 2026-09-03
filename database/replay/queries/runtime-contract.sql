@@ -9,6 +9,7 @@ with target_functions(function_name) as (
     ('prevent_repeat_lecturer_review_update'::text),
     ('publish_answer_misconception_override'::text),
     ('publish_question_misconception_override'::text),
+    ('reset_question_reviews_v3'::text),
     ('sync_master_relation_baselines'::text)
 )
 select

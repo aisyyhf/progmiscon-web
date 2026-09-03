@@ -255,4 +255,63 @@ assert.doesNotMatch(
   /\b(drop|alter table|create table|create policy|create trigger)\b/i,
 );
 
+// --- Admin targeted Question Review reset: also question-only ------------
+// reset_question_reviews_v3 resets EVERY reviewer's active current-version
+// Question Review for one question. Like the workflow delete it must never
+// read or write Answer Reviews / answer overrides, must recompute only
+// question consensus, is EXECUTE-granted to `authenticated` only (internal
+// admin gate), and is a function-only migration.
+const resetMigration = (
+  await read(
+    "supabase/migrations/20260903000000_review_v3_targeted_question_review_reset.sql",
+  )
+).replace(/\r\n/g, "\n");
+const resetBody = (() => {
+  const at = resetMigration.search(
+    /CREATE OR REPLACE FUNCTION\s+public\.reset_question_reviews_v3\(/,
+  );
+  assert.ok(at >= 0, "reset_question_reviews_v3 definition present");
+  const tail = resetMigration.slice(at);
+  const open = tail.match(/AS (\$\w*\$)/)[1];
+  const end = tail.indexOf(open, tail.indexOf(open) + open.length);
+  return tail
+    .slice(0, end)
+    .split("\n")
+    .map((line) => line.replace(/--.*$/, ""))
+    .join("\n");
+})();
+assert.doesNotMatch(
+  resetBody,
+  /\banswer_reviews\b|\banswer_misconception_overrides\b|recompute_answer_review_consensus_v3/,
+  "reset_question_reviews_v3 never touches Answer Reviews or answer overrides",
+);
+assert.match(resetBody, /recompute_question_review_consensus_v3/);
+assert.match(resetBody, /current_user_is_admin\(\)/);
+assert.doesNotMatch(resetBody, /auth\.uid\(\)\s*(?:=|<>|is)/i);
+assert.match(
+  resetBody,
+  /is_active = false,\s*inactive_reason = 'deleted',\s*inactive_at = pg_catalog\.now\(\)/,
+);
+assert.match(
+  resetMigration,
+  /revoke all on function public\.reset_question_reviews_v3\(p_question_id text, p_source_version uuid\) from public, anon, authenticated, service_role;/,
+);
+assert.match(
+  resetMigration,
+  /grant execute on function public\.reset_question_reviews_v3\(p_question_id text, p_source_version uuid\) to authenticated;/,
+);
+assert.doesNotMatch(
+  resetMigration,
+  /grant execute on function public\.reset_question_reviews_v3\([^)]*\) to [^;]*\b(service_role|anon|public)\b/,
+);
+const resetStatements = resetMigration
+  .split("\n")
+  .map((line) => line.replace(/--.*$/, "").trim())
+  .join("\n");
+assert.doesNotMatch(
+  resetStatements,
+  /\b(drop|alter table|create table|create policy|create trigger|create index)\b/i,
+  "reset_question_reviews_v3 migration is function-only",
+);
+
 console.log("MP question-only review contract check passed.");
