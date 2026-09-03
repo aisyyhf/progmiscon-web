@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCcw, Search } from "lucide-react";
 import { AdminFilterSelect } from "../components/admin/AdminFilterSelect";
+import { ConfirmDialog } from "../components/common/ConfirmDialog";
 import { EmptyState } from "../components/common/EmptyState";
 import { QuestionContent } from "../components/review/QuestionContent";
 import { useAsyncData } from "../hooks/useAsyncData";
@@ -63,6 +64,10 @@ export function AdminQuestionsPage() {
   const [resetBusyQuestionId, setResetBusyQuestionId] = useState("");
   const [resetError, setResetError] = useState("");
   const [resetBanner, setResetBanner] = useState("");
+  // Question id awaiting confirmation in the in-app ConfirmDialog (null = closed).
+  const [pendingResetQuestionId, setPendingResetQuestionId] = useState<
+    string | null
+  >(null);
 
   const activeReviewCountByQuestionId = useMemo(
     () =>
@@ -72,27 +77,17 @@ export function AdminQuestionsPage() {
     [reviewCounts],
   );
 
-  const handleResetReviews = async (questionId: string) => {
+  const pendingResetActiveCount = pendingResetQuestionId
+    ? activeReviewCountByQuestionId.get(pendingResetQuestionId) ?? 0
+    : 0;
+
+  const confirmResetReviews = async (questionId: string) => {
     const activeCount = activeReviewCountByQuestionId.get(questionId) ?? 0;
     const sourceVersion = sourceVersions.questions.get(questionId);
-    if (activeCount === 0 || !sourceVersion) return;
-
-    const confirmation = isIndonesian
-      ? `Reset review untuk ${questionId}?\n` +
-        `${activeCount} review dosen aktif akan ditandai tidak berlaku ` +
-        `(is_active = false).\n` +
-        `Riwayat review tetap tersimpan.\n` +
-        `Consensus/pemetaan soal akan kembali ke data master jika override ` +
-        `tidak lagi didukung oleh 3 review aktif.\n` +
-        `Review jawaban tidak terpengaruh.`
-      : `Reset reviews for ${questionId}?\n` +
-        `${activeCount} active lecturer review(s) will be marked inactive ` +
-        `(is_active = false).\n` +
-        `Review history is kept.\n` +
-        `The question consensus/mapping reverts to master data if the override ` +
-        `is no longer backed by 3 active reviews.\n` +
-        `Answer reviews are unaffected.`;
-    if (!window.confirm(confirmation)) return;
+    if (activeCount === 0 || !sourceVersion) {
+      setPendingResetQuestionId(null);
+      return;
+    }
 
     setResetBusyQuestionId(questionId);
     setResetError("");
@@ -129,6 +124,7 @@ export function AdminQuestionsPage() {
       );
     } finally {
       setResetBusyQuestionId("");
+      setPendingResetQuestionId(null);
     }
   };
 
@@ -308,7 +304,7 @@ export function AdminQuestionsPage() {
                       {activeReviewCount > 0 && (
                         <button
                           type="button"
-                          onClick={() => void handleResetReviews(question.id)}
+                          onClick={() => setPendingResetQuestionId(question.id)}
                           disabled={resetBusy}
                           className="inline-flex min-h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-1.5 text-xs font-semibold text-incorrect hover:border-incorrect focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50"
                         >
@@ -379,6 +375,48 @@ export function AdminQuestionsPage() {
           ))}
         </nav>
       )}
+
+      <ConfirmDialog
+        open={pendingResetQuestionId !== null}
+        title={isIndonesian ? "Reset review soal?" : "Reset question reviews?"}
+        description={
+          <>
+            <span className="block">
+              {isIndonesian
+                ? `Soal ${pendingResetQuestionId ?? ""}: ${pendingResetActiveCount} review dosen aktif akan ditandai tidak berlaku (is_active = false).`
+                : `Question ${pendingResetQuestionId ?? ""}: ${pendingResetActiveCount} active lecturer review(s) will be marked inactive (is_active = false).`}
+            </span>
+            <span className="mt-1.5 block">
+              {isIndonesian
+                ? "Riwayat review tetap tersimpan."
+                : "Review history is kept."}
+            </span>
+            <span className="mt-1.5 block">
+              {isIndonesian
+                ? "Consensus/pemetaan soal dapat kembali ke data master jika override tidak lagi didukung oleh 3 review aktif."
+                : "The question consensus/mapping may revert to master data if the override is no longer backed by 3 active reviews."}
+            </span>
+            <span className="mt-1.5 block">
+              {isIndonesian
+                ? "Review jawaban tidak terpengaruh."
+                : "Answer reviews are unaffected."}
+            </span>
+          </>
+        }
+        cancelLabel={isIndonesian ? "Batal" : "Cancel"}
+        confirmLabel={isIndonesian ? "Reset Review" : "Reset Reviews"}
+        confirmIcon={<RotateCcw size={16} strokeWidth={1.9} aria-hidden="true" />}
+        destructive
+        confirming={resetBusyQuestionId !== ""}
+        onCancel={() => {
+          if (resetBusyQuestionId === "") setPendingResetQuestionId(null);
+        }}
+        onConfirm={() => {
+          if (pendingResetQuestionId) {
+            void confirmResetReviews(pendingResetQuestionId);
+          }
+        }}
+      />
     </section>
   );
 }
