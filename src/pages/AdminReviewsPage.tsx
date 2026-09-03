@@ -318,6 +318,14 @@ export function AdminReviewsPage() {
     () => groupCurrentAdminReviews(data.current, data.questions),
     [data],
   );
+  // Unfiltered groups keyed by question id. The "Reset Review Soal" action is a
+  // whole-question operation, so its visibility, active-review count and source
+  // version must come from the full reviewer set, never from a reviewer/search
+  // filtered view.
+  const unfilteredGroupByQuestionId = useMemo(
+    () => new Map(groups.map((group) => [group.question.id, group])),
+    [groups],
+  );
   const filteredGroups = useMemo(
     () => filterReviewGroups(groups, { query, reviewerId, type, week }, language),
     [groups, language, query, reviewerId, type, week],
@@ -367,12 +375,12 @@ export function AdminReviewsPage() {
   const [resetError, setResetError] = useState("");
   const [resetBanner, setResetBanner] = useState("");
 
-  const handleResetReviews = async (group: AdminQuestionReviewGroup) => {
-    const questionId = group.question.id;
-    const activeCount = group.reviewers.length;
+  const handleResetReviews = async (questionId: string) => {
+    const fullGroup = unfilteredGroupByQuestionId.get(questionId);
+    const activeCount = fullGroup?.reviewers.length ?? 0;
     // Every current-generation reviewer row carries the question's current
     // baseline source_version (filterCurrentAdminReviewHistory drops any other).
-    const sourceVersion = group.reviewers[0]?.questionReview?.sourceVersion;
+    const sourceVersion = fullGroup?.reviewers[0]?.questionReview?.sourceVersion;
     if (!sourceVersion || activeCount === 0) return;
 
     const confirmation = isIndonesian
@@ -568,20 +576,27 @@ export function AdminReviewsPage() {
                   </div>
                   <h2 className="mt-1 text-sm font-medium leading-5 text-navy-deep">{t(group.question.title, language)}</h2>
                 </div>
-                {group.reviewers.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => void handleResetReviews(group)}
-                    disabled={resetBusyQuestionId === group.question.id}
-                    className="inline-flex min-h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-1.5 text-xs font-semibold text-incorrect hover:border-incorrect focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {resetBusyQuestionId === group.question.id
-                      ? isIndonesian ? "Mereset..." : "Resetting..."
-                      : isIndonesian
-                        ? `Reset Review Soal (${group.reviewers.length})`
-                        : `Reset Question Reviews (${group.reviewers.length})`}
-                  </button>
-                )}
+                {(() => {
+                  const activeReviewCount =
+                    unfilteredGroupByQuestionId.get(group.question.id)?.reviewers
+                      .length ?? 0;
+                  if (activeReviewCount === 0) return null;
+                  const busy = resetBusyQuestionId === group.question.id;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => void handleResetReviews(group.question.id)}
+                      disabled={busy}
+                      className="inline-flex min-h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-1.5 text-xs font-semibold text-incorrect hover:border-incorrect focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {busy
+                        ? isIndonesian ? "Mereset..." : "Resetting..."
+                        : isIndonesian
+                          ? `Reset Review Soal (${activeReviewCount})`
+                          : `Reset Question Reviews (${activeReviewCount})`}
+                    </button>
+                  );
+                })()}
               </header>
               <div className="divide-y divide-border">
                 {group.reviewers.map((reviewerGroup) => (
