@@ -7,7 +7,17 @@ import { useAsyncData } from "../hooks/useAsyncData";
 import { useLanguage } from "../hooks/useLanguage";
 import { getMisconceptions } from "../services/misconceptionRepository";
 import { getQuestions } from "../services/questionRepository";
-import type { Misconception, Question } from "../types";
+import {
+  getQuestionReviewCounts,
+  getReviewSourceVersions,
+  resetQuestionReviews,
+} from "../services/reviewPersistenceRepository";
+import type {
+  Misconception,
+  Question,
+  QuestionReviewCount,
+  ReviewSourceVersions,
+} from "../types";
 import {
   filterMaterialQuestions,
   getMaterialPaginationItems,
@@ -18,22 +28,109 @@ import {
 import { t } from "../utils/translation";
 
 const PAGE_SIZE = 10;
-const emptyData: [Question[], Misconception[]] = [[], []];
+const emptySourceVersions: ReviewSourceVersions = {
+  questions: new Map(),
+  answers: new Map(),
+};
+type AdminQuestionsData = [
+  Question[],
+  Misconception[],
+  QuestionReviewCount[],
+  ReviewSourceVersions,
+];
+const emptyData: AdminQuestionsData = [[], [], [], emptySourceVersions];
 
 export function AdminQuestionsPage() {
   const { language } = useLanguage();
   const isIndonesian = language === "id";
-  const { data, loading, error } = useAsyncData(
-    () => Promise.all([getQuestions(), getMisconceptions()]),
+  const { data, loading, error } = useAsyncData<AdminQuestionsData>(
+    () =>
+      Promise.all([
+        getQuestions(),
+        getMisconceptions(),
+        getQuestionReviewCounts(),
+        getReviewSourceVersions(),
+      ]),
     [],
     emptyData,
   );
-  const [questions, misconceptions] = data;
+  const [questions, misconceptions, reviewCounts, sourceVersions] = data;
   const [searchQuery, setSearchQuery] = useState("");
   const [week, setWeek] = useState("all");
   const [type, setType] = useState<MaterialQuestionTypeFilter>("all");
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [resetBusyQuestionId, setResetBusyQuestionId] = useState("");
+  const [resetError, setResetError] = useState("");
+  const [resetBanner, setResetBanner] = useState("");
+
+  const activeReviewCountByQuestionId = useMemo(
+    () =>
+      new Map(
+        reviewCounts.map((item) => [item.questionId, item.reviewCount]),
+      ),
+    [reviewCounts],
+  );
+
+  const handleResetReviews = async (questionId: string) => {
+    const activeCount = activeReviewCountByQuestionId.get(questionId) ?? 0;
+    const sourceVersion = sourceVersions.questions.get(questionId);
+    if (activeCount === 0 || !sourceVersion) return;
+
+    const confirmation = isIndonesian
+      ? `Reset review untuk ${questionId}?\n` +
+        `${activeCount} review dosen aktif akan ditandai tidak berlaku ` +
+        `(is_active = false).\n` +
+        `Riwayat review tetap tersimpan.\n` +
+        `Consensus/pemetaan soal akan kembali ke data master jika override ` +
+        `tidak lagi didukung oleh 3 review aktif.\n` +
+        `Review jawaban tidak terpengaruh.`
+      : `Reset reviews for ${questionId}?\n` +
+        `${activeCount} active lecturer review(s) will be marked inactive ` +
+        `(is_active = false).\n` +
+        `Review history is kept.\n` +
+        `The question consensus/mapping reverts to master data if the override ` +
+        `is no longer backed by 3 active reviews.\n` +
+        `Answer reviews are unaffected.`;
+    if (!window.confirm(confirmation)) return;
+
+    setResetBusyQuestionId(questionId);
+    setResetError("");
+    setResetBanner("");
+    try {
+      const result = await resetQuestionReviews(questionId, sourceVersion);
+      const overrideNote = result.overrideRemoved
+        ? isIndonesian
+          ? " Override relasi soal dihapus; pemetaan efektif kembali ke data master."
+          : " The question override was removed; the effective mapping reverts to master data."
+        : isIndonesian
+          ? " Tidak ada override relasi soal yang perlu dihapus."
+          : " There was no question override to remove.";
+      setResetBanner(
+        isIndonesian
+          ? `Review soal ${result.questionId} direset: ${result.reviewsReset} review dosen ` +
+            `dari ${result.reviewersReset} reviewer ditandai tidak berlaku.` +
+            overrideNote +
+            " Riwayat review tetap tersimpan; review jawaban tidak terpengaruh."
+          : `Reviews for ${result.questionId} were reset: ${result.reviewsReset} lecturer review(s) ` +
+            `from ${result.reviewersReset} reviewer(s) marked inactive.` +
+            overrideNote +
+            " Review history is kept; answer reviews are unaffected.",
+      );
+      // resetQuestionReviews invalidates the effective master-data cache, which
+      // re-runs this page's Promise.all through useAsyncData.
+    } catch (caught) {
+      setResetError(
+        caught instanceof Error
+          ? caught.message
+          : isIndonesian
+            ? "Reset review gagal."
+            : "Reset failed.",
+      );
+    } finally {
+      setResetBusyQuestionId("");
+    }
+  };
 
   const weekOptions = useMemo(
     () => getMaterialWeekOptions(questions),
@@ -94,6 +191,17 @@ export function AdminQuestionsPage() {
         </p>
       </header>
 
+      {resetBanner && (
+        <p role="status" className="mt-4 rounded-md border border-correct-border bg-correct-bg px-3 py-2 text-sm leading-6 text-correct">
+          {resetBanner}
+        </p>
+      )}
+      {resetError && (
+        <p role="alert" className="mt-4 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2 text-sm leading-6 text-incorrect">
+          {resetError}
+        </p>
+      )}
+
       <div className="grid gap-3 py-5 sm:grid-cols-2 lg:grid-cols-[minmax(260px,1fr)_180px_180px]">
         <label className="relative block sm:col-span-2 lg:col-span-1">
           <span className="sr-only">{isIndonesian ? "Cari soal" : "Search questions"}</span>
@@ -142,6 +250,9 @@ export function AdminQuestionsPage() {
             const misconceptionItems = question.questionMisconceptionIds
               .map((id) => misconceptionById.get(id))
               .filter((item): item is Misconception => item !== undefined);
+            const activeReviewCount =
+              activeReviewCountByQuestionId.get(question.id) ?? 0;
+            const resetBusy = resetBusyQuestionId === question.id;
 
             return (
               <article key={question.id}>
@@ -156,6 +267,11 @@ export function AdminQuestionsPage() {
                       <span className="text-brand">{question.displayCode?.trim() || `${isIndonesian ? "Soal" : "Question"} ${question.number}`}</span>
                       <span>{question.type === "multiple_choice" ? (isIndonesian ? "Pilihan Ganda" : "Multiple Choice") : (isIndonesian ? "Esai" : "Essay")}</span>
                       <span>{question.week ? getMaterialWeekLabel(question.week) : isIndonesian ? "Tanpa minggu" : "Unassigned"}</span>
+                      {activeReviewCount > 0 && (
+                        <span className="rounded-md border border-correct-border bg-correct-bg px-1.5 py-0.5 font-semibold text-correct">
+                          {isIndonesian ? "Review" : "Reviews"} {activeReviewCount}/3
+                        </span>
+                      )}
                     </div>
                     <h2 className="mt-1 text-sm font-medium leading-5 text-navy-deep">
                       {t(question.title, language)}
@@ -174,6 +290,35 @@ export function AdminQuestionsPage() {
 
                 {expanded && (
                   <div className="border-t border-border bg-[var(--progmiscon-background)]/60 px-4 py-5 sm:px-5">
+                    <section className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-white px-4 py-3">
+                      <div className="text-xs leading-5 text-navy-deep">
+                        <p className="font-semibold">
+                          {isIndonesian ? "Review dosen" : "Lecturer reviews"}
+                        </p>
+                        <p className="mt-0.5 text-muted">
+                          {activeReviewCount > 0
+                            ? isIndonesian
+                              ? `${activeReviewCount}/3 review aktif untuk versi sumber saat ini.`
+                              : `${activeReviewCount}/3 active reviews for the current source version.`
+                            : isIndonesian
+                              ? "Belum ada review aktif untuk soal ini."
+                              : "No active reviews for this question yet."}
+                        </p>
+                      </div>
+                      {activeReviewCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => void handleResetReviews(question.id)}
+                          disabled={resetBusy}
+                          className="inline-flex min-h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-1.5 text-xs font-semibold text-incorrect hover:border-incorrect focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {resetBusy
+                            ? isIndonesian ? "Mereset..." : "Resetting..."
+                            : isIndonesian ? "Reset Review" : "Reset Reviews"}
+                        </button>
+                      )}
+                    </section>
+
                     <QuestionContent question={question} />
 
                     {question.type === "multiple_choice" && question.options && question.options.length > 0 && (

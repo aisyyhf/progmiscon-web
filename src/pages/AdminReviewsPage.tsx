@@ -8,7 +8,6 @@ import {
   getAdminReviewReadSnapshot,
   type AdminReviewReadSnapshot,
 } from "../services/adminReadRepository";
-import { resetQuestionReviews } from "../services/reviewPersistenceRepository";
 import type {
   AdminAnswerReviewHistoryItem,
   AdminQuestionReviewHistoryItem,
@@ -318,14 +317,6 @@ export function AdminReviewsPage() {
     () => groupCurrentAdminReviews(data.current, data.questions),
     [data],
   );
-  // Unfiltered groups keyed by question id. The "Reset Review Soal" action is a
-  // whole-question operation, so its visibility, active-review count and source
-  // version must come from the full reviewer set, never from a reviewer/search
-  // filtered view.
-  const unfilteredGroupByQuestionId = useMemo(
-    () => new Map(groups.map((group) => [group.question.id, group])),
-    [groups],
-  );
   const filteredGroups = useMemo(
     () => filterReviewGroups(groups, { query, reviewerId, type, week }, language),
     [groups, language, query, reviewerId, type, week],
@@ -370,73 +361,6 @@ export function AdminReviewsPage() {
   );
 
   useEffect(() => setPage(1), [query, reviewerId, type, week]);
-
-  const [resetBusyQuestionId, setResetBusyQuestionId] = useState("");
-  const [resetError, setResetError] = useState("");
-  const [resetBanner, setResetBanner] = useState("");
-
-  const handleResetReviews = async (questionId: string) => {
-    const fullGroup = unfilteredGroupByQuestionId.get(questionId);
-    const activeCount = fullGroup?.reviewers.length ?? 0;
-    // Every current-generation reviewer row carries the question's current
-    // baseline source_version (filterCurrentAdminReviewHistory drops any other).
-    const sourceVersion = fullGroup?.reviewers[0]?.questionReview?.sourceVersion;
-    if (!sourceVersion || activeCount === 0) return;
-
-    const confirmation = isIndonesian
-      ? `Reset review untuk ${questionId}?\n` +
-        `${activeCount} review dosen aktif akan ditandai tidak berlaku ` +
-        `(is_active = false).\n` +
-        `Riwayat review tetap tersimpan.\n` +
-        `Consensus/pemetaan soal akan kembali ke data master jika override ` +
-        `tidak lagi didukung oleh 3 review aktif.\n` +
-        `Review jawaban tidak terpengaruh.`
-      : `Reset reviews for ${questionId}?\n` +
-        `${activeCount} active lecturer review(s) will be marked inactive ` +
-        `(is_active = false).\n` +
-        `Review history is kept.\n` +
-        `The question consensus/mapping reverts to master data if the override ` +
-        `is no longer backed by 3 active reviews.\n` +
-        `Answer reviews are unaffected.`;
-    if (!window.confirm(confirmation)) return;
-
-    setResetBusyQuestionId(questionId);
-    setResetError("");
-    setResetBanner("");
-    try {
-      const result = await resetQuestionReviews(questionId, sourceVersion);
-      const overrideNote = result.overrideRemoved
-        ? isIndonesian
-          ? " Override relasi soal dihapus; pemetaan efektif kembali ke data master."
-          : " The question override was removed; the effective mapping reverts to master data."
-        : isIndonesian
-          ? " Tidak ada override relasi soal yang perlu dihapus."
-          : " There was no question override to remove.";
-      setResetBanner(
-        (isIndonesian
-          ? `Review soal ${result.questionId} direset: ${result.reviewsReset} review dosen ` +
-            `dari ${result.reviewersReset} reviewer ditandai tidak berlaku.` +
-            overrideNote +
-            " Riwayat review tetap tersimpan; review jawaban tidak terpengaruh."
-          : `Reviews for ${result.questionId} were reset: ${result.reviewsReset} lecturer review(s) ` +
-            `from ${result.reviewersReset} reviewer(s) marked inactive.` +
-            overrideNote +
-            " Review history is kept; answer reviews are unaffected."),
-      );
-      // resetQuestionReviews invalidates the effective master-data cache, which
-      // re-runs getAdminReviewReadSnapshot through useAsyncData.
-    } catch (caught) {
-      setResetError(
-        caught instanceof Error
-          ? caught.message
-          : isIndonesian
-            ? "Reset review gagal."
-            : "Reset failed.",
-      );
-    } finally {
-      setResetBusyQuestionId("");
-    }
-  };
 
   const handleExport = () => {
     const csv = buildCurrentReviewsCsv(filteredGroups, {
@@ -494,17 +418,6 @@ export function AdminReviewsPage() {
           {isIndonesian
             ? `${data.current.excluded.inactive + data.current.excluded.staleOrUnverifiable} baris disembunyikan karena sumbernya diperbarui, sudah usang, atau tidak dapat diverifikasi terhadap sumber saat ini (bukan penghapusan oleh lecturer).`
             : `${data.current.excluded.inactive + data.current.excluded.staleOrUnverifiable} rows are hidden because their source was updated, is stale, or cannot be verified against the current source (not a lecturer deletion).`}
-        </p>
-      )}
-
-      {resetBanner && (
-        <p role="status" className="mt-4 rounded-md border border-correct-border bg-correct-bg px-3 py-2 text-sm leading-6 text-correct">
-          {resetBanner}
-        </p>
-      )}
-      {resetError && (
-        <p role="alert" className="mt-4 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2 text-sm leading-6 text-incorrect">
-          {resetError}
         </p>
       )}
 
@@ -567,36 +480,13 @@ export function AdminReviewsPage() {
         <div className="space-y-3">
           {visibleGroups.map((group) => (
             <article key={group.question.id} className="overflow-hidden rounded-lg border border-border bg-white">
-              <header className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:px-5">
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted">
-                    <span className="text-brand">{group.question.displayCode?.trim() || `${isIndonesian ? "Soal" : "Question"} ${group.question.number}`}</span>
-                    <span>{group.question.type === "multiple_choice" ? (isIndonesian ? "Pilihan Ganda" : "Multiple Choice") : (isIndonesian ? "Esai" : "Essay")}</span>
-                    <span>{group.question.week ? getMaterialWeekLabel(group.question.week) : isIndonesian ? "Tanpa minggu" : "Unassigned"}</span>
-                  </div>
-                  <h2 className="mt-1 text-sm font-medium leading-5 text-navy-deep">{t(group.question.title, language)}</h2>
+              <header className="border-b border-border px-4 py-3 sm:px-5">
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted">
+                  <span className="text-brand">{group.question.displayCode?.trim() || `${isIndonesian ? "Soal" : "Question"} ${group.question.number}`}</span>
+                  <span>{group.question.type === "multiple_choice" ? (isIndonesian ? "Pilihan Ganda" : "Multiple Choice") : (isIndonesian ? "Esai" : "Essay")}</span>
+                  <span>{group.question.week ? getMaterialWeekLabel(group.question.week) : isIndonesian ? "Tanpa minggu" : "Unassigned"}</span>
                 </div>
-                {(() => {
-                  const activeReviewCount =
-                    unfilteredGroupByQuestionId.get(group.question.id)?.reviewers
-                      .length ?? 0;
-                  if (activeReviewCount === 0) return null;
-                  const busy = resetBusyQuestionId === group.question.id;
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => void handleResetReviews(group.question.id)}
-                      disabled={busy}
-                      className="inline-flex min-h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-1.5 text-xs font-semibold text-incorrect hover:border-incorrect focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {busy
-                        ? isIndonesian ? "Mereset..." : "Resetting..."
-                        : isIndonesian
-                          ? `Reset Review Soal (${activeReviewCount})`
-                          : `Reset Question Reviews (${activeReviewCount})`}
-                    </button>
-                  );
-                })()}
+                <h2 className="mt-1 text-sm font-medium leading-5 text-navy-deep">{t(group.question.title, language)}</h2>
               </header>
               <div className="divide-y divide-border">
                 {group.reviewers.map((reviewerGroup) => (
