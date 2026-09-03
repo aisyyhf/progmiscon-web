@@ -38,17 +38,6 @@ function adminError(scope: string, error: { message?: string }): Error {
   if (detail.includes("INVALID_MISCONCEPTION_ID")) {
     return new Error("Review memuat ID misconception yang tidak ada di katalog baseline.");
   }
-  if (detail.includes("QUESTION_NOT_FOUND")) {
-    return new Error("Soal tidak ditemukan atau sudah tidak tersedia.");
-  }
-  if (detail.includes("DATA_VERSION_CHANGED")) {
-    return new Error(
-      "Data sumber soal telah diperbarui. Muat ulang halaman sebelum mereset review.",
-    );
-  }
-  if (detail.includes("INVALID_TARGET_ID")) {
-    return new Error("ID soal tidak valid.");
-  }
   return new Error(detail ? `${scope} gagal: ${detail}` : `${scope} gagal.`);
 }
 
@@ -96,49 +85,6 @@ export function previewConsensus(
     item.removedVotes,
     item.additionalVotes,
   );
-}
-
-export type QuestionReviewResetResult = {
-  questionId: string;
-  sourceVersion: string;
-  reviewsReset: number;
-  reviewersReset: number;
-  overrideRemoved: boolean;
-};
-
-/**
- * Admin-only. Deactivates EVERY reviewer's active, current-version Question
- * Review for exactly one question (is_active = false, inactive_reason =
- * 'deleted', inactive_at = now()) and recomputes question consensus so a
- * published override that is no longer backed by three active reviews is
- * removed. Never touches legacy answer_reviews / answer_misconception_overrides,
- * never changes the baseline source_version. `sourceVersion` is the question's
- * current source version; a stale value fails closed with DATA_VERSION_CHANGED.
- */
-export async function resetQuestionReviews(
-  questionId: string,
-  sourceVersion: string,
-): Promise<QuestionReviewResetResult> {
-  const { data, error } = await supabase.rpc("reset_question_reviews_v3", {
-    p_question_id: questionId,
-    p_source_version: sourceVersion,
-  });
-  if (error) throw adminError("Reset review soal", error);
-  invalidateEffectiveMasterData();
-
-  const row = (data ?? {}) as Record<string, unknown>;
-  return {
-    questionId:
-      typeof row.question_id === "string" ? row.question_id : questionId,
-    sourceVersion:
-      typeof row.source_version === "string"
-        ? row.source_version
-        : sourceVersion,
-    reviewsReset: typeof row.reviews_reset === "number" ? row.reviews_reset : 0,
-    reviewersReset:
-      typeof row.reviewers_reset === "number" ? row.reviewers_reset : 0,
-    overrideRemoved: row.override_removed === true,
-  };
 }
 
 export async function publishQuestionMisconceptionOverride(

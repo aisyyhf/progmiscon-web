@@ -24,7 +24,10 @@ import {
 } from "../utils/questionReviewCounts";
 import { supabase } from "./supabaseClient";
 import { getAnswers } from "./answerRepository";
-import { reloadBaselineMasterData } from "./masterDataRepository";
+import {
+  invalidateEffectiveMasterData,
+  reloadBaselineMasterData,
+} from "./masterDataRepository";
 import { getQuestionById, getQuestions } from "./questionRepository";
 import { assertAnswerReviewEligible } from "../utils/reviewWorkspace";
 import { haveSameReviewSourceVersions } from "../utils/reviewSourceVersions";
@@ -644,4 +647,73 @@ export async function deleteAnswerReview(
   if (error) {
     throw storageError("Review jawaban dihapus", error);
   }
+}
+
+export type QuestionReviewResetResult = {
+  questionId: string;
+  sourceVersion: string;
+  reviewsReset: number;
+  reviewersReset: number;
+  overrideRemoved: boolean;
+};
+
+const questionReviewResetMessages: Record<string, string> = {
+  ADMIN_ACCESS_REQUIRED:
+    "Akses Admin aktif diperlukan untuk mereset review soal.",
+  QUESTION_NOT_FOUND: "Soal tidak ditemukan atau sudah tidak tersedia.",
+  DATA_VERSION_CHANGED:
+    "Data sumber soal telah diperbarui. Muat ulang halaman sebelum mereset review.",
+  INVALID_TARGET_ID: "ID soal tidak valid.",
+};
+
+/**
+ * Admin-only. Deactivates EVERY reviewer's active, current-version Question
+ * Review for exactly one question (is_active = false, inactive_reason =
+ * 'deleted', inactive_at = now()) and recomputes question consensus, so a
+ * published question override no longer backed by three active reviews is
+ * removed and the effective mapping reverts to master. Never touches legacy
+ * answer_reviews / answer_misconception_overrides and never changes the baseline
+ * source_version; review rows keep their own source_version. Review history is
+ * preserved by the existing audit trigger. `sourceVersion` is the question's
+ * current source version -- a stale value fails closed (DATA_VERSION_CHANGED).
+ * Invalidates the effective master-data cache so read views refresh.
+ */
+export async function resetQuestionReviews(
+  questionId: string,
+  sourceVersion: string,
+): Promise<QuestionReviewResetResult> {
+  const { data, error } = await supabase.rpc("reset_question_reviews_v3", {
+    p_question_id: questionId,
+    p_source_version: sourceVersion,
+  });
+
+  if (error) {
+    const detail = [error.code, error.message, error.details, error.hint]
+      .filter((value): value is string => typeof value === "string")
+      .join(" ");
+    const known = Object.keys(questionReviewResetMessages).find((token) =>
+      detail.includes(token),
+    );
+    if (known) {
+      throw new Error(questionReviewResetMessages[known]);
+    }
+    throw storageError("Reset review soal", error);
+  }
+
+  invalidateEffectiveMasterData();
+
+  const row = (data ?? {}) as Record<string, unknown>;
+  return {
+    questionId:
+      typeof row.question_id === "string" ? row.question_id : questionId,
+    sourceVersion:
+      typeof row.source_version === "string"
+        ? row.source_version
+        : sourceVersion,
+    reviewsReset:
+      typeof row.reviews_reset === "number" ? row.reviews_reset : 0,
+    reviewersReset:
+      typeof row.reviewers_reset === "number" ? row.reviewers_reset : 0,
+    overrideRemoved: row.override_removed === true,
+  };
 }

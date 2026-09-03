@@ -548,11 +548,26 @@ assert.match(filterSelect, /py-2 pl-3 pr-10/);
 assert.match(filterSelect, /pointer-events-none absolute right-3 top-1\/2/);
 assert.match(filterSelect, /<ChevronDown/);
 
-const mountedAdminSources = [questionsPage, reviewsPage, exportsPage].join("\n");
+// Kelola Soal and Export Data stay strictly read-only.
 assert.doesNotMatch(
-  mountedAdminSources,
+  [questionsPage, exportsPage].join("\n"),
   /AdminFinalizationPanel|saveQuestionReview|saveAnswerReview|publish|override|supabase\.rpc|\.from\(/i,
-  "mounted Admin MVP pages must remain read-only",
+  "Kelola Soal / Export Data pages must remain read-only",
+);
+// Hasil Review Dosen carries exactly ONE sanctioned admin write: the per-question
+// targeted Question Review reset (reset_question_reviews_v3), relocated here after
+// the Finalisasi panel / AdminPage was confirmed unreachable by any route. It
+// must not gain any other mutation, publish path, override write, lecturer save,
+// direct RPC or direct table access.
+assert.match(
+  reviewsPage,
+  /resetQuestionReviews\(/,
+  "Hasil Review Dosen exposes the targeted Question Review reset",
+);
+assert.doesNotMatch(
+  reviewsPage,
+  /AdminFinalizationPanel|saveQuestionReview|saveAnswerReview|publish|ContentOverride|MisconceptionOverride|supabase\.rpc|\.from\(|\.insert\(|\.update\(|sync_master/i,
+  "Hasil Review Dosen may only perform the targeted Question Review reset",
 );
 
 console.log("Admin read-only MVP checks passed.");
