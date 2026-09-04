@@ -356,6 +356,32 @@ export function buildQuestionSampleCases(
     : buildSampleCases(inputsRaw, outputsRaw);
 }
 
+/**
+ * Resolves an option's localized text from either shape:
+ * - legacy: `text` (single string, shown unchanged in both languages)
+ * - bilingual: `text_ind` + `text_en` (both required together)
+ *
+ * If both shapes are present and complete, this is treated as an ambiguous
+ * authoring error rather than silently preferring one — no current data
+ * needs both at once, and picking a winner would hide a mistake in the
+ * canonical Sheet instead of surfacing it.
+ */
+function resolveOptionLocalizedText(
+  candidate: Record<string, unknown>,
+): { text: LocalizedText | null; ambiguous: boolean } {
+  const legacyText = typeof candidate.text === "string" ? candidate.text.trim() : "";
+  const textInd = typeof candidate.text_ind === "string" ? candidate.text_ind.trim() : "";
+  const textEn = typeof candidate.text_en === "string" ? candidate.text_en.trim() : "";
+
+  const hasLegacy = legacyText.length > 0;
+  const hasBilingual = textInd.length > 0 && textEn.length > 0;
+
+  if (hasLegacy && hasBilingual) return { text: null, ambiguous: true };
+  if (hasLegacy) return { text: { id: legacyText, en: legacyText }, ambiguous: false };
+  if (hasBilingual) return { text: { id: textInd, en: textEn }, ambiguous: false };
+  return { text: null, ambiguous: false };
+}
+
 export function parseQuestionOptions(
   raw: string | undefined,
   correctOptionLabel: string | undefined,
@@ -376,10 +402,19 @@ export function parseQuestionOptions(
       const candidate = item as Record<string, unknown>;
       const id = typeof candidate.answer_id === "string" ? candidate.answer_id.trim() : "";
       const label = typeof candidate.label === "string" ? candidate.label.trim().toUpperCase() : "";
-      const optionText = typeof candidate.text === "string" ? candidate.text.trim() : "";
       const rawMisconceptions = candidate.misconceptions;
-      if (!id || !label || !optionText || !Array.isArray(rawMisconceptions)) {
-        return { options: [], error: "answer_id/label/text/misconceptions opsi tidak valid" };
+      const resolvedText = resolveOptionLocalizedText(candidate);
+      if (resolvedText.ambiguous) {
+        return {
+          options: [],
+          error: "opsi tidak boleh mengisi text bersamaan dengan text_ind dan text_en",
+        };
+      }
+      if (!id || !label || !resolvedText.text || !Array.isArray(rawMisconceptions)) {
+        return {
+          options: [],
+          error: "answer_id/label/text (atau text_ind dan text_en)/misconceptions opsi tidak valid",
+        };
       }
       const misconceptionIds = [...new Set(
         rawMisconceptions
@@ -393,7 +428,7 @@ export function parseQuestionOptions(
       options.push({
         id,
         label,
-        text: { id: optionText, en: optionText },
+        text: resolvedText.text,
         isCorrect: correctLabel
           ? label === correctLabel
           : candidate.is_correct === true,

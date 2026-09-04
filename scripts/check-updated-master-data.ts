@@ -91,6 +91,132 @@ assert.equal(parsedOptions.options.length, 2);
 assert.equal(parsedOptions.options[1].isCorrect, true);
 assert.deepEqual(parsedOptions.options[1].misconceptionIds, ["IO-02"]);
 
+// --- Bilingual option text: legacy vs. new text_ind/text_en shape ---
+
+// A. legacy `text` parses exactly as before (id and en both equal the single string)
+const legacyOnly = parseQuestionOptions(
+  JSON.stringify([
+    { answer_id: "A636", label: "A", text: "Kedua operator menyimpan nilai.", misconceptions: [] },
+  ]),
+  "A",
+);
+assert.equal(legacyOnly.error, undefined, "legacy text-only option must remain valid");
+assert.deepEqual(
+  legacyOnly.options[0].text,
+  { id: "Kedua operator menyimpan nilai.", en: "Kedua operator menyimpan nilai." },
+  "legacy text must be duplicated into both locales exactly as before",
+);
+
+// B. bilingual text_ind/text_en parses into distinct id/en values
+const bilingual = parseQuestionOptions(
+  JSON.stringify([
+    {
+      answer_id: "A637",
+      label: "B",
+      text_ind: "Kedua operator membandingkan nilai.",
+      text_en: "Both operators compare values.",
+      misconceptions: ["OP-01"],
+    },
+  ]),
+  "A",
+);
+assert.equal(bilingual.error, undefined, "a complete text_ind/text_en pair must be valid");
+assert.deepEqual(
+  bilingual.options[0].text,
+  { id: "Kedua operator membandingkan nilai.", en: "Both operators compare values." },
+  "text_ind/text_en must map to distinct id/en locales, not be duplicated across languages",
+);
+
+// C. missing text_en (only text_ind, no legacy text) is rejected
+const missingTextEn = parseQuestionOptions(
+  JSON.stringify([
+    { answer_id: "A1", label: "A", text_ind: "Hanya bahasa Indonesia.", misconceptions: [] },
+  ]),
+  "A",
+);
+assert.ok(missingTextEn.error, "text_ind without text_en must be rejected");
+assert.equal(missingTextEn.options.length, 0);
+
+// D. missing text_ind (only text_en, no legacy text) is rejected
+const missingTextInd = parseQuestionOptions(
+  JSON.stringify([
+    { answer_id: "A1", label: "A", text_en: "English only.", misconceptions: [] },
+  ]),
+  "A",
+);
+assert.ok(missingTextInd.error, "text_en without text_ind must be rejected");
+assert.equal(missingTextInd.options.length, 0);
+
+// E. neither legacy text nor a complete bilingual pair is rejected
+const noTextAtAll = parseQuestionOptions(
+  JSON.stringify([{ answer_id: "A1", label: "A", misconceptions: [] }]),
+  "A",
+);
+assert.ok(noTextAtAll.error, "an option with no text field at all must be rejected");
+assert.equal(noTextAtAll.options.length, 0);
+
+// F. ambiguous shape (legacy text AND a complete bilingual pair together) is
+// rejected with a distinct error, per the documented "reject, don't guess" policy.
+const ambiguousShape = parseQuestionOptions(
+  JSON.stringify([
+    {
+      answer_id: "A1",
+      label: "A",
+      text: "Legacy.",
+      text_ind: "Bahasa Indonesia.",
+      text_en: "English.",
+      misconceptions: [],
+    },
+  ]),
+  "A",
+);
+assert.ok(ambiguousShape.error, "legacy text + complete text_ind/text_en together must be rejected");
+assert.match(ambiguousShape.error ?? "", /text_ind/, "the ambiguous-shape error must name the conflicting fields");
+assert.equal(ambiguousShape.options.length, 0);
+
+// G. existing current live-style options (legacy shape, 4 choices, one correct)
+// remain fully compatible end to end.
+const liveStyleOptions = parseQuestionOptions(
+  JSON.stringify([
+    { answer_id: "A660", label: "A", text: "Tetapkan count <- 0 sebelum if.", is_correct: false, misconceptions: [] },
+    { answer_id: "A661", label: "B", text: "Biarkan count tanpa assignment.", is_correct: true, misconceptions: ["VA-05"] },
+    { answer_id: "A662", label: "C", text: "Tetapkan count <- 1 sebelum if.", is_correct: false, misconceptions: [] },
+    { answer_id: "A663", label: "D", text: "Tetapkan count <- x sebelum if.", is_correct: false, misconceptions: [] },
+  ]),
+  "B",
+);
+assert.equal(liveStyleOptions.error, undefined, "current live-style legacy options must still parse cleanly");
+assert.equal(liveStyleOptions.options.length, 4);
+assert.equal(liveStyleOptions.options.filter((option) => option.isCorrect).length, 1);
+
+// H. misconception mapping and correct-answer identity are unaffected by the
+// bilingual shape — only the text representation changes.
+const bilingualIdentity = parseQuestionOptions(
+  JSON.stringify([
+    {
+      answer_id: "A196-A",
+      label: "A",
+      text_ind: "<- menyimpan hasil Boolean; == membandingkan dua nilai.",
+      text_en: "<- stores the Boolean result; == compares two values.",
+      misconceptions: [],
+    },
+    {
+      answer_id: "A196-B",
+      label: "B",
+      text_ind: "<- membandingkan dua nilai; == menyimpan hasil Boolean.",
+      text_en: "<- compares two values; == stores the Boolean result.",
+      misconceptions: ["OP-01"],
+    },
+  ]),
+  "A",
+);
+assert.equal(bilingualIdentity.error, undefined);
+assert.equal(bilingualIdentity.options[0].id, "A196-A");
+assert.equal(bilingualIdentity.options[0].isCorrect, true, "correct-answer identity must still follow correct_option_label");
+assert.equal(bilingualIdentity.options[1].isCorrect, false);
+assert.deepEqual(bilingualIdentity.options[1].misconceptionIds, ["OP-01"], "misconception mapping must be unaffected by the bilingual text shape");
+assert.equal(bilingualIdentity.options[1].misconceptionId, "OP-01");
+
 assert.deepEqual(
   suppressDuplicateIoDescriptions(
     [{ type: "text", content: "Petunjuk.\nMasukan: sebuah bilangan bulat\nKeluaran: kuadrat bilangan" }],
