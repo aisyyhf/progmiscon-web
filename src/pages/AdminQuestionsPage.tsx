@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, RotateCcw, Search } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, RotateCcw, Search } from "lucide-react";
 import { AdminFilterSelect } from "../components/admin/AdminFilterSelect";
 import { ConfirmDialog } from "../components/common/ConfirmDialog";
 import { EmptyState } from "../components/common/EmptyState";
@@ -177,16 +177,12 @@ export function AdminQuestionsPage() {
       <ConfirmDialog
         open={resetResult !== null}
         align="center"
-        title={isIndonesian ? "Review berhasil direset" : "Reviews reset"}
-        description={
-          isIndonesian
-            ? `${resetResult?.reviewsReset ?? 0} review ${resetResult?.questionId ?? ""} berhasil direset`
-            : `${resetResult?.reviewsReset ?? 0} ${
-                (resetResult?.reviewsReset ?? 0) === 1 ? "review" : "reviews"
-              } for ${resetResult?.questionId ?? ""} ${
-                (resetResult?.reviewsReset ?? 0) === 1 ? "was" : "were"
-              } reset`
+        accent={
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand text-white shadow-sm">
+            <Check size={26} strokeWidth={3} aria-hidden="true" />
+          </span>
         }
+        title={isIndonesian ? "Review berhasil direset" : "Reviews reset"}
         confirmLabel={isIndonesian ? "Tutup" : "Close"}
         confirmVariant="secondary"
         onCancel={() => setResetResult(null)}

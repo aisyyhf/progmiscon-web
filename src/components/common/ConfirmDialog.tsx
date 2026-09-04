@@ -16,9 +16,10 @@ type ConfirmButtonVariant = "primary" | "secondary" | "ghost" | "danger";
  *
  * Omit `cancelLabel` for a single-action notice (e.g. a success result); the
  * lone button then uses `confirmLabel` and Escape / overlay still call
- * `onCancel`. `align="center"` centers the title, body and button row.
- * `confirmVariant` overrides the confirm button styling (defaults to `danger`
- * for `destructive`, otherwise `primary`).
+ * `onCancel`. Omit `description` for a title-only notice. `align="center"`
+ * centers the accent, title, body and button row. `confirmVariant` overrides
+ * the confirm button styling (defaults to `danger` for `destructive`, otherwise
+ * `primary`). `accent` renders a leading marker above the title.
  */
 export function ConfirmDialog({
   open,
@@ -27,6 +28,7 @@ export function ConfirmDialog({
   confirmLabel,
   cancelLabel,
   confirmIcon,
+  accent,
   onConfirm,
   onCancel,
   confirming = false,
@@ -38,10 +40,11 @@ export function ConfirmDialog({
 }: {
   open: boolean;
   title: string;
-  description: ReactNode;
+  description?: ReactNode;
   confirmLabel: string;
   cancelLabel?: string;
   confirmIcon?: ReactNode;
+  accent?: ReactNode;
   onConfirm: () => void;
   onCancel: () => void;
   confirming?: boolean;
@@ -93,9 +96,14 @@ export function ConfirmDialog({
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        aria-describedby={descriptionId}
+        aria-describedby={description ? descriptionId : undefined}
         className="relative w-full max-w-md rounded-lg border border-border bg-white p-6 shadow-xl"
       >
+        {accent && (
+          <div className={`mb-4${centered ? " flex justify-center" : ""}`}>
+            {accent}
+          </div>
+        )}
         <h2
           id={titleId}
           className={`text-base font-bold text-navy-deep${
@@ -104,14 +112,16 @@ export function ConfirmDialog({
         >
           {title}
         </h2>
-        <p
-          id={descriptionId}
-          className={`mt-2 text-[13px] leading-5 text-muted${
-            centered ? " text-center" : ""
-          }`}
-        >
-          {description}
-        </p>
+        {description && (
+          <p
+            id={descriptionId}
+            className={`mt-2 text-[13px] leading-5 text-muted${
+              centered ? " text-center" : ""
+            }`}
+          >
+            {description}
+          </p>
+        )}
         <div
           className={`mt-6 flex flex-wrap gap-2 ${
             centered ? "justify-center" : "justify-end"
