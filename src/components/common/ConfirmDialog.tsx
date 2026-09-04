@@ -33,7 +33,6 @@ export function ConfirmDialog({
   destructive = false,
   align = "start",
   confirmVariant,
-  accent,
   titleId = "confirm-dialog-title",
   descriptionId = "confirm-dialog-description",
 }: {
@@ -49,7 +48,6 @@ export function ConfirmDialog({
   destructive?: boolean;
   align?: "start" | "center";
   confirmVariant?: ConfirmButtonVariant;
-  accent?: ReactNode;
   titleId?: string;
   descriptionId?: string;
 }) {
@@ -98,11 +96,6 @@ export function ConfirmDialog({
         aria-describedby={descriptionId}
         className="relative w-full max-w-md rounded-lg border border-border bg-white p-6 shadow-xl"
       >
-        {accent && (
-          <div className={centered ? "mb-3 flex justify-center" : "mb-3"}>
-            {accent}
-          </div>
-        )}
         <h2
           id={titleId}
           className={`text-base font-bold text-navy-deep${

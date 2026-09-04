@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  CheckCircle2,
-  ChevronDown,
-  ChevronUp,
-  RotateCcw,
-  Search,
-} from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCcw, Search } from "lucide-react";
 import { AdminFilterSelect } from "../components/admin/AdminFilterSelect";
 import { ConfirmDialog } from "../components/common/ConfirmDialog";
 import { EmptyState } from "../components/common/EmptyState";
@@ -162,8 +156,10 @@ export function AdminQuestionsPage() {
         }
         description={
           isIndonesian
-            ? `${pendingResetActiveCount} review aktif akan direset. Riwayat tetap tersimpan dan review jawaban tidak terpengaruh.`
-            : `${pendingResetActiveCount} active reviews will be reset. History is kept and answer reviews are unaffected.`
+            ? `${pendingResetActiveCount} review aktif akan direset dan riwayat tetap tersimpan`
+            : `${pendingResetActiveCount} active ${
+                pendingResetActiveCount === 1 ? "review" : "reviews"
+              } will be reset and history is kept`
         }
         cancelLabel={isIndonesian ? "Batal" : "Cancel"}
         confirmLabel={isIndonesian ? "Reset Review" : "Reset Reviews"}
@@ -181,20 +177,15 @@ export function AdminQuestionsPage() {
       <ConfirmDialog
         open={resetResult !== null}
         align="center"
-        accent={
-          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-correct-border bg-correct-bg text-correct">
-            <CheckCircle2 size={22} strokeWidth={2} aria-hidden="true" />
-          </span>
-        }
-        title={
-          isIndonesian
-            ? "Review berhasil direset"
-            : "Reviews reset successfully"
-        }
+        title={isIndonesian ? "Review berhasil direset" : "Reviews reset"}
         description={
           isIndonesian
-            ? `${resetResult?.reviewsReset ?? 0} review ${resetResult?.questionId ?? ""} berhasil direset.`
-            : `${resetResult?.reviewsReset ?? 0} review(s) for ${resetResult?.questionId ?? ""} were reset.`
+            ? `${resetResult?.reviewsReset ?? 0} review ${resetResult?.questionId ?? ""} berhasil direset`
+            : `${resetResult?.reviewsReset ?? 0} ${
+                (resetResult?.reviewsReset ?? 0) === 1 ? "review" : "reviews"
+              } for ${resetResult?.questionId ?? ""} ${
+                (resetResult?.reviewsReset ?? 0) === 1 ? "was" : "were"
+              } reset`
         }
         confirmLabel={isIndonesian ? "Tutup" : "Close"}
         confirmVariant="secondary"
