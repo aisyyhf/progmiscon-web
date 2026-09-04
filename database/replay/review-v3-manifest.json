@@ -53,6 +53,11 @@
       "order": 190,
       "path": "supabase/migrations/20260901000000_review_v3_mp_question_only_delete.sql",
       "activeMigration": true
+    },
+    {
+      "order": 200,
+      "path": "supabase/migrations/20260903000000_review_v3_targeted_question_review_reset.sql",
+      "activeMigration": true
     }
   ]
 }

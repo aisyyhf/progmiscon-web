@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, Search } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, RotateCcw, Search } from "lucide-react";
 import { AdminFilterSelect } from "../components/admin/AdminFilterSelect";
+import { ConfirmDialog } from "../components/common/ConfirmDialog";
 import { EmptyState } from "../components/common/EmptyState";
 import { QuestionContent } from "../components/review/QuestionContent";
 import { useAsyncData } from "../hooks/useAsyncData";
 import { useLanguage } from "../hooks/useLanguage";
 import { getMisconceptions } from "../services/misconceptionRepository";
 import { getQuestions } from "../services/questionRepository";
-import type { Misconception, Question } from "../types";
+import {
+  getQuestionReviewCounts,
+  getReviewSourceVersions,
+  resetQuestionReviews,
+} from "../services/reviewPersistenceRepository";
+import type {
+  Misconception,
+  Question,
+  QuestionReviewCount,
+  ReviewSourceVersions,
+} from "../types";
 import {
   filterMaterialQuestions,
   getMaterialPaginationItems,
@@ -18,22 +29,94 @@ import {
 import { t } from "../utils/translation";
 
 const PAGE_SIZE = 10;
-const emptyData: [Question[], Misconception[]] = [[], []];
+const emptySourceVersions: ReviewSourceVersions = {
+  questions: new Map(),
+  answers: new Map(),
+};
+type AdminQuestionsData = [
+  Question[],
+  Misconception[],
+  QuestionReviewCount[],
+  ReviewSourceVersions,
+];
+const emptyData: AdminQuestionsData = [[], [], [], emptySourceVersions];
 
 export function AdminQuestionsPage() {
   const { language } = useLanguage();
   const isIndonesian = language === "id";
-  const { data, loading, error } = useAsyncData(
-    () => Promise.all([getQuestions(), getMisconceptions()]),
+  const { data, loading, error } = useAsyncData<AdminQuestionsData>(
+    () =>
+      Promise.all([
+        getQuestions(),
+        getMisconceptions(),
+        getQuestionReviewCounts(),
+        getReviewSourceVersions(),
+      ]),
     [],
     emptyData,
   );
-  const [questions, misconceptions] = data;
+  const [questions, misconceptions, reviewCounts, sourceVersions] = data;
   const [searchQuery, setSearchQuery] = useState("");
   const [week, setWeek] = useState("all");
   const [type, setType] = useState<MaterialQuestionTypeFilter>("all");
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [resetBusyQuestionId, setResetBusyQuestionId] = useState("");
+  const [resetError, setResetError] = useState("");
+  // Question id awaiting confirmation in the in-app ConfirmDialog (null = closed).
+  const [pendingResetQuestionId, setPendingResetQuestionId] = useState<
+    string | null
+  >(null);
+  // Populated after a successful reset to drive the success dialog.
+  const [resetResult, setResetResult] = useState<{
+    questionId: string;
+    reviewsReset: number;
+  } | null>(null);
+
+  const activeReviewCountByQuestionId = useMemo(
+    () =>
+      new Map(
+        reviewCounts.map((item) => [item.questionId, item.reviewCount]),
+      ),
+    [reviewCounts],
+  );
+
+  const pendingResetActiveCount = pendingResetQuestionId
+    ? activeReviewCountByQuestionId.get(pendingResetQuestionId) ?? 0
+    : 0;
+
+  const confirmResetReviews = async (questionId: string) => {
+    const activeCount = activeReviewCountByQuestionId.get(questionId) ?? 0;
+    const sourceVersion = sourceVersions.questions.get(questionId);
+    if (activeCount === 0 || !sourceVersion) {
+      setPendingResetQuestionId(null);
+      return;
+    }
+
+    setResetBusyQuestionId(questionId);
+    setResetError("");
+    setResetResult(null);
+    try {
+      const result = await resetQuestionReviews(questionId, sourceVersion);
+      setResetResult({
+        questionId: result.questionId,
+        reviewsReset: result.reviewsReset,
+      });
+      // resetQuestionReviews invalidates the effective master-data cache, which
+      // re-runs this page's Promise.all through useAsyncData.
+    } catch (caught) {
+      setResetError(
+        caught instanceof Error
+          ? caught.message
+          : isIndonesian
+            ? "Reset review gagal."
+            : "Reset failed.",
+      );
+    } finally {
+      setResetBusyQuestionId("");
+      setPendingResetQuestionId(null);
+    }
+  };
 
   const weekOptions = useMemo(
     () => getMaterialWeekOptions(questions),
@@ -59,30 +142,86 @@ export function AdminQuestionsPage() {
     setExpandedId(null);
   }, [searchQuery, type, week]);
 
+  // Modal-driven state — kept mounted across the post-reset useAsyncData refetch
+  // (which briefly flips the page to its loading state) so the dialogs never flash.
+  const resetDialogs = (
+    <>
+      <ConfirmDialog
+        open={pendingResetQuestionId !== null}
+        align="center"
+        title={
+          isIndonesian
+            ? `Reset review ${pendingResetQuestionId ?? ""}?`
+            : `Reset reviews for ${pendingResetQuestionId ?? ""}?`
+        }
+        description={
+          isIndonesian
+            ? `${pendingResetActiveCount} review aktif akan direset dan riwayat tetap tersimpan`
+            : `${pendingResetActiveCount} active ${
+                pendingResetActiveCount === 1 ? "review" : "reviews"
+              } will be reset and history is kept`
+        }
+        cancelLabel={isIndonesian ? "Batal" : "Cancel"}
+        confirmLabel={isIndonesian ? "Reset Review" : "Reset Reviews"}
+        confirmVariant="primary"
+        confirming={resetBusyQuestionId !== ""}
+        onCancel={() => {
+          if (resetBusyQuestionId === "") setPendingResetQuestionId(null);
+        }}
+        onConfirm={() => {
+          if (pendingResetQuestionId) {
+            void confirmResetReviews(pendingResetQuestionId);
+          }
+        }}
+      />
+      <ConfirmDialog
+        open={resetResult !== null}
+        align="center"
+        accent={
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand text-white shadow-sm">
+            <Check size={26} strokeWidth={3} aria-hidden="true" />
+          </span>
+        }
+        title={isIndonesian ? "Review berhasil direset" : "Reviews reset"}
+        confirmLabel={isIndonesian ? "Tutup" : "Close"}
+        confirmVariant="secondary"
+        onCancel={() => setResetResult(null)}
+        onConfirm={() => setResetResult(null)}
+      />
+    </>
+  );
+
   if (loading) {
     return (
-      <EmptyState
-        loading
-        message={isIndonesian ? "Memuat soal saat ini..." : "Loading current questions..."}
-      />
+      <>
+        {resetDialogs}
+        <EmptyState
+          loading
+          message={isIndonesian ? "Memuat soal saat ini..." : "Loading current questions..."}
+        />
+      </>
     );
   }
 
   if (error) {
     return (
-      <p
-        role="alert"
-        className="rounded-lg border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm leading-6 text-incorrect"
-      >
-        {isIndonesian
-          ? "Soal saat ini belum dapat dimuat. Silakan coba lagi."
-          : "Current questions could not be loaded. Please try again."}
-      </p>
+      <>
+        {resetDialogs}
+        <p
+          role="alert"
+          className="rounded-lg border border-incorrect-border bg-incorrect-bg px-4 py-3 text-sm leading-6 text-incorrect"
+        >
+          {isIndonesian
+            ? "Soal saat ini belum dapat dimuat. Silakan coba lagi."
+            : "Current questions could not be loaded. Please try again."}
+        </p>
+      </>
     );
   }
 
   return (
     <section className="mx-auto w-full max-w-[1180px]" aria-labelledby="admin-questions-title">
+      {resetDialogs}
       <header className="border-b border-border pb-5">
         <h1 id="admin-questions-title" className="text-2xl font-semibold tracking-tight text-navy-deep">
           {isIndonesian ? "Kelola Soal" : "Manage Questions"}
@@ -93,6 +232,12 @@ export function AdminQuestionsPage() {
             : "View the question data currently used in Progmiscon."}
         </p>
       </header>
+
+      {resetError && (
+        <p role="alert" className="mt-4 rounded-md border border-incorrect-border bg-incorrect-bg px-3 py-2 text-sm leading-6 text-incorrect">
+          {resetError}
+        </p>
+      )}
 
       <div className="grid gap-3 py-5 sm:grid-cols-2 lg:grid-cols-[minmax(260px,1fr)_180px_180px]">
         <label className="relative block sm:col-span-2 lg:col-span-1">
@@ -142,6 +287,9 @@ export function AdminQuestionsPage() {
             const misconceptionItems = question.questionMisconceptionIds
               .map((id) => misconceptionById.get(id))
               .filter((item): item is Misconception => item !== undefined);
+            const activeReviewCount =
+              activeReviewCountByQuestionId.get(question.id) ?? 0;
+            const resetBusy = resetBusyQuestionId === question.id;
 
             return (
               <article key={question.id}>
@@ -156,6 +304,11 @@ export function AdminQuestionsPage() {
                       <span className="text-brand">{question.displayCode?.trim() || `${isIndonesian ? "Soal" : "Question"} ${question.number}`}</span>
                       <span>{question.type === "multiple_choice" ? (isIndonesian ? "Pilihan Ganda" : "Multiple Choice") : (isIndonesian ? "Esai" : "Essay")}</span>
                       <span>{question.week ? getMaterialWeekLabel(question.week) : isIndonesian ? "Tanpa minggu" : "Unassigned"}</span>
+                      {activeReviewCount > 0 && (
+                        <span className="rounded-md border border-correct-border bg-correct-bg px-1.5 py-0.5 font-semibold text-correct">
+                          {isIndonesian ? "Review" : "Reviews"} {activeReviewCount}/3
+                        </span>
+                      )}
                     </div>
                     <h2 className="mt-1 text-sm font-medium leading-5 text-navy-deep">
                       {t(question.title, language)}
@@ -174,6 +327,36 @@ export function AdminQuestionsPage() {
 
                 {expanded && (
                   <div className="border-t border-border bg-[var(--progmiscon-background)]/60 px-4 py-5 sm:px-5">
+                    <section className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-md border border-border bg-white px-4 py-3">
+                      <div className="text-xs leading-5 text-navy-deep">
+                        <p className="font-semibold">
+                          {isIndonesian ? "Review dosen" : "Lecturer reviews"}
+                        </p>
+                        <p className="mt-0.5 text-muted">
+                          {activeReviewCount > 0
+                            ? isIndonesian
+                              ? `${activeReviewCount}/3 review dosen aktif.`
+                              : `${activeReviewCount}/3 active lecturer reviews.`
+                            : isIndonesian
+                              ? "Belum ada review dosen aktif."
+                              : "No active lecturer reviews yet."}
+                        </p>
+                      </div>
+                      {activeReviewCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setPendingResetQuestionId(question.id)}
+                          disabled={resetBusy}
+                          className="inline-flex min-h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-brand bg-brand px-3.5 py-1.5 text-xs font-semibold text-white transition-colors hover:border-brand-deep hover:bg-brand-deep focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <RotateCcw size={14} strokeWidth={2} aria-hidden="true" />
+                          {resetBusy
+                            ? isIndonesian ? "Mereset..." : "Resetting..."
+                            : isIndonesian ? "Reset Review" : "Reset Reviews"}
+                        </button>
+                      )}
+                    </section>
+
                     <QuestionContent question={question} />
 
                     {question.type === "multiple_choice" && question.options && question.options.length > 0 && (

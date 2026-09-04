@@ -252,6 +252,7 @@ const nonGuarded = [
   "publish_question_misconception_override", "save_answer_content_override",
   "save_question_content_override", "reset_answer_content_override", "reset_question_content_override",
   "reset_answer_misconception_override", "reset_question_misconception_override",
+  "reset_question_reviews_v3",
   "normalize_text_id_array", "set_updated_at", "normalize_lecturer_email",
   "is_telkom_lecturer_email", "log_review_audit", "handle_new_lecturer_user",
   "enforce_verified_telkom_lecturer_profile", "enforce_question_review_cap",
@@ -291,6 +292,57 @@ for (const fn of ["publish_question_misconception_override", "publish_answer_mis
   ok(
     !new RegExp(`grant execute on function public\\.${fn}\\(text\\) to`).test(sqlC),
     `${fn}: must not be granted to any API role (production has revoked it)`,
+  );
+}
+
+// reset_question_reviews_v3 — targeted admin Question Review reset. SECURITY
+// DEFINER with an internal admin gate; EXECUTE to `authenticated` only (never
+// anon / public / service_role), and no direct question_reviews write grant.
+{
+  // Whole CREATE ... $$; block, identifier-unquoted, comments removed, so the
+  // "never references answer_*" assertion inspects executable SQL only.
+  const raw =
+    sqlU.match(/create or replace function (?:public\.)?reset_question_reviews_v3\([\s\S]*?\n\$\$;/i)?.[0] ?? "";
+  const executable = raw
+    .split("\n")
+    .map((line) => line.replace(/--.*$/, ""))
+    .join("\n");
+  ok(raw !== "", "reset_question_reviews_v3: missing definition");
+  ok(/security definer/i.test(raw), "reset_question_reviews_v3: expected SECURITY DEFINER");
+  ok(/set\s+search_path\s+to\s+''/i.test(raw), "reset_question_reviews_v3: must SET search_path TO ''");
+  ok(
+    /current_user_is_admin\(\)/i.test(executable),
+    "reset_question_reviews_v3: must gate on current_user_is_admin()",
+  );
+  ok(
+    /admin_access_required/i.test(executable),
+    "reset_question_reviews_v3: must raise ADMIN_ACCESS_REQUIRED",
+  );
+  ok(
+    has("revoke all on function public.reset_question_reviews_v3(text, uuid) from public, anon, authenticated, service_role;"),
+    "reset_question_reviews_v3: missing REVOKE ALL from public, anon, authenticated, service_role",
+  );
+  ok(
+    has("grant execute on function public.reset_question_reviews_v3(text, uuid) to authenticated;"),
+    "reset_question_reviews_v3: missing GRANT EXECUTE TO authenticated",
+  );
+  ok(
+    !/grant execute on function public\.reset_question_reviews_v3\([^)]*\) to [^;]*\b(public|anon|service_role)\b/.test(sqlC),
+    "reset_question_reviews_v3: must not GRANT EXECUTE to public / anon / service_role",
+  );
+  ok(
+    !/\banswer_reviews\b|\banswer_misconception_overrides\b|recompute_answer_review_consensus_v3/i.test(executable),
+    "reset_question_reviews_v3: must never reference answer_reviews / answer_misconception_overrides / recompute_answer_review_consensus_v3",
+  );
+  ok(
+    /recompute_question_review_consensus_v3/i.test(executable),
+    "reset_question_reviews_v3: must recompute question consensus",
+  );
+  ok(
+    /inactive_reason\s*=\s*'deleted'/i.test(executable) &&
+      /is_active\s*=\s*false/i.test(executable) &&
+      /inactive_at\s*=\s*pg_catalog\.now\(\)/i.test(executable),
+    "reset_question_reviews_v3: must deactivate with is_active=false, inactive_reason='deleted', inactive_at=now()",
   );
 }
 

@@ -1292,4 +1292,327 @@ $pub_scenario_d$;
 
 reset role;
 
+-- ===========================================================================
+-- ADMIN — targeted Question Review reset: reset_question_reviews_v3.
+--
+-- Deactivates EVERY reviewer's active, current-version Question Review for
+-- exactly one question (is_active = false, inactive_reason = 'deleted',
+-- inactive_at = now()), recomputes ONLY question consensus (so a
+-- question_misconception_overrides row no longer backed by three active reviews
+-- is removed), and never touches the baseline source_version, the review rows'
+-- own source_version, legacy answer_reviews, or answer_misconception_overrides.
+-- Admin-only; idempotent; zero-review safe; stale source_version fails closed.
+-- ===========================================================================
+insert into public.master_misconception_catalog (misconception_id, synced_by, synced_at)
+values ('M-RQR-001', null, now()), ('M-RQR-EXTRA', null, now());
+
+insert into public.question_misconception_baselines
+  (question_id, misconception_ids, synced_by, synced_at, source_version, source_fingerprint)
+values
+  ('Q-RQR-001', array['M-RQR-001'], null, now(),
+   '45000000-0000-4000-8000-000000000001', null),
+  -- control question: three reviewers, must stay completely untouched
+  ('Q-RQR-002', array['M-RQR-001'], null, now(),
+   '45000000-0000-4000-8000-000000000002', null),
+  -- zero-review question
+  ('Q-RQR-003', array['M-RQR-001'], null, now(),
+   '45000000-0000-4000-8000-000000000003', null);
+
+insert into public.answer_misconception_baselines
+  (answer_id, question_id, misconception_ids, synced_by, synced_at, source_version, source_fingerprint)
+values
+  ('A-RQR-001', 'Q-RQR-001', array['M-RQR-001'], null, now(),
+   '45000000-0000-4000-8000-0000000000a1', null);
+
+select set_config('request.jwt.claim.role', 'authenticated', false);
+
+do $rqr_seed$
+declare
+  reviewer_ids uuid[] := array[
+    '00000000-0000-4000-8000-000000000011',
+    '00000000-0000-4000-8000-000000000012',
+    '00000000-0000-4000-8000-000000000013'
+  ];
+  reviewer_id uuid;
+begin
+  foreach reviewer_id in array reviewer_ids loop
+    perform set_config('request.jwt.claim.sub', reviewer_id::text, false);
+    -- Q-RQR-001: reviewer three carries a removal + addition proposal so its
+    -- disappearance from consensus after the reset is observable.
+    if reviewer_id = '00000000-0000-4000-8000-000000000013' then
+      perform public.save_question_review_v3(
+        'Q-RQR-001', '45000000-0000-4000-8000-000000000001',
+        true, array['M-RQR-001'], 'rqr three removal',
+        true, array['M-RQR-EXTRA'], 'rqr three addition', 'rqr q1 three');
+    else
+      perform public.save_question_review_v3(
+        'Q-RQR-001', '45000000-0000-4000-8000-000000000001',
+        false, '{}', null, false, '{}', null, 'rqr q1');
+    end if;
+    perform public.save_answer_review_v3(
+      'A-RQR-001', '45000000-0000-4000-8000-0000000000a1',
+      false, '{}', null, false, '{}', null, 'rqr a1');
+    perform public.save_question_review_v3(
+      'Q-RQR-002', '45000000-0000-4000-8000-000000000002',
+      false, '{}', null, false, '{}', null, 'rqr q2 control');
+  end loop;
+end;
+$rqr_seed$;
+
+do $rqr_reset$
+declare
+  admin_id uuid := '00000000-0000-4000-8000-0000000000a1';
+  non_admin uuid := '00000000-0000-4000-8000-000000000011';
+  inactive_lecturer uuid := '00000000-0000-4000-8000-000000000014';
+  unknown_lecturer uuid := '00000000-0000-4000-8000-00000000dead';
+  q1_version uuid := '45000000-0000-4000-8000-000000000001';
+  stale_version uuid := '45000000-0000-4000-8000-0000000000ff';
+  result jsonb;
+  other_active_questions_before integer;
+  other_active_questions_after integer;
+  active_answers_before integer;
+  active_answers_after integer;
+  answer_overrides_before integer;
+  answer_overrides_after integer;
+  a1_override_updated_at timestamptz;
+  q1_deleted_events integer;
+  q2_rows_before jsonb;
+  q2_rows_after jsonb;
+begin
+  -- Pre-state: seeding published a Q-RQR-001 override and an A-RQR-001 override
+  -- (three active reviewers each), and Q-RQR-002 has three active reviewers.
+  if not exists (
+    select 1 from public.question_misconception_overrides
+    where question_id = 'Q-RQR-001' and source_version = q1_version
+      and source_review_count = 3
+  ) or not exists (
+    select 1 from public.answer_misconception_overrides
+    where answer_id = 'A-RQR-001' and source_review_count = 3
+  ) or (
+    select count(*) from public.question_reviews
+    where question_id = 'Q-RQR-002' and is_active
+  ) <> 3 then
+    raise exception 'RQR_SEED_STATE_MISSING';
+  end if;
+
+  select count(*) into other_active_questions_before
+  from public.question_reviews where question_id <> 'Q-RQR-001' and is_active;
+  select count(*) into active_answers_before
+  from public.answer_reviews where is_active;
+  select count(*) into answer_overrides_before
+  from public.answer_misconception_overrides;
+  select updated_at into a1_override_updated_at
+  from public.answer_misconception_overrides where answer_id = 'A-RQR-001';
+  select jsonb_agg(to_jsonb(qr) order by qr.reviewer_id)
+  into q2_rows_before
+  from public.question_reviews qr where qr.question_id = 'Q-RQR-002';
+
+  -- (14) A non-admin active lecturer cannot reset.
+  perform set_config('request.jwt.claim.sub', non_admin::text, false);
+  begin
+    perform public.reset_question_reviews_v3('Q-RQR-001', q1_version);
+    raise exception 'RQR_EXPECTED_NON_ADMIN_REJECTION';
+  exception
+    when sqlstate 'P0001' then
+      if sqlerrm <> 'ADMIN_ACCESS_REQUIRED' then raise; end if;
+  end;
+
+  -- (11 / 14) An unknown or inactive lecturer cannot reset.
+  perform set_config('request.jwt.claim.sub', unknown_lecturer::text, false);
+  begin
+    perform public.reset_question_reviews_v3('Q-RQR-001', q1_version);
+    raise exception 'RQR_EXPECTED_UNKNOWN_LECTURER_REJECTION';
+  exception
+    when sqlstate 'P0001' then
+      if sqlerrm <> 'ADMIN_ACCESS_REQUIRED' then raise; end if;
+  end;
+
+  update public.lecturer_profiles set active = false where user_id = inactive_lecturer;
+  perform set_config('request.jwt.claim.sub', inactive_lecturer::text, false);
+  begin
+    perform public.reset_question_reviews_v3('Q-RQR-001', q1_version);
+    raise exception 'RQR_EXPECTED_INACTIVE_LECTURER_REJECTION';
+  exception
+    when sqlstate 'P0001' then
+      if sqlerrm <> 'ADMIN_ACCESS_REQUIRED' then raise; end if;
+  end;
+  update public.lecturer_profiles set active = true where user_id = inactive_lecturer;
+
+  -- Nothing changed while unauthorised calls were rejected.
+  if (select count(*) from public.question_reviews
+      where question_id = 'Q-RQR-001' and is_active) <> 3
+    or not exists (select 1 from public.question_misconception_overrides
+                   where question_id = 'Q-RQR-001') then
+    raise exception 'RQR_UNAUTHORISED_CALL_MUTATED_STATE';
+  end if;
+
+  perform set_config('request.jwt.claim.sub', admin_id::text, false);
+
+  -- (15) Stale source_version fails closed, mutates nothing.
+  begin
+    perform public.reset_question_reviews_v3('Q-RQR-001', stale_version);
+    raise exception 'RQR_EXPECTED_DATA_VERSION_CHANGED';
+  exception
+    when sqlstate 'P0001' then
+      if sqlerrm <> 'DATA_VERSION_CHANGED' then raise; end if;
+  end;
+
+  -- (16) Unknown question id.
+  begin
+    perform public.reset_question_reviews_v3('Q-RQR-NOPE', q1_version);
+    raise exception 'RQR_EXPECTED_QUESTION_NOT_FOUND';
+  exception
+    when sqlstate 'P0001' then
+      if sqlerrm <> 'QUESTION_NOT_FOUND' then raise; end if;
+  end;
+
+  -- Blank question id.
+  begin
+    perform public.reset_question_reviews_v3('   ', q1_version);
+    raise exception 'RQR_EXPECTED_INVALID_TARGET_ID';
+  exception
+    when sqlstate '22023' then
+      if sqlerrm <> 'INVALID_TARGET_ID' then raise; end if;
+  end;
+
+  if (select count(*) from public.question_reviews
+      where question_id = 'Q-RQR-001' and is_active) <> 3 then
+    raise exception 'RQR_FAILED_CALL_MUTATED_STATE';
+  end if;
+
+  -- (12) Admin succeeds.
+  result := public.reset_question_reviews_v3('Q-RQR-001', q1_version);
+
+  -- (2) 3 active reviewers -> 0; return payload reports the counts.
+  if (result ->> 'reviews_reset') <> '3'
+    or (result ->> 'reviewers_reset') <> '3'
+    or (result ->> 'override_removed') <> 'true'
+    or (result ->> 'question_id') <> 'Q-RQR-001'
+    or (result ->> 'source_version') <> q1_version::text then
+    raise exception 'RQR_RESET_RESULT_UNEXPECTED: %', result;
+  end if;
+
+  -- (9) effective mapping reverts to the master baseline.
+  if (result #>> '{question_consensus,effective_source}') <> 'master'
+    or (result #> '{question_consensus,effective_misconception_ids}')
+       is distinct from to_jsonb(array['M-RQR-001']) then
+    raise exception 'RQR_EFFECTIVE_NOT_MASTER: %', result -> 'question_consensus';
+  end if;
+
+  -- (3) every reset row: is_active=false, inactive_reason='deleted',
+  -- inactive_at set; source_version UNCHANGED.
+  if exists (
+    select 1 from public.question_reviews
+    where question_id = 'Q-RQR-001' and is_active
+  ) or (
+    select count(*) from public.question_reviews
+    where question_id = 'Q-RQR-001'
+      and is_active = false and inactive_reason = 'deleted'
+      and inactive_at is not null
+      and source_version = q1_version
+  ) <> 3 then
+    raise exception 'RQR_RESET_LIFECYCLE_FAILED';
+  end if;
+
+  -- (6) baseline source_version NOT bumped.
+  if (select source_version from public.question_misconception_baselines
+      where question_id = 'Q-RQR-001') <> q1_version then
+    raise exception 'RQR_BASELINE_VERSION_CHANGED';
+  end if;
+
+  -- (8) question override removed via recompute.
+  if exists (select 1 from public.question_misconception_overrides
+             where question_id = 'Q-RQR-001') then
+    raise exception 'RQR_QUESTION_OVERRIDE_NOT_REMOVED';
+  end if;
+
+  -- (17) admin consensus for the question now reports nothing / zero.
+  if coalesce((
+    select review_count from public.get_admin_review_consensus()
+    where target_type = 'question' and target_id = 'Q-RQR-001'
+  ), 0) <> 0 then
+    raise exception 'RQR_ADMIN_CONSENSUS_STILL_COUNTS';
+  end if;
+
+  -- (4)+(5) legacy answer_reviews and answer_misconception_overrides untouched
+  -- (globally, and for A-RQR-001 specifically incl. override updated_at).
+  select count(*) into active_answers_after
+  from public.answer_reviews where is_active;
+  select count(*) into answer_overrides_after
+  from public.answer_misconception_overrides;
+  if active_answers_after <> active_answers_before
+    or answer_overrides_after <> answer_overrides_before
+    or (select count(*) from public.answer_reviews
+        where answer_id = 'A-RQR-001' and is_active) <> 3
+    or (select updated_at from public.answer_misconception_overrides
+        where answer_id = 'A-RQR-001') is distinct from a1_override_updated_at then
+    raise exception 'RQR_ANSWER_STATE_TOUCHED';
+  end if;
+
+  -- (1)+(18) other question ids unchanged; control question byte-equivalent.
+  select count(*) into other_active_questions_after
+  from public.question_reviews where question_id <> 'Q-RQR-001' and is_active;
+  select jsonb_agg(to_jsonb(qr) order by qr.reviewer_id)
+  into q2_rows_after
+  from public.question_reviews qr where qr.question_id = 'Q-RQR-002';
+  if other_active_questions_after <> other_active_questions_before
+    or q2_rows_after is distinct from q2_rows_before
+    or not exists (select 1 from public.question_misconception_overrides
+                   where question_id = 'Q-RQR-002') then
+    raise exception 'RQR_OTHER_QUESTION_TOUCHED';
+  end if;
+
+  -- (6 audit)+(7) history preserved: exactly three 'deleted' events for
+  -- Q-RQR-001, the earlier 'created'/'edited' events survive, and the deleted
+  -- rows' before-image carries the original review payload.
+  select count(*) into q1_deleted_events
+  from public.review_audit_log
+  where review_type = 'question' and target_id = 'Q-RQR-001'
+    and event_type = 'deleted';
+  if q1_deleted_events <> 3
+    or not exists (
+      select 1 from public.review_audit_log
+      where review_type = 'question' and target_id = 'Q-RQR-001'
+        and event_type = 'created')
+    or not exists (
+      select 1 from public.review_audit_log
+      where review_type = 'question' and target_id = 'Q-RQR-001'
+        and event_type = 'deleted'
+        and before_data ->> 'note' = 'rqr q1 three'
+        and (before_data -> 'removed_misconception_ids') = to_jsonb(array['M-RQR-001'])) then
+    raise exception 'RQR_AUDIT_HISTORY_NOT_PRESERVED: deleted=%', q1_deleted_events;
+  end if;
+
+  -- (12 repeat) Idempotent: a second reset resets nothing and writes no audit.
+  result := public.reset_question_reviews_v3('Q-RQR-001', q1_version);
+  if (result ->> 'reviews_reset') <> '0'
+    or (result ->> 'reviewers_reset') <> '0'
+    or (result ->> 'override_removed') <> 'false' then
+    raise exception 'RQR_RESET_NOT_IDEMPOTENT: %', result;
+  end if;
+  if (select count(*) from public.review_audit_log
+      where review_type = 'question' and target_id = 'Q-RQR-001'
+        and event_type = 'deleted') <> 3 then
+    raise exception 'RQR_IDEMPOTENT_RESET_WROTE_AUDIT';
+  end if;
+
+  -- (13) A question with zero active reviews resets safely with count 0.
+  result := public.reset_question_reviews_v3(
+    'Q-RQR-003', '45000000-0000-4000-8000-000000000003');
+  if (result ->> 'reviews_reset') <> '0'
+    or (result ->> 'reviewers_reset') <> '0'
+    or (result ->> 'override_removed') <> 'false'
+    or (result #>> '{question_consensus,effective_source}') <> 'master' then
+    raise exception 'RQR_ZERO_REVIEW_RESET_UNEXPECTED: %', result;
+  end if;
+  if exists (
+    select 1 from public.review_audit_log
+    where review_type = 'question' and target_id = 'Q-RQR-003') then
+    raise exception 'RQR_ZERO_REVIEW_RESET_WROTE_AUDIT';
+  end if;
+end;
+$rqr_reset$;
+
+reset role;
+
 commit;
