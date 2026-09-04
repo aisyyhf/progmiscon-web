@@ -79,6 +79,11 @@ const snapshotOf = (files) =>
   });
 
 const currentSnapshot = snapshotOf(DIRS.current);
+const proposedOkSnapshot = snapshotOf(DIRS["proposed-ok"]);
+const proposedOkQ2Fp = proposedOkSnapshot.questionBaselines.find(
+  (r) => r.question_id === "Q2",
+).source_fingerprint;
+
 const oracleClean = [
   ...currentSnapshot.questionBaselines.map((r, i) => ({
     target_type: "question",
@@ -107,20 +112,33 @@ const oracleNull = clone(oracleClean).map((r) =>
 const oracleParityMismatch = clone(oracleClean).map((r) =>
   r.target_id === "Q1" ? { ...r, source_fingerprint: `sha256:${"0".repeat(64)}` } : r,
 );
-const oracleAfterQ2Bump = clone(oracleClean).map((r) =>
+// CORRECT post-apply oracle for the proposed-ok content edit: Q2's
+// source_fingerprint is refreshed, its source_version is HELD STABLE, and no
+// review count / override changes (a content edit deactivates nothing).
+const oracleAfterQ2Edit = clone(oracleClean).map((r) =>
+  r.target_id === "Q2" ? { ...r, source_fingerprint: proposedOkQ2Fp } : r,
+);
+// ALERT post-apply oracle: the edit landed but Q2's source_version ALSO rotated
+// (this must NEVER happen for a content edit).
+const oracleAfterQ2Rotated = clone(oracleClean).map((r) =>
   r.target_id === "Q2"
-    ? { ...r, source_version: "99999999-0000-4000-8000-000000000002" }
+    ? {
+        ...r,
+        source_fingerprint: proposedOkQ2Fp,
+        source_version: "99999999-0000-4000-8000-000000000002",
+      }
     : r,
 );
-// post-apply oracle where the WRONG question (Q1, not the allowlisted Q2) moved
+// ALERT post-apply oracle: the WRONG question (Q1, not the allowlisted Q2)
+// rotated its source_version.
 const oracleAfterWrongQ1 = clone(oracleClean).map((r) =>
   r.target_id === "Q1"
     ? { ...r, source_version: "99999999-0000-4000-8000-000000000001" }
     : r,
 );
-// post-apply oracle where an ANSWER also moved (unexpected in a question-only pilot)
-const oracleAfterAnswerBump = clone(oracleClean).map((r) => {
-  if (r.target_id === "Q2") return { ...r, source_version: "99999999-0000-4000-8000-000000000002" };
+// ALERT post-apply oracle: an ANSWER rotated (unexpected in a question-only edit)
+const oracleAfterAnswerRotated = clone(oracleClean).map((r) => {
+  if (r.target_id === "Q2") return { ...r, source_fingerprint: proposedOkQ2Fp };
   if (r.target_id === "A1") return { ...r, source_version: "99999999-1000-4000-8000-000000000001" };
   return r;
 });
@@ -133,8 +151,9 @@ const writeJson = (name, value) => {
 writeJson("oracle-clean.json", oracleClean);
 writeJson("oracle-null.json", oracleNull);
 writeJson("oracle-parity-mismatch.json", oracleParityMismatch);
-writeJson("oracle-after-q2-bump.json", oracleAfterQ2Bump);
+writeJson("oracle-after-q2-edit.json", oracleAfterQ2Edit);
+writeJson("oracle-after-q2-rotated.json", oracleAfterQ2Rotated);
 writeJson("oracle-after-wrong-q1.json", oracleAfterWrongQ1);
-writeJson("oracle-after-answer-bump.json", oracleAfterAnswerBump);
+writeJson("oracle-after-answer-rotated.json", oracleAfterAnswerRotated);
 
 console.log(`wrote ${written.length} fixture files`);

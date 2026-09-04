@@ -1,15 +1,35 @@
 # Canonical Master Data sync to Production — hardened operator path
 
-`scripts/canonical-master-sync.mjs` performs a **version-aware** canonical
-Master Data sync against Production, behind fail-closed gates for a strict
-expected-QID allowlist.
+`scripts/canonical-master-sync.mjs` performs a canonical Master Data sync
+against Production, behind fail-closed gates for a strict expected-QID
+**content-change** allowlist.
+
+## What a sync does to reviews
+
+Since `20260904000000_canonical_sync_keep_reviews_active.sql`, an ordinary
+canonical content or misconception change to an **existing** question / answer
+(parent unchanged) refreshes the baseline content and `source_fingerprint` but:
+
+- does **not** rotate `source_version`,
+- does **not** set any active review `inactive_reason = 'source_updated'`,
+- does **not** delete a review-consensus override,
+- writes **no** `review_audit_log` lifecycle event.
+
+Active lecturer reviews stay attached through normal content edits. Resetting
+Question Reviews is a separate, deliberate admin action
+(`public.reset_question_reviews_v3`, "Reset Review" in Kelola Soal).
+
+`source_version` still rotates — and the reviews at the old version still go
+`source_updated` — only for a **new** target, a **removed** target, or an
+**answer re-parented** to a different question. This tool treats any such
+rotation as a hard blocker: a canonical content edit must never rotate one.
 
 - **Only mutation:** one call to `public.sync_master_relation_baselines_v2(jsonb, jsonb, text[])`.
   The tool never names or invokes the retired legacy v1 baseline mutation, and
   issues no other RPC / insert / update / delete. A static test
   (`checks/canonical-master-sync.mjs`) enforces this.
 - **Default mode is a read-only plan.** `--apply` is required to mutate and adds
-  seven more preconditions (below).
+  more preconditions (below).
 - **Inputs are frozen local files only.** The tool does not fetch the Google
   Sheet. You freeze the five CSVs (`current` = the live sheet before the edit,
   `proposed` = the same five with the approved cell edits applied) and export
@@ -24,9 +44,9 @@ expected-QID allowlist.
 | `--current <dir>` | 5 CSVs (`misconceptions`, `questions`, `answers`, `question_misconceptions`, `answer_misconceptions`) — the live sheet **before** the edit | `curl` each published CSV to a directory, immediately, once |
 | `--proposed <dir>` | the same 5 CSVs with the approved edits applied to a **copy** | edit the copy; never edit the sheet first |
 | `--oracle <file>` | JSON array of the Production baseline state (§ Oracle export) | project-owner SQL read |
-| `--allow Q225,Q226,Q259` | the exact question IDs expected to bump | the approved plan |
-| `--max-question-bumps 3` | hard ceiling on question bumps | pilot = 3 |
-| `--answer-allow` / `--max-answer-bumps 0` | answer allowlist / ceiling (question-only pilot: empty / 0) | pilot = empty / 0 |
+| `--allow Q225,Q226,Q259` | the exact question IDs whose canonical content you are changing | the approved plan |
+| `--max-question-changes 3` | hard ceiling on question content changes (alias: `--max-question-bumps`) | pilot = 3 |
+| `--answer-allow` / `--max-answer-changes 0` | answer allowlist / ceiling (question-only edit: empty / 0) | pilot = empty / 0 |
 | `--expect-ref <ref>` | the Production project ref you intend to hit | from the project URL |
 
 ## Plan (default — read-only, offline)
@@ -37,8 +57,8 @@ node scripts/canonical-master-sync.mjs \
   --proposed ./frozen/proposed \
   --oracle   ./frozen/production-baseline-state.json \
   --allow    Q225,Q226,Q259 \
-  --max-question-bumps 3 \
-  --answer-allow "" --max-answer-bumps 0 \
+  --max-question-changes 3 \
+  --answer-allow "" --max-answer-changes 0 \
   --expect-ref <production-project-ref>
 ```
 
@@ -51,15 +71,19 @@ Exit 0 iff `planIsApplyable`. It prints the `--apply-bundle-hash` to copy.
    `build-baseline-snapshot.mjs` reproduces what Production stores — blocker E1).
 2. **zero_null_baseline_rows** — no Production baseline row has a NULL
    `source_version` or `source_fingerprint`. NULL rows are **reported and stop
-   the plan**; the tool never reconciles or bumps them (blocker E2).
-3. **question_allowlist_exact** — every predicted question bump is in `--allow`,
-   and every `--allow` entry actually bumps.
-4. **answer_allowlist_exact** — same for answers (empty allowlist ⇒ zero answer
-   bumps).
-5. **question_bump_count_within_max** / **answer_bump_count_within_max**.
-6. **snapshot_complete** — the `proposed` snapshot omits no question/answer that
-   Production's baseline (or the `current` snapshot) still has active; and adds
-   none (a question-only pilot changes text, not the target set).
+   the plan**; the tool never reconciles them (blocker E2).
+3. **question_content_allowlist_exact** — every predicted question content
+   change is in `--allow`, and every `--allow` entry actually shows a content
+   change.
+4. **answer_content_allowlist_exact** — same for answers (empty allowlist ⇒ zero
+   answer content changes).
+5. **question_content_change_count_within_max** /
+   **answer_content_change_count_within_max**.
+6. **zero_version_rotations** — no target would rotate its `source_version` (no
+   new / removed / re-parented target). A canonical content edit rotates none.
+7. **snapshot_complete** — the `proposed` snapshot omits no question / answer
+   that Production's baseline (or the `current` snapshot) still has active, and
+   adds none (a content edit changes text, not the target set).
 
 ## Apply (explicit; mutates Production)
 
@@ -95,16 +119,19 @@ now. It must exist, parse as JSON, and **differ** from the pre-apply oracle
 (proving it reflects the mutation). Then **per-target verification** runs and the
 tool prints `APPLY VERIFIED` only when **all** of these hold:
 
-- every target whose `source_version` moved in the fresh post-oracle is in the
-  approved allowlist (nothing outside it changed);
-- every allowlisted target actually moved, `old -> new` (reported);
-- the RPC's `question_versions_changed` / `answer_versions_changed` **equal** the
-  number of moves observed in the fresh post-oracle.
+- **no** target's `source_version` rotated in the fresh post-oracle (a content
+  edit must rotate none);
+- the RPC's `question_versions_changed` / `answer_versions_changed` are both `0`
+  and equal the rotations observed in the fresh post-oracle (also `0`);
+- every target whose `source_fingerprint` changed is in the approved allowlist
+  (nothing outside it drifted);
+- every allowlisted target's `source_fingerprint` actually changed, `old -> new`
+  (reported), with its `source_version` held stable.
 
-Any mismatch — including a stale/identical post-oracle, a wrong target ID, an
-unexpected answer, or an RPC count that the post-oracle does not corroborate —
-prints `APPLY VERIFICATION FAILED / ALERT` and exits non-zero. **RPC counts
-alone are never accepted as verification.**
+Any mismatch — including a stale/identical post-oracle, a rogue `source_version`
+rotation, a wrong target ID, an unexpected answer, or an RPC count that the
+post-oracle does not corroborate — prints `APPLY VERIFICATION FAILED / ALERT`
+and exits non-zero. **RPC counts alone are never accepted as verification.**
 
 ## Oracle export (project-owner, read-only)
 
@@ -132,8 +159,9 @@ select json_agg(row order by row.target_type, row.target_id) from (
 ```
 
 Optionally join `get_question_review_counts()` / override presence for
-`active_review_count` / `override_exists` so the plan can report exact
-invalidation numbers; the safety gates do not depend on them.
+`active_review_count` / `override_exists`; the plan reports these only for a
+`source_version` rotation (which a content edit never triggers), and the safety
+gates do not depend on them.
 
 ## Environment variables (no secrets in the repo)
 
@@ -166,9 +194,10 @@ every baseline row **without** assigning a `source_version`, so a single call
 desynchronises **every** active review from its baseline. Any authenticated
 lecturer could invoke it.
 
-**PR-1 does not change this** (no migration, no ACL change) and this tool cannot
-reach v1. But the exposure remains. It should be closed by a **separate, audited
-PR**:
+The `20260904000000_canonical_sync_keep_reviews_active.sql` migration touches
+only `sync_master_relation_baselines_v2`; it does **not** change the legacy v1
+ACL, and this tool cannot reach v1. The exposure remains and should be closed by
+a **separate, audited PR**:
 
 - **Scope:** one migration that `revoke execute on function
   public.sync_master_relation_baselines(jsonb, jsonb, text[]) from authenticated;`

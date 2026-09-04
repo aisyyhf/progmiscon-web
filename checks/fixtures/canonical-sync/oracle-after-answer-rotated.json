@@ -1,0 +1,57 @@
+[
+  {
+    "target_type": "question",
+    "target_id": "Q1",
+    "source_version": "00000000-0000-4000-8000-000000000001",
+    "source_fingerprint": "927a7a352892a6ea7a4845aaaabcd866dc9141617c15523b1e94324dfc71255a",
+    "misconception_ids": [
+      "M1"
+    ],
+    "active_review_count": 0,
+    "override_exists": false
+  },
+  {
+    "target_type": "question",
+    "target_id": "Q2",
+    "source_version": "00000000-0000-4000-8000-000000000002",
+    "source_fingerprint": "e9f6076c8efbcf8d774e0e1b86595be053ff433eba05f44593076d98c5b7f58a",
+    "misconception_ids": [
+      "M2"
+    ],
+    "active_review_count": 2,
+    "override_exists": true
+  },
+  {
+    "target_type": "question",
+    "target_id": "Q3",
+    "source_version": "00000000-0000-4000-8000-000000000003",
+    "source_fingerprint": "0096b569a95339bd5d2f9e1361b6bfbd1f8b58baa0e08a8bbfd411ec2d324a55",
+    "misconception_ids": [
+      "M3"
+    ],
+    "active_review_count": 0,
+    "override_exists": false
+  },
+  {
+    "target_type": "answer",
+    "target_id": "A1",
+    "question_id": "Q2",
+    "source_version": "99999999-1000-4000-8000-000000000001",
+    "source_fingerprint": "898b105766514eee821f066842c2af88837a1671c395c097ad4763a722ebd9b3",
+    "misconception_ids": [],
+    "active_review_count": 0,
+    "override_exists": false
+  },
+  {
+    "target_type": "answer",
+    "target_id": "A2",
+    "question_id": "Q2",
+    "source_version": "10000000-0000-4000-8000-000000000002",
+    "source_fingerprint": "c6917953debb9f06489125569b1af4da7df3d907d9847144621253abcf6b4b7f",
+    "misconception_ids": [
+      "M2"
+    ],
+    "active_review_count": 0,
+    "override_exists": false
+  }
+]

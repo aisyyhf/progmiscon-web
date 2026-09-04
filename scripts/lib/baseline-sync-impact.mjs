@@ -11,19 +11,29 @@
 //     presence), used as the authoritative "previous" state exactly the way
 //     sync_master_relation_baselines_v2 reads it,
 //
-// this module reproduces the v2 bump decision and reports the impact. It makes
-// no I/O and no network calls.
+// this module reproduces the v2 effect and reports the impact. It makes no I/O
+// and no network calls.
 //
-// v2 bump rule (public.sync_master_relation_baselines_v2, staging-bootstrap.sql):
-//   question bumps IF  previous.source_fingerprint  != incoming.source_fingerprint
-//                  OR  previous.misconception_ids   != incoming.misconception_ids
-//                  OR  question is absent from the incoming active snapshot
-//   answer  bumps IF  previous.source_fingerprint  != incoming.source_fingerprint
-//                  OR  previous.misconception_ids   != incoming.misconception_ids
-//                  OR  previous.question_id         != incoming.question_id
-//                  OR  answer is absent from the incoming active snapshot
-//   a brand-new target is inserted with a fresh source_version (treated here as
-//   would_bump = true, status NEW, 0 reviews affected).
+// v2 effect (public.sync_master_relation_baselines_v2,
+// 20260904000000_canonical_sync_keep_reviews_active.sql):
+//
+//   For an EXISTING target whose parent is unchanged, a change to
+//   source_fingerprint or misconception_ids is ORDINARY CONTENT DRIFT: the
+//   baseline row's content + fingerprint are refreshed, but source_version is
+//   NOT rotated, no review is deactivated and no review-consensus override is
+//   deleted. `content_changed` marks these rows; they still need operator
+//   approval (the allowlist), but they never invalidate a review.
+//
+//   source_version is rotated — and, where applicable, active reviews go
+//   inactive_reason = 'source_updated' and the override is dropped — only for a
+//   `version_rotates` row:
+//     * NEW        — a target absent from the previous state (fresh version),
+//     * REMOVED    — a target absent from the incoming snapshot (its reviews are
+//                    deactivated and the baseline row is deleted),
+//     * REPARENTED — an answer whose parent question_id changed (its Answer
+//                    Reviews are deactivated).
+//
+//   `would_bump` is kept as an alias of `version_rotates`.
 
 import { normalizeIds } from "../../database/staging/lib/build-baseline-snapshot.mjs";
 
@@ -146,6 +156,8 @@ export function computeBaselineSyncImpact({ proposed, current = null, baselineSt
         status: "NEW",
         changed_fields: ["(new question — inserted with a fresh source_version)"],
         current_source_version: null,
+        content_changed: false,
+        version_rotates: true,
         would_bump: true,
         active_reviews_affected: 0,
         override_invalidated: false,
@@ -161,14 +173,14 @@ export function computeBaselineSyncImpact({ proposed, current = null, baselineSt
       ) {
         driftWarnings.push(
           `${incoming.question_id}: frozen --current snapshot does not match the live baseline row; ` +
-            "bump decision uses the live baseline (authoritative), field list may be partial.",
+            "the content-drift decision uses the live baseline (authoritative), field list may be partial.",
         );
       }
     }
 
     const fpChanged = prev.source_fingerprint !== incoming.source_fingerprint;
     const idsChanged = !idsEqual(prev.misconception_ids, incoming.misconception_ids);
-    const wouldBump = fpChanged || idsChanged;
+    const contentChanged = fpChanged || idsChanged;
 
     let changedFields = questionFieldDiff(
       currentQuestionCanonical(current, incoming.question_id),
@@ -185,12 +197,16 @@ export function computeBaselineSyncImpact({ proposed, current = null, baselineSt
     questionRows.push({
       id: incoming.question_id,
       target: "question",
-      status: wouldBump ? "CHANGED" : "UNCHANGED",
+      status: contentChanged ? "CHANGED" : "UNCHANGED",
       changed_fields: changedFields,
       current_source_version: prev.source_version,
-      would_bump: wouldBump,
-      active_reviews_affected: wouldBump ? prev.active_review_count : 0,
-      override_invalidated: wouldBump && prev.override_exists === true,
+      content_changed: contentChanged,
+      // An existing question whose parent cannot change never rotates its
+      // source_version on a content edit; reviews stay active.
+      version_rotates: false,
+      would_bump: false,
+      active_reviews_affected: 0,
+      override_invalidated: false,
     });
   }
 
@@ -208,6 +224,8 @@ export function computeBaselineSyncImpact({ proposed, current = null, baselineSt
       status: "REMOVED",
       changed_fields: ["(no longer in the active Master Data snapshot)"],
       current_source_version: prevDb?.source_version ?? null,
+      content_changed: false,
+      version_rotates: true,
       would_bump: true,
       active_reviews_affected: prevDb ? prevDb.active_review_count : null,
       override_invalidated: prevDb?.override_exists === true,
@@ -255,6 +273,8 @@ export function computeBaselineSyncImpact({ proposed, current = null, baselineSt
         status: "NEW",
         changed_fields: ["(new answer — inserted with a fresh source_version)"],
         current_source_version: null,
+        content_changed: false,
+        version_rotates: true,
         would_bump: true,
         active_reviews_affected: 0,
         override_invalidated: false,
@@ -266,7 +286,7 @@ export function computeBaselineSyncImpact({ proposed, current = null, baselineSt
     const idsChanged = !idsEqual(prev.misconception_ids, incoming.misconception_ids);
     const parentChanged =
       prev.question_id != null && prev.question_id !== incoming.question_id;
-    const wouldBump = fpChanged || idsChanged || parentChanged;
+    const contentChanged = fpChanged || idsChanged;
 
     let changedFields = answerFieldDiff(
       currentAnswerCanonical(current, incoming.answer_id),
@@ -283,16 +303,26 @@ export function computeBaselineSyncImpact({ proposed, current = null, baselineSt
       changedFields.push("question_id");
     }
 
+    const status = parentChanged
+      ? "REPARENTED"
+      : contentChanged
+        ? "CHANGED"
+        : "UNCHANGED";
+
     answerRows.push({
       id: incoming.answer_id,
       target: "answer",
       parent_question_id: incoming.question_id,
-      status: wouldBump ? "CHANGED" : "UNCHANGED",
+      status,
       changed_fields: changedFields,
       current_source_version: prev.source_version,
-      would_bump: wouldBump,
-      active_reviews_affected: wouldBump ? prev.active_review_count : 0,
-      override_invalidated: wouldBump && prev.override_exists === true,
+      content_changed: contentChanged,
+      // A re-parented answer still rotates source_version and deactivates its
+      // Answer Reviews. A same-parent content edit does not.
+      version_rotates: parentChanged,
+      would_bump: parentChanged,
+      active_reviews_affected: parentChanged ? prev.active_review_count : 0,
+      override_invalidated: parentChanged && prev.override_exists === true,
     });
   }
 
@@ -308,6 +338,8 @@ export function computeBaselineSyncImpact({ proposed, current = null, baselineSt
       status: "REMOVED",
       changed_fields: ["(no longer in the active Master Data snapshot)"],
       current_source_version: prevDb?.source_version ?? null,
+      content_changed: false,
+      version_rotates: true,
       would_bump: true,
       active_reviews_affected: prevDb ? prevDb.active_review_count : null,
       override_invalidated: prevDb?.override_exists === true,
@@ -315,7 +347,7 @@ export function computeBaselineSyncImpact({ proposed, current = null, baselineSt
   }
 
   // ---- ordering + summary ------------------------------------------------
-  const statusRank = { CHANGED: 0, REMOVED: 1, NEW: 2, UNCHANGED: 3 };
+  const statusRank = { REPARENTED: 0, REMOVED: 1, NEW: 2, CHANGED: 3, UNCHANGED: 4 };
   const order = (a, b) =>
     statusRank[a.status] - statusRank[b.status] || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   questionRows.sort(order);
@@ -324,7 +356,10 @@ export function computeBaselineSyncImpact({ proposed, current = null, baselineSt
   const changedQuestions = questionRows.filter((r) => r.status !== "UNCHANGED");
   const changedAnswers = answerRows.filter((r) => r.status !== "UNCHANGED");
   const sumReviews = (rows) =>
-    rows.reduce((total, r) => total + (r.would_bump ? Number(r.active_reviews_affected) || 0 : 0), 0);
+    rows.reduce(
+      (total, r) => total + (r.version_rotates ? Number(r.active_reviews_affected) || 0 : 0),
+      0,
+    );
 
   return {
     questions: questionRows,
@@ -333,10 +368,14 @@ export function computeBaselineSyncImpact({ proposed, current = null, baselineSt
       previous_state: previousSource,
       questions_changed: changedQuestions.length,
       questions_bumping: changedQuestions.filter((r) => r.would_bump).length,
+      question_content_changes: questionRows.filter((r) => r.content_changed).length,
+      question_version_rotations: questionRows.filter((r) => r.version_rotates).length,
       active_question_reviews_affected: sumReviews(changedQuestions),
       question_overrides_invalidated: changedQuestions.filter((r) => r.override_invalidated).length,
       answers_changed: changedAnswers.length,
       answers_bumping: changedAnswers.filter((r) => r.would_bump).length,
+      answer_content_changes: answerRows.filter((r) => r.content_changed).length,
+      answer_version_rotations: answerRows.filter((r) => r.version_rotates).length,
       active_answer_reviews_affected: sumReviews(changedAnswers),
       answer_overrides_invalidated: changedAnswers.filter((r) => r.override_invalidated).length,
       review_counts_known: previousSource === "db",
