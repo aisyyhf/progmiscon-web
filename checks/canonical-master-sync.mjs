@@ -31,7 +31,7 @@ function baseArgs({ proposed = "proposed-ok", oracle = "oracle-clean", allow = "
     "--proposed", join(FIX, proposed),
     "--oracle", join(FIX, `${oracle}.json`),
     "--allow", allow,
-    "--max-question-bumps", max,
+    "--max-question-changes", max,
     "--expect-ref", REF,
   ];
 }
@@ -122,10 +122,10 @@ assert.throws(() => parseArgs(["--current"]), /missing value/);
 // 2. answer fail-closed gates in the CLI
 // ---------------------------------------------------------------------------
 {
-  const rpc = fakeRpc({ question_versions_changed: 1, answer_versions_changed: 0 });
+  const rpc = fakeRpc({ question_versions_changed: 0, answer_versions_changed: 0 });
   const answerBump = await run(baseArgs({ proposed: "proposed-answer-bump" }), { callSyncRpc: rpc });
-  assert.equal(answerBump.exitCode, 1, "any answer bump blocks the question-only pilot");
-  assert.deepEqual(answerBump.report.predicted.unexpected_answer_bumps, ["A1"]);
+  assert.equal(answerBump.exitCode, 1, "any answer content change blocks a question-only edit");
+  assert.deepEqual(answerBump.report.predicted.unexpected_answer_content_changes, ["A1"]);
   assert.equal(rpc.calls.length, 0);
 }
 
@@ -148,7 +148,7 @@ const goodBundleHash = computeBundleHash({
   oracleBytes: readFileSync(join(FIX, "oracle-clean.json")),
 });
 
-const APPLY_TAIL = ["--apply", "--apply-bundle-hash", "PLACEHOLDER", "--post-oracle", post("oracle-after-q2-bump")];
+const APPLY_TAIL = ["--apply", "--apply-bundle-hash", "PLACEHOLDER", "--post-oracle", post("oracle-after-q2-edit")];
 const withHash = (h) => APPLY_TAIL.map((t) => (t === "PLACEHOLDER" ? h : t));
 
 await applyRefused("plan not applyable", {
@@ -156,7 +156,7 @@ await applyRefused("plan not applyable", {
   env: APPLY_ENV,
 });
 await applyRefused("missing --apply-bundle-hash", {
-  argv: [...baseArgs(), "--apply", "--post-oracle", post("oracle-after-q2-bump")],
+  argv: [...baseArgs(), "--apply", "--post-oracle", post("oracle-after-q2-edit")],
   env: APPLY_ENV,
 });
 await applyRefused("F2: missing --post-oracle", {
@@ -201,16 +201,17 @@ await applyRefused("missing service role key", {
 });
 
 // ---------------------------------------------------------------------------
-// 4. successful apply — fresh post-oracle shows exactly the allowlisted change
+// 4. successful apply — fresh post-oracle shows exactly the allowlisted content
+//    change with NO source_version rotation
 // ---------------------------------------------------------------------------
 {
   const rpc = fakeRpc({
     question_count: 3, answer_count: 2, misconception_count: 3,
-    question_versions_changed: 1, answer_versions_changed: 0,
+    question_versions_changed: 0, answer_versions_changed: 0,
     synced_at: "2026-09-01T00:00:00Z",
   });
   const res = await run(
-    [...baseArgs(), ...withHash(goodBundleHash)], // APPLY_TAIL uses oracle-after-q2-bump as --post-oracle
+    [...baseArgs(), ...withHash(goodBundleHash)], // APPLY_TAIL uses oracle-after-q2-edit as --post-oracle
     { env: APPLY_ENV, callSyncRpc: rpc },
   );
   assert.equal(res.exitCode, 0, res.output);
@@ -220,71 +221,73 @@ await applyRefused("missing service role key", {
   assert.ok(Array.isArray(payload.input_answer_baselines));
   assert.ok(Array.isArray(payload.input_misconception_ids));
   assert.equal(res.report.post_apply.ok, true);
-  assert.deepEqual(res.report.post_apply.observedQuestionBumpIds, ["Q2"]);
-  assert.deepEqual(res.report.post_apply.observedAnswerBumpIds, []);
+  assert.deepEqual(res.report.post_apply.observedQuestionVersionChanges, []);
+  assert.deepEqual(res.report.post_apply.observedAnswerVersionChanges, []);
   assert.deepEqual(
-    res.report.post_apply.observedQuestionChanges,
-    [{ id: "Q2", old: "00000000-0000-4000-8000-000000000002", new: "99999999-0000-4000-8000-000000000002" }],
-    "old -> new source_version reported",
+    res.report.post_apply.observedQuestionContentChanges.map((c) => c.id),
+    ["Q2"],
+    "the allowlisted Q2 fingerprint refresh is observed",
   );
-  assert.match(res.output, /APPLY VERIFIED — observed exactly 1 question source_version change/);
+  assert.match(res.output, /APPLY VERIFIED — 1 question and 0 answer source_fingerprint\(s\) refreshed/);
+  assert.match(res.output, /NO source_version rotated/);
 }
 
 // ---------------------------------------------------------------------------
-// 5. RPC counts match but the fresh post-oracle shows the WRONG question moved
+// 5. RPC counts are 0 but the fresh post-oracle shows the WRONG question rotated
 // ---------------------------------------------------------------------------
 {
-  const rpc = fakeRpc({ question_versions_changed: 1, answer_versions_changed: 0, synced_at: "x" });
+  const rpc = fakeRpc({ question_versions_changed: 0, answer_versions_changed: 0, synced_at: "x" });
   const res = await run(
     [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash, "--post-oracle", post("oracle-after-wrong-q1")],
     { env: APPLY_ENV, callSyncRpc: rpc },
   );
-  assert.equal(res.exitCode, 1, "count match + wrong QID -> failure");
+  assert.equal(res.exitCode, 1, "count 0 + rogue Q1 rotation -> failure");
   assert.equal(res.report.post_apply.ok, false);
-  assert.ok(res.report.post_apply.failures.some((f) => /Q1 source_version changed .* NOT in the approved allowlist/.test(f)));
-  assert.ok(res.report.post_apply.failures.some((f) => /allowlisted question Q2 did NOT change/.test(f)));
+  assert.ok(res.report.post_apply.failures.some((f) => /Q1 source_version rotated/.test(f)));
+  assert.ok(res.report.post_apply.failures.some((f) => /allowlisted question Q2 source_fingerprint did NOT change/.test(f)));
   assert.match(res.output, /APPLY VERIFICATION FAILED/);
 }
 
 // ---------------------------------------------------------------------------
-// 5b. fresh post-oracle shows an unexpected ANSWER moved
+// 5b. fresh post-oracle shows an unexpected ANSWER rotated
 // ---------------------------------------------------------------------------
 {
-  const rpc = fakeRpc({ question_versions_changed: 1, answer_versions_changed: 0, synced_at: "x" });
+  const rpc = fakeRpc({ question_versions_changed: 0, answer_versions_changed: 0, synced_at: "x" });
   const res = await run(
-    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash, "--post-oracle", post("oracle-after-answer-bump")],
+    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash, "--post-oracle", post("oracle-after-answer-rotated")],
     { env: APPLY_ENV, callSyncRpc: rpc },
   );
-  assert.equal(res.exitCode, 1, "unexpected answer change in post-oracle -> failure");
-  assert.ok(res.report.post_apply.failures.some((f) => /answer A1 source_version changed .* NOT in the approved allowlist/.test(f)));
+  assert.equal(res.exitCode, 1, "unexpected answer rotation in post-oracle -> failure");
+  assert.ok(res.report.post_apply.failures.some((f) => /answer A1 source_version rotated/.test(f)));
   assert.ok(res.report.post_apply.failures.some((f) => /answer_versions_changed=0 but the fresh post-oracle shows 1/.test(f)));
 }
 
 // ---------------------------------------------------------------------------
-// 5c. RPC reports an answer bump the post-oracle does not corroborate
+// 5c. RPC claims a version rotated when a content edit must rotate 0
 // ---------------------------------------------------------------------------
 {
-  const rpc = fakeRpc({ question_versions_changed: 1, answer_versions_changed: 2, synced_at: "x" });
+  const rpc = fakeRpc({ question_versions_changed: 0, answer_versions_changed: 2, synced_at: "x" });
   const res = await run(
-    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash, "--post-oracle", post("oracle-after-q2-bump")],
+    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash, "--post-oracle", post("oracle-after-q2-edit")],
     { env: APPLY_ENV, callSyncRpc: rpc },
   );
   assert.equal(res.exitCode, 1);
-  assert.ok(res.report.post_apply.failures.some((f) => /RPC reported answer_versions_changed=2/.test(f)));
+  assert.ok(res.report.post_apply.failures.some((f) => /must rotate 0 answer source_versions/.test(f)));
   assert.ok(res.report.post_apply.failures.some((f) => /answer_versions_changed=2 but the fresh post-oracle shows 0/.test(f)));
 }
 
 // ---------------------------------------------------------------------------
-// 6. RPC reports more question bumps than the post-oracle corroborates
+// 6. RPC claims a question rotation the post-oracle does not corroborate
 // ---------------------------------------------------------------------------
 {
   const rpc = fakeRpc({ question_versions_changed: 4, answer_versions_changed: 0, synced_at: "x" });
   const res = await run(
-    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash, "--post-oracle", post("oracle-after-q2-bump")],
+    [...baseArgs(), "--apply", "--apply-bundle-hash", goodBundleHash, "--post-oracle", post("oracle-after-q2-edit")],
     { env: APPLY_ENV, callSyncRpc: rpc },
   );
   assert.equal(res.exitCode, 1);
-  assert.ok(res.report.post_apply.failures.some((f) => /question_versions_changed=4 but the fresh post-oracle shows 1/.test(f)));
+  assert.ok(res.report.post_apply.failures.some((f) => /must rotate 0 question source_versions/.test(f)));
+  assert.ok(res.report.post_apply.failures.some((f) => /question_versions_changed=4 but the fresh post-oracle shows 0/.test(f)));
 }
 
 // ---------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Version-aware canonical Master Data sync to Production — with fail-closed
-// gates for a strict expected-QID allowlist.
+// Canonical Master Data sync to Production — with fail-closed gates for a strict
+// expected-QID content-change allowlist.
 //
 // MUTATION: this tool's ONLY database write is a single call to
 //   public.sync_master_relation_baselines_v2(jsonb, jsonb, text[])
@@ -8,15 +8,26 @@
 // issues any other RPC, insert, update, or delete. A static test
 // (checks/canonical-master-sync.mjs) asserts the v1 name is unreferenced.
 //
+// Since 20260904000000_canonical_sync_keep_reviews_active.sql, ordinary content
+// / misconception drift for an existing target refreshes the baseline content +
+// source_fingerprint but does NOT rotate source_version and does NOT deactivate
+// any lecturer review or delete any review-consensus override. The allowlist
+// here therefore gates CONTENT CHANGES: the operator still declares exactly
+// which questions they are editing, and the plan fails closed on drift outside
+// that set. It also blocks ANY source_version rotation (a new / removed / re-
+// parented target), because a canonical content edit must never rotate one.
+//
 // DEFAULT MODE is a read-only plan/preview. --apply is required to mutate, and
 // --apply additionally requires ALL of:
 //   * plan.planIsApplyable  (clean parity, 0 NULL baseline rows, exact question
-//     allowlist match, question bump count <= max, 0 answer bumps / exact answer
-//     allowlist match, answer bump count <= max, snapshot complete)
+//     content-change allowlist match, question change count <= max, 0 answer
+//     changes / exact answer allowlist match, answer change count <= max, zero
+//     source_version rotations, snapshot complete)
 //   * --apply-bundle-hash equal to the SHA-256 the immediately-preceding plan
 //     run printed for the frozen input bundle (current + proposed + oracle)
 //   * --post-oracle <path>  (a fresh baseline export is polled for AFTER the
-//     RPC and verified per-target; RPC counts alone are never accepted)
+//     RPC and verified per-target: the approved fingerprints moved, NO
+//     source_version rotated; RPC counts alone are never accepted)
 //   * PRODUCTION_SUPABASE_URL that STRICTLY validates as https://<ref>.supabase.co
 //     with no userinfo / port / path / query / fragment, and whose ref equals
 //     --expect-ref (the service-role key is used only after this passes)
@@ -33,9 +44,9 @@
 //     --proposed ./frozen/proposed \
 //     --oracle   ./frozen/production-baseline-state.json \
 //     --allow    Q225,Q226,Q259 \
-//     --max-question-bumps 3 \
+//     --max-question-changes 3 \
 //     --expect-ref <production-project-ref> \
-//     [--answer-allow ...] [--max-answer-bumps 0] [--json]
+//     [--answer-allow ...] [--max-answer-changes 0] [--json]
 //
 //   node scripts/canonical-master-sync.mjs ...same... \
 //     --apply --apply-bundle-hash <sha256-from-the-plan-run> \
@@ -216,11 +227,15 @@ export async function runCanonicalMasterSync({
 
   const questionAllowlist = parseIdList(args.allow);
   const answerAllowlist = parseIdList(args.answer_allow);
-  const maxQuestionBumps = args.max_question_bumps !== undefined
-    ? Number(args.max_question_bumps)
+  // --max-question-changes is the current name; --max-question-bumps is kept as
+  // a backward-compatible alias.
+  const rawMaxQuestion = args.max_question_changes ?? args.max_question_bumps;
+  const rawMaxAnswer = args.max_answer_changes ?? args.max_answer_bumps;
+  const maxQuestionContentChanges = rawMaxQuestion !== undefined
+    ? Number(rawMaxQuestion)
     : questionAllowlist.length;
-  const maxAnswerBumps = args.max_answer_bumps !== undefined
-    ? Number(args.max_answer_bumps)
+  const maxAnswerContentChanges = rawMaxAnswer !== undefined
+    ? Number(rawMaxAnswer)
     : answerAllowlist.length;
 
   let plan;
@@ -229,7 +244,12 @@ export async function runCanonicalMasterSync({
       proposed,
       current,
       oracle,
-      options: { questionAllowlist, answerAllowlist, maxQuestionBumps, maxAnswerBumps },
+      options: {
+        questionAllowlist,
+        answerAllowlist,
+        maxQuestionContentChanges,
+        maxAnswerContentChanges,
+      },
     });
   } catch (caught) {
     return fail(`plan build failed: ${caught.message}`);
@@ -241,12 +261,14 @@ export async function runCanonicalMasterSync({
     expect_ref: args.expect_ref,
     options: plan.options,
     predicted: {
-      question_bumps: plan.expectedQuestionBumpIds,
-      unexpected_question_bumps: plan.unexpectedQuestionBumpIds,
-      missing_expected_questions: plan.missingExpectedQuestionIds,
-      answer_bumps: plan.expectedAnswerBumpIds,
-      unexpected_answer_bumps: plan.unexpectedAnswerBumpIds,
-      missing_expected_answers: plan.missingExpectedAnswerIds,
+      question_content_changes: plan.expectedQuestionContentChangeIds,
+      unexpected_question_content_changes: plan.unexpectedQuestionContentChangeIds,
+      missing_expected_question_content_changes: plan.missingExpectedQuestionContentChangeIds,
+      answer_content_changes: plan.expectedAnswerContentChangeIds,
+      unexpected_answer_content_changes: plan.unexpectedAnswerContentChangeIds,
+      missing_expected_answer_content_changes: plan.missingExpectedAnswerContentChangeIds,
+      question_version_rotations: plan.questionVersionRotationIds,
+      answer_version_rotations: plan.answerVersionRotationIds,
       null_baseline_rows: plan.nullBaselineRows,
       parity_failures: plan.parityFailures,
       completeness_violations: plan.completenessViolations,
@@ -402,10 +424,10 @@ export async function runCanonicalMasterSync({
   emit();
   log("");
   if (postApply.ok) {
-    const changes = (postApply.observedQuestionChanges ?? [])
+    const fpChanges = (postApply.observedQuestionContentChanges ?? [])
       .map((c) => `${c.id} ${c.old} -> ${c.new}`)
       .join(", ") || "none";
-    log(`APPLY VERIFIED — observed exactly ${postApply.observedQuestionBumpIds.length} question source_version change(s) [${changes}] and ${postApply.observedAnswerBumpIds.length} answer change(s); all within the approved allowlist; RPC counts match.`);
+    log(`APPLY VERIFIED — ${(postApply.observedQuestionContentChanges ?? []).length} question and ${(postApply.observedAnswerContentChanges ?? []).length} answer source_fingerprint(s) refreshed [${fpChanges}], all within the approved allowlist; NO source_version rotated; reviews untouched; RPC counts match.`);
   } else {
     log(`APPLY VERIFICATION FAILED / ALERT:\n${postApply.failures.map((f) => `  - ${f}`).join("\n")}`);
   }
@@ -418,20 +440,22 @@ export async function runCanonicalMasterSync({
 }
 
 function renderHuman(log, report) {
+  const p = report.predicted;
   log(`mode: ${report.mode}   bundle: ${report.bundle_hash}`);
-  log(`allowlist (question): ${report.options.questionAllowlist.join(", ") || "(none)"}   max: ${report.options.maxQuestionBumps}`);
-  log(`allowlist (answer):   ${report.options.answerAllowlist.join(", ") || "(none)"}   max: ${report.options.maxAnswerBumps}`);
+  log(`allowlist (question): ${report.options.questionAllowlist.join(", ") || "(none)"}   max changes: ${report.options.maxQuestionContentChanges}`);
+  log(`allowlist (answer):   ${report.options.answerAllowlist.join(", ") || "(none)"}   max changes: ${report.options.maxAnswerContentChanges}`);
   log("");
-  log(`predicted question bumps  : ${report.predicted.question_bumps.join(", ") || "(none)"}`);
-  log(`unexpected question bumps : ${report.predicted.unexpected_question_bumps.join(", ") || "(none)"}`);
-  log(`missing expected questions: ${report.predicted.missing_expected_questions.join(", ") || "(none)"}`);
-  log(`predicted answer bumps    : ${report.predicted.answer_bumps.join(", ") || "(none)"}`);
-  log(`unexpected answer bumps   : ${report.predicted.unexpected_answer_bumps.join(", ") || "(none)"}`);
-  log(`NULL baseline rows        : ${report.predicted.null_baseline_rows.length}`);
-  log(`parity failures           : ${report.predicted.parity_failures.length}`);
-  log(`completeness violations   : ${report.predicted.completeness_violations.length}`);
-  log(`predicted active question reviews invalidated: ${report.predicted.counts.predicted_active_question_reviews_invalidated ?? "unknown"}`);
-  log(`predicted question overrides invalidated     : ${report.predicted.counts.predicted_question_overrides_invalidated ?? "unknown"}`);
+  log(`predicted question content changes : ${p.question_content_changes.join(", ") || "(none)"}`);
+  log(`unexpected question content changes: ${p.unexpected_question_content_changes.join(", ") || "(none)"}`);
+  log(`allowlisted questions with NO change: ${p.missing_expected_question_content_changes.join(", ") || "(none)"}`);
+  log(`predicted answer content changes   : ${p.answer_content_changes.join(", ") || "(none)"}`);
+  log(`unexpected answer content changes  : ${p.unexpected_answer_content_changes.join(", ") || "(none)"}`);
+  log(`source_version ROTATIONS (blocker) : ${[...p.question_version_rotations, ...p.answer_version_rotations].join(", ") || "(none)"}`);
+  log(`NULL baseline rows        : ${p.null_baseline_rows.length}`);
+  log(`parity failures           : ${p.parity_failures.length}`);
+  log(`completeness violations   : ${p.completeness_violations.length}`);
+  log(`predicted active question reviews invalidated: ${p.counts.predicted_active_question_reviews_invalidated ?? "unknown"} (content edits invalidate 0)`);
+  log(`predicted question overrides invalidated     : ${p.counts.predicted_question_overrides_invalidated ?? "unknown"}`);
   log("");
   log("gates:");
   for (const [name, pass] of Object.entries(report.gates)) log(`  ${pass ? "PASS" : "FAIL"}  ${name}`);

@@ -1,18 +1,26 @@
 // Focused tests for the read-only Master Data sync impact preflight.
 //
-// Covers the scenarios in the task brief:
-//   1  identical snapshot                -> no bump
-//   2  question_ind changes              -> question bump
-//   3  question_en changes               -> question bump
-//   4  question_code changes             -> question bump
-//   5  direct question misconception ids -> question bump
-//   6  content_blocks_ind changes        -> NOT a v2 fingerprint input, no bump
-//   7  answer_text changes               -> answer bump, not question bump
-//   8  answer misconception relation     -> answer bump, not question bump
-//   9  question removed                  -> predicted invalidation
-//   10 answer parent changes             -> answer bump
-//   11 CRLF / NFC / whitespace           -> no false bump
-//   12 review-count / override math
+// Since 20260904000000_canonical_sync_keep_reviews_active.sql, ordinary content
+// / misconception drift for an existing target (parent unchanged) refreshes the
+// baseline content + source_fingerprint but does NOT rotate source_version and
+// does NOT deactivate a review or delete an override. The engine marks these
+// rows content_changed = true, version_rotates = false. source_version rotation
+// (and the review deactivation that comes with it) is left ONLY for a NEW,
+// REMOVED or REPARENTED target.
+//
+// Covers:
+//   1  identical snapshot                -> no change
+//   2  question_ind changes              -> content drift, no rotation
+//   3  question_en changes               -> content drift, no rotation
+//   4  question_code changes             -> content drift, no rotation
+//   5  direct question misconception ids -> content drift, no rotation
+//   6  content_blocks_ind changes        -> NOT a v2 fingerprint input, no change
+//   7  answer_text changes               -> answer content drift, not question
+//   8  answer misconception relation     -> answer content drift, not question
+//   9  question removed                  -> version rotation + review deactivation
+//   10 answer parent changes             -> answer version rotation (re-parent)
+//   11 CRLF / NFC / whitespace           -> no false change
+//   12 content-change / rotation math
 //   13 staging-ref guard refuses non-staging refs
 //   14 the preflight contains no write/mutation path
 
@@ -77,7 +85,7 @@ function toSnapshot(fixture) {
 }
 
 // derive an authoritative "live baseline" state from a snapshot so that an
-// unedited target is UNCHANGED and edits show up as bumps.
+// unedited target is UNCHANGED and edits show up.
 function baselineFromSnapshot(snapshot, { questionReviewCounts = {}, answerReviewCounts = {}, questionOverrides = [], answerOverrides = [] } = {}) {
   const qOverride = new Set(questionOverrides);
   const aOverride = new Set(answerOverrides);
@@ -128,18 +136,24 @@ function answerRow(impact, id) {
 }
 
 // ---------------------------------------------------------------------------
-// 1. identical snapshot -> no bump
+// 1. identical snapshot -> no change
 // ---------------------------------------------------------------------------
 {
   const impact = impactFor(() => {});
   assert.equal(impact.summary.questions_changed, 0, "identical snapshot: no question changes");
   assert.equal(impact.summary.answers_changed, 0, "identical snapshot: no answer changes");
+  assert.equal(impact.summary.question_content_changes, 0);
+  assert.equal(impact.summary.question_version_rotations, 0);
   assert.deepEqual(impact.summary.drift_warnings, []);
-  assert.ok(impact.questions.every((r) => r.status === "UNCHANGED" && r.would_bump === false));
+  assert.ok(
+    impact.questions.every(
+      (r) => r.status === "UNCHANGED" && r.content_changed === false && r.version_rotates === false,
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
-// 2-4. canonical text fields
+// 2-4. canonical text fields -> content drift, NOT a version rotation
 // ---------------------------------------------------------------------------
 for (const [field, column] of [
   ["question_ind", "question_ind"],
@@ -150,23 +164,28 @@ for (const [field, column] of [
     fx.questions[0][column] = `${fx.questions[0][column]} (revised)`;
   });
   const row = questionRow(impact, "Q001");
-  assert.equal(row.would_bump, true, `${field} change bumps Q001`);
+  assert.equal(row.status, "CHANGED", `${field}: Q001 status CHANGED`);
+  assert.equal(row.content_changed, true, `${field} change is content drift for Q001`);
+  assert.equal(row.version_rotates, false, `${field} change does NOT rotate Q001 source_version`);
+  assert.equal(row.would_bump, false);
   assert.deepEqual(row.changed_fields, [field], `${field} is named as the only changed field`);
-  assert.equal(row.active_reviews_affected, 2, `${field}: Q001 has 2 active reviews`);
-  assert.equal(row.override_invalidated, true, `${field}: Q001 override invalidated`);
-  assert.equal(questionRow(impact, "Q002").would_bump, false, `${field}: Q002 untouched`);
-  assert.equal(impact.summary.answers_changed, 0, `${field}: no answer bump`);
+  assert.equal(row.active_reviews_affected, 0, `${field}: no review is deactivated (2 stay active)`);
+  assert.equal(row.override_invalidated, false, `${field}: Q001 override is NOT invalidated`);
+  assert.equal(questionRow(impact, "Q002").content_changed, false, `${field}: Q002 untouched`);
+  assert.equal(impact.summary.answers_changed, 0, `${field}: no answer change`);
+  assert.equal(impact.summary.active_question_reviews_affected, 0, `${field}: 0 reviews affected`);
 }
 
 // ---------------------------------------------------------------------------
-// 5. direct question misconception ids
+// 5. direct question misconception ids -> content drift, no rotation
 // ---------------------------------------------------------------------------
 {
   const impact = impactFor((fx) => {
     fx.questionMisc.push({ question_id: "Q001", misconception_id: "IO-02", active: "true" });
   });
   const row = questionRow(impact, "Q001");
-  assert.equal(row.would_bump, true, "adding a direct question misconception bumps Q001");
+  assert.equal(row.content_changed, true, "adding a direct question misconception is content drift for Q001");
+  assert.equal(row.version_rotates, false);
   assert.deepEqual(row.changed_fields, ["misconception_ids"]);
   assert.equal(impact.summary.answers_changed, 0);
 }
@@ -183,23 +202,25 @@ for (const [field, column] of [
 }
 
 // ---------------------------------------------------------------------------
-// 7. answer_text -> answer bump, not question bump
+// 7. answer_text -> answer content drift, not question
 // ---------------------------------------------------------------------------
 {
   const impact = impactFor((fx) => {
     fx.answers[1].answer_text = "nine";
   });
-  assert.equal(impact.summary.questions_changed, 0, "answer_text edit does not bump the parent question");
+  assert.equal(impact.summary.questions_changed, 0, "answer_text edit does not touch the parent question");
   const row = answerRow(impact, "A001-B");
-  assert.equal(row.would_bump, true);
+  assert.equal(row.status, "CHANGED");
+  assert.equal(row.content_changed, true);
+  assert.equal(row.version_rotates, false);
   assert.deepEqual(row.changed_fields, ["answer_text"]);
-  assert.equal(row.active_reviews_affected, 3);
-  assert.equal(row.override_invalidated, true);
+  assert.equal(row.active_reviews_affected, 0, "the 3 Answer Reviews stay active");
+  assert.equal(row.override_invalidated, false);
   assert.equal(row.parent_question_id, "Q001");
 }
 
 // ---------------------------------------------------------------------------
-// 8. answer misconception relation -> answer bump, not question bump
+// 8. answer misconception relation -> answer content drift, not question
 // ---------------------------------------------------------------------------
 {
   const impact = impactFor((fx) => {
@@ -207,12 +228,13 @@ for (const [field, column] of [
   });
   assert.equal(impact.summary.questions_changed, 0);
   const row = answerRow(impact, "A001-A");
-  assert.equal(row.would_bump, true);
+  assert.equal(row.content_changed, true);
+  assert.equal(row.version_rotates, false);
   assert.deepEqual(row.changed_fields, ["misconception_ids"]);
 }
 
 // ---------------------------------------------------------------------------
-// 9. question removed -> predicted invalidation
+// 9. question removed -> version rotation + review deactivation (preserved)
 // ---------------------------------------------------------------------------
 {
   const impact = impactFor((fx) => {
@@ -220,34 +242,37 @@ for (const [field, column] of [
   });
   const row = questionRow(impact, "Q002");
   assert.equal(row.status, "REMOVED");
+  assert.equal(row.version_rotates, true);
   assert.equal(row.would_bump, true);
   assert.equal(row.active_reviews_affected, 1, "Q002 had 1 active review");
   // its answer also drops
   const droppedAnswer = answerRow(impact, "A002-A");
   assert.equal(droppedAnswer.status, "REMOVED");
-  assert.equal(droppedAnswer.would_bump, true);
+  assert.equal(droppedAnswer.version_rotates, true);
+  assert.equal(impact.summary.active_question_reviews_affected, 1);
 }
 
 // ---------------------------------------------------------------------------
-// 10. answer parent changes -> answer bump
+// 10. answer parent changes -> answer version rotation (re-parent, preserved)
 // ---------------------------------------------------------------------------
 {
   const impact = impactFor((fx) => {
     fx.answers[0].question_id = "Q002"; // A001-A reparented Q001 -> Q002
   });
   const row = answerRow(impact, "A001-A");
-  assert.equal(row.would_bump, true, "reparenting an answer bumps it");
+  assert.equal(row.status, "REPARENTED");
+  assert.equal(row.version_rotates, true, "re-parenting an answer rotates its source_version");
+  assert.equal(row.would_bump, true);
   assert.ok(row.changed_fields.includes("question_id"), "question_id is flagged");
   assert.equal(row.parent_question_id, "Q002");
-  assert.equal(impact.summary.questions_changed, 0, "reparent alone does not bump either question");
+  assert.equal(impact.summary.questions_changed, 0, "re-parent alone does not change either question");
+  assert.equal(impact.summary.answer_version_rotations, 1);
 }
 
 // ---------------------------------------------------------------------------
-// 11. CRLF / NFC / whitespace normalization -> no false bump
+// 11. CRLF / NFC / whitespace normalization -> no false change
 // ---------------------------------------------------------------------------
 {
-  // CRLF vs LF, trailing whitespace, and NFD vs NFC of the SAME text ("café"):
-  // all collapse under canonText, so no false bump.
   const impact = impactFor((fx) => {
     fx.questions[0].question_en = "Print café n.".normalize("NFD") + "\r\n   ";
   });
@@ -257,19 +282,20 @@ for (const [field, column] of [
     "fixture sanity: the two Unicode forms really differ byte-wise",
   );
   assert.equal(
-    questionRow(impact, "Q001").would_bump,
+    questionRow(impact, "Q001").content_changed,
     false,
-    "CRLF + trailing whitespace + NFD form do not bump",
+    "CRLF + trailing whitespace + NFD form do not register as a change",
   );
-  // sanity: a genuinely different accented character still bumps
+  // sanity: a genuinely different accented character still registers
   const accent = impactFor((fx) => {
     fx.questions[0].question_en = "Print the numbér n.";
   });
-  assert.equal(questionRow(accent, "Q001").would_bump, true);
+  assert.equal(questionRow(accent, "Q001").content_changed, true);
+  assert.equal(questionRow(accent, "Q001").version_rotates, false);
 }
 
 // ---------------------------------------------------------------------------
-// 12. review-count / override math with structural-only mode (no baselineState)
+// 12. content-change / rotation math
 // ---------------------------------------------------------------------------
 {
   const proposedFixture = clone(BASE);
@@ -280,21 +306,23 @@ for (const [field, column] of [
     baselineState: null,
   });
   const row = questionRow(structuralOnly, "Q001");
-  assert.equal(row.would_bump, true, "structural mode still detects the bump");
-  assert.equal(row.active_reviews_affected, null, "structural mode cannot know review counts");
+  assert.equal(row.content_changed, true, "structural mode still detects the content change");
+  assert.equal(row.version_rotates, false);
+  assert.equal(row.active_reviews_affected, 0, "content drift affects 0 reviews");
   assert.equal(structuralOnly.summary.review_counts_known, false);
   assert.equal(structuralOnly.summary.previous_state, "snapshot");
 }
 
-// baselineState math
+// baselineState math: two question content edits, nothing rotates
 {
   const impact = impactFor((fx) => {
     fx.questions[0].question_ind += " x";
     fx.questions[1].question_en += " y";
   });
-  assert.equal(impact.summary.questions_bumping, 2);
-  assert.equal(impact.summary.active_question_reviews_affected, 3, "2 + 1 active reviews");
-  assert.equal(impact.summary.question_overrides_invalidated, 1, "only Q001 has an override");
+  assert.equal(impact.summary.question_content_changes, 2);
+  assert.equal(impact.summary.question_version_rotations, 0);
+  assert.equal(impact.summary.active_question_reviews_affected, 0, "content edits deactivate 0 reviews");
+  assert.equal(impact.summary.question_overrides_invalidated, 0, "content edits invalidate 0 overrides");
   assert.equal(impact.summary.review_counts_known, true);
 }
 
@@ -311,7 +339,9 @@ for (const [field, column] of [
     current: currentSnapshot,
     baselineState: drifted,
   });
-  assert.equal(impact.questions.find((r) => r.id === "Q001").would_bump, true, "drift alone forces a bump");
+  const q1 = impact.questions.find((r) => r.id === "Q001");
+  assert.equal(q1.content_changed, true, "a fingerprint mismatch against the live baseline is content drift");
+  assert.equal(q1.version_rotates, false);
   assert.ok(impact.summary.drift_warnings.some((w) => w.startsWith("Q001:")));
 }
 
@@ -407,13 +437,16 @@ for (const [field, column] of [
     ],
     { encoding: "utf8" },
   );
-  assert.match(out, /=== QUESTION VERSION IMPACT ===/);
+  assert.match(out, /=== QUESTION SYNC IMPACT ===/);
   assert.match(out, /Q038/);
-  assert.match(out, /would bump source_version: YES/);
+  assert.match(out, /would rotate source_version: NO/);
+  assert.match(out, /Content drift only: no source_version would rotate/);
   const jsonStart = out.indexOf("{");
   const parsed = JSON.parse(out.slice(jsonStart));
   assert.ok(Array.isArray(parsed.questions));
   assert.equal(parsed.summary.review_counts_known, true);
+  assert.equal(parsed.summary.question_version_rotations, 0);
+  assert.equal(parsed.summary.active_question_reviews_affected, 0);
 
   // no-diff path prints SAFE
   const safe = execFileSync(

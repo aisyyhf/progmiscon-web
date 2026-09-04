@@ -2,12 +2,15 @@
 // Progmiscon — READ-ONLY Master Data sync impact preflight.
 //
 // WHAT IT ANSWERS
-//   Before a version-aware baseline sync (sync_master_relation_baselines_v2),
-//   tell me exactly:
-//     * which Question IDs would receive a new source_version, and why,
-//     * which Answer IDs would receive a new source_version, and why,
-//     * how many active reviews would become inactive_reason = 'source_updated',
-//     * whether an existing published override would be invalidated.
+//   Before a canonical baseline sync (sync_master_relation_baselines_v2), tell
+//   me exactly:
+//     * which Question / Answer IDs would have their canonical content +
+//       source_fingerprint refreshed (ordinary content drift — reviews stay
+//       active, source_version is NOT rotated), and which canonical field moved,
+//     * which Question / Answer IDs would ROTATE a source_version (a new,
+//       removed or re-parented target) — the only case that still deactivates
+//       reviews (inactive_reason = 'source_updated') and drops an override,
+//     * for those rotations, how many active reviews / overrides are affected.
 //
 // IT MAKES ZERO WRITES.
 //   * It NEVER calls sync_master_relation_baselines / _v2, and never calls any
@@ -26,7 +29,8 @@
 //   --current <dir>    OPTIONAL. Same five files for Master Data as it stands
 //                      right now (a frozen export taken BEFORE editing). Used to
 //                      name which canonical field moved. Without it, the tool
-//                      still decides would_bump but the field list is coarser.
+//                      still decides content_changed / version_rotates but the
+//                      field list is coarser.
 //   --baseline <file>  OPTIONAL. JSON snapshot of the live *_misconception_
 //                      baselines rows + active review counts + override
 //                      presence. Shape:
@@ -125,7 +129,12 @@ function renderReport(impact, { previousStateLabel }) {
   const q = impact.questions.filter((r) => r.status !== "UNCHANGED");
   const a = impact.answers.filter((r) => r.status !== "UNCHANGED");
 
-  lines.push("=== QUESTION VERSION IMPACT ===");
+  const effect = (row) =>
+    row.version_rotates
+      ? "ROTATES source_version + deactivates reviews (new / removed / re-parented)"
+      : "content drift only — source_version stable, reviews stay active";
+
+  lines.push("=== QUESTION SYNC IMPACT ===");
   if (q.length === 0) {
     lines.push("  (no question would change)");
   } else {
@@ -136,14 +145,15 @@ function renderReport(impact, { previousStateLabel }) {
       lines.push("    changed fields:");
       for (const field of row.changed_fields) lines.push(`      - ${field}`);
       lines.push(`    current source_version: ${fmt(row.current_source_version)}`);
-      lines.push(`    would bump source_version: ${row.would_bump ? "YES" : "NO"}`);
-      lines.push(`    active Question Reviews affected: ${fmt(row.active_reviews_affected)}`);
+      lines.push(`    effect: ${effect(row)}`);
+      lines.push(`    would rotate source_version: ${row.version_rotates ? "YES" : "NO"}`);
+      lines.push(`    active Question Reviews affected: ${row.version_rotates ? fmt(row.active_reviews_affected) : "0"}`);
       lines.push(`    override would be invalidated: ${row.override_invalidated ? "YES" : "NO"}`);
     }
   }
 
   lines.push("");
-  lines.push("=== ANSWER VERSION IMPACT (legacy Answer Review data) ===");
+  lines.push("=== ANSWER SYNC IMPACT (legacy Answer Review data) ===");
   if (a.length === 0) {
     lines.push("  (no answer would change)");
   } else {
@@ -154,8 +164,9 @@ function renderReport(impact, { previousStateLabel }) {
       lines.push("    changed fields:");
       for (const field of row.changed_fields) lines.push(`      - ${field}`);
       lines.push(`    current source_version: ${fmt(row.current_source_version)}`);
-      lines.push(`    would bump source_version: ${row.would_bump ? "YES" : "NO"}`);
-      lines.push(`    active Answer Reviews affected: ${fmt(row.active_reviews_affected)}`);
+      lines.push(`    effect: ${effect(row)}`);
+      lines.push(`    would rotate source_version: ${row.version_rotates ? "YES" : "NO"}`);
+      lines.push(`    active Answer Reviews affected: ${row.version_rotates ? fmt(row.active_reviews_affected) : "0"}`);
       lines.push(`    override would be invalidated: ${row.override_invalidated ? "YES" : "NO"}`);
     }
   }
@@ -164,18 +175,18 @@ function renderReport(impact, { previousStateLabel }) {
   lines.push("");
   lines.push("=== SUMMARY ===");
   lines.push(`  previous state: ${previousStateLabel}`);
-  lines.push(`  questions changed: ${s.questions_changed}  (bumping: ${s.questions_bumping})`);
+  lines.push(`  question content changes: ${s.question_content_changes}   version rotations: ${s.question_version_rotations}`);
   lines.push(
     `  active Question Reviews that would become source_updated: ${
       s.review_counts_known ? s.active_question_reviews_affected : "unknown (no baseline state)"
-    }`,
+    }  (ordinary content edits: 0)`,
   );
   lines.push(`  question overrides invalidated: ${s.review_counts_known ? s.question_overrides_invalidated : "unknown"}`);
-  lines.push(`  answers changed: ${s.answers_changed}  (bumping: ${s.answers_bumping})`);
+  lines.push(`  answer content changes: ${s.answer_content_changes}   version rotations: ${s.answer_version_rotations}`);
   lines.push(
     `  active Answer Reviews that would become source_updated: ${
       s.review_counts_known ? s.active_answer_reviews_affected : "unknown (no baseline state)"
-    }`,
+    }  (ordinary content edits: 0)`,
   );
   for (const warning of s.drift_warnings) lines.push(`  ! drift: ${warning}`);
 
@@ -183,6 +194,9 @@ function renderReport(impact, { previousStateLabel }) {
     lines.push("");
     lines.push("SAFE: proposed snapshot matches current baseline version inputs.");
     lines.push("No reviews would become stale.");
+  } else if (s.question_version_rotations === 0 && s.answer_version_rotations === 0) {
+    lines.push("");
+    lines.push("Content drift only: no source_version would rotate, no review would become stale.");
   }
 
   return lines.join("\n");

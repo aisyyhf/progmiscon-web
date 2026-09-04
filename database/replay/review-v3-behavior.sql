@@ -1615,4 +1615,346 @@ $rqr_reset$;
 
 reset role;
 
+-- ===========================================================================
+-- CANONICAL SYNC — ordinary content drift keeps reviews active.
+--
+-- public.sync_master_relation_baselines_v2 is the one write the operator
+-- canonical Master Data sync makes. For an EXISTING target whose parent is
+-- unchanged, a source_fingerprint / misconception_ids change must:
+--   * refresh the baseline content + fingerprint,
+--   * NOT rotate source_version,
+--   * NOT deactivate any active Question / Answer Review,
+--   * NOT delete a review-consensus override,
+--   * write no review_audit_log lifecycle event.
+-- Preserved, deliberately: a NEW target gets a fresh version; a target that
+-- disappears from the snapshot has its reviews deactivated ('source_updated')
+-- and its baseline removed; an answer re-parented to a different question
+-- rotates its version and deactivates its Answer Reviews ('source_updated').
+-- ===========================================================================
+insert into public.master_misconception_catalog (misconception_id, synced_by, synced_at)
+values ('M-SYN-001', null, now()), ('M-SYN-EXTRA', null, now());
+
+insert into public.question_misconception_baselines
+  (question_id, misconception_ids, synced_by, synced_at, source_version, source_fingerprint)
+values
+  ('Q-SYN-001', array['M-SYN-001'], null, now(),
+   '46000000-0000-4000-8000-000000000001', 'fp-q-syn-001-v1'),
+  -- control + re-parent destination: three reviewers, must stay untouched
+  ('Q-SYN-002', array['M-SYN-001'], null, now(),
+   '46000000-0000-4000-8000-000000000002', 'fp-q-syn-002-v1'),
+  -- disappears from the snapshot below
+  ('Q-SYN-GONE', array['M-SYN-001'], null, now(),
+   '46000000-0000-4000-8000-000000000009', 'fp-q-syn-gone-v1');
+
+insert into public.answer_misconception_baselines
+  (answer_id, question_id, misconception_ids, synced_by, synced_at, source_version, source_fingerprint)
+values
+  ('A-SYN-001', 'Q-SYN-001', array['M-SYN-001'], null, now(),
+   '46000000-0000-4000-8000-0000000000a1', 'fp-a-syn-001-v1'),
+  -- re-parented Q-SYN-001 -> Q-SYN-002 in the snapshot below
+  ('A-SYN-RP', 'Q-SYN-001', array['M-SYN-001'], null, now(),
+   '46000000-0000-4000-8000-0000000000a2', 'fp-a-syn-rp-v1'),
+  -- disappears from the snapshot below
+  ('A-SYN-GONE', 'Q-SYN-GONE', array['M-SYN-001'], null, now(),
+   '46000000-0000-4000-8000-0000000000a9', 'fp-a-syn-gone-v1');
+
+select set_config('request.jwt.claim.role', 'authenticated', false);
+
+do $syn_seed$
+declare
+  three_reviewers uuid[] := array[
+    '00000000-0000-4000-8000-000000000011',
+    '00000000-0000-4000-8000-000000000012',
+    '00000000-0000-4000-8000-000000000013'
+  ];
+  reviewer_id uuid;
+begin
+  foreach reviewer_id in array three_reviewers loop
+    perform set_config('request.jwt.claim.sub', reviewer_id::text, false);
+    perform public.save_question_review_v3(
+      'Q-SYN-001', '46000000-0000-4000-8000-000000000001',
+      false, '{}', null, false, '{}', null, 'syn q1');
+    perform public.save_question_review_v3(
+      'Q-SYN-002', '46000000-0000-4000-8000-000000000002',
+      false, '{}', null, false, '{}', null, 'syn q2 control');
+    perform public.save_answer_review_v3(
+      'A-SYN-001', '46000000-0000-4000-8000-0000000000a1',
+      false, '{}', null, false, '{}', null, 'syn a1');
+  end loop;
+
+  -- one reviewer each for the re-parented and the disappearing targets
+  perform set_config('request.jwt.claim.sub',
+    '00000000-0000-4000-8000-000000000011', false);
+  perform public.save_answer_review_v3(
+    'A-SYN-RP', '46000000-0000-4000-8000-0000000000a2',
+    false, '{}', null, false, '{}', null, 'syn a-rp');
+  perform public.save_question_review_v3(
+    'Q-SYN-GONE', '46000000-0000-4000-8000-000000000009',
+    false, '{}', null, false, '{}', null, 'syn q-gone');
+  perform public.save_answer_review_v3(
+    'A-SYN-GONE', '46000000-0000-4000-8000-0000000000a9',
+    false, '{}', null, false, '{}', null, 'syn a-gone');
+end;
+$syn_seed$;
+
+reset role;
+
+do $syn_sync$
+declare
+  q1_version uuid := '46000000-0000-4000-8000-000000000001';
+  q2_version uuid := '46000000-0000-4000-8000-000000000002';
+  a1_version uuid := '46000000-0000-4000-8000-0000000000a1';
+  rp_version uuid := '46000000-0000-4000-8000-0000000000a2';
+  q_input jsonb;
+  a_input jsonb;
+  m_input text[];
+  qvc integer;
+  avc integer;
+  q1_audit_before integer;
+  a1_audit_before integer;
+  q1_override_before jsonb;
+  a1_override_before jsonb;
+  q2_rows_before jsonb;
+begin
+  select array_agg(distinct misconception_id order by misconception_id)
+  into m_input
+  from (
+    select misconception_id from public.master_misconception_catalog
+    union all select 'M-SYN-001' union all select 'M-SYN-EXTRA'
+  ) all_ids;
+
+  -- Full-world snapshot: every live question baseline except the one that is
+  -- meant to disappear. Q-SYN-001 gets a new fingerprint + a new misconception
+  -- id (ordinary content drift); everything else is passed through unchanged.
+  select jsonb_agg(jsonb_build_object(
+    'question_id', b.question_id,
+    'source_fingerprint',
+      case b.question_id
+        when 'Q-SYN-001' then 'fp-q-syn-001-v2'
+        else coalesce(b.source_fingerprint, 'syn-seed-' || b.question_id)
+      end,
+    'misconception_ids',
+      case b.question_id
+        when 'Q-SYN-001' then to_jsonb(array['M-SYN-001', 'M-SYN-EXTRA'])
+        else to_jsonb(b.misconception_ids)
+      end
+  ))
+  into q_input
+  from public.question_misconception_baselines b
+  where b.question_id <> 'Q-SYN-GONE';
+
+  -- Every live answer baseline except the disappearing one. A-SYN-001 gets a
+  -- new fingerprint + misconception id (content drift, same parent). A-SYN-RP
+  -- is re-parented Q-SYN-001 -> Q-SYN-002. Any answer whose (effective) parent
+  -- question is not in the snapshot is dropped so the RPC's parent check holds.
+  select jsonb_agg(jsonb_build_object(
+    'answer_id', b.answer_id,
+    'question_id',
+      case b.answer_id when 'A-SYN-RP' then 'Q-SYN-002' else b.question_id end,
+    'source_fingerprint',
+      case b.answer_id
+        when 'A-SYN-001' then 'fp-a-syn-001-v2'
+        else coalesce(b.source_fingerprint, 'syn-seed-' || b.answer_id)
+      end,
+    'misconception_ids',
+      case b.answer_id
+        when 'A-SYN-001' then to_jsonb(array['M-SYN-001', 'M-SYN-EXTRA'])
+        else to_jsonb(b.misconception_ids)
+      end
+  ))
+  into a_input
+  from public.answer_misconception_baselines b
+  where b.answer_id <> 'A-SYN-GONE'
+    and exists (
+      select 1 from public.question_misconception_baselines qb
+      where qb.question_id =
+        (case b.answer_id when 'A-SYN-RP' then 'Q-SYN-002' else b.question_id end)
+    );
+
+  select count(*) into q1_audit_before
+  from public.review_audit_log
+  where review_type = 'question' and target_id = 'Q-SYN-001';
+  select count(*) into a1_audit_before
+  from public.review_audit_log
+  where review_type = 'answer' and target_id = 'A-SYN-001';
+  select to_jsonb(o) into q1_override_before
+  from public.question_misconception_overrides o where o.question_id = 'Q-SYN-001';
+  select to_jsonb(o) into a1_override_before
+  from public.answer_misconception_overrides o where o.answer_id = 'A-SYN-001';
+  select jsonb_agg(to_jsonb(qr) order by qr.reviewer_id) into q2_rows_before
+  from public.question_reviews qr where qr.question_id = 'Q-SYN-002';
+
+  -- Pre-state sanity: overrides published, three active reviewers each.
+  if q1_override_before is null or a1_override_before is null
+    or (select count(*) from public.question_reviews
+        where question_id = 'Q-SYN-001' and is_active) <> 3
+    or (select count(*) from public.answer_reviews
+        where answer_id = 'A-SYN-001' and is_active) <> 3
+    or (select count(*) from public.question_reviews
+        where question_id = 'Q-SYN-002' and is_active) <> 3 then
+    raise exception 'SYN_SEED_STATE_MISSING';
+  end if;
+
+  -- A non-service caller cannot run the sync.
+  perform set_config('request.jwt.claim.role', 'authenticated', false);
+  begin
+    perform public.sync_master_relation_baselines_v2(q_input, a_input, m_input);
+    raise exception 'SYN_EXPECTED_SERVICE_ROLE_REQUIRED';
+  exception
+    when sqlstate 'P0001' then
+      if sqlerrm <> 'SERVICE_ROLE_REQUIRED' then raise; end if;
+  end;
+
+  perform set_config('request.jwt.claim.role', 'service_role', false);
+  select question_versions_changed, answer_versions_changed
+  into qvc, avc
+  from public.sync_master_relation_baselines_v2(q_input, a_input, m_input);
+
+  -- (10) versions_changed counts only genuine source_version lifecycle events:
+  -- exactly one removed question (Q-SYN-GONE) and two answers (A-SYN-GONE
+  -- removed + A-SYN-RP re-parented). Content drift is NOT counted.
+  if qvc <> 1 or avc <> 2 then
+    raise exception 'SYN_VERSIONS_CHANGED_UNEXPECTED: q=% a=%', qvc, avc;
+  end if;
+
+  -- (1)(2)(4) Q-SYN-001: content drift only.
+  if (select source_version from public.question_misconception_baselines
+      where question_id = 'Q-SYN-001') <> q1_version then
+    raise exception 'SYN_Q1_VERSION_ROTATED';
+  end if;
+  if (select source_fingerprint from public.question_misconception_baselines
+      where question_id = 'Q-SYN-001') <> 'fp-q-syn-001-v2'
+    or (select misconception_ids from public.question_misconception_baselines
+        where question_id = 'Q-SYN-001')
+       is distinct from array['M-SYN-001', 'M-SYN-EXTRA'] then
+    raise exception 'SYN_Q1_CONTENT_NOT_REFRESHED';
+  end if;
+  if (select count(distinct r.reviewer_id)
+      from public.question_reviews r
+      join public.question_misconception_baselines b
+        on b.question_id = r.question_id and b.source_version = r.source_version
+      where r.question_id = 'Q-SYN-001' and r.is_active) <> 3 then
+    raise exception 'SYN_Q1_REVIEWS_NOT_CURRENT';
+  end if;
+  if exists (
+    select 1 from public.question_reviews
+    where question_id = 'Q-SYN-001' and not is_active
+  ) then
+    raise exception 'SYN_Q1_REVIEW_DEACTIVATED';
+  end if;
+  if (select to_jsonb(o) from public.question_misconception_overrides o
+      where o.question_id = 'Q-SYN-001')
+     is distinct from q1_override_before then
+    raise exception 'SYN_Q1_OVERRIDE_CHANGED';
+  end if;
+
+  -- (3)(6) no review lifecycle event was written for Q-SYN-001 / A-SYN-001.
+  if (select count(*) from public.review_audit_log
+      where review_type = 'question' and target_id = 'Q-SYN-001')
+     <> q1_audit_before
+    or (select count(*) from public.review_audit_log
+        where review_type = 'answer' and target_id = 'A-SYN-001')
+       <> a1_audit_before
+    or exists (
+      select 1 from public.review_audit_log
+      where target_id in ('Q-SYN-001', 'A-SYN-001')
+        and event_type = 'source_updated'
+    ) then
+    raise exception 'SYN_CONTENT_DRIFT_WROTE_AUDIT';
+  end if;
+
+  -- (3)(5) A-SYN-001: content + misconception drift, parent unchanged.
+  if (select source_version from public.answer_misconception_baselines
+      where answer_id = 'A-SYN-001') <> a1_version
+    or (select source_fingerprint from public.answer_misconception_baselines
+        where answer_id = 'A-SYN-001') <> 'fp-a-syn-001-v2'
+    or (select misconception_ids from public.answer_misconception_baselines
+        where answer_id = 'A-SYN-001')
+       is distinct from array['M-SYN-001', 'M-SYN-EXTRA'] then
+    raise exception 'SYN_A1_NOT_REFRESHED_OR_ROTATED';
+  end if;
+  if (select count(distinct r.reviewer_id)
+      from public.answer_reviews r
+      join public.answer_misconception_baselines b
+        on b.answer_id = r.answer_id and b.source_version = r.source_version
+      where r.answer_id = 'A-SYN-001' and r.is_active) <> 3
+    or not exists (
+      select 1 from public.answer_misconception_overrides
+      where answer_id = 'A-SYN-001'
+    ) then
+    raise exception 'SYN_A1_REVIEWS_OR_OVERRIDE_LOST';
+  end if;
+
+  -- (preserved) A-SYN-RP re-parented: version rotates, review 'source_updated'.
+  if (select question_id from public.answer_misconception_baselines
+      where answer_id = 'A-SYN-RP') <> 'Q-SYN-002'
+    or (select source_version from public.answer_misconception_baselines
+        where answer_id = 'A-SYN-RP') = rp_version then
+    raise exception 'SYN_REPARENT_BASELINE_NOT_UPDATED';
+  end if;
+  if not exists (
+    select 1 from public.answer_reviews
+    where answer_id = 'A-SYN-RP'
+      and not is_active and inactive_reason = 'source_updated'
+      and inactive_at is not null
+  ) then
+    raise exception 'SYN_REPARENT_REVIEW_NOT_DEACTIVATED';
+  end if;
+
+  -- (preserved) disappeared targets: baseline gone, reviews 'source_updated'.
+  if exists (select 1 from public.question_misconception_baselines
+             where question_id = 'Q-SYN-GONE')
+    or exists (select 1 from public.answer_misconception_baselines
+               where answer_id = 'A-SYN-GONE') then
+    raise exception 'SYN_REMOVED_BASELINE_STILL_PRESENT';
+  end if;
+  if not exists (
+    select 1 from public.question_reviews
+    where question_id = 'Q-SYN-GONE'
+      and not is_active and inactive_reason = 'source_updated'
+  ) or not exists (
+    select 1 from public.answer_reviews
+    where answer_id = 'A-SYN-GONE'
+      and not is_active and inactive_reason = 'source_updated'
+  ) then
+    raise exception 'SYN_REMOVED_REVIEWS_NOT_DEACTIVATED';
+  end if;
+
+  -- (9) control question Q-SYN-002 is byte-for-byte untouched.
+  if (select source_version from public.question_misconception_baselines
+      where question_id = 'Q-SYN-002') <> q2_version
+    or (select jsonb_agg(to_jsonb(qr) order by qr.reviewer_id)
+        from public.question_reviews qr where qr.question_id = 'Q-SYN-002')
+       is distinct from q2_rows_before
+    or not exists (select 1 from public.question_misconception_overrides
+                   where question_id = 'Q-SYN-002') then
+    raise exception 'SYN_CONTROL_QUESTION_TOUCHED';
+  end if;
+
+  -- (11) the version guard still works: a save at the (unchanged) current
+  -- version succeeds; a save at a stale version fails closed.
+  perform set_config('request.jwt.claim.role', 'authenticated', false);
+  perform set_config('request.jwt.claim.sub',
+    '00000000-0000-4000-8000-000000000011', false);
+  perform public.save_question_review_v3(
+    'Q-SYN-001', q1_version,
+    false, '{}', null, false, '{}', null, 'syn q1 edited after drift');
+  begin
+    perform public.save_question_review_v3(
+      'Q-SYN-001', '46000000-0000-4000-8000-0000000000ff',
+      false, '{}', null, false, '{}', null, 'syn q1 stale');
+    raise exception 'SYN_EXPECTED_DATA_VERSION_CHANGED';
+  exception
+    when sqlstate 'P0001' then
+      if sqlerrm <> 'DATA_VERSION_CHANGED' then raise; end if;
+  end;
+  if (select count(*) from public.question_reviews
+      where question_id = 'Q-SYN-001' and is_active) <> 3 then
+    raise exception 'SYN_POST_DRIFT_EDIT_BROKE_COUNT';
+  end if;
+end;
+$syn_sync$;
+
+reset role;
+
 commit;

@@ -2793,7 +2793,12 @@ declare
   next_version uuid;
   previous_fingerprint text;
   previous_ids text[];
+  previous_question_id text;
 
+  -- source_version lifecycle events only: a brand-new target, a target that has
+  -- disappeared from the canonical snapshot, or an answer re-parented to a
+  -- different question. Ordinary canonical content / misconception drift for an
+  -- existing target does NOT rotate source_version and is NOT counted here.
   changed_questions integer := 0;
   changed_answers integer := 0;
 
@@ -3053,32 +3058,19 @@ begin
     elsif previous_fingerprint is distinct from incoming_fingerprint
        or previous_ids is distinct from incoming_ids
     then
-      next_version := gen_random_uuid();
-
-      -- Review versi sebelumnya tetap ada untuk Histori,
-      -- tetapi tidak boleh ikut consensus versi baru.
-      update public.question_reviews
-      set
-        is_active = false,
-        inactive_reason = 'source_updated',
-        inactive_at = sync_time
-      where question_id = target_question_id
-        and is_active = true;
-
-      -- Hasil review versi sebelumnya tidak lagi effective.
-      delete from public.question_misconception_overrides
-      where question_id = target_question_id;
-
+      -- Ordinary canonical content / misconception drift for an existing
+      -- question. The effective content and fingerprint are refreshed, but this
+      -- is NOT a review lifecycle event: source_version stays stable, active
+      -- Question Reviews stay active, and any review-consensus override is left
+      -- in place. Question Reviews are reset only by the explicit admin
+      -- reset_question_reviews_v3 action.
       update public.question_misconception_baselines
       set
         misconception_ids = incoming_ids,
         synced_by = null,
         synced_at = sync_time,
-        source_version = next_version,
         source_fingerprint = incoming_fingerprint
       where question_id = target_question_id;
-
-      changed_questions := changed_questions + 1;
 
     else
       -- Tidak berubah: version tetap.
@@ -3131,15 +3123,18 @@ begin
     previous_version := null;
     previous_fingerprint := null;
     previous_ids := null;
+    previous_question_id := null;
 
     select
       baseline.source_version,
       baseline.source_fingerprint,
-      baseline.misconception_ids
+      baseline.misconception_ids,
+      baseline.question_id
     into
       previous_version,
       previous_fingerprint,
-      previous_ids
+      previous_ids,
+      previous_question_id
     from public.answer_misconception_baselines baseline
     where baseline.answer_id = target_answer_id;
 
@@ -3167,15 +3162,11 @@ begin
 
       changed_answers := changed_answers + 1;
 
-    elsif previous_fingerprint is distinct from incoming_fingerprint
-       or previous_ids is distinct from incoming_ids
-       or exists (
-         select 1
-         from public.answer_misconception_baselines baseline
-         where baseline.answer_id = target_answer_id
-           and baseline.question_id is distinct from target_parent_question_id
-       )
-    then
+    elsif previous_question_id is distinct from target_parent_question_id then
+      -- The answer moved to a different parent question. Re-parenting changes
+      -- what an Answer Review is about, so the previous lifecycle is preserved
+      -- exactly: rotate source_version, deactivate active Answer Reviews as
+      -- 'source_updated', and drop the review-consensus override.
       next_version := gen_random_uuid();
 
       update public.answer_reviews
@@ -3200,6 +3191,21 @@ begin
       where answer_id = target_answer_id;
 
       changed_answers := changed_answers + 1;
+
+    elsif previous_fingerprint is distinct from incoming_fingerprint
+       or previous_ids is distinct from incoming_ids
+    then
+      -- Ordinary canonical content / misconception drift for an existing answer
+      -- whose parent question is unchanged. Not a review lifecycle event:
+      -- source_version stays stable, active Answer Reviews stay active, and any
+      -- review-consensus override is left in place.
+      update public.answer_misconception_baselines
+      set
+        misconception_ids = incoming_ids,
+        synced_by = null,
+        synced_at = sync_time,
+        source_fingerprint = incoming_fingerprint
+      where answer_id = target_answer_id;
 
     else
       update public.answer_misconception_baselines
