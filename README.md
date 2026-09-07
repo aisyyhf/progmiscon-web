@@ -140,8 +140,7 @@ options accept either a single `text` value, used unchanged in both languages, o
 bilingual pair of `text_ind` and `text_en`. Providing both forms for the same option is
 rejected as an authoring error.
 
-Localization coverage of long-form concept and misconception material is still being
-expanded.
+Localization coverage across canonical content is still being expanded.
 
 ## Review workflow
 
