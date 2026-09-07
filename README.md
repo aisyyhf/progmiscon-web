@@ -1,4 +1,4 @@
-# Progmiscon Web
+# Progmiscon
 
 Progmiscon is a web application for exploring introductory programming questions, the
 concepts behind them, and the misconceptions that commonly appear in student answers.
@@ -298,6 +298,6 @@ Working today:
 
 Ongoing work:
 
-- Expanding localized long-form concept and misconception material.
+- Expanding localization coverage across canonical content.
 - Continued validation and cleanup of canonical content.
 - UI refinement in the review and administration areas.
