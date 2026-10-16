@@ -4,6 +4,8 @@ A web app for exploring introductory programming questions, the concepts behind 
 
 A wrong answer from a beginner is rarely random. It usually reflects a specific misunderstanding, such as execution order or expression evaluation. Progmiscon links each question to its concepts and to the misconceptions its answers can reveal, and keeps that mapping accurate through lecturer review.
 
+I built this project on my own, from the database and data pipeline to the frontend and deployment.
+
 ## Features
 
 - **Question bank:** browse questions by concept and week, view pseudocode, sample cases, and recorded answer variations, and filter answers by misconception
